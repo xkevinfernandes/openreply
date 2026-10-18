@@ -446,5 +446,19 @@
   "{name} Campaign Report": "{name} 活動報表",
   "{type} post": "{type} 貼文",
   "”": "」",
-  "← Campaigns": "← 返回活動列表"
+  "← Campaigns": "← 返回活動列表",
+  "Email list (Kit)": "電子郵件名單（Kit）",
+  "Campaigns with an email gate ask for an email before the link and add it to Kit, tagged per campaign.": "啟用電子郵件關卡的活動會在傳送連結前詢問電子郵件，並依活動加上標籤後加入 Kit。",
+  "Ask your workspace owner or admin to connect Kit.": "請工作區擁有者或管理員連結 Kit。",
+  "Kit API key": "Kit API 金鑰",
+  "A v4 API key from Kit → Settings → Developer. It is encrypted and never shown again.": "請使用 Kit → 設定 → 開發者中的 v4 API 金鑰。金鑰會加密保存，且不會再次顯示。",
+  "Connect Kit": "連結 Kit",
+  "Kit connected. {count} tags available.": "Kit 已連結，共有 {count} 個標籤。",
+  "Disconnect Kit": "中斷 Kit 連結",
+  "their email first": "先取得對方的電子郵件",
+  "what's the best email to send it to?": "要寄到哪個電子郵件比較好？",
+  "hmm, that doesn't look like an email. what's the best one to send it to?": "嗯，這看起來不像電子郵件。要寄到哪個電子郵件比較好？",
+  "No Kit tag": "不加 Kit 標籤",
+  "Connect Kit in Settings to save these emails to your list.": "請在設定中連結 Kit，才能把這些電子郵件存到名單。",
+  "We ask for their email and send the link once they reply with one. If they don't give one after two tries, we send the link anyway.": "我們會先詢問電子郵件，對方回覆後再傳送連結。若詢問兩次仍未提供，仍會傳送連結。"
 }

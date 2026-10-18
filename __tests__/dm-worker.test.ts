@@ -16,6 +16,7 @@ const {
   mockQueueAdd,
   mockReserveWorkspaceDMSend,
   mockReleaseWorkspaceDMReservation,
+  mockSyncLead,
 } = vi.hoisted(() => ({
   mockPrisma: {
     zernioConnection: { findUnique: vi.fn() },
@@ -38,6 +39,12 @@ const {
     operationalEvent: {
       create: vi.fn(),
     },
+    emailCapture: {
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+      update: vi.fn(),
+    },
   },
   mockSendPrivateReply: vi.fn(),
   mockSendPrivateReplyWithLinkButton: vi.fn(),
@@ -53,6 +60,11 @@ const {
   mockQueueAdd: vi.fn(),
   mockReserveWorkspaceDMSend: vi.fn(),
   mockReleaseWorkspaceDMReservation: vi.fn(),
+  mockSyncLead: vi.fn(),
+}));
+
+vi.mock("@/lib/crm", () => ({
+  syncLead: mockSyncLead,
 }));
 
 vi.mock("@/lib/db/client", () => ({
@@ -289,6 +301,11 @@ beforeEach(() => {
     message_id: "msg_006",
   });
   mockGetUserFollowStatus.mockResolvedValue(true);
+  mockPrisma.emailCapture.findFirst.mockResolvedValue(null);
+  mockPrisma.emailCapture.findUnique.mockResolvedValue(null);
+  mockPrisma.emailCapture.upsert.mockResolvedValue({});
+  mockPrisma.emailCapture.update.mockResolvedValue({});
+  mockSyncLead.mockResolvedValue({ ok: true });
 });
 
 describe("DM Worker — comments left on an ad", () => {
@@ -1763,4 +1780,121 @@ it("retains the public reply claim if sending succeeded but its log write failed
   await process({ ...createMockJob(), id: "next-poll" });
   expect(sendCommentReply).toHaveBeenCalledTimes(1);
   expect(mockSendPrivateReply).toHaveBeenCalledTimes(1);
+});
+
+describe("DM Worker — email gate", () => {
+  const gatedAutomation = {
+    ...mockAutomation,
+    requireEmail: true,
+    emailPromptMessage: "what's the best email to send it to?",
+    emailRetryMessage: null,
+    crmTagId: "22639646",
+    followUpEnabled: false,
+    followUpMessage: null,
+  };
+  const openCapture = {
+    id: "cap_1",
+    workspaceId: "workspace_123",
+    automationId: "auto_789",
+    instagramAccountId: "ig_account_row_1",
+    userId: "commenter_999",
+    username: "commenter_user",
+    status: "AWAITING",
+    attempts: 0,
+  };
+
+  function messageJob(messageText: string) {
+    return {
+      name: "process-message",
+      data: { instagramAccountId: "ig_456", messageId: "mid_gate", messageText, senderId: "commenter_999" },
+      id: "message_job_gate",
+      attemptsMade: 0,
+    };
+  }
+
+  it("asks for the email in the private reply instead of sending the link", async () => {
+    mockPrisma.automation.findMany.mockResolvedValue([gatedAutomation]);
+    await getProcessor()(createMockJob());
+
+    expect(mockSendPrivateReply).toHaveBeenCalledWith(
+      "decrypted_token", "ig_456", "comment_555", "what's the best email to send it to?"
+    );
+    expect(mockSendPrivateReplyWithLinkButton).not.toHaveBeenCalled();
+    expect(mockPrisma.emailCapture.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { automationId_userId: { automationId: "auto_789", userId: "commenter_999" } },
+        create: expect.objectContaining({ username: "commenter_user", instagramAccountId: "ig_account_row_1" }),
+      })
+    );
+  });
+
+  it("sends the link straight away once this person already gave their email", async () => {
+    mockPrisma.automation.findMany.mockResolvedValue([gatedAutomation]);
+    mockPrisma.emailCapture.findUnique.mockResolvedValue({ status: "CAPTURED" });
+    await getProcessor()(createMockJob());
+
+    expect(mockSendPrivateReply).toHaveBeenCalledWith(
+      "decrypted_token", "ig_456", "comment_555", "Hey commenter_user! Here is the link: https://example.com"
+    );
+    expect(mockPrisma.emailCapture.upsert).not.toHaveBeenCalled();
+  });
+
+  it("syncs the email to the list, then sends the link, and skips keyword campaigns", async () => {
+    mockPrisma.emailCapture.findFirst.mockResolvedValue(openCapture);
+    mockPrisma.automation.findFirst.mockResolvedValue(gatedAutomation);
+    await getProcessor()(messageJob("sure! it's Sam@Example.com."));
+
+    expect(mockSyncLead).toHaveBeenCalledWith("workspace_123", { email: "sam@example.com", tagIds: ["22639646"] });
+    expect(mockSendDirectMessage).toHaveBeenCalledWith(
+      "decrypted_token", "ig_456", "commenter_999", "Hey commenter_user! Here is the link: https://example.com"
+    );
+    expect(mockPrisma.emailCapture.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: { id: "cap_1" }, data: expect.objectContaining({ status: "CAPTURED" }) })
+    );
+    expect(mockPrisma.automation.findMany).not.toHaveBeenCalled();
+  });
+
+  it("asks again when the reply has no email, without sending the link", async () => {
+    mockPrisma.emailCapture.findFirst.mockResolvedValue(openCapture);
+    mockPrisma.automation.findFirst.mockResolvedValue(gatedAutomation);
+    await getProcessor()(messageJob("what is this for?"));
+
+    expect(mockSendDirectMessage).toHaveBeenCalledTimes(1);
+    expect(mockSendDirectMessage).toHaveBeenCalledWith(
+      "decrypted_token", "ig_456", "commenter_999", expect.stringContaining("doesn't look like an email")
+    );
+    expect(mockSyncLead).not.toHaveBeenCalled();
+    expect(mockPrisma.emailCapture.update).toHaveBeenCalledWith({
+      where: { id: "cap_1" },
+      data: { attempts: { increment: 1 } },
+    });
+  });
+
+  it("sends the link anyway after the second reply without an email", async () => {
+    mockPrisma.emailCapture.findFirst.mockResolvedValue({ ...openCapture, attempts: 1 });
+    mockPrisma.automation.findFirst.mockResolvedValue(gatedAutomation);
+    await getProcessor()(messageJob("nah just send it"));
+
+    expect(mockSyncLead).not.toHaveBeenCalled();
+    expect(mockSendDirectMessage).toHaveBeenCalledWith(
+      "decrypted_token", "ig_456", "commenter_999", "Hey commenter_user! Here is the link: https://example.com"
+    );
+    expect(mockPrisma.emailCapture.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "GAVE_UP" }) })
+    );
+  });
+
+  it("still sends the link when the list sync fails, and records it", async () => {
+    mockPrisma.emailCapture.findFirst.mockResolvedValue(openCapture);
+    mockPrisma.automation.findFirst.mockResolvedValue(gatedAutomation);
+    mockSyncLead.mockResolvedValue({ ok: false, error: "Kit request failed (HTTP 500)" });
+    await getProcessor()(messageJob("sam@example.com"));
+
+    expect(mockSendDirectMessage).toHaveBeenCalledWith(
+      "decrypted_token", "ig_456", "commenter_999", "Hey commenter_user! Here is the link: https://example.com"
+    );
+    expect(mockPrisma.operationalEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ level: "WARNING" }) })
+    );
+  });
 });

@@ -446,5 +446,19 @@
   "{name} Campaign Report": "Relatório da campanha {name}",
   "{type} post": "Publicação {type}",
   "”": "”",
-  "← Campaigns": "← Campanhas"
+  "← Campaigns": "← Campanhas",
+  "Email list (Kit)": "Lista de e-mails (Kit)",
+  "Campaigns with an email gate ask for an email before the link and add it to Kit, tagged per campaign.": "Campanhas com etapa de e-mail pedem o e-mail antes do link e o adicionam ao Kit, com uma tag por campanha.",
+  "Ask your workspace owner or admin to connect Kit.": "Peça ao proprietário ou administrador do workspace para conectar o Kit.",
+  "Kit API key": "Chave de API do Kit",
+  "A v4 API key from Kit → Settings → Developer. It is encrypted and never shown again.": "Uma chave de API v4 em Kit → Configurações → Desenvolvedor. Ela é criptografada e nunca mais exibida.",
+  "Connect Kit": "Conectar Kit",
+  "Kit connected. {count} tags available.": "Kit conectado. {count} tags disponíveis.",
+  "Disconnect Kit": "Desconectar Kit",
+  "their email first": "o e-mail da pessoa primeiro",
+  "what's the best email to send it to?": "qual o melhor e-mail pra eu te mandar?",
+  "hmm, that doesn't look like an email. what's the best one to send it to?": "hmm, isso não parece um e-mail. qual o melhor pra eu te mandar?",
+  "No Kit tag": "Sem tag do Kit",
+  "Connect Kit in Settings to save these emails to your list.": "Conecte o Kit nas Configurações para salvar esses e-mails na sua lista.",
+  "We ask for their email and send the link once they reply with one. If they don't give one after two tries, we send the link anyway.": "Pedimos o e-mail e enviamos o link quando a pessoa responder com um. Se não informar depois de duas tentativas, enviamos o link mesmo assim."
 }

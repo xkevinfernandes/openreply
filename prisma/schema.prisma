@@ -76,6 +76,8 @@ model Workspace {
   dmsSentThisPeriod Int      @default(0)
 
   zernioConnection  ZernioConnection?
+  crmConnections    CrmConnection[]
+  emailCaptures     EmailCapture[]
   members           WorkspaceMember[]
   invitations       WorkspaceInvitation[]
   instagramAccounts InstagramAccount[]
@@ -198,6 +200,13 @@ model Automation {
   // Minutes to wait after the link is delivered before sending the follow-up.
   // 0 sends it right away.
   followUpDelayMinutes Int @default(0)
+  // Email gate: ask for their email before the link. Their reply is captured,
+  // synced to the workspace's email list (Kit), and only then is the link sent.
+  requireEmail       Boolean @default(false)
+  emailPromptMessage String?
+  emailRetryMessage  String?
+  // Where the email goes in the list: a Kit tag id today, a GHL tag later.
+  crmTagId           String?
   publicReplyEnabled Boolean @default(false)
   publicReplyMessage String?
   publicReplyMessages String[] @default([])
@@ -214,6 +223,7 @@ model Automation {
   dmLogs           DmLog[]
   trackedLinks     TrackedLink[]
   linkClicks       LinkClick[]
+  emailCaptures    EmailCapture[]
 
   @@index([workspaceId])
   @@index([instagramAccountId])
@@ -418,4 +428,54 @@ model ZernioConnection {
 model PostbackDelivery {
   id String @id
   createdAt DateTime @default(now())
+}
+
+enum CrmProvider {
+  KIT
+}
+
+/// An email list / CRM the workspace syncs captured leads into. The API key is
+/// encrypted with ENCRYPTION_KEY, like Instagram tokens.
+model CrmConnection {
+  id          String      @id @default(cuid())
+  workspaceId String
+  provider    CrmProvider
+  apiKey      String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, provider])
+}
+
+enum EmailCaptureStatus {
+  AWAITING
+  CAPTURED
+  GAVE_UP
+}
+
+/// One email-gate conversation: we asked a person for their email for one
+/// campaign. Their next DMs are read as answers until it is CAPTURED (link sent)
+/// or GAVE_UP (they never gave one; the link is sent anyway).
+model EmailCapture {
+  id                 String             @id @default(cuid())
+  workspaceId        String
+  automationId       String
+  instagramAccountId String
+  userId             String
+  username           String?
+  status             EmailCaptureStatus @default(AWAITING)
+  email              String?
+  attempts           Int                @default(0)
+  crmSyncedAt        DateTime?
+  crmError           String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  automation Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  @@unique([automationId, userId])
+  @@index([instagramAccountId, userId, status])
+  @@index([workspaceId])
 }

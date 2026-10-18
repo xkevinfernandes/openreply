@@ -49,6 +49,10 @@ interface LoadedCampaign {
   followUpEnabled: boolean;
   followUpMessage: string | null;
   followUpDelayMinutes: number | null;
+  requireEmail?: boolean;
+  emailPromptMessage?: string | null;
+  emailRetryMessage?: string | null;
+  crmTagId?: string | null;
   publicReplyEnabled: boolean;
   publicReplyMessage: string | null;
   publicReplyMessages: string[];
@@ -182,6 +186,19 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
   const [followUpEnabled, setFollowUpEnabled] = useState(false);
   const [followUpMessage, setFollowUpMessage] = useState("");
   const [followUpDelayMinutes, setFollowUpDelayMinutes] = useState(0);
+  const [requireEmail, setRequireEmail] = useState(false);
+  const [emailPromptMessage, setEmailPromptMessage] = useState("");
+  const [emailRetryMessage, setEmailRetryMessage] = useState("");
+  const [crmTagId, setCrmTagId] = useState("");
+  const [kitTags, setKitTags] = useState<{ id: string; name: string }[] | null>(null);
+
+  useEffect(() => {
+    if (!requireEmail || kitTags !== null) return;
+    void fetch("/api/crm/kit", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((result) => setKitTags(result.success && result.data.configured ? result.data.tags : []))
+      .catch(() => setKitTags([]));
+  }, [requireEmail, kitTags]);
 
   const [previewTab, setPreviewTab] = useState<PreviewTab>("dm");
 
@@ -290,6 +307,10 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
         setFollowUpEnabled(c.followUpEnabled ?? false);
         setFollowUpMessage(c.followUpMessage ?? "");
         setFollowUpDelayMinutes(c.followUpDelayMinutes ?? 0);
+        setRequireEmail(c.requireEmail ?? false);
+        setEmailPromptMessage(c.emailPromptMessage ?? "");
+        setEmailRetryMessage(c.emailRetryMessage ?? "");
+        setCrmTagId(c.crmTagId ?? "");
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
@@ -429,6 +450,10 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
       followUpEnabled,
       followUpMessage: followUpEnabled ? followUpMessage.trim() : "",
       followUpDelayMinutes: followUpEnabled ? followUpDelayMinutes : 0,
+      requireEmail,
+      emailPromptMessage: requireEmail ? emailPromptMessage.trim() : "",
+      emailRetryMessage: requireEmail ? emailRetryMessage.trim() : "",
+      crmTagId: requireEmail ? crmTagId : "",
       isActive: activeValue,
     };
 
@@ -856,6 +881,56 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
                 />
                 <p className="text-xs text-muted">
                   {t("We send the link only after they tap the button and Instagram confirms the follow. If it can't be verified, we send it anyway.")}
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="mt-3 rounded-lg border border-border p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-foreground">
+                {t("their email first")}
+              </span>
+              <Toggle
+                on={requireEmail}
+                onToggle={() => setRequireEmail(!requireEmail)}
+              />
+            </div>
+            {requireEmail && (
+              <div className="mt-3 space-y-2">
+                <textarea
+                  value={emailPromptMessage}
+                  onChange={(e) => setEmailPromptMessage(e.target.value)}
+                  placeholder={t("what's the best email to send it to?")}
+                  rows={2}
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus:border-accent/40 focus:outline-none resize-none"
+                  maxLength={1000}
+                />
+                <textarea
+                  value={emailRetryMessage}
+                  onChange={(e) => setEmailRetryMessage(e.target.value)}
+                  placeholder={t("hmm, that doesn't look like an email. what's the best one to send it to?")}
+                  rows={2}
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus:border-accent/40 focus:outline-none resize-none"
+                  maxLength={1000}
+                />
+                {kitTags && kitTags.length > 0 ? (
+                  <select
+                    value={crmTagId}
+                    onChange={(e) => setCrmTagId(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent/40 focus:outline-none"
+                  >
+                    <option value="">{t("No Kit tag")}</option>
+                    {kitTags.map((tag) => (
+                      <option key={tag.id} value={tag.id}>{tag.name}</option>
+                    ))}
+                  </select>
+                ) : kitTags ? (
+                  <p className="text-xs text-error">
+                    {t("Connect Kit in Settings to save these emails to your list.")}
+                  </p>
+                ) : null}
+                <p className="text-xs text-muted">
+                  {t("We ask for their email and send the link once they reply with one. If they don't give one after two tries, we send the link anyway.")}
                 </p>
               </div>
             )}

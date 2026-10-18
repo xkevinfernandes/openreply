@@ -54,6 +54,15 @@ import { TRACKED_LINK_ORDER } from "@/lib/tracking/link-order";
 import { hashRecipientId } from "@/lib/tracking/server";
 
 import { ZernioApiError } from "@/lib/zernio/client";
+import {
+  decideGateReply,
+  findOpenCapture,
+  needsEmail,
+  openCapture,
+  promptText as emailPromptText,
+  retryText as emailRetryText,
+  syncCapture,
+} from "@/lib/email-gate";
 
 const BACKOFF_DELAYS = [5 * 60 * 1000, 15 * 60 * 1000, 45 * 60 * 1000];
 
@@ -271,6 +280,37 @@ async function sendRevealDirectMessage({
   }
 }
 
+
+type GatedRevealAutomation = RevealAutomation & Parameters<typeof needsEmail>[0];
+
+/**
+ * The reveal, unless the campaign's email gate still needs this person's email:
+ * then the email prompt goes out instead and the link waits for their reply
+ * (see processEmailGateReply).
+ */
+async function sendRevealOrEmailPrompt(args: {
+  accessToken: InstagramContext;
+  automation: GatedRevealAutomation;
+  userId: string;
+  commenterName: string | null;
+  context: string;
+}): Promise<"revealed" | "prompted"> {
+  if (await needsEmail(args.automation, args.userId)) {
+    await sendDirectMessage({
+      context: args.accessToken,
+      instagramAccountId: args.automation.instagramAccount.instagramId,
+      userId: args.userId,
+      message: renderMessageWithoutLink({
+        message: emailPromptText(args.automation),
+        commenterName: args.commenterName,
+      }),
+    });
+    await openCapture(args.automation, args.userId, args.commenterName);
+    return "prompted";
+  }
+  await sendRevealDirectMessage(args);
+  return "revealed";
+}
 
 function connectionScope(data: DmQueueJob) {
   return data.accountConnectionId ? { instagramAccountId: data.accountConnectionId } : {};
@@ -648,6 +688,10 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
           : alreadyFollows !== true;
     }
 
+    // Email gate on the comment itself: the private reply asks for the email,
+    // and their answer (a DM) is what delivers the link.
+    const askEmail =
+      !useOpeningDm && !sendFollowPrompt && (await needsEmail(automation, commenterId));
     let claimed;
     try {
       claimed = await claimCommentDelivery(automation.id, commentId, "dm");
@@ -696,6 +740,18 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
           payload: `followcheck:${automation.id}`,
           postId: mediaId,
         });
+      } else if (askEmail) {
+        await sendPrivateReply({
+          context: accessToken,
+          instagramAccountId: automation.instagramAccount.instagramId,
+          commentId: commentId,
+          message: renderMessageWithoutLink({
+            message: emailPromptText(automation),
+            commenterName,
+          }),
+          postId: mediaId,
+        });
+        await openCapture(automation, commenterId, commenterName ?? null);
       } else if (automation.trackedLinks.length > 0) {
         // Try button template first; if Meta rejects it, fall back to inline links.
         const bodyText =
@@ -1106,16 +1162,18 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
   }
 
   try {
+    let outcome: "revealed" | "prompted" = "revealed";
     const delivered = await sendPostbackOnce({
       operationId,
-      send: () =>
-        sendRevealDirectMessage({
+      send: async () => {
+        outcome = await sendRevealOrEmailPrompt({
           accessToken: accessToken,
           automation: automation,
           userId: userId,
           commenterName: commenterName,
           context: "postback",
-        }),
+        });
+      },
     });
     if (!delivered) {
       await releaseWorkspaceDMReservation(
@@ -1128,7 +1186,8 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
     // short thank-you. It is scheduled as its own delayed job so it can go out
     // some minutes later (followUpDelayMinutes) rather than immediately. The
     // deterministic job id dedupes repeat button taps to one follow-up per user.
-    if (automation.followUpEnabled && automation.followUpMessage?.trim()) {
+    // Behind the email gate the link has not gone out yet; the gate schedules it.
+    if (outcome === "revealed" && automation.followUpEnabled && automation.followUpMessage?.trim()) {
       const delayMs =
         Math.max(0, automation.followUpDelayMinutes ?? 0) * 60_000;
       await getDMQueue().add(
@@ -1276,8 +1335,124 @@ async function processFollowUp(job: Job<ProcessFollowUpJob>): Promise<void> {
  * comments) and delivers the reveal directly, honouring the follow gate.
  * Dedup is per inbound message id, so each message triggers at most one reply.
  */
+/**
+ * Their DM after an email prompt. With an email: sync it to the list, then send
+ * the link. Without: ask once more, then send the link anyway. Returns false
+ * when no prompt is open for this sender, so the DM is handled as usual.
+ *
+ * The capture only moves to CAPTURED / GAVE_UP after the link is sent, so a
+ * failed send is retried by the job; the list upsert is idempotent on email.
+ */
+async function processEmailGateReply(job: Job<ProcessMessageJob>): Promise<boolean> {
+  const { instagramAccountId, messageId, messageText, senderId } = job.data;
+  const capture = await findOpenCapture(instagramAccountId, senderId, job.data.accountConnectionId);
+  if (!capture) return false;
+
+  const automation = await prisma.automation.findFirst({
+    where: { id: capture.automationId, isActive: true, ...connectionScope(job.data) },
+    include: {
+      instagramAccount: true,
+      trackedLinks: {
+        select: { slug: true, label: true, destinationUrl: true },
+        orderBy: TRACKED_LINK_ORDER,
+      },
+    },
+  });
+  if (!automation || !hasInstagramCredentials(automation.instagramAccount)) return false;
+
+  const accessToken = await createInstagramContext(
+    automation.instagramAccount,
+    `${job.id}:${automation.id}:email`
+  );
+  const commenterName = capture.username;
+  const outcome = decideGateReply(messageText, capture.attempts);
+
+  if (outcome.kind === "retry") {
+    await sendDirectMessage({
+      context: accessToken,
+      instagramAccountId: automation.instagramAccount.instagramId,
+      userId: senderId,
+      message: renderMessageWithoutLink({ message: emailRetryText(automation), commenterName }),
+    });
+    await prisma.emailCapture.update({
+      where: { id: capture.id },
+      data: { attempts: { increment: 1 } },
+    });
+  } else {
+    if (outcome.kind === "captured") {
+      const sync = await syncCapture(capture, automation, outcome.email);
+      if (!sync.ok) {
+        await prisma.operationalEvent
+          .create({
+            data: {
+              workspaceId: automation.workspaceId,
+              source: "WORKER",
+              level: "WARNING",
+              message: "Email captured but not synced to the email list",
+              payload: { automationId: automation.id, captureId: capture.id, error: sync.error ?? null },
+            },
+          })
+          .catch(() => {});
+      }
+    }
+    await sendRevealDirectMessage({
+      accessToken,
+      automation,
+      userId: senderId,
+      commenterName,
+      context: "email gate",
+    });
+    await prisma.emailCapture.update({
+      where: { id: capture.id },
+      data: {
+        status: outcome.kind === "captured" ? "CAPTURED" : "GAVE_UP",
+        attempts: outcome.kind === "captured" ? capture.attempts : capture.attempts + 1,
+      },
+    });
+    if (automation.followUpEnabled && automation.followUpMessage?.trim()) {
+      await getDMQueue().add(
+        FOLLOWUP_JOB_NAME,
+        {
+          instagramAccountId: automation.instagramAccount.instagramId,
+          accountConnectionId: automation.instagramAccountId,
+          userId: senderId,
+          automationId: automation.id,
+          commenterName,
+        },
+        {
+          delay: Math.max(0, automation.followUpDelayMinutes ?? 0) * 60_000,
+          jobId: `followup_${automation.id}_${senderId}`,
+        }
+      );
+    }
+  }
+
+  const dedupeId = `email:${messageId}`;
+  await prisma.dmLog.upsert({
+    where: { automationId_commentId: { automationId: automation.id, commentId: dedupeId } },
+    create: {
+      workspaceId: automation.workspaceId,
+      automationId: automation.id,
+      instagramAccountId: automation.instagramAccountId,
+      commenterId: senderId,
+      commenterName,
+      commentText: messageText,
+      commentId: dedupeId,
+      matchedKeyword: outcome.kind === "captured" ? "email" : null,
+      status: "SENT",
+      dmSentAt: new Date(),
+    },
+    update: { status: "SENT", dmSentAt: new Date(), errorMessage: null },
+  });
+  return true;
+}
+
 async function processMessage(job: Job<ProcessMessageJob>): Promise<void> {
   const { instagramAccountId, messageId, messageText, senderId } = job.data;
+
+  // A DM that answers an open email prompt belongs to that gate, not to the
+  // keyword campaigns below.
+  if (await processEmailGateReply(job)) return;
 
   const automations = await prisma.automation.findMany({
     where: {
@@ -1453,7 +1628,7 @@ async function processMessage(job: Job<ProcessMessageJob>): Promise<void> {
           payload: `followcheck:${automation.id}`,
         });
       } else {
-        await sendRevealDirectMessage({
+        const outcome = await sendRevealOrEmailPrompt({
           accessToken: accessToken,
           automation: automation,
           userId: senderId,
@@ -1463,8 +1638,8 @@ async function processMessage(job: Job<ProcessMessageJob>): Promise<void> {
 
         // The link has been delivered, so the appreciation follow-up applies
         // here exactly as it does after a button tap. Not scheduled behind the
-        // follow prompt — no link went out yet in that branch.
-        if (automation.followUpEnabled && automation.followUpMessage?.trim()) {
+        // follow prompt or the email prompt — no link went out yet there.
+        if (outcome === "revealed" && automation.followUpEnabled && automation.followUpMessage?.trim()) {
           await getDMQueue().add(
             FOLLOWUP_JOB_NAME,
             {
