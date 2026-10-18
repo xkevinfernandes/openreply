@@ -5,9 +5,11 @@ import { attachPendingNextReels } from "@/lib/automation/attach-next-reel";
 import os from "node:os";
 // DM OS (our fork): J's setter queue runs on the same worker process.
 import { createSetterWorker } from "@/lib/os/setter/queue";
+import { createSyncWorker } from "@/lib/os/integrations/queue";
 
 const worker = createDMWorker();
 const setterWorker = createSetterWorker();
+const syncWorker = createSyncWorker();
 const startedAt = new Date().toISOString();
 const HEARTBEAT_INTERVAL_MS = 30_000;
 // Polling safety net for comments that webhooks miss. Runs in the worker because
@@ -57,6 +59,7 @@ async function shutdown(signal: string) {
   clearInterval(pollTimer);
   await worker.close();
   await setterWorker.close();
+  await syncWorker.close();
   process.exit(0);
 }
 

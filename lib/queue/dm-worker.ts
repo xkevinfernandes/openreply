@@ -63,6 +63,7 @@ import {
   retryText as emailRetryText,
   syncCapture,
 } from "@/lib/email-gate";
+import { recordCapturedEmail } from "@/lib/os/integrations/events";
 
 const BACKOFF_DELAYS = [5 * 60 * 1000, 15 * 60 * 1000, 45 * 60 * 1000];
 
@@ -1411,6 +1412,8 @@ async function processEmailGateReply(job: Job<ProcessMessageJob>): Promise<boole
         attempts: outcome.kind === "captured" ? capture.attempts : capture.attempts + 1,
       },
     });
+    // DM OS (our fork): store the email on the Contact and push it to the CRMs.
+    if (outcome.kind === "captured") await recordCapturedEmail({ workspaceId: automation.workspaceId, instagramAccountId: automation.instagramAccountId, igUserId: senderId, username: capture.username, email: outcome.email });
     if (automation.followUpEnabled && automation.followUpMessage?.trim()) {
       await getDMQueue().add(
         FOLLOWUP_JOB_NAME,

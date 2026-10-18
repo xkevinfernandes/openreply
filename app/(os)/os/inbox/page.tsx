@@ -3,15 +3,28 @@ import Avatar from "@/components/os/inbox/avatar";
 import Composer from "@/components/os/inbox/composer";
 import { initialSource, threadName } from "@/components/os/inbox/names";
 import ContactControls from "@/components/os/inbox/contact-controls";
+import SyncStatus from "@/components/os/integrations/sync-status";
 import ThreadList from "@/components/os/inbox/thread-list";
 import { TriageSuggestion } from "@/components/os/inbox/triage";
 import { isUnsure } from "@/lib/os/triage-copy";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { getThreadMessages, listThreads, type InboxMessage, type InboxThread } from "@/lib/os/inbox";
+import { activeProviders } from "@/lib/os/integrations/store";
+import { contactSyncLines, type ContactSyncLine } from "@/lib/os/integrations/view";
 import { entryLabels, kindTabs } from "@/lib/os/labels";
 import { osMockEnabled } from "@/lib/os/mock";
 import { pendingDrafts } from "@/lib/os/setter/service";
 import type { DraftView } from "@/lib/os/setter/store";
+
+/** The selected contact's CRM sync log. Cheap reads; a failure hides it. */
+async function loadSyncLines(workspaceId: string, contactId: string | undefined): Promise<ContactSyncLine[]> {
+  if (!contactId || osMockEnabled()) return [];
+  try {
+    return await contactSyncLines(workspaceId, contactId, await activeProviders(workspaceId));
+  } catch {
+    return [];
+  }
+}
 
 type PageProps = { searchParams: Promise<{ tab?: string; c?: string; drafts?: string }> };
 
@@ -48,6 +61,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const tab = kindTabs.some((k) => k.tab === params.tab) ? params.tab! : "sales";
   const { connected, threads, selected, messages, drafts, error, now } = await loadInbox(workspaceId, params.c);
+  const syncLines = await loadSyncLines(workspaceId, selected?.contact?.id);
   const draftByContact = new Map(drafts.map((d) => [d.contactId, d]));
   const selectedDraft = selected?.contact ? (draftByContact.get(selected.contact.id) ?? null) : null;
   const draftBlockedReason = !selected?.contact
@@ -123,6 +137,8 @@ export default async function InboxPage({ searchParams }: PageProps) {
                 />
               )}
             </header>
+
+            <SyncStatus lines={syncLines} now={now} />
 
             {selected.contact &&
               ((selected.contact.suggestedKind &&

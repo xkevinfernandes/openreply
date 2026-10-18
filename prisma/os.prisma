@@ -79,6 +79,8 @@ model Contact {
   /// for the IG account; set when a campaign override picked one (spec 13).
   setterId    String?
   setter      Setter?      @relation(fields: [setterId], references: [id], onDelete: SetNull)
+  /// One row per connected CRM / email list (lib/os/integrations).
+  syncs       ContactSync[]
 
   @@unique([workspaceId, instagramAccountId, igUserId])
   @@index([workspaceId, kind])
@@ -260,4 +262,57 @@ model CampaignSetter {
 
   @@index([workspaceId])
   @@index([setterId])
+}
+
+// --- Integrations (build step 7) ---------------------------------------------
+// One-way push to the workspace's CRM / email list on events (spec 20-21).
+// Kit's key stays in the upstream CrmConnection (the email gate reads it);
+// providers the upstream CrmProvider enum doesn't know (GoHighLevel) keep their
+// credentials here. Every provider keeps its field mapping here.
+
+/// One provider's settings for a workspace. provider: "kit" | "ghl".
+model OsIntegration {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  provider     String
+  /// Encrypted (ENCRYPTION_KEY, like Instagram tokens) JSON of the secrets,
+  /// e.g. {"token": "..."} for GoHighLevel. Null for Kit (CrmConnection has it).
+  credentials  String?
+  /// GoHighLevel location (sub-account) id. Not secret.
+  locationId   String?
+  /// FieldMapping (lib/os/integrations/mapping.ts).
+  mapping      Json      @default("{}")
+  /// Paused: events are not pushed to this provider.
+  enabled      Boolean   @default(true)
+  lastTestedAt DateTime?
+  lastError    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([workspaceId, provider])
+}
+
+/// Per-contact sync log for one provider: what we last pushed and how it went.
+model ContactSync {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  contactId    String
+  contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  provider     String
+  /// The provider's id for the person (GHL contact id, Kit subscriber id).
+  externalId   String?
+  /// Hash of the last payload pushed successfully: an unchanged contact is
+  /// not pushed again (idempotent retries and duplicate events).
+  lastHash     String?
+  /// Tags as last pushed, so a tag removed here is removed there too.
+  pushedTags   String[]
+  lastEvent    String?
+  lastSyncedAt DateTime?
+  lastError    String?
+  lastErrorAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([contactId, provider])
+  @@index([workspaceId, provider])
 }

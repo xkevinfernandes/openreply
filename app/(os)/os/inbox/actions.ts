@@ -5,6 +5,8 @@ import { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
 import { sendReply } from "@/lib/os/inbox";
+import { fireContactEvent } from "@/lib/os/integrations/events";
+import type { SyncEvent } from "@/lib/os/integrations/mapping";
 import { mockThreads, osMockEnabled, updateMockContact } from "@/lib/os/mock";
 import { enqueueTriageMany, redisConfigured, scheduleNextAction } from "@/lib/os/setter/queue";
 import { triageContact } from "@/lib/os/setter/triage";
@@ -24,9 +26,10 @@ type ContactPatch = {
   suggestedKind?: ContactKind | null;
   suggestedReason?: string | null;
   suggestedConfidence?: number | null;
+  tags?: string[];
 };
 
-async function updateContact(contactId: string, data: ContactPatch) {
+async function updateContact(contactId: string, data: ContactPatch, event?: SyncEvent) {
   const workspaceId = await requireWorkspace();
   if (osMockEnabled()) {
     updateMockContact(contactId, data);
@@ -34,19 +37,27 @@ async function updateContact(contactId: string, data: ContactPatch) {
     return;
   }
   // updateMany scopes the write to this workspace, so a foreign id is a no-op.
-  await prisma.contact.updateMany({ where: { id: contactId, workspaceId }, data });
+  const { count } = await prisma.contact.updateMany({ where: { id: contactId, workspaceId }, data });
+  // Push to the connected CRMs (lib/os/integrations). Never throws.
+  if (count && event) await fireContactEvent({ workspaceId, contactId, event });
   revalidatePath("/os/inbox");
 }
 
 export async function setContactKind(contactId: string, kind: ContactKind) {
   if (!Object.values(ContactKind).includes(kind)) throw new Error("Unknown kind.");
   // The user decided: J's suggestion (or "move to Sales?" flag) is done.
-  await updateContact(contactId, { kind, kindSource: "user", suggestedKind: null, suggestedReason: null, suggestedConfidence: null });
+  await updateContact(contactId, { kind, kindSource: "user", suggestedKind: null, suggestedReason: null, suggestedConfidence: null }, "kind_changed");
 }
 
 export async function setContactStage(contactId: string, stage: ContactStage) {
   if (!Object.values(ContactStage).includes(stage)) throw new Error("Unknown stage.");
-  await updateContact(contactId, { stage });
+  await updateContact(contactId, { stage }, "stage_changed");
+}
+
+/** Replace a contact's tags (trimmed, deduped). Pushed to the CRMs. */
+export async function setContactTags(contactId: string, tags: string[]) {
+  const clean = [...new Set(tags.map((t) => String(t).trim().slice(0, 60)).filter(Boolean))].slice(0, 50);
+  await updateContact(contactId, { tags: clean }, "tags_changed");
 }
 
 export async function sendInboxMessage(igUserId: string, text: string): Promise<{ error?: string }> {
@@ -150,6 +161,10 @@ export async function confirmAllSuggestions(): Promise<TriageActionResult> {
       n++;
     }
   } else {
+    const toSort = await prisma.contact.findMany({
+      where: { workspaceId, kind: "UNSORTED", suggestedKind: { in: ["SALES", "PERSONAL"] } },
+      select: { id: true },
+    });
     const rows = await prisma.$transaction(
       (["SALES", "PERSONAL"] as const).map((kind) =>
         prisma.contact.updateMany({
@@ -159,6 +174,7 @@ export async function confirmAllSuggestions(): Promise<TriageActionResult> {
       )
     );
     n = rows.reduce((sum, r) => sum + r.count, 0);
+    for (const c of toSort) await fireContactEvent({ workspaceId, contactId: c.id, event: "kind_changed" });
   }
   revalidatePath("/os/inbox");
   return { notice: n ? `Sorted ${n} ${n === 1 ? "conversation" : "conversations"}.` : "Nothing to confirm yet." };

@@ -8,6 +8,7 @@ import { ensureWorkspaceForUser } from "@/lib/workspace";
 import "./os.css";
 import "./inbox.css";
 import "./knowledge.css";
+import "./integrations.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
