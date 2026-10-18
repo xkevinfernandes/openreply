@@ -8,6 +8,7 @@ import {
 } from "@/lib/instagram/provider";
 import { zernioRequest } from "@/lib/zernio/client";
 import { upsertContact } from "@/lib/os/contacts";
+import { enqueueTriageMany } from "@/lib/os/setter/queue";
 import { appendMockMessage, mockMessages, mockThreads, osMockEnabled } from "@/lib/os/mock";
 
 export interface InboxThread {
@@ -16,7 +17,10 @@ export interface InboxThread {
   username: string | null;
   updatedTime: string | null;
   preview: string | null;
-  contact: Pick<Contact, "id" | "kind" | "kindSource" | "stage" | "entryPath" | "setterStage" | "paused"> | null;
+  contact: Pick<
+    Contact,
+    "id" | "kind" | "kindSource" | "stage" | "entryPath" | "setterStage" | "paused" | "suggestedKind" | "suggestedReason" | "triagedMessageId"
+  > | null;
 }
 
 export interface InboxMessage {
@@ -120,6 +124,14 @@ export async function listThreads(workspaceId: string): Promise<{ account: Insta
       })
     )
   );
+
+  // New Unsorted contacts get J's sales/personal guess in the background.
+  const untriaged = contacts.filter((c) => c.kind === "UNSORTED" && !c.triagedAt && c.zernioConversationId).map((c) => c.id);
+  if (untriaged.length) {
+    void enqueueTriageMany(untriaged, "new").catch((err) =>
+      console.error("[OS Inbox] could not queue triage:", err instanceof Error ? err.message : err)
+    );
+  }
 
   return {
     account,

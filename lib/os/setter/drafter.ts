@@ -208,6 +208,17 @@ async function claudeCli({ system, prompt, job, s }: Call): Promise<[string, Dra
 
 async function fake({ prompt, job }: Call): Promise<[string, DraftUsage]> {
   const usage: DraftUsage = { backend: "fake", model: "fake" };
+  if (job === "triage" && prompt.startsWith("TRIAGE: kind")) {
+    // One contact (lib/os/setter/triage.ts). Markers force a verdict in tests;
+    // otherwise a keyword guess on what they wrote, so demos look plausible.
+    const said = prompt.split("\n").filter((l) => /^(NEW )?THEM:/.test(l)).join(" ");
+    const sales = prompt.includes("[fake:sales]")
+      ? true
+      : prompt.includes("[fake:personal]")
+        ? false
+        : /price|cost|how much|coach|business|clients?|offer|automat|work with you|program/i.test(said);
+    return [JSON.stringify({ kind: sales ? "sales" : "personal", why: sales ? "Asks about the business (sample)" : "Reads like a personal chat (sample)" }), usage];
+  }
   if (job === "triage") {
     const n = (prompt.match(/^THREAD \d+/gm) ?? []).length || 1;
     return [JSON.stringify(Array.from({ length: n }, (_, i) => ({ n: i + 1, verdict: "SETTER", why: "fake backend" }))), usage];

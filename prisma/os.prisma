@@ -42,6 +42,16 @@ model Contact {
   /// Who set kind: "entry" (came in through a campaign), "triage" (J's guess,
   /// not confirmed yet) or "user".
   kindSource String?
+  /// J's suggestion for kind (lib/os/setter/triage.ts). On an Unsorted contact
+  /// it is the triage guess; on a Personal one, SALES means "move to Sales?"
+  /// (they asked about the offer). Cleared once the user decides.
+  suggestedKind   ContactKind?
+  /// One line on why, shown next to the suggestion.
+  suggestedReason String?
+  /// When J last looked, and at which of their messages (re-check only when
+  /// they write something new).
+  triagedAt        DateTime?
+  triagedMessageId String?
   stage      ContactStage @default(NEW)
   /// J's setting stage (opener, value, permission, qualify, bridge, booked).
   setterStage String?

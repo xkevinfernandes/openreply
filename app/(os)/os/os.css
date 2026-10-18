@@ -997,3 +997,193 @@
   }
 }
 /* === end J drafts ===================================================== */
+
+/* === J triage (spec item 7) =============================================
+   J's sales/personal guess under an Unsorted thread, the "Move to Sales?"
+   flag on a Personal one, and the Unsorted bar (Sort with J, Confirm all).
+   Black and white like the rest; the flag is the one place warn colour
+   shows, because it asks for a decision. A sorted row collapses in place
+   (height and opacity together) the moment it is tapped.
+   ======================================================================= */
+
+.os-thread-item {
+  display: grid;
+  grid-template-rows: 1fr;
+  border-bottom: 1px solid var(--line);
+  transition:
+    grid-template-rows 280ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 200ms ease;
+}
+
+.os-thread-inner {
+  min-height: 0;
+}
+
+/* Clip only while collapsing, so focus rings show the rest of the time. */
+.os-thread-item[data-leaving="true"] .os-thread-inner {
+  overflow: hidden;
+}
+
+.os-thread-item .os-thread {
+  border-bottom: 0;
+}
+
+/* The suggestion belongs to the row: share its selected background. */
+.os-thread-item:has(.os-thread[aria-current="true"]) {
+  background: var(--ink-8);
+}
+
+.os-thread-item:has(.os-thread[aria-current="true"]) .os-thread {
+  background: none;
+}
+
+.os-thread-item[data-leaving="true"] {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+  border-bottom-color: transparent;
+}
+
+.os-triage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.os-triage[data-variant="row"] {
+  /* Lines up with the thread text, past the avatar. */
+  padding: 0 var(--sp-4) var(--sp-3) calc(var(--sp-4) + 36px + var(--sp-3));
+}
+
+.os-triage[data-variant="banner"] {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-2);
+}
+
+.os-triage[data-variant="banner"][data-flag="true"] {
+  background: color-mix(in srgb, var(--warn) 6%, var(--paper));
+}
+
+.os-triage-text {
+  margin: 0;
+  line-height: 1.4;
+  font-size: var(--fs-sm);
+  min-width: 0;
+}
+
+.os-triage-mark {
+  display: inline-grid;
+  vertical-align: -3px;
+  margin-right: 6px;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.os-triage[data-flag="true"] .os-triage-mark {
+  background: var(--warn);
+}
+
+.os-triage-label {
+  font-weight: 600;
+}
+
+.os-triage[data-flag="true"] .os-triage-label {
+  color: var(--warn);
+}
+
+.os-triage-reason {
+  color: var(--muted);
+}
+
+.os-triage-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.os-triage[data-variant="row"] .os-triage-actions .os-button {
+  height: 28px;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+.os-triage-error {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--bad);
+}
+
+.os-triage-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4) 0;
+}
+
+.os-triage-bar-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.os-triage-bar-actions .os-button {
+  height: 28px;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+.os-triage-bar-actions .os-button .count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.os-triage-bar-note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.os-triage-bar-note[data-error="true"] {
+  color: var(--bad);
+}
+
+/* A small warn dot on the Personal tab: someone there may be asking to buy. */
+.os-tab-flag {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+}
+
+@media (max-width: 860px) {
+  /* Thumb reach: bigger targets, full-width choices. */
+  .os-triage[data-variant="row"] {
+    padding-left: var(--sp-4);
+  }
+
+  .os-triage-actions .os-button,
+  .os-triage[data-variant="row"] .os-triage-actions .os-button,
+  .os-triage-bar-actions .os-button {
+    flex: 1 1 0;
+    height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-thread-item {
+    transition: opacity 150ms ease;
+  }
+}
+/* === end J triage ===================================================== */

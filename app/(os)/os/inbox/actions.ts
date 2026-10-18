@@ -5,8 +5,9 @@ import { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
 import { sendReply } from "@/lib/os/inbox";
-import { osMockEnabled, updateMockContact } from "@/lib/os/mock";
-import { scheduleNextAction } from "@/lib/os/setter/queue";
+import { mockThreads, osMockEnabled, updateMockContact } from "@/lib/os/mock";
+import { enqueueTriageMany, redisConfigured, scheduleNextAction } from "@/lib/os/setter/queue";
+import { triageContact } from "@/lib/os/setter/triage";
 import { approveDraft, discardDraft, draftForContact } from "@/lib/os/setter/service";
 import type { SetterRecord } from "@/lib/os/setter/state";
 
@@ -16,7 +17,15 @@ async function requireWorkspace() {
   return workspaceId;
 }
 
-async function updateContact(contactId: string, data: { kind?: ContactKind; kindSource?: string; stage?: ContactStage }) {
+type ContactPatch = {
+  kind?: ContactKind;
+  kindSource?: string;
+  stage?: ContactStage;
+  suggestedKind?: ContactKind | null;
+  suggestedReason?: string | null;
+};
+
+async function updateContact(contactId: string, data: ContactPatch) {
   const workspaceId = await requireWorkspace();
   if (osMockEnabled()) {
     updateMockContact(contactId, data);
@@ -30,7 +39,8 @@ async function updateContact(contactId: string, data: { kind?: ContactKind; kind
 
 export async function setContactKind(contactId: string, kind: ContactKind) {
   if (!Object.values(ContactKind).includes(kind)) throw new Error("Unknown kind.");
-  await updateContact(contactId, { kind, kindSource: "user" });
+  // The user decided: J's suggestion (or "move to Sales?" flag) is done.
+  await updateContact(contactId, { kind, kindSource: "user", suggestedKind: null, suggestedReason: null });
 }
 
 export async function setContactStage(contactId: string, stage: ContactStage) {
@@ -102,4 +112,102 @@ export async function discardJDraft(draftId: string): Promise<DraftActionResult>
   const result = await discardDraft(draftId, workspaceId);
   revalidatePath("/os/inbox");
   return result;
+}
+
+// --- Triage (spec item 7) --------------------------------------------------
+
+export interface TriageActionResult {
+  error?: string;
+  notice?: string;
+}
+
+/** One tap on J's suggestion: take it. */
+export async function confirmSuggestion(contactId: string): Promise<TriageActionResult> {
+  const workspaceId = await requireWorkspace();
+  const suggested = osMockEnabled()
+    ? (mockThreads().find((t) => t.contact?.id === contactId)?.contact?.suggestedKind ?? null)
+    : ((await prisma.contact.findFirst({ where: { id: contactId, workspaceId }, select: { suggestedKind: true } }))?.suggestedKind ?? null);
+  if (!suggested) return { error: "J has no suggestion for this one any more. Refresh the page." };
+  await setContactKind(contactId, suggested);
+  return {};
+}
+
+/** "Keep personal": drop J's "move to Sales?" flag. */
+export async function dismissSuggestion(contactId: string): Promise<TriageActionResult> {
+  await updateContact(contactId, { suggestedKind: null, suggestedReason: null });
+  return {};
+}
+
+/** Take every suggestion J made on the Unsorted tab. */
+export async function confirmAllSuggestions(): Promise<TriageActionResult> {
+  const workspaceId = await requireWorkspace();
+  let n = 0;
+  if (osMockEnabled()) {
+    for (const t of mockThreads()) {
+      if (t.contact?.kind !== "UNSORTED" || !t.contact.suggestedKind) continue;
+      updateMockContact(t.contact.id, { kind: t.contact.suggestedKind, kindSource: "user", suggestedKind: null, suggestedReason: null });
+      n++;
+    }
+  } else {
+    const rows = await prisma.$transaction(
+      (["SALES", "PERSONAL"] as const).map((kind) =>
+        prisma.contact.updateMany({
+          where: { workspaceId, kind: "UNSORTED", suggestedKind: kind },
+          data: { kind, kindSource: "user", suggestedKind: null, suggestedReason: null },
+        })
+      )
+    );
+    n = rows.reduce((sum, r) => sum + r.count, 0);
+  }
+  revalidatePath("/os/inbox");
+  return { notice: n ? `Sorted ${n} ${n === 1 ? "conversation" : "conversations"}.` : "Nothing to confirm yet." };
+}
+
+/** Without a worker (local dev, OS_MOCK) "Sort with J" runs this many inline. */
+const INLINE_TRIAGE_CAP = 10;
+
+/** "Sort with J": queue a look at every Unsorted contact. J skips the ones it
+ *  already judged on their latest message. */
+export async function sortWithJ(): Promise<TriageActionResult> {
+  const workspaceId = await requireWorkspace();
+  const ids = osMockEnabled()
+    ? mockThreads()
+        .filter((t) => t.contact?.kind === "UNSORTED")
+        .map((t) => t.contact!.id)
+    : (
+        await prisma.contact.findMany({
+          where: { workspaceId, kind: "UNSORTED", zernioConversationId: { not: null } },
+          select: { id: true },
+          orderBy: { lastMessageAt: "desc" },
+        })
+      ).map((c) => c.id);
+  if (!ids.length) return { notice: "Nothing to sort." };
+
+  if (redisConfigured() && !osMockEnabled()) {
+    const n = await enqueueTriageMany(ids, "manual");
+    const minutes = Math.ceil(n / 10);
+    return { notice: `J is sorting ${n} ${n === 1 ? "conversation" : "conversations"}${minutes > 1 ? `, about ${minutes} minutes` : ""}. Suggestions show up here.` };
+  }
+
+  let suggested = 0;
+  let looked = 0;
+  let left = 0;
+  try {
+    for (const id of ids) {
+      if (looked >= INLINE_TRIAGE_CAP) {
+        left++;
+        continue;
+      }
+      const r = await triageContact(id, { workspaceId });
+      if (r.status !== "skipped") looked++;
+      if (r.status === "suggested") suggested++;
+    }
+  } catch (err) {
+    console.error("[OS Setter] triage failed:", err);
+    revalidatePath("/os/inbox");
+    return { error: err instanceof Error ? `J couldn't sort: ${err.message}` : "J couldn't sort. Try again." };
+  }
+  revalidatePath("/os/inbox");
+  const more = left ? ` ${left} still to look at: tap Sort with J again.` : "";
+  return { notice: `${suggested} new ${suggested === 1 ? "suggestion" : "suggestions"}.${more}` };
 }

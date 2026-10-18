@@ -2,6 +2,7 @@ import Link from "next/link";
 import Composer from "@/components/os/inbox/composer";
 import ContactControls from "@/components/os/inbox/contact-controls";
 import ThreadList from "@/components/os/inbox/thread-list";
+import { TriageSuggestion } from "@/components/os/inbox/triage";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { getThreadMessages, listThreads, type InboxMessage, type InboxThread } from "@/lib/os/inbox";
 import { entryLabels, kindTabs } from "@/lib/os/labels";
@@ -48,7 +49,9 @@ export default async function InboxPage({ searchParams }: PageProps) {
   const selectedDraft = selected?.contact ? (draftByContact.get(selected.contact.id) ?? null) : null;
   const draftBlockedReason = !selected?.contact
     ? "Not a contact yet."
-    : selected.contact.kind !== "SALES"
+    : selected.contact.kind === "PERSONAL" && selected.contact.suggestedKind === "SALES"
+      ? "This looks like a question about your offer. J only drafts once you move them to Sales."
+      : selected.contact.kind !== "SALES"
       ? "J drafts for Sales contacts only. Move this one to Sales first."
       : selected.contact.paused
         ? "J is paused for this contact."
@@ -106,6 +109,19 @@ export default async function InboxPage({ searchParams }: PageProps) {
                 />
               )}
             </header>
+
+            {selected.contact?.suggestedKind &&
+              (selected.contact.kind === "UNSORTED" ||
+                (selected.contact.kind === "PERSONAL" && selected.contact.suggestedKind === "SALES")) && (
+                <TriageSuggestion
+                  key={`${selected.contact.id}-${selected.contact.suggestedKind}`}
+                  contactId={selected.contact.id}
+                  kind={selected.contact.kind}
+                  suggestedKind={selected.contact.suggestedKind}
+                  reason={selected.contact.suggestedReason}
+                  variant="banner"
+                />
+              )}
 
             <ol className="os-messages">
               {messages.length === 0 && <li className="os-thread-placeholder">No messages loaded.</li>}

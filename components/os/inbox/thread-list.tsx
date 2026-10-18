@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { InboxThread } from "@/lib/os/inbox";
 import { entryLabels, kindTabs, shortAgo, stageLabels } from "@/lib/os/labels";
+import { TriageBar, TriageSuggestion } from "@/components/os/inbox/triage";
 
 interface ThreadListProps {
   threads: InboxThread[];
@@ -18,6 +19,15 @@ interface ThreadListProps {
 
 export default function ThreadList({ threads, tab, selected, now, draftContactIds, draftsOnly }: ThreadListProps) {
   const [query, setQuery] = useState("");
+  // Rows the user just sorted: they leave at once, before the server answers.
+  const [decided, setDecided] = useState<Set<string>>(() => new Set());
+  const decide = (contactId: string, on: boolean) =>
+    setDecided((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(contactId);
+      else next.delete(contactId);
+      return next;
+    });
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
@@ -30,6 +40,15 @@ export default function ThreadList({ threads, tab, selected, now, draftContactId
   const readyCount = threads.filter((t) => t.contact?.kind === "SALES" && hasDraft.has(t.contact.id)).length;
   const onlyDrafts = draftsOnly && kind === "SALES";
   const keep = onlyDrafts ? "&drafts=1" : "";
+  const unsorted = threads.filter((t) => t.contact?.kind === "UNSORTED");
+  const suggestedCount = unsorted.filter((t) => t.contact?.suggestedKind).length;
+  const flagged = threads.filter((t) => t.contact?.kind === "PERSONAL" && t.contact.suggestedKind === "SALES").length;
+  // Only while J's suggestion is still on the contact: once the server has
+  // the move, the row shows normally wherever it now belongs.
+  const leaving = (t: InboxThread) => Boolean(t.contact?.suggestedKind && decided.has(t.contact.id));
+  const confirmAll = (on: boolean) => {
+    for (const t of unsorted) if (t.contact?.suggestedKind) decide(t.contact.id, on);
+  };
   const q = query.trim().toLowerCase().replace(/^@/, "");
   const visible = threads.filter(
     (t) =>
@@ -51,6 +70,11 @@ export default function ThreadList({ threads, tab, selected, now, draftContactId
           >
             {k.label}
             <span className="count">{counts[k.kind] ?? 0}</span>
+            {k.kind === "PERSONAL" && flagged > 0 && (
+              <span className="os-tab-flag" title={`${flagged} may be sales`}>
+                <span className="sr-only">{flagged} may be sales</span>
+              </span>
+            )}
           </Link>
         ))}
       </div>
@@ -67,6 +91,9 @@ export default function ThreadList({ threads, tab, selected, now, draftContactId
             <span className="count">{readyCount}</span>
           </Link>
         </div>
+      )}
+      {kind === "UNSORTED" && (
+        <TriageBar unsortedCount={unsorted.length} suggestedCount={suggestedCount} onConfirmAll={confirmAll} />
       )}
       <label className="os-search">
         <span className="sr-only">Search conversations</span>
@@ -86,7 +113,8 @@ export default function ThreadList({ threads, tab, selected, now, draftContactId
           </li>
         )}
         {visible.map((t) => (
-          <li key={t.conversationId}>
+          <li key={t.conversationId} className="os-thread-item" data-leaving={leaving(t) ? "true" : undefined}>
+            <div className="os-thread-inner">
             <Link
               href={`/os/inbox?tab=${tab}${keep}&c=${encodeURIComponent(t.conversationId)}`}
               className="os-thread"
@@ -111,6 +139,16 @@ export default function ThreadList({ threads, tab, selected, now, draftContactId
                 )}
               </span>
             </Link>
+            {t.contact?.suggestedKind && kind !== "SALES" && (kind === "UNSORTED" || t.contact.suggestedKind === "SALES") && (
+              <TriageSuggestion
+                contactId={t.contact.id}
+                kind={t.contact.kind}
+                suggestedKind={t.contact.suggestedKind}
+                reason={t.contact.suggestedReason}
+                onDecided={decide}
+              />
+            )}
+            </div>
           </li>
         ))}
       </ul>
