@@ -18,7 +18,7 @@ import { mockContact, osMockEnabled, updateMockContact } from "@/lib/os/mock";
 import { getSetterConfig, resolveBackend } from "@/lib/os/setter/config";
 import { draft as runDrafter, DraftError } from "@/lib/os/setter/drafter";
 import { ask as askJev, jevConfigured, JevError, readChoice, readNoul, type AskOptions, type JevQuestion } from "@/lib/os/setter/jev";
-import { jevReason, TRIAGE_DISABLED_NOTICE } from "@/lib/os/triage-copy";
+import { jevReason, parseJevReason, TRIAGE_DISABLED_NOTICE } from "@/lib/os/triage-copy";
 import type { ThreadMessage } from "@/lib/os/setter/state";
 import { setterStore } from "@/lib/os/setter/store";
 
@@ -33,6 +33,9 @@ export interface TriageContact {
   triagedMessageId: string | null;
   /** How they first reached us ("comment", "story_reply", ...), if known. */
   entryPath?: string | null;
+  /** The backend behind the stored judgment (null on rows from before it was kept). */
+  suggestedBy?: string | null;
+  suggestedReason?: string | null;
 }
 
 export interface TriageUpdate {
@@ -40,6 +43,8 @@ export interface TriageUpdate {
   suggestedReason?: string | null;
   /** Jev's probability; null from the LLM backend. */
   suggestedConfidence?: number | null;
+  /** The backend that made this judgment. */
+  suggestedBy?: JudgingBackend | null;
   kindSource?: string;
   triagedAt: Date;
   triagedMessageId: string | null;
@@ -127,6 +132,31 @@ export function resolveTriageBackend(env: Record<string, string | undefined> = p
   return "llm";
 }
 
+export type JudgingBackend = Exclude<TriageBackend, "disabled">;
+
+const BACKEND_RANK: Record<JudgingBackend, number> = { fake: 0, llm: 1, jev: 2 };
+
+/** Who made a stored judgment. Rows from before suggestedBy was kept are
+ *  read from their reason line: "(sample)" is the fake, "Jev 0.86 · …" is
+ *  Jev, any other reason the LLM, and no reason at all is unknown (null). */
+export function storedBackend(c: Pick<TriageContact, "suggestedBy" | "suggestedReason">): JudgingBackend | null {
+  const by = c.suggestedBy;
+  if (by === "fake" || by === "llm" || by === "jev") return by;
+  const reason = c.suggestedReason ?? "";
+  if (!reason) return null;
+  if (reason.includes("(sample)")) return "fake";
+  return parseJevReason(reason) ? "jev" : "llm";
+}
+
+/** A manual sort re-judges a contact whose judgment came from a weaker
+ *  backend than the current one: the fake always, unknown always, never a
+ *  stronger one (a Jev verdict is not replaced by the LLM). */
+export function judgedByWeaker(c: Pick<TriageContact, "suggestedBy" | "suggestedReason">, current: JudgingBackend): boolean {
+  const by = storedBackend(c);
+  if (by == null || by === "fake") return true;
+  return BACKEND_RANK[by] < BACKEND_RANK[current];
+}
+
 export function triageDisabled(env: Record<string, string | undefined> = process.env): boolean {
   return resolveTriageBackend(env) === "disabled";
 }
@@ -204,6 +234,9 @@ export interface TriageOptions {
   workspaceId?: string;
   /** Re-judge even when J already looked at their latest message. */
   force?: boolean;
+  /** A person asked ("Sort with J"): re-judge their latest message when the
+   *  stored judgment came from a weaker backend (judgedByWeaker). */
+  manual?: boolean;
   now?: Date;
   /** Override OS_TRIAGE / the default selection. */
   backend?: TriageBackend;
@@ -230,7 +263,8 @@ export async function triageContact(contactId: string, opts: TriageOptions = {})
     await store.save(contact.id, contact.kind, { triagedAt: now, triagedMessageId: null });
     return { status: "skipped", reason: "Nothing from them yet." };
   }
-  if (!opts.force && contact.triagedMessageId === lastIn.id) return { status: "skipped", reason: "J already looked at this message." };
+  const rejudge = opts.force || (opts.manual && judgedByWeaker(contact, backend));
+  if (!rejudge && contact.triagedMessageId === lastIn.id) return { status: "skipped", reason: "J already looked at this message." };
 
   const min = opts.jevMin ?? jevMin();
   const cfg = getSetterConfig();
@@ -256,7 +290,8 @@ export async function triageContact(contactId: string, opts: TriageOptions = {})
   if (contact.kind === "PERSONAL") {
     // Only what they wrote since J last looked (or their latest turn, the
     // first time), so old history never raises the flag.
-    const seen = contact.triagedMessageId ? msgs.findIndex((m) => m.id === contact.triagedMessageId) : -1;
+    // A re-judge reads their latest turn again, as on the first look.
+    const seen = contact.triagedMessageId && !rejudge ? msgs.findIndex((m) => m.id === contact.triagedMessageId) : -1;
     let from = seen + 1;
     if (seen === -1) {
       from = msgs.length;
@@ -264,7 +299,9 @@ export async function triageContact(contactId: string, opts: TriageOptions = {})
     }
     const fresh = msgs.slice(from).filter((m) => m.incoming).map((m) => m.text);
     const clear = async (): Promise<TriageResult> => {
-      await store.save(contact.id, contact.kind, { triagedAt: now, triagedMessageId: lastIn.id });
+      // A standing "Move to Sales?" flag stays (and keeps its backend); with
+      // none, record who looked so a manual sort knows whether to look again.
+      await store.save(contact.id, contact.kind, { ...(contact.suggestedReason ? {} : { suggestedBy: backend }), triagedAt: now, triagedMessageId: lastIn.id });
       return { status: "clear" };
     };
     // The cheap gate runs before either backend, so ordinary chat costs nothing.
@@ -275,13 +312,13 @@ export async function triageContact(contactId: string, opts: TriageOptions = {})
       const p = readNoul(answers.sales_enquiry);
       if (p == null || p < min) return clear();
       const reason = jevReason(p, "sales", { hint: triageHint(fresh, "sales") });
-      await store.save(contact.id, contact.kind, { suggestedKind: "SALES", suggestedReason: reason, suggestedConfidence: p, triagedAt: now, triagedMessageId: lastIn.id });
+      await store.save(contact.id, contact.kind, { suggestedKind: "SALES", suggestedReason: reason, suggestedConfidence: p, suggestedBy: backend, triagedAt: now, triagedMessageId: lastIn.id });
       return { status: "suggested", kind: "SALES", reason, confidence: p };
     }
 
     const verdict = await call(buildTriagePrompt(msgs, contact.username, "personal_check", from));
     if (verdict?.kind !== "SALES") return clear();
-    await store.save(contact.id, contact.kind, { suggestedKind: "SALES", suggestedReason: verdict.reason, suggestedConfidence: null, triagedAt: now, triagedMessageId: lastIn.id });
+    await store.save(contact.id, contact.kind, { suggestedKind: "SALES", suggestedReason: verdict.reason, suggestedConfidence: null, suggestedBy: backend, triagedAt: now, triagedMessageId: lastIn.id });
     return { status: "suggested", kind: "SALES", reason: verdict.reason };
   }
 
@@ -298,7 +335,7 @@ export async function triageContact(contactId: string, opts: TriageOptions = {})
       // Not sure enough to suggest: no suggestion, but keep the probability
       // so the Inbox can group it under "J isn't sure".
       const reason = jevReason(p, lean, { unsure: true, hint });
-      await store.save(contact.id, contact.kind, { suggestedKind: null, suggestedReason: reason, suggestedConfidence: p, triagedAt: now, triagedMessageId: lastIn.id });
+      await store.save(contact.id, contact.kind, { suggestedKind: null, suggestedReason: reason, suggestedConfidence: p, suggestedBy: backend, triagedAt: now, triagedMessageId: lastIn.id });
       return { status: "unsure", lean: kind, confidence: p, reason };
     }
     const reason = jevReason(p, lean, { hint });
@@ -306,6 +343,7 @@ export async function triageContact(contactId: string, opts: TriageOptions = {})
       suggestedKind: kind,
       suggestedReason: reason,
       suggestedConfidence: p,
+      suggestedBy: backend,
       kindSource: "triage",
       triagedAt: now,
       triagedMessageId: lastIn.id,
@@ -319,6 +357,7 @@ export async function triageContact(contactId: string, opts: TriageOptions = {})
     suggestedKind: verdict.kind,
     suggestedReason: verdict.reason,
     suggestedConfidence: null,
+    suggestedBy: backend,
     kindSource: "triage",
     triagedAt: now,
     triagedMessageId: lastIn.id,
@@ -341,6 +380,8 @@ const dbTriageStore: TriageStore = {
       tags: c.tags,
       triagedMessageId: c.triagedMessageId,
       entryPath: c.entryPath,
+      suggestedBy: c.suggestedBy,
+      suggestedReason: c.suggestedReason,
     };
   },
   async readThread(contact) {
@@ -371,6 +412,8 @@ const mockTriageStore: TriageStore = {
       tags: [],
       triagedMessageId: m.contact.triagedMessageId ?? null,
       entryPath: m.contact.entryPath,
+      suggestedBy: m.contact.suggestedBy ?? null,
+      suggestedReason: m.contact.suggestedReason,
     };
   },
   async readThread(contact) {
@@ -399,7 +442,7 @@ export interface SampleCleanupDb {
  */
 export async function clearSampleSuggestions(workspaceId: string, db: SampleCleanupDb = prisma as unknown as SampleCleanupDb): Promise<number> {
   const where = { workspaceId, suggestedReason: { contains: SAMPLE_REASON_MARK } };
-  const clear = { suggestedKind: null, suggestedReason: null, suggestedConfidence: null, triagedAt: null, triagedMessageId: null };
+  const clear = { suggestedKind: null, suggestedReason: null, suggestedConfidence: null, suggestedBy: null, triagedAt: null, triagedMessageId: null };
   // J's own guesses drop their "triage" source first (the second call would
   // no longer match them once the reason is gone).
   const guessed = await db.contact.updateMany({ where: { ...where, kindSource: "triage" }, data: { ...clear, kindSource: null } });

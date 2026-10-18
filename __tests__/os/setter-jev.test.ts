@@ -229,7 +229,7 @@ describe("Personal → Move to Sales? on Jev", () => {
     const m = mockFetch(noul(0.4));
     const { s, saves } = store(base("PERSONAL", { triagedMessageId: "m2" }), [...history, msg("m3", "my program at the gym is brutal")]);
     expect(await triageContact("c1", { store: s, now, backend: "jev", jev: { env: KEY_ENV, fetch: m.fetch } })).toEqual({ status: "clear" });
-    expect(saves[0]).toEqual({ triagedAt: now, triagedMessageId: "m3" });
+    expect(saves[0]).toEqual({ triagedAt: now, triagedMessageId: "m3", suggestedBy: "jev" });
   });
 });
 

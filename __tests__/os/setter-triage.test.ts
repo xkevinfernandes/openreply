@@ -107,7 +107,7 @@ describe("Personal contact asking about the offer (move to Sales?)", () => {
   it("ignores ordinary chat without a model call", async () => {
     const { s, saves } = store(base("PERSONAL", { triagedMessageId: "m2" }), [...history, msg("m3", "haha see you at 7")]);
     expect(await triageContact("c1", { store: s, now })).toEqual({ status: "clear" });
-    expect(saves[0]).toEqual({ triagedAt: now, triagedMessageId: "m3" });
+    expect(saves[0]).toEqual({ triagedAt: now, triagedMessageId: "m3", suggestedBy: "llm" });
   });
 
   it("flags a new offer question and keeps them Personal", async () => {

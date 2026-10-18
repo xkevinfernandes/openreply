@@ -7,11 +7,15 @@ import { sortWithJ } from "../../app/(os)/os/inbox/actions";
 import {
   clearSampleSuggestions,
   clearSampleSuggestionsOnce,
+  judgedByWeaker,
   resolveTriageBackend,
+  storedBackend,
   TRIAGE_DISABLED_NOTICE,
   triageContact,
   type SampleCleanupDb,
+  type TriageContact,
   type TriageStore,
+  type TriageUpdate,
 } from "../../lib/os/setter/triage";
 
 afterEach(() => {
@@ -90,7 +94,7 @@ describe("sample suggestion cleanup", () => {
     expect(calls).toHaveLength(2);
     for (const c of calls) {
       expect(c.where).toMatchObject({ workspaceId: "w1", suggestedReason: { contains: "(sample)" } });
-      expect(c.data).toMatchObject({ suggestedKind: null, suggestedReason: null, suggestedConfidence: null, triagedMessageId: null });
+      expect(c.data).toMatchObject({ suggestedKind: null, suggestedReason: null, suggestedConfidence: null, suggestedBy: null, triagedAt: null, triagedMessageId: null });
     }
     expect(calls[0].where.kindSource).toBe("triage");
     expect(calls[0].data.kindSource).toBeNull();
@@ -118,5 +122,74 @@ describe("sample suggestion cleanup", () => {
     expect(await clearSampleSuggestionsOnce("w-retry", db)).toBe(0);
     fail = false;
     expect(await clearSampleSuggestionsOnce("w-retry", db)).toBe(2);
+  });
+});
+
+describe("manual sort re-judges weaker backends", () => {
+  const thread = [
+    { id: "m1", text: "hey! love your reels", incoming: true, at: "2026-10-18T10:00:00Z" },
+    { id: "m2", text: "thanks! what are you working on?", incoming: false, at: "2026-10-18T10:01:00Z" },
+    { id: "m3", text: "trying to grow my coaching business", incoming: true, at: "2026-10-18T10:02:00Z" },
+  ];
+
+  function unsorted(over: Partial<TriageContact>) {
+    const contact: TriageContact = {
+      id: "c1",
+      workspaceId: "w1",
+      igUserId: "1",
+      username: "sam",
+      conversationId: "conv",
+      kind: "UNSORTED",
+      tags: [],
+      triagedMessageId: "m3",
+      ...over,
+    };
+    const saves: TriageUpdate[] = [];
+    const store: TriageStore = {
+      getContact: async () => contact,
+      readThread: async () => thread,
+      save: async (_id, _kind, u) => {
+        saves.push(u);
+      },
+    };
+    return { store, saves };
+  }
+
+  it("reads the backend from suggestedBy, else from the reason line", () => {
+    expect(storedBackend({ suggestedBy: "jev", suggestedReason: null })).toBe("jev");
+    expect(storedBackend({ suggestedBy: null, suggestedReason: "Asks about the business (sample)" })).toBe("fake");
+    expect(storedBackend({ suggestedBy: null, suggestedReason: "Jev 0.86 · sales · mentions \"coaching\"" })).toBe("jev");
+    expect(storedBackend({ suggestedBy: null, suggestedReason: "Wants help with content" })).toBe("llm");
+    expect(storedBackend({ suggestedBy: null, suggestedReason: null })).toBeNull();
+  });
+
+  it("fake and unknown are always weaker; a stronger verdict is kept", () => {
+    expect(judgedByWeaker({ suggestedBy: "fake" }, "fake")).toBe(true);
+    expect(judgedByWeaker({ suggestedBy: null, suggestedReason: null }, "jev")).toBe(true);
+    expect(judgedByWeaker({ suggestedBy: "llm" }, "jev")).toBe(true);
+    expect(judgedByWeaker({ suggestedBy: "jev" }, "jev")).toBe(false);
+    expect(judgedByWeaker({ suggestedBy: "jev" }, "llm")).toBe(false);
+  });
+
+  it("a fake (sample) guess on the same message is re-judged on a manual sort, and tagged with the new backend", async () => {
+    const { store, saves } = unsorted({ suggestedBy: "fake", suggestedReason: "Asks about the business (sample)" });
+    const r = await triageContact("c1", { store, manual: true, backend: "fake", now: new Date() });
+    expect(r.status).toBe("suggested");
+    expect(saves[0]).toMatchObject({ suggestedBy: "fake", triagedMessageId: "m3" });
+  });
+
+  it("legacy rows (no suggestedBy) from the fake are re-judged too", async () => {
+    const { store } = unsorted({ suggestedBy: null, suggestedReason: "Reads like a personal chat (sample)" });
+    expect((await triageContact("c1", { store, manual: true, backend: "llm" })).status).toBe("suggested");
+  });
+
+  it("the same backend on the same message is still skipped, and non-manual runs never re-judge", async () => {
+    const same = unsorted({ suggestedBy: "llm", suggestedReason: "Wants help" });
+    expect(await triageContact("c1", { store: same.store, manual: true, backend: "llm" })).toEqual({
+      status: "skipped",
+      reason: "J already looked at this message.",
+    });
+    const auto = unsorted({ suggestedBy: "fake", suggestedReason: "x (sample)" });
+    expect((await triageContact("c1", { store: auto.store, backend: "llm" })).status).toBe("skipped");
   });
 });

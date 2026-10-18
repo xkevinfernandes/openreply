@@ -51,6 +51,10 @@ model Contact {
   /// Jev's probability for the suggestion (0-1); null from the LLM backend.
   /// Set while suggestedKind is null: J looked but isn't sure.
   suggestedConfidence Float?
+  /// Which triage backend made the current judgment: fake | llm | jev. A
+  /// manual "Sort with J" re-judges anything from a weaker backend (fake
+  /// always), even on a message J already looked at.
+  suggestedBy         String?
   /// When J last looked, and at which of their messages (re-check only when
   /// they write something new).
   triagedAt        DateTime?

@@ -153,7 +153,7 @@ async function processTriageJob(job: Job<SetterTriageJob>, token?: string) {
     await job.moveToDelayed(retryAt, token);
     throw new DelayedError();
   }
-  const result = await triageContact(job.data.contactId);
+  const result = await triageContact(job.data.contactId, { manual: job.data.reason === "manual" });
   console.log(
     `[OS Setter] triage ${job.data.contactId} (${job.data.reason}): ${result.status}` +
       (result.status === "suggested" ? ` ${result.kind} — ${result.reason}` : result.status === "clear" ? "" : ` — ${result.reason}`)

@@ -218,7 +218,7 @@ export async function sortWithJ(): Promise<TriageActionResult> {
         left++;
         continue;
       }
-      const r = await triageContact(id, { workspaceId });
+      const r = await triageContact(id, { workspaceId, manual: true });
       if (r.status !== "skipped") looked++;
       if (r.status === "suggested") suggested++;
       if (r.status === "unsure") unsure++;
