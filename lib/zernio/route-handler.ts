@@ -8,6 +8,15 @@ export class ConnectionError extends Error {
   constructor(message: string, public status = 400) { super(message); }
 }
 
+// Behind a TLS-terminating proxy (Railway, Dokploy, ...) request.url is the
+// internal http address, so the browser's https origin never equals it. The
+// public URL the app is configured with is the origin users actually load.
+function allowedOrigins(request: Request) {
+  const origins = new Set([new URL(request.url).origin]);
+  if (process.env.NEXTAUTH_URL) origins.add(new URL(process.env.NEXTAUTH_URL).origin);
+  return origins;
+}
+
 export function withZernioManagement(handler: (context: WorkspaceContext, request: Request) => Promise<Response>) {
   return async (request: Request) => {
     try {
@@ -16,7 +25,7 @@ export function withZernioManagement(handler: (context: WorkspaceContext, reques
       if (!canManageWorkspace(context.role)) throw new ConnectionError('Only workspace owners and admins can manage the Zernio connection.', 403);
       if (request.method !== 'GET') {
         const origin = request.headers.get('origin');
-        if (origin && origin !== new URL(request.url).origin) throw new ConnectionError('Invalid request origin.', 403);
+        if (origin && !allowedOrigins(request).has(origin)) throw new ConnectionError('Invalid request origin.', 403);
       }
       return await handler(context, request);
     } catch (error) {
