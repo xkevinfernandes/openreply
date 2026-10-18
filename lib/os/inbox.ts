@@ -8,7 +8,7 @@ import {
 } from "@/lib/instagram/provider";
 import { zernioRequest } from "@/lib/zernio/client";
 import { upsertContact } from "@/lib/os/contacts";
-import { mockMessages, mockThreads, osMockEnabled } from "@/lib/os/mock";
+import { appendMockMessage, mockMessages, mockThreads, osMockEnabled } from "@/lib/os/mock";
 
 export interface InboxThread {
   conversationId: string;
@@ -144,12 +144,35 @@ export async function getThreadMessages(workspaceId: string, conversationId: str
     .reverse();
 }
 
-export async function sendReply(workspaceId: string, igUserId: string, text: string) {
-  if (osMockEnabled()) return;
+export interface SendReplyOptions {
+  /** Send under Meta's HUMAN_AGENT tag: allowed up to 7 days after their last
+   *  message, for a person replying by hand. Only ever after an approval. */
+  humanAgent?: boolean;
+  /** The Zernio conversation, needed for the HUMAN_AGENT send. */
+  conversationId?: string | null;
+}
+
+export async function sendReply(workspaceId: string, igUserId: string, text: string, options: SendReplyOptions = {}) {
+  if (osMockEnabled()) {
+    if (options.conversationId) appendMockMessage(options.conversationId, text);
+    return;
+  }
 
   const account = await getInboxAccount(workspaceId);
   if (!account) throw new Error("Instagram account not connected.");
   const context = await createInstagramContext(account);
+  if (options.humanAgent) {
+    if (context.provider !== "ZERNIO" || !options.conversationId) {
+      throw new Error("Outside the 24-hour window this only sends through Zernio.");
+    }
+    await zernioRequest({
+      apiKey: context.apiKey,
+      method: "POST",
+      path: `/inbox/conversations/${encodeURIComponent(options.conversationId)}/messages`,
+      body: { accountId: context.accountId, message: text, messagingType: "MESSAGE_TAG", messageTag: "HUMAN_AGENT" },
+    });
+    return;
+  }
   await sendDirectMessage({
     context,
     instagramAccountId: account.instagramId,

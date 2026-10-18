@@ -1,0 +1,147 @@
+{
+  "version": 2,
+  "_readme": "The catalog. Every keyword, resource and the setter opener live here — nothing else in the system knows a link. Rows: `type` = resource | setter. `triggers[]` is the list of Zernio automations this row owns: {surface: comment | story | dm, post_id (comment only; null = account-wide), keyword, automation_id (written by keywords.py)}. The SAME keyword may appear on several posts pointing at different resources — a comment trigger is scoped to its post, so keyed by (post_id, keyword). Post keywords are comment/story only; DM keywords are the setter word plus a few unique account-wide ones. `zernio.button_title` is the postback label on the comment private reply AND the text the delivery workflow routes on — unique per row. `zernio.dm_message` is the private-reply copy (variations rotate). `dm` is the delivery copy (message + url button). `mode`: direct = plain link; gate = our /r/<slug> page captures the email first (button_url points there once it exists); course = the email IS the resource (Kit sequence). Provision Kit with kit_resource.py, Zernio with keywords.py. Timers live in setter.config.json, not here.",
+  "page_base": "https://claudepreneur.com/r",
+  "tag_options": ["qualified", "friday", "not_now", "client", "booked"],
+  "resources": [
+    {
+      "slug": "setter",
+      "type": "setter",
+      "name": "The setter keyword",
+      "status": "active",
+      "triggers": [
+        {"surface": "dm", "post_id": null, "keyword": "setter", "automation_id": null}
+      ],
+      "opener": {
+        "message": "hey, glad you reached out 🤝🏽 what made you send that?",
+        "variations": [
+          "hey! good to have you here.. what made you send that?",
+          "hey 🙌 saw your message, what's the thing you're trying to figure out right now?"
+        ]
+      },
+      "for_setter": "They DM'd the setter keyword on purpose — usually after a reel or story that pointed at it. Zernio already sent the opener; you are writing the FIRST real reply. Find out what they're building before anything else.",
+      "notes": "One word, always DM, never a resource. Zernio's instant reply is a curiosity opener written to earn their reply; the 24h window opened the moment they DM'd."
+    },
+    {
+      "slug": "lm-workshop-setter",
+      "type": "setter",
+      "engine": "openreply",
+      "name": "Comment for the workshop → setter conversation (OpenReply)",
+      "status": "test",
+      "lead_magnet": "dm-setter-workshop",
+      "triggers": [
+        {"surface": "comment", "post_id": null, "keyword": "LEADTEST", "automation_id": null}
+      ],
+      "opener": {
+        "message": "hey! are you here for the AI DM setter workshop?",
+        "variations": []
+      },
+      "for_setter": "They commented the keyword for the AI DM setter workshop and OpenReply asked if they're here for it. Do NOT send the link yet. Their first reply is usually just \"yes\": answer it with the permission ask, close to: \"before I send it over, do you mind if I ask you a couple quick questions? just so I send you the right thing\" (1-2 bubbles, their energy). If they say no or just want the link, send the workshop link warmly and stop there; that is fine. If they say yes, run the normal setter stages (what they're building, the goal, what's in the way), then hand over the workshop as the value, framed around what they told you. A different resource is fine if their answers point to one.",
+      "notes": "Test row for the OpenReply → J handoff (2026-10-18). OpenReply owns the comment trigger (engine: openreply) and sends opener.message as a plain-text private reply: no button, no link, so their reply opens the 24h window. The setter recognises the thread by that exact opener text, so the OpenReply campaign DM must match it word for word (python3 scripts/openreply/campaigns.py check). Never also create a Zernio automation for this keyword. Swap LEADTEST for the real keyword when it goes live."
+    },
+    {
+      "slug": "yt02",
+      "type": "resource",
+      "name": "Sold-Out Coaches Don't Post Better Content Than You",
+      "mode": "direct",
+      "status": "active",
+      "resource_url": "https://youtu.be/shZi3aes5Rg",
+      "resource_kind": "video",
+      "youtube_id": "shZi3aes5Rg",
+      "internal_code": "YT02",
+      "campaign": "authority-content",
+      "blurb": "The video is ungated — it plays on the page. The page's job is to hand them to the positioning course underneath it.",
+      "triggers": [],
+      "_triggers_example": [
+        {"surface": "comment", "post_id": "<ig media id of the reel>", "keyword": "video", "automation_id": null},
+        {"surface": "story", "post_id": null, "keyword": "video", "automation_id": null}
+      ],
+      "kit": {"tag_id": null, "form_id": null, "sequence_id": null},
+      "zernio": {
+        "button_title": "send me the video",
+        "dm_message": "yo 👀 saw your comment — want the video on why sold-out coaches aren't out-posting you? tap below and it's yours",
+        "dm_message_variations": [
+          "hey 🙌 the positioning video? tap the button and I'll send it over",
+          "got you — tap below and I'll drop the video in here"
+        ],
+        "comment_reply": "sent it to your dm's 😎",
+        "comment_reply_variations": ["check your dm's 🤝🏽", "in your inbox 👀"],
+        "button_url": "https://youtu.be/shZi3aes5Rg",
+        "click_tag": "clicked:yt02"
+      },
+      "dm": {
+        "message": "here you go 🤝🏽 it's the one on why sold-out coaches aren't out-posting you\n\nwatch it when you've got 14 mins",
+        "button": "watch it here"
+      },
+      "match": ["youtu.be/shZi3aes5Rg", "youtube.com/watch?v=shZi3aes5Rg", "claudepreneur.com/resources/yt02", "claudepreneur.com/r/yt02"],
+      "for_setter": "A 14-min YouTube video arguing that sold-out coaches aren't out-posting you, they're out-positioning you. Someone who watched it is thinking about positioning and offer, not about posting more.",
+      "next_step": "the free 6-email AI systems course, or a conversation about their own positioning",
+      "offers": "ai-systems-course",
+      "created_at": "2026-08-21T21:02:27Z",
+      "notes": "YT02 — second video on the @claudepreneur YouTube channel. Ungated. Add a comment trigger per reel that points here (same keyword on different posts is fine)."
+    },
+    {
+      "slug": "dm-setter-workshop",
+      "type": "resource",
+      "name": "The AI DM setter workshop",
+      "mode": "direct",
+      "status": "active",
+      "resource_url": "https://www.ai.claudepreneur.com",
+      "resource_kind": "workshop",
+      "blurb": "Free workshop on the AI DM setter.",
+      "triggers": [
+        {"surface": "dm", "post_id": null, "keyword": "GLOW", "automation_id": null}
+      ],
+      "kit": {"tag_id": null, "form_id": null, "sequence_id": null},
+      "zernio": {
+        "button_title": "send me the workshop",
+        "dm_message": "hey 🙌 want the AI DM setter workshop? tap below and I'll send it",
+        "dm_message_variations": [],
+        "comment_reply": "sent it to your dm's 😎",
+        "comment_reply_variations": [],
+        "button_url": "https://www.ai.claudepreneur.com",
+        "click_tag": "clicked:dm-setter-workshop"
+      },
+      "dm": {
+        "message": "here's the workshop 👇 it walks through the AI DM setter itself, start to finish",
+        "button": "open the workshop"
+      },
+      "match": ["ai.claudepreneur.com"],
+      "for_setter": "Free workshop showing the AI DM setter itself. People who asked for this are usually coaches or agency owners who want the system, and they are often already running some kind of DM funnel.",
+      "next_step": "ask what their current DM flow looks like and where it leaks",
+      "created_at": "2026-08-21T00:00:00Z",
+      "notes": "Pre-existing resource. GLOW is a unique account-wide DM keyword, so it stays on the DM surface."
+    },
+    {
+      "slug": "ai-systems-course",
+      "type": "resource",
+      "name": "The extra $10k — 6-email AI systems course",
+      "mode": "course",
+      "status": "draft",
+      "resource_url": null,
+      "resource_kind": "email-course",
+      "blurb": "Six emails, one a day. The whole system for adding an extra $10k a month with AI.",
+      "triggers": [],
+      "kit": {"tag_id": 22647970, "form_id": null, "sequence_id": 2868944},
+      "zernio": {
+        "button_title": "send me the course",
+        "dm_message": "want the 6-email AI systems course? tap below",
+        "dm_message_variations": [],
+        "comment_reply": "sent it to your dm's 😎",
+        "comment_reply_variations": [],
+        "button_url": null,
+        "click_tag": "clicked:ai-systems-course"
+      },
+      "dm": {
+        "message": "one more thing while you're here 👇\n\ni put the whole system for adding an extra $10k/mo with AI into 6 short emails. one a day, free, unsubscribe whenever\n\nwant me to add you?",
+        "button": null
+      },
+      "match": [],
+      "for_setter": "Free 6-email course: the full system for adding an extra $10k/month with AI. Signing up for it is a stronger intent signal than watching a video — they asked for a system, not a tip.",
+      "next_step": "ask what they're actually trying to systemise before pitching anything",
+      "evergreen": true,
+      "created_at": "2026-08-21T21:02:27Z",
+      "notes": "THE course. status=draft until Kevin publishes emails 2-6 in Kit and the /r/ai-systems-course page exists; keywords.py refuses to arm a draft row."
+    }
+  ]
+}

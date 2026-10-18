@@ -8,7 +8,7 @@ export function osMockEnabled() {
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
 
-const people: Array<Omit<InboxThread, "updatedTime"> & { hours: number }> = [
+const people: Array<Omit<InboxThread, "updatedTime"> & { hours: number; firstReply?: string }> = [
   { conversationId: "m1", igUserId: "101", username: "maya.builds", preview: "honestly figuring out what to post", hours: 0.4,
     contact: { id: "c1", kind: "SALES", kindSource: "entry", stage: "IN_CONVERSATION", entryPath: "comment", setterStage: "qualify", paused: false } },
   { conversationId: "m2", igUserId: "102", username: "tom.k", preview: "no way this is real 😂", hours: 1,
@@ -26,7 +26,27 @@ const people: Array<Omit<InboxThread, "updatedTime"> & { hours: number }> = [
 ];
 
 export function mockThreads(): InboxThread[] {
-  return people.map(({ hours, ...t }) => ({ ...t, updatedTime: hoursAgo(hours) }));
+  return people.map((p) => {
+    const { hours, ...t } = p;
+    delete t.firstReply;
+    return { ...t, updatedTime: hoursAgo(hours) };
+  });
+}
+
+// Messages sent while running on sample data (composer and approved J
+// drafts). On globalThis so server actions and pages share them across
+// module reloads; gone on restart.
+const sent = ((globalThis as { __osMockSent?: Map<string, InboxMessage[]> }).__osMockSent ??= new Map());
+
+export function appendMockMessage(conversationId: string, text: string) {
+  const list = sent.get(conversationId) ?? [];
+  list.push({ id: `${conversationId}-sent-${list.length + 1}`, text, fromMe: true, createdTime: new Date().toISOString() });
+  sent.set(conversationId, list);
+  const person = people.find((p) => p.conversationId === conversationId);
+  if (person) {
+    person.firstReply ??= person.preview ?? "";
+    person.preview = text;
+  }
 }
 
 export function mockMessages(conversationId: string): InboxMessage[] {
@@ -35,8 +55,16 @@ export function mockMessages(conversationId: string): InboxMessage[] {
   return [
     { id: `${conversationId}-1`, text: "hey! saw your reel about the AI setter", fromMe: false, createdTime: hoursAgo(t.hours + 3) },
     { id: `${conversationId}-2`, text: "appreciate you reaching out 🙌 what caught your eye?", fromMe: true, createdTime: hoursAgo(t.hours + 2.5) },
-    { id: `${conversationId}-3`, text: t.preview ?? "", fromMe: false, createdTime: hoursAgo(t.hours) },
+    { id: `${conversationId}-3`, text: t.firstReply ?? t.preview ?? "", fromMe: false, createdTime: hoursAgo(t.hours) },
+    ...(sent.get(conversationId) ?? []),
   ];
+}
+
+/** The sample contact behind a contact id, for J's mock store. */
+export function mockContact(contactId: string) {
+  const p = people.find((x) => x.contact?.id === contactId);
+  if (!p?.contact) return null;
+  return { conversationId: p.conversationId, igUserId: p.igUserId, username: p.username, contact: p.contact };
 }
 
 /** Kind and stage changes made while running on sample data. Kept in memory

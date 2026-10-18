@@ -1,0 +1,25 @@
+{
+  "_readme": "J's defaults for this deploy, trimmed from DM Setter/scripts/dms/setter.config.json (the Python loop's poll / allowlist / launchd settings do not apply here). Env overrides: OS_DRAFTER picks the backend (anthropic_api | claude_cli | fake).",
+  "autonomy": "approve",
+  "_autonomy": "approve = every send is approved in the Inbox. auto is not built (spec item 9).",
+  "client": "claudepreneur",
+  "timers": {
+    "value_opener_delay_minutes": 30,
+    "nudge_after_hours": 6,
+    "nudge_max": 1,
+    "offer_expires_days": 7,
+    "stale_days": 10,
+    "free_window_hours": 24,
+    "human_agent_days": 7,
+    "window_safety_minutes": 60
+  },
+  "debounce_seconds": 45,
+  "_debounce_seconds": "After an inbound DM, wait this long before drafting so a burst of bubbles is read as one turn.",
+  "drafter": {
+    "models": {"draft": "claude-sonnet-5", "triage": "claude-haiku-4-5"},
+    "effort": {"draft": "medium", "triage": "low"},
+    "max_tokens": {"draft": 4000, "triage": 2000},
+    "timeout_seconds": 300
+  },
+  "skip_tags": ["client", "friend", "agent_paused"]
+}

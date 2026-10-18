@@ -1,0 +1,60 @@
+{
+  "ig_username": "claudepreneur",
+  "operator": "Kevin Fernandes",
+  "audience": "b2b",
+  "_audience": "b2b = selling to business owners: peer frame, never below them. b2c = selling to individuals: warm coach frame. Changes how the setter holds frame.",
+  "active_setter": "default",
+  "_active_setter": "folder under setters/ that holds voice.md + funnel.md; a second setter for an A/B test is a second folder",
+  "quiet_window_min": 5,
+  "rate_limit_per_hour": 20,
+  "working_hours": {
+    "tz": "Europe/Luxembourg",
+    "start": 9,
+    "end": 20
+  },
+  "follow_ups": {
+    "enabled": true,
+    "auto": false,
+    "max": 2
+  },
+  "cal_com_url": "https://cal.com/kevinfernandesme/claudepreneur-discovery",
+  "calcom_followup_hours": 24,
+  "allowed_emojis": [
+    "🔥",
+    "🤝",
+    "💯",
+    "🙏",
+    "😂",
+    "🙌"
+  ],
+  "_gifs_note": "Gifs must be the giphy MP4 url (…/giphy.mp4) — IG animates video inline; a .gif sent as an image shows STATIC. send_gif infers video from the .mp4 extension.",
+  "allowed_gifs": [
+    {
+      "label": "game on",
+      "url": "https://media.giphy.com/media/Cj9VIIZDaZ7x8LvXU7/giphy.mp4"
+    },
+    {
+      "label": "lets get it",
+      "url": "https://media.giphy.com/media/WldnJerxYdPC8/giphy.mp4"
+    },
+    {
+      "label": "welcome you are one of us",
+      "url": "https://media.giphy.com/media/Ae7SI3LoPYj8Q/giphy.mp4"
+    }
+  ],
+  "escalation_rules": {
+    "keywords": [
+      "refund",
+      "chargeback",
+      "scam",
+      "lawyer",
+      "report you"
+    ]
+  },
+  "zernio": {
+    "api_key_env": "ZERNIO_API_KEY",
+    "account_id_env": "ZERNIO_ACCOUNT_ID",
+    "profile_id_env": "ZERNIO_PROFILE_ID"
+  },
+  "autonomy": "approve"
+}

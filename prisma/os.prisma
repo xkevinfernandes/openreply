@@ -56,8 +56,76 @@ model Contact {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  setterState SetterState?
+  drafts      Draft[]
+
   @@unique([workspaceId, instagramAccountId, igUserId])
   @@index([workspaceId, kind])
   @@index([workspaceId, stage])
   @@index([zernioConversationId])
+}
+
+/// J's state machine record for one contact (lib/os/setter/state.ts). The
+/// record keeps the Python contacts.json shape so step 8 can import it as-is;
+/// state and the next timer are copied out for queries.
+model SetterState {
+  id             String    @id @default(cuid())
+  contactId      String    @unique
+  contact        Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  workspaceId    String
+  state          String
+  record         Json
+  nextActionKind String?
+  nextActionAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([workspaceId, state])
+  @@index([nextActionAt])
+}
+
+enum DraftStatus {
+  PENDING
+  /// Claimed for sending; becomes SENT, or back to PENDING if the send fails.
+  APPROVED
+  SENT
+  DISCARDED
+}
+
+/// One draft J wrote, waiting for approval in the Inbox. Approve-only: nothing
+/// sends a draft without a person pressing Approve (spec item 9).
+model Draft {
+  id           String      @id @default(cuid())
+  workspaceId  String
+  contactId    String
+  contact      Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  /// reply | value_opener | nudge | invite
+  kind         String
+  /// The message (or timer) this draft answers; one live draft per anchor.
+  anchor       String
+  bubbles      String[]
+  status       DraftStatus @default(PENDING)
+  reasoning    String?
+  setterStage  String?
+  /// Must go out under Meta's HUMAN_AGENT tag (they last wrote over 24h ago).
+  humanAgent   Boolean     @default(false)
+  /// Why this needs a careful look: human_agent, invite, price, unqualified.
+  flags        String[]
+  proposedTags Json?
+  raw          Json?
+  backend      String?
+  model        String?
+  inputTokens  Int?
+  outputTokens Int?
+  /// What was actually sent when the user edited the draft first. Feeds the
+  /// voice-corrections loop.
+  editedText   String?
+  edited       Boolean     @default(false)
+  sendError    String?
+  createdAt    DateTime    @default(now())
+  decidedAt    DateTime?
+  sentAt       DateTime?
+
+  @@index([workspaceId, status])
+  @@index([contactId, status])
 }

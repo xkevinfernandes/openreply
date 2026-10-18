@@ -3,8 +3,11 @@ import { recordWorkerHeartbeat } from "@/lib/ops/worker-health";
 import { reconcileComments } from "@/lib/polling/comment-reconciler";
 import { attachPendingNextReels } from "@/lib/automation/attach-next-reel";
 import os from "node:os";
+// DM OS (our fork): J's setter queue runs on the same worker process.
+import { createSetterWorker } from "@/lib/os/setter/queue";
 
 const worker = createDMWorker();
+const setterWorker = createSetterWorker();
 const startedAt = new Date().toISOString();
 const HEARTBEAT_INTERVAL_MS = 30_000;
 // Polling safety net for comments that webhooks miss. Runs in the worker because
@@ -53,6 +56,7 @@ async function shutdown(signal: string) {
   clearInterval(heartbeatTimer);
   clearInterval(pollTimer);
   await worker.close();
+  await setterWorker.close();
   process.exit(0);
 }
 
