@@ -11,6 +11,7 @@ import "./knowledge.css";
 import "./integrations.css";
 import "./automations.css";
 import "./settings.css";
+import "./contacts.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 

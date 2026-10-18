@@ -1,0 +1,880 @@
+/* DM OS Contacts (build step 5): toolbar, filters, bulk bar, the table, the
+   Kanban board and the side panel. Tokens and controls live in os.css.
+
+   Review Room look: hairline columns on paper, white cards that lift on
+   hover and press on click, ink only for what is chosen. A dragged card goes
+   translucent where it was; the column under it takes a dashed ink outline.
+   The panel is a parallel surface (no scrim on desktop) that slides in from
+   the right and leaves the same way. */
+
+.os-ct {
+  --panel-w: 400px;
+  position: relative;
+}
+
+/* --- Toolbar -------------------------------------------------------------- */
+
+.os-ct-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.os .os-ct-search {
+  flex: 1 1 260px;
+  max-width: 360px;
+  padding: 0;
+  border: 0;
+}
+
+.os .os-ct-search svg {
+  left: 10px;
+}
+
+.os-segmented svg {
+  width: 14px;
+  height: 14px;
+}
+
+.os-ct-filter-toggle[aria-expanded="true"] {
+  background: var(--tint-2);
+  color: var(--ink);
+}
+
+.os-ct-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.os-ct-collapse {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+/* --- Filters -------------------------------------------------------------- */
+
+.os-ct-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-2);
+  animation: os-ct-drop 180ms var(--ease);
+}
+
+.os-ct-filter {
+  display: grid;
+  gap: 4px;
+  min-width: 150px;
+}
+
+.os-ct-filter > span:first-child {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--faint);
+}
+
+.os-ct-filter .os-select,
+.os-ct-filter select {
+  width: 100%;
+}
+
+.os-ct-filter[data-active="true"] select {
+  border-color: var(--ink);
+}
+
+.os-ct-filters .os-link {
+  align-self: center;
+  margin-top: 18px;
+}
+
+@keyframes os-ct-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* --- Bulk bar --------------------------------------------------------------- */
+
+.os-ct-bulk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 44px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.os-ct-bulk[data-on="true"] {
+  padding: 6px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--paper-2);
+}
+
+.os-ct-count {
+  margin-right: 6px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.os-ct-count strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.os-ct-tag-add {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.os-ct-tag-add .os-input {
+  width: 130px;
+  font-size: var(--fs-sm);
+}
+
+.os-ct-status {
+  min-height: 20px;
+  margin: 6px 0 10px;
+  font-size: var(--fs-xs);
+  color: var(--faint);
+}
+
+.os-ct-status[data-error="true"] {
+  color: var(--bad);
+}
+
+.os-ct-note,
+.os-ct-hint {
+  margin: 0 0 10px;
+  font-size: var(--fs-xs);
+  color: var(--faint);
+}
+
+.os-ct-none {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.os-ct .muted {
+  color: var(--faint);
+}
+
+.os-ct .cap::first-letter {
+  text-transform: uppercase;
+}
+
+/* The draft-waiting mark: the brand green, like "Draft ready" in the Inbox. */
+.os-ct-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mark);
+  box-shadow: 0 0 0 3px var(--mark-bg);
+}
+
+.os-ct input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+/* --- Table ------------------------------------------------------------------- */
+
+.os-ct-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.os-ct-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.os-ct-table th {
+  position: sticky;
+  top: 0;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--faint);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.os-ct-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.os-ct-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.os-ct-table tbody tr {
+  transition: background-color 120ms ease;
+}
+
+.os-ct-table tbody tr:hover {
+  background: var(--tint);
+}
+
+.os-ct-table tr[aria-selected="true"],
+.os-ct-table tr[data-open="true"] {
+  background: var(--tint-2);
+}
+
+.os-ct-table .check {
+  width: 36px;
+  padding-right: 0;
+}
+
+.os-ct-table .when {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.os-ct-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 280px;
+  padding: 2px 4px 2px 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.os-ct-who:hover .name {
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+}
+
+.os-ct .who-text {
+  display: grid;
+  min-width: 0;
+}
+
+.os-ct .who-text .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.os-ct .who-text .sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-xs);
+  color: var(--faint);
+}
+
+.os-ct-tags {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.os-ct-inline-select select {
+  height: 28px;
+  border-color: transparent;
+  background-color: transparent;
+}
+
+.os-ct-inline-select select:hover {
+  border-color: var(--line-strong);
+}
+
+/* --- Kanban ------------------------------------------------------------------ */
+
+.os-ct-board {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+}
+
+.os-ct-col {
+  flex: 0 0 272px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 300px);
+  min-height: 160px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-2);
+  scroll-snap-align: start;
+  transition:
+    flex-basis 240ms var(--ease),
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+/* The two end states read as ends: a quiet tint, never a loud colour. */
+.os-ct-col[data-stage="WON"] .os-ct-col-head h2::before,
+.os-ct-col[data-stage="LOST"] .os-ct-col-head h2::before,
+.os-ct-col[data-stage="NOT_QUALIFIED"] .os-ct-col-head h2::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: var(--ghost);
+}
+
+.os-ct-col[data-stage="WON"] .os-ct-col-head h2::before {
+  background: var(--mark);
+}
+
+.os-ct-col[data-over="true"] {
+  background: var(--tint-2);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.os-ct-col-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 6px 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.os-ct-col-head h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.os-ct-col-head .count {
+  font-size: var(--fs-xs);
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.os-ct-col-toggle,
+.os-ct-close {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    transform 100ms ease;
+}
+
+.os-ct-col-toggle:hover,
+.os-ct-close:hover {
+  background: var(--tint-2);
+  color: var(--ink);
+}
+
+.os-ct-col-toggle:active,
+.os-ct-close:active {
+  transform: scale(0.94);
+}
+
+.os-ct-col-toggle svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Collapsed: a narrow strip with the name running down it. Still a drop target. */
+.os-ct-col[data-collapsed="true"] {
+  flex-basis: 44px;
+  min-height: 220px;
+}
+
+.os-ct-col[data-collapsed="true"] .os-ct-col-head {
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  height: auto;
+  padding: 8px 0 12px;
+  border-bottom: 0;
+}
+
+.os-ct-col[data-collapsed="true"] .os-ct-col-head h2 {
+  flex: none;
+  writing-mode: vertical-rl;
+  overflow: visible;
+}
+
+.os-ct-cards {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 8px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.os-ct-col-empty {
+  margin: 0;
+  padding: 24px 12px;
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--ghost);
+}
+
+.os-ct-card {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.03);
+  cursor: grab;
+  transition:
+    transform 200ms var(--ease),
+    box-shadow 200ms var(--ease),
+    border-color 120ms ease,
+    opacity 120ms ease;
+}
+
+.os-ct-card:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.os-ct-card:active {
+  cursor: grabbing;
+}
+
+.os-ct-card[data-dragging="true"] {
+  opacity: 0.35;
+  transform: none;
+  box-shadow: none;
+}
+
+.os-ct-card[data-picked="true"],
+.os-ct-card[data-open="true"] {
+  border-color: var(--ink);
+}
+
+.os-ct-pick {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.os-ct-card:hover .os-ct-pick,
+.os-ct-card:focus-within .os-ct-pick,
+.os-ct-pick:checked,
+.os-ct-board:has(.os-ct-pick:checked) .os-ct-pick {
+  opacity: 1;
+}
+
+.os-ct-card-main {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 10px 6px;
+  border: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: inherit;
+}
+
+.os-ct-card-main .top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding-right: 22px;
+}
+
+.os-ct-card-main .who-text {
+  flex: 1;
+}
+
+.os-ct-card-main .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 0;
+}
+
+.os-ct-card-main .chips:empty {
+  display: none;
+}
+
+.os-ct-card .foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 6px 6px 10px;
+  font-size: var(--fs-xs);
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.os-ct-card-stage select {
+  height: 26px;
+  max-width: 140px;
+  padding-left: 8px;
+  border-color: transparent;
+  background-color: transparent;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.os-ct-card-stage select:hover,
+.os-ct-card-stage select:focus {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+/* --- Side panel ---------------------------------------------------------------- */
+
+.os-ct-panel {
+  position: fixed;
+  top: calc(var(--bar-h) + env(safe-area-inset-top));
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  width: min(var(--panel-w), 100vw);
+  overflow-y: auto;
+  border-left: 1px solid var(--line);
+  background: var(--card);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(104%);
+  visibility: hidden;
+  transition:
+    transform 320ms var(--ease-sheet),
+    visibility 0s linear 320ms;
+}
+
+.os-ct-panel[data-open="true"] {
+  transform: translateX(0);
+  visibility: visible;
+  transition:
+    transform 320ms var(--ease-sheet),
+    visibility 0s;
+}
+
+.os-ct-scrim {
+  display: none;
+}
+
+.os-ct-panel-body {
+  display: grid;
+  gap: 16px;
+  padding: 18px 20px 40px;
+}
+
+.os-ct-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.os-ct-panel-head .who-text {
+  flex: 1;
+}
+
+.os-ct-panel-head h2.name {
+  margin: 0;
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+
+.os-ct-panel-head a.sub {
+  color: var(--faint);
+  text-decoration: none;
+}
+
+.os-ct-panel-head a.sub:hover {
+  color: var(--ink);
+}
+
+.os-ct-panel-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.os-ct-panel-when {
+  font-size: var(--fs-xs);
+  color: var(--faint);
+}
+
+.os-ct-thread-link {
+  justify-self: start;
+}
+
+.os-ct-thread-link svg {
+  width: 13px;
+  height: 13px;
+}
+
+.os-ct-fields {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+.os-ct-fields > div {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  align-items: start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.os-ct-fields dt {
+  padding-top: 7px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--faint);
+}
+
+.os-ct-fields dd {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--fs-sm);
+}
+
+.os-ct-fields dd.muted {
+  padding-top: 6px;
+}
+
+.os-ct-fields .os-select,
+.os-ct-fields .os-select select {
+  width: 100%;
+}
+
+.os-ct-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--control-h);
+}
+
+.os-ct-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.os-ct-tag-list:empty {
+  display: none;
+}
+
+.os-ct-tag-list .chip {
+  padding-right: 2px;
+}
+
+.os-ct-tag-list button {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  color: var(--faint);
+  cursor: pointer;
+}
+
+.os-ct-tag-list button:hover {
+  background: var(--tint-2);
+  color: var(--ink);
+}
+
+.os-ct-tag-list button svg {
+  width: 11px;
+  height: 11px;
+}
+
+.os-ct-fields .os-ct-tag-add .os-input {
+  flex: 1;
+  width: auto;
+}
+
+.os-ct-fields .os-ct-tag-add {
+  display: flex;
+}
+
+.os-ct-field-error {
+  margin: 6px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--bad);
+}
+
+.os-ct-fields .os-input[aria-invalid="true"] {
+  border-color: var(--bad);
+}
+
+/* Make room for the panel so the board stays usable beside it. */
+@media (min-width: 1200px) {
+  .os-ct[data-panel-open="true"] {
+    margin-right: calc(var(--panel-w) - 24px);
+  }
+}
+
+/* --- Phone ------------------------------------------------------------------------ */
+
+@media (max-width: 860px) {
+  .os .os-ct-search {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .os-ct-collapse {
+    margin-left: 0;
+  }
+
+  .os-ct-col {
+    flex-basis: 84vw;
+    max-height: none;
+  }
+
+  .os-ct-pick {
+    opacity: 1;
+  }
+
+  .os-ct-filter {
+    flex: 1 1 140px;
+  }
+
+  /* On a phone the panel is a modal sheet over a dimmed board. */
+  .os-ct-panel {
+    top: 0;
+    z-index: 60;
+    width: 100vw;
+    padding-top: env(safe-area-inset-top);
+    border-left: 0;
+  }
+
+  .os-ct-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgb(0 0 0 / 0.32);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 240ms var(--ease);
+  }
+
+  .os-ct-scrim[data-open="true"] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .os-ct-close {
+    width: 44px;
+    height: 44px;
+  }
+
+  .os-ct-tag-add .os-input {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-ct-card,
+  .os-ct-card:hover {
+    transform: none;
+  }
+
+  .os-ct-filters {
+    animation: none;
+  }
+
+  .os-ct-panel,
+  .os-ct-panel[data-open="true"] {
+    transform: none;
+    opacity: 0;
+    transition:
+      opacity 200ms ease,
+      visibility 0s linear 200ms;
+  }
+
+  .os-ct-panel[data-open="true"] {
+    opacity: 1;
+    transition:
+      opacity 200ms ease,
+      visibility 0s;
+  }
+}
+
+.os-ct-panel-head h2.name a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.os-ct-panel-head h2.name a:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+}

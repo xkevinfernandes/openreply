@@ -27,6 +27,12 @@ const seedPeople: MockPerson[] = [
     contact: { id: "c6", kind: "SALES", kindSource: "entry", stage: "CALL_BOOKED", entryPath: "keyword_dm", setterStage: "booked", paused: false, ...untriaged } },
   { conversationId: "m7", igUserId: "107", username: "growthguru_99", preview: "Hey! Want to grow your page 10x?", hours: 80,
     contact: { id: "c7", kind: "UNSORTED", kindSource: null, stage: "NEW", entryPath: null, setterStage: null, paused: false, ...untriaged } },
+  { conversationId: "m8", igUserId: "108", username: "sam.creates", fullName: "Sam Ortega", preview: "about 40k a month right now", hours: 50,
+    contact: { id: "c8", kind: "SALES", kindSource: "entry", stage: "QUALIFIED", entryPath: "keyword_dm", setterStage: "qualify", paused: false, ...untriaged } },
+  { conversationId: "m9", igUserId: "109", username: "nora.coaching", fullName: "Nora Lind", preview: "just paid, so excited", hours: 120,
+    contact: { id: "c9", kind: "SALES", kindSource: "entry", stage: "WON", entryPath: "comment", setterStage: "booked", paused: true, ...untriaged } },
+  { conversationId: "m10", igUserId: "110", username: "dev.hobby", preview: "just curious tbh, not running anything", hours: 200,
+    contact: { id: "c10", kind: "SALES", kindSource: "entry", stage: "NOT_QUALIFIED", entryPath: "story_reply", setterStage: "qualify", paused: false, ...untriaged } },
 ];
 
 // On globalThis so kind/stage/triage changes made by server actions are seen
@@ -83,4 +89,30 @@ export function updateMockContact(contactId: string, data: Partial<NonNullable<I
   const { triagedAt: _seen, ...rest } = data;
   void _seen;
   Object.assign(person.contact, Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined)));
+}
+
+/** CRM fields the Contacts screen edits on sample data (tags, notes, email).
+ *  In memory like the rest; gone on restart. */
+export interface MockContactExtras {
+  tags: string[];
+  notes: string | null;
+  email: string | null;
+}
+
+const seedExtras: Record<string, MockContactExtras> = {
+  c1: { tags: ["hot"], notes: "Posts daily, stuck on what converts.", email: null },
+  c3: { tags: ["hot", "agency"], notes: null, email: "jordan@opsco.io" },
+  c6: { tags: ["booked"], notes: "Call Thursday 3pm.", email: "lena@fitlab.co" },
+  c8: { tags: ["agency"], notes: null, email: null },
+  c9: { tags: ["client"], notes: "Started the program.", email: "nora@lind.coach" },
+};
+
+const extras = ((globalThis as { __osMockExtras?: Record<string, MockContactExtras> }).__osMockExtras ??= structuredClone(seedExtras));
+
+export function mockContactExtras(contactId: string): MockContactExtras {
+  return (extras[contactId] ??= { tags: [], notes: null, email: null });
+}
+
+export function updateMockContactExtras(contactId: string, data: Partial<MockContactExtras>) {
+  Object.assign(mockContactExtras(contactId), Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined)));
 }
