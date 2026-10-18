@@ -1187,3 +1187,69 @@
   }
 }
 /* === end J triage ===================================================== */
+
+/* === Profile pictures and unread ========================================
+   Round IG avatar (falls back to the initial disc), unread badge in the
+   thread list, "Follows you" hint in the thread head.
+   ======================================================================= */
+
+.os-avatar {
+  flex-shrink: 0;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #efeee9;
+  color: color-mix(in srgb, var(--ink) 78%, transparent);
+  font-weight: 600;
+  line-height: 1;
+  /* hairline so a white profile picture still reads as a circle */
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.os-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.os-thread .when {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.os-unread {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.os-thread:has(.os-unread) .name {
+  font-weight: 700;
+}
+
+.os-thread:has(.os-unread) .preview {
+  color: var(--ink);
+}
+
+.os-follows {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.os-draft-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* === end profile pictures ============================================= */

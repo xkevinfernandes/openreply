@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { approveJDraft, discardJDraft } from "@/app/(os)/os/inbox/actions";
+import Avatar from "@/components/os/inbox/avatar";
 import type { DraftView } from "@/lib/os/setter/store";
 
 const KIND_LABEL: Record<string, string> = {
@@ -24,13 +25,14 @@ const FLAG_LABEL: Record<string, { label: string; title: string }> = {
 interface DraftCardProps {
   draft: DraftView;
   username: string | null;
+  avatarUrl?: string | null;
   regenerating: boolean;
   onEdit: () => void;
   onRegenerate: () => void;
   onError: (message: string | null) => void;
 }
 
-export default function DraftCard({ draft, username, regenerating, onEdit, onRegenerate, onError }: DraftCardProps) {
+export default function DraftCard({ draft, username, avatarUrl, regenerating, onEdit, onRegenerate, onError }: DraftCardProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [action, setAction] = useState<"approve" | "discard" | null>(null);
@@ -53,7 +55,10 @@ export default function DraftCard({ draft, username, regenerating, onEdit, onReg
           <span className="os-draft-mark" aria-hidden="true">
             J
           </span>
-          {KIND_LABEL[draft.kind] ?? "Draft"} for @{username ?? "them"}
+          {KIND_LABEL[draft.kind] ?? "Draft"} for
+          <span className="os-draft-who">
+            <Avatar src={avatarUrl} username={username} size={18} />@{username ?? "them"}
+          </span>
         </span>
         <span className="os-draft-chips">
           {draft.setterStage && <span className="chip quiet">{draft.setterStage}</span>}

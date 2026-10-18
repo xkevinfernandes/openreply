@@ -15,6 +15,9 @@ interface ContactSeen {
   /** Instagram-scoped id: DmLog.commenterId or the DM sender id. */
   igUserId: string;
   username?: string | null;
+  fullName?: string | null;
+  /** Instagram CDN url; expires, so every list read refreshes it. */
+  avatarUrl?: string | null;
   entryPath?: string | null;
   zernioConversationId?: string | null;
   at?: Date;
@@ -42,6 +45,8 @@ export async function upsertContact(seen: ContactSeen) {
       instagramAccountId: seen.instagramAccountId,
       igUserId: seen.igUserId,
       username: seen.username ?? null,
+      fullName: seen.fullName ?? null,
+      avatarUrl: seen.avatarUrl ?? null,
       entryPath: seen.entryPath ?? null,
       zernioConversationId: seen.zernioConversationId ?? null,
       kind,
@@ -50,6 +55,8 @@ export async function upsertContact(seen: ContactSeen) {
     },
     update: {
       ...(seen.username ? { username: seen.username } : {}),
+      ...(seen.fullName ? { fullName: seen.fullName } : {}),
+      ...(seen.avatarUrl ? { avatarUrl: seen.avatarUrl } : {}),
       ...(seen.zernioConversationId ? { zernioConversationId: seen.zernioConversationId } : {}),
       lastMessageAt: at,
     },

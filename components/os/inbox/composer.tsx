@@ -9,6 +9,7 @@ import type { DraftView } from "@/lib/os/setter/store";
 interface ComposerProps {
   igUserId: string;
   username: string | null;
+  avatarUrl?: string | null;
   contactId: string | null;
   /** J's pending draft for this thread, if any. */
   draft: DraftView | null;
@@ -16,7 +17,7 @@ interface ComposerProps {
   draftBlockedReason: string | null;
 }
 
-export default function Composer({ igUserId, username, contactId, draft, draftBlockedReason }: ComposerProps) {
+export default function Composer({ igUserId, username, avatarUrl, contactId, draft, draftBlockedReason }: ComposerProps) {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState("");
@@ -71,6 +72,7 @@ export default function Composer({ igUserId, username, contactId, draft, draftBl
           key={draft.id}
           draft={draft}
           username={username}
+          avatarUrl={avatarUrl ?? null}
           regenerating={drafting}
           onEdit={() => editDraft(draft)}
           onRegenerate={askJ}

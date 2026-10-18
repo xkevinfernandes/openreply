@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Avatar from "@/components/os/inbox/avatar";
 import Composer from "@/components/os/inbox/composer";
 import ContactControls from "@/components/os/inbox/contact-controls";
 import ThreadList from "@/components/os/inbox/thread-list";
@@ -88,6 +89,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                 ← Back
               </Link>
               <div className="who">
+                <Avatar src={selected.avatarUrl} username={selected.username} size={32} />
                 <a
                   className="name"
                   href={`https://instagram.com/${selected.username ?? ""}`}
@@ -100,6 +102,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                   <span className="chip">{entryLabels[selected.contact.entryPath] ?? selected.contact.entryPath}</span>
                 )}
                 {selected.contact?.kindSource === "triage" && <span className="chip quiet">J&apos;s guess</span>}
+                {selected.profile?.isFollower && <span className="os-follows">Follows you</span>}
               </div>
               {selected.contact && (
                 <ContactControls
@@ -146,6 +149,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
               key={selected.conversationId}
               igUserId={selected.igUserId}
               username={selected.username}
+              avatarUrl={selected.avatarUrl ?? null}
               contactId={selected.contact?.id ?? null}
               draft={selectedDraft}
               draftBlockedReason={draftBlockedReason}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { InboxThread } from "@/lib/os/inbox";
 import { entryLabels, kindTabs, shortAgo, stageLabels } from "@/lib/os/labels";
+import Avatar from "@/components/os/inbox/avatar";
 import { TriageBar, TriageSuggestion } from "@/components/os/inbox/triage";
 
 interface ThreadListProps {
@@ -120,13 +121,18 @@ export default function ThreadList({ threads, tab, selected, now, draftContactId
               className="os-thread"
               aria-current={t.conversationId === selected ? "true" : undefined}
             >
-              <span className="avatar" aria-hidden="true">
-                {(t.username ?? "?").slice(0, 1).toUpperCase()}
-              </span>
+              <Avatar src={t.avatarUrl} username={t.username} className="avatar" />
               <span className="body">
                 <span className="row">
                   <span className="name">@{t.username ?? "unknown"}</span>
-                  <span className="when">{shortAgo(t.updatedTime, now)}</span>
+                  <span className="when">
+                    {shortAgo(t.updatedTime, now)}
+                    {t.unreadCount ? (
+                      <span className="os-unread" aria-label={`${t.unreadCount} unread`}>
+                        {t.unreadCount > 99 ? "99+" : t.unreadCount}
+                      </span>
+                    ) : null}
+                  </span>
                 </span>
                 <span className="preview">{t.preview || "No preview"}</span>
                 {t.contact && kind === "SALES" && (

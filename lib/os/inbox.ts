@@ -11,12 +11,25 @@ import { upsertContact } from "@/lib/os/contacts";
 import { enqueueTriageMany } from "@/lib/os/setter/queue";
 import { appendMockMessage, mockMessages, mockThreads, osMockEnabled } from "@/lib/os/mock";
 
+/** What Zernio tells us about the person on each list read (not stored). */
+export interface InboxProfile {
+  isFollower: boolean | null;
+  isFollowing: boolean | null;
+  followerCount: number | null;
+  isVerified: boolean | null;
+}
+
 export interface InboxThread {
   conversationId: string;
   igUserId: string;
   username: string | null;
   updatedTime: string | null;
   preview: string | null;
+  /** Instagram CDN url; it expires, so it is refreshed on every list read. */
+  avatarUrl?: string | null;
+  fullName?: string | null;
+  unreadCount?: number;
+  profile?: InboxProfile | null;
   contact: Pick<
     Contact,
     "id" | "kind" | "kindSource" | "stage" | "entryPath" | "setterStage" | "paused" | "suggestedKind" | "suggestedReason" | "triagedMessageId"
@@ -36,7 +49,13 @@ interface RawThread {
   username: string | null;
   updatedTime: string | null;
   preview: string | null;
+  avatarUrl: string | null;
+  fullName: string | null;
+  unreadCount: number;
+  profile: InboxProfile | null;
 }
+
+const bool = (v: unknown) => (typeof v === "boolean" ? v : null);
 
 export async function getInboxAccount(workspaceId: string) {
   return prisma.instagramAccount.findFirst({
@@ -55,8 +74,12 @@ async function readThreads(account: InstagramAccount): Promise<RawThread[]> {
         id: string;
         participantId?: string;
         participantUsername?: string;
+        participantName?: string;
+        participantPicture?: string;
         updatedTime: string;
         lastMessage?: string;
+        unreadCount?: number;
+        instagramProfile?: { isFollower?: boolean; isFollowing?: boolean; followerCount?: number; isVerified?: boolean } | null;
       }[];
     }>({
       apiKey: context.apiKey,
@@ -70,6 +93,17 @@ async function readThreads(account: InstagramAccount): Promise<RawThread[]> {
         username: c.participantUsername ?? null,
         updatedTime: c.updatedTime ?? null,
         preview: c.lastMessage ?? null,
+        avatarUrl: c.participantPicture || null,
+        fullName: c.participantName || null,
+        unreadCount: typeof c.unreadCount === "number" ? c.unreadCount : 0,
+        profile: c.instagramProfile
+          ? {
+              isFollower: bool(c.instagramProfile.isFollower),
+              isFollowing: bool(c.instagramProfile.isFollowing),
+              followerCount: typeof c.instagramProfile.followerCount === "number" ? c.instagramProfile.followerCount : null,
+              isVerified: bool(c.instagramProfile.isVerified),
+            }
+          : null,
       }));
   }
 
@@ -84,6 +118,10 @@ async function readThreads(account: InstagramAccount): Promise<RawThread[]> {
         username: other.username ?? null,
         updatedTime: c.updated_time ?? null,
         preview: c.messages?.data?.[0]?.message ?? null,
+        avatarUrl: null,
+        fullName: null,
+        unreadCount: 0,
+        profile: null,
       },
     ];
   });
@@ -118,6 +156,8 @@ export async function listThreads(workspaceId: string): Promise<{ account: Insta
         instagramAccountId: account.id,
         igUserId: t.igUserId,
         username: t.username,
+        fullName: t.fullName,
+        avatarUrl: t.avatarUrl,
         zernioConversationId: t.conversationId,
         entryPath: commenters.has(t.igUserId) ? "comment" : null,
         at: t.updatedTime ? new Date(t.updatedTime) : undefined,
