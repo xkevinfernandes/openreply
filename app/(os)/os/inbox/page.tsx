@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Avatar from "@/components/os/inbox/avatar";
 import Composer from "@/components/os/inbox/composer";
+import { initialSource, threadName } from "@/components/os/inbox/names";
 import ContactControls from "@/components/os/inbox/contact-controls";
 import ThreadList from "@/components/os/inbox/thread-list";
 import { TriageSuggestion } from "@/components/os/inbox/triage";
@@ -82,23 +83,32 @@ export default async function InboxPage({ searchParams }: PageProps) {
 
       <section className="os-inbox-thread" aria-label="Conversation">
         {error && <div className="os-banner">{error}</div>}
-        {!selected && !error && <div className="os-thread-placeholder">Pick a conversation.</div>}
+        {!selected && !error && (
+          <div className="os-thread-placeholder">
+            <strong>No conversation open</strong>
+            Pick one from the list.
+          </div>
+        )}
         {selected && (
           <>
             <header className="os-thread-head">
-              <Link href={`/os/inbox?tab=${tab}`} className="os-back">
-                ← Back
+              <Link href={`/os/inbox?tab=${tab}`} className="os-back" aria-label="Back to conversations">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M10 3.5 5.5 8l4.5 4.5" />
+                </svg>
               </Link>
               <div className="who">
-                <Avatar src={selected.avatarUrl} username={selected.username} size={32} />
-                <a
-                  className="name"
-                  href={`https://instagram.com/${selected.username ?? ""}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  @{selected.username ?? "unknown"}
-                </a>
+                <Avatar src={selected.avatarUrl} username={initialSource(selected.username, selected.fullName)} size={32} />
+                <span className="who-text">
+                  {selected.username ? (
+                    <a className="name" href={`https://instagram.com/${selected.username}`} target="_blank" rel="noreferrer">
+                      {threadName(selected.username, selected.fullName)}
+                    </a>
+                  ) : (
+                    <span className="name">{threadName(selected.username, selected.fullName)}</span>
+                  )}
+                  {selected.username && selected.fullName && <span className="sub">{selected.fullName}</span>}
+                </span>
                 {selected.contact?.entryPath && (
                   <span className="chip">{entryLabels[selected.contact.entryPath] ?? selected.contact.entryPath}</span>
                 )}
@@ -153,6 +163,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
               key={selected.conversationId}
               igUserId={selected.igUserId}
               username={selected.username}
+              name={threadName(selected.username, selected.fullName)}
               avatarUrl={selected.avatarUrl ?? null}
               contactId={selected.contact?.id ?? null}
               draft={selectedDraft}

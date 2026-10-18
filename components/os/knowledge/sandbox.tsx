@@ -175,32 +175,40 @@ export default function Sandbox({ setterId, setterName, entries, backend }: { se
 
       <div className="os-composer">
         {error && <p className="os-composer-error">{error}</p>}
-        <label className="sr-only" htmlFor="os-sandbox-input">
-          Message as the lead
-        </label>
-        <textarea
-          id="os-sandbox-input"
-          ref={inputRef}
-          rows={2}
-          value={text}
-          placeholder="Message as the lead…"
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-        />
-        <div className="os-composer-actions">
-          {lastIsJ && (
-            <button type="button" className="os-button ghost" onClick={regenerate} disabled={thinking}>
-              Try again
-            </button>
-          )}
-          <button type="button" className="os-button primary" onClick={send} disabled={!text.trim() || thinking}>
-            {thinking ? "J is writing…" : "Send as lead"}
-          </button>
+        <div className="os-compose">
+          <label className="sr-only" htmlFor="os-sandbox-input">
+            Message as the lead
+          </label>
+          <textarea
+            id="os-sandbox-input"
+            ref={inputRef}
+            rows={2}
+            value={text}
+            placeholder="Message as the lead…"
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+          />
+          <div className="os-compose-bar">
+            <span className="os-compose-hint" aria-hidden="true">
+              <kbd>↵</kbd> to send · <kbd>⇧</kbd>
+              <kbd>↵</kbd> new line
+            </span>
+            <div className="os-composer-actions">
+              {lastIsJ && (
+                <button type="button" className="os-button ghost" onClick={regenerate} disabled={thinking}>
+                  Try again
+                </button>
+              )}
+              <button type="button" className="os-button primary" onClick={send} disabled={!text.trim() || thinking}>
+                {thinking ? "J is writing…" : "Send as lead"}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

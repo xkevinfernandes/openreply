@@ -7,6 +7,7 @@ import { entryLabels, kindTabs, shortAgo, stageLabels } from "@/lib/os/labels";
 import Avatar from "@/components/os/inbox/avatar";
 import { TriageBar, TriageSuggestion } from "@/components/os/inbox/triage";
 import { isUnsure } from "@/lib/os/triage-copy";
+import { initialSource, threadName } from "@/components/os/inbox/names";
 
 interface ThreadListProps {
   threads: InboxThread[];
@@ -56,7 +57,10 @@ export default function ThreadList({ threads, tab, selected, now, draftContactId
     (t) =>
       (t.contact?.kind ?? "UNSORTED") === kind &&
       (!onlyDrafts || (t.contact && hasDraft.has(t.contact.id))) &&
-      (!q || (t.username ?? "").toLowerCase().includes(q) || (t.preview ?? "").toLowerCase().includes(q))
+      (!q ||
+        (t.username ?? "").toLowerCase().includes(q) ||
+        (t.fullName ?? "").toLowerCase().includes(q) ||
+        (t.preview ?? "").toLowerCase().includes(q))
   );
   // On Unsorted, the ones J isn't sure about sit in their own group at the end.
   const unsureRows = kind === "UNSORTED" ? matching.filter((t) => isUnsure(t.contact)) : [];
@@ -71,10 +75,12 @@ export default function ThreadList({ threads, tab, selected, now, draftContactId
         className="os-thread"
         aria-current={t.conversationId === selected ? "true" : undefined}
       >
-        <Avatar src={t.avatarUrl} username={t.username} className="avatar" />
+        <Avatar src={t.avatarUrl} username={initialSource(t.username, t.fullName)} className="avatar" />
         <span className="body">
           <span className="row">
-            <span className="name">@{t.username ?? "unknown"}</span>
+            <span className="name" data-hidden={t.username ? undefined : "true"}>
+              {threadName(t.username, t.fullName)}
+            </span>
             <span className="when">
               {shortAgo(t.updatedTime, now)}
               {t.unreadCount ? (
@@ -149,6 +155,10 @@ export default function ThreadList({ threads, tab, selected, now, draftContactId
       )}
       <label className="os-search">
         <span className="sr-only">Search conversations</span>
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="7" cy="7" r="4.5" />
+          <path d="m10.5 10.5 3 3" />
+        </svg>
         <input
           id="inbox-search"
           type="search"

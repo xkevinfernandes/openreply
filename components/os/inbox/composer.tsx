@@ -9,6 +9,8 @@ import type { DraftView } from "@/lib/os/setter/store";
 interface ComposerProps {
   igUserId: string;
   username: string | null;
+  /** How they read: "@handle", their name, or "Instagram user". */
+  name?: string;
   avatarUrl?: string | null;
   contactId: string | null;
   /** J's pending draft for this thread, if any. */
@@ -17,7 +19,7 @@ interface ComposerProps {
   draftBlockedReason: string | null;
 }
 
-export default function Composer({ igUserId, username, avatarUrl, contactId, draft, draftBlockedReason }: ComposerProps) {
+export default function Composer({ igUserId, username, name, avatarUrl, contactId, draft, draftBlockedReason }: ComposerProps) {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState("");
@@ -29,6 +31,7 @@ export default function Composer({ igUserId, username, avatarUrl, contactId, dra
   const [drafting, startDraft] = useTransition();
 
   const editing = Boolean(draft && editingDraftId === draft.id);
+  const who = name ?? (username ? `@${username}` : "them");
 
   function send() {
     setError(null);
@@ -72,6 +75,7 @@ export default function Composer({ igUserId, username, avatarUrl, contactId, dra
           key={draft.id}
           draft={draft}
           username={username}
+          name={who}
           avatarUrl={avatarUrl ?? null}
           regenerating={drafting}
           onEdit={() => editDraft(draft)}
@@ -118,35 +122,43 @@ export default function Composer({ igUserId, username, avatarUrl, contactId, dra
             </button>
           </p>
         )}
-        <label htmlFor="composer-text" className="sr-only">
-          Message @{username ?? "them"}
-        </label>
-        <textarea
-          id="composer-text"
-          ref={textareaRef}
-          rows={editing ? 4 : 2}
-          placeholder={`Message @${username ?? "them"}`}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
-          }}
-        />
-        <div className="os-composer-actions">
-          {!draft && (
-            <button
-              type="button"
-              className="os-button"
-              disabled={!contactId || Boolean(draftBlockedReason) || drafting || sending}
-              title={draftBlockedReason ?? "J reads the whole thread and drafts the next message. Nothing sends until you approve."}
-              onClick={askJ}
-            >
-              {drafting ? "J is writing…" : "Draft with J"}
-            </button>
-          )}
-          <button type="submit" className="os-button primary" disabled={sending || !text.trim()}>
-            {sending ? "Sending…" : editing ? "Send edited" : "Send"}
-          </button>
+        <div className="os-compose">
+          <label htmlFor="composer-text" className="sr-only">
+            Message {who}
+          </label>
+          <textarea
+            id="composer-text"
+            ref={textareaRef}
+            rows={editing ? 4 : 2}
+            placeholder={`Message ${who}`}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
+            }}
+          />
+          <div className="os-compose-bar">
+            <span className="os-compose-hint" aria-hidden="true">
+              <kbd>⌘</kbd>
+              <kbd>↵</kbd> to send
+            </span>
+            <div className="os-composer-actions">
+              {!draft && (
+                <button
+                  type="button"
+                  className="os-button"
+                  disabled={!contactId || Boolean(draftBlockedReason) || drafting || sending}
+                  title={draftBlockedReason ?? "J reads the whole thread and drafts the next message. Nothing sends until you approve."}
+                  onClick={askJ}
+                >
+                  {drafting ? "J is writing…" : "Draft with J"}
+                </button>
+              )}
+              <button type="submit" className="os-button primary" disabled={sending || !text.trim()}>
+                {sending ? "Sending…" : editing ? "Send edited" : "Send"}
+              </button>
+            </div>
+          </div>
         </div>
       </form>
     </div>

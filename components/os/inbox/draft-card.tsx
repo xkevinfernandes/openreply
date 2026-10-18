@@ -25,6 +25,8 @@ const FLAG_LABEL: Record<string, { label: string; title: string }> = {
 interface DraftCardProps {
   draft: DraftView;
   username: string | null;
+  /** How they read: "@handle", their name, or "Instagram user". */
+  name?: string;
   avatarUrl?: string | null;
   regenerating: boolean;
   onEdit: () => void;
@@ -32,7 +34,7 @@ interface DraftCardProps {
   onError: (message: string | null) => void;
 }
 
-export default function DraftCard({ draft, username, avatarUrl, regenerating, onEdit, onRegenerate, onError }: DraftCardProps) {
+export default function DraftCard({ draft, username, name, avatarUrl, regenerating, onEdit, onRegenerate, onError }: DraftCardProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [action, setAction] = useState<"approve" | "discard" | null>(null);
@@ -57,7 +59,8 @@ export default function DraftCard({ draft, username, avatarUrl, regenerating, on
           </span>
           {KIND_LABEL[draft.kind] ?? "Draft"} for
           <span className="os-draft-who">
-            <Avatar src={avatarUrl} username={username} size={18} />@{username ?? "them"}
+            <Avatar src={avatarUrl} username={username ?? name ?? null} size={18} />
+            {name ?? (username ? `@${username}` : "them")}
           </span>
         </span>
         <span className="os-draft-chips">
