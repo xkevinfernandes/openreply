@@ -8,7 +8,7 @@ export function osMockEnabled() {
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
 
-const untriaged = { suggestedKind: null, suggestedReason: null, triagedMessageId: null };
+const untriaged = { suggestedKind: null, suggestedReason: null, suggestedConfidence: null, triagedMessageId: null };
 
 type MockPerson = Omit<InboxThread, "updatedTime"> & { hours: number; firstReply?: string };
 

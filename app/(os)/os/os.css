@@ -1103,8 +1103,50 @@
   color: var(--warn);
 }
 
+/* Jev's probability: there if you look, never louder than the label. */
+.os-triage-pct {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .os-triage-reason {
   color: var(--muted);
+}
+
+/* "J isn't sure": a hollow mark and a quieter label, no primary button.
+   J is handing the call back, not asking for a confirm. */
+.os-triage[data-unsure="true"] .os-triage-mark {
+  background: none;
+  color: var(--muted);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.os-triage[data-unsure="true"] .os-triage-label {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* The group header above the rows J isn't sure about (Unsorted tab). */
+.os-threads-group {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: var(--sp-4) var(--sp-4) var(--sp-2);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+  transition: opacity 200ms ease;
+}
+
+.os-threads-group .count {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.os-threads-group[data-empty="true"] {
+  opacity: 0;
 }
 
 .os-triage-actions {

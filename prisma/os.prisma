@@ -48,6 +48,9 @@ model Contact {
   suggestedKind   ContactKind?
   /// One line on why, shown next to the suggestion.
   suggestedReason String?
+  /// Jev's probability for the suggestion (0-1); null from the LLM backend.
+  /// Set while suggestedKind is null: J looked but isn't sure.
+  suggestedConfidence Float?
   /// When J last looked, and at which of their messages (re-check only when
   /// they write something new).
   triagedAt        DateTime?

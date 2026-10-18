@@ -21,7 +21,7 @@ import { getRedisConnection } from "@/lib/queue/client";
 export const SETTER_QUEUE = "os-setter";
 export const SETTER_DRAFT_JOB = "os-setter-draft";
 export const SETTER_TRIAGE_JOB = "os-setter-triage";
-/** Most triage calls per minute across the worker (Zernio reads + Haiku). */
+/** Most triage calls per minute across the worker (Zernio reads + one Jev or Haiku call). */
 export const TRIAGE_PER_MINUTE = 10;
 
 export interface SetterDraftJob {
@@ -156,7 +156,7 @@ async function processTriageJob(job: Job<SetterTriageJob>, token?: string) {
   const result = await triageContact(job.data.contactId);
   console.log(
     `[OS Setter] triage ${job.data.contactId} (${job.data.reason}): ${result.status}` +
-      (result.status === "suggested" ? ` ${result.kind} — ${result.reason}` : result.status === "skipped" ? ` — ${result.reason}` : "")
+      (result.status === "suggested" ? ` ${result.kind} — ${result.reason}` : result.status === "clear" ? "" : ` — ${result.reason}`)
   );
 }
 

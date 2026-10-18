@@ -15,12 +15,16 @@ import {
   type TriageActionResult,
 } from "@/app/(os)/os/inbox/actions";
 import type { ContactKind } from "@/app/generated/prisma/enums";
+import { triageCopy } from "@/lib/os/triage-copy";
 
 interface SuggestionProps {
   contactId: string;
   /** The contact's kind now: UNSORTED (a guess) or PERSONAL (a flag). */
   kind: ContactKind;
-  suggestedKind: ContactKind;
+  /** Null with a confidence: J looked but isn't sure. */
+  suggestedKind: ContactKind | null;
+  /** Jev's probability, shown as a quiet percentage. Null from the LLM. */
+  confidence?: number | null;
   reason: string | null;
   /** "row" sits under a thread in the list; "banner" under the thread head. */
   variant?: "row" | "banner";
@@ -29,12 +33,14 @@ interface SuggestionProps {
   onDecided?: (contactId: string, decided: boolean) => void;
 }
 
-export function TriageSuggestion({ contactId, kind, suggestedKind, reason, variant = "row", onDecided }: SuggestionProps) {
+export function TriageSuggestion({ contactId, kind, suggestedKind, confidence = null, reason, variant = "row", onDecided }: SuggestionProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const flag = kind === "PERSONAL";
+  const unsure = !suggestedKind;
   const other: ContactKind = suggestedKind === "SALES" ? "PERSONAL" : "SALES";
+  const copy = triageCopy({ flag, suggested: suggestedKind === "UNSORTED" ? null : suggestedKind, confidence, reason });
 
   function run(act: () => Promise<TriageActionResult | void>) {
     setError(null);
@@ -54,30 +60,46 @@ export function TriageSuggestion({ contactId, kind, suggestedKind, reason, varia
     });
   }
 
-  const label = flag ? "Move to Sales?" : `Looks like ${suggestedKind === "SALES" ? "sales" : "personal"}`;
-
   return (
-    <div className="os-triage" data-variant={variant} data-flag={flag ? "true" : undefined} aria-busy={pending}>
+    <div
+      className="os-triage"
+      data-variant={variant}
+      data-flag={flag ? "true" : undefined}
+      data-unsure={unsure ? "true" : undefined}
+      aria-busy={pending}
+    >
       <p className="os-triage-text">
         <span className="os-triage-mark" aria-hidden="true">
           J
         </span>
-        <span className="os-triage-label">{label}</span>
-        {reason && <span className="os-triage-reason"> · {reason}</span>}
+        <span className="os-triage-label">{copy.label}</span>
+        {copy.pct && <span className="os-triage-pct"> · {copy.pct}</span>}
+        {copy.detail && <span className="os-triage-reason"> · {copy.detail}</span>}
       </p>
-      <div className="os-triage-actions" role="group" aria-label={flag ? "Move to Sales?" : "J's suggestion"}>
-        <button type="button" className="os-button primary" disabled={pending} onClick={() => run(() => confirmSuggestion(contactId))}>
-          {flag ? "Move to Sales" : `Confirm ${suggestedKind === "SALES" ? "Sales" : "Personal"}`}
-        </button>
-        <button
-          type="button"
-          className="os-button"
-          disabled={pending}
-          onClick={() => run(() => (flag ? dismissSuggestion(contactId) : setContactKind(contactId, other)))}
-        >
-          {flag ? "Keep personal" : other === "SALES" ? "Sales" : "Personal"}
-        </button>
-      </div>
+      {unsure ? (
+        <div className="os-triage-actions" role="group" aria-label="Sales or personal?">
+          <button type="button" className="os-button" disabled={pending} onClick={() => run(() => setContactKind(contactId, "SALES"))}>
+            Sales
+          </button>
+          <button type="button" className="os-button" disabled={pending} onClick={() => run(() => setContactKind(contactId, "PERSONAL"))}>
+            Personal
+          </button>
+        </div>
+      ) : (
+        <div className="os-triage-actions" role="group" aria-label={flag ? "Move to Sales?" : "J's suggestion"}>
+          <button type="button" className="os-button primary" disabled={pending} onClick={() => run(() => confirmSuggestion(contactId))}>
+            {flag ? "Move to Sales" : `Confirm ${suggestedKind === "SALES" ? "Sales" : "Personal"}`}
+          </button>
+          <button
+            type="button"
+            className="os-button"
+            disabled={pending}
+            onClick={() => run(() => (flag ? dismissSuggestion(contactId) : setContactKind(contactId, other)))}
+          >
+            {flag ? "Keep personal" : other === "SALES" ? "Sales" : "Personal"}
+          </button>
+        </div>
+      )}
       {error && (
         <p className="os-triage-error" role="alert">
           {error}

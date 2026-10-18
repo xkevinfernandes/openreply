@@ -4,6 +4,7 @@ import Composer from "@/components/os/inbox/composer";
 import ContactControls from "@/components/os/inbox/contact-controls";
 import ThreadList from "@/components/os/inbox/thread-list";
 import { TriageSuggestion } from "@/components/os/inbox/triage";
+import { isUnsure } from "@/lib/os/triage-copy";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { getThreadMessages, listThreads, type InboxMessage, type InboxThread } from "@/lib/os/inbox";
 import { entryLabels, kindTabs } from "@/lib/os/labels";
@@ -113,14 +114,17 @@ export default async function InboxPage({ searchParams }: PageProps) {
               )}
             </header>
 
-            {selected.contact?.suggestedKind &&
-              (selected.contact.kind === "UNSORTED" ||
-                (selected.contact.kind === "PERSONAL" && selected.contact.suggestedKind === "SALES")) && (
+            {selected.contact &&
+              ((selected.contact.suggestedKind &&
+                (selected.contact.kind === "UNSORTED" ||
+                  (selected.contact.kind === "PERSONAL" && selected.contact.suggestedKind === "SALES"))) ||
+                isUnsure(selected.contact)) && (
                 <TriageSuggestion
-                  key={`${selected.contact.id}-${selected.contact.suggestedKind}`}
+                  key={`${selected.contact.id}-${selected.contact.suggestedKind ?? "unsure"}`}
                   contactId={selected.contact.id}
                   kind={selected.contact.kind}
                   suggestedKind={selected.contact.suggestedKind}
+                  confidence={selected.contact.suggestedConfidence}
                   reason={selected.contact.suggestedReason}
                   variant="banner"
                 />

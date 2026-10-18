@@ -23,6 +23,7 @@ type ContactPatch = {
   stage?: ContactStage;
   suggestedKind?: ContactKind | null;
   suggestedReason?: string | null;
+  suggestedConfidence?: number | null;
 };
 
 async function updateContact(contactId: string, data: ContactPatch) {
@@ -40,7 +41,7 @@ async function updateContact(contactId: string, data: ContactPatch) {
 export async function setContactKind(contactId: string, kind: ContactKind) {
   if (!Object.values(ContactKind).includes(kind)) throw new Error("Unknown kind.");
   // The user decided: J's suggestion (or "move to Sales?" flag) is done.
-  await updateContact(contactId, { kind, kindSource: "user", suggestedKind: null, suggestedReason: null });
+  await updateContact(contactId, { kind, kindSource: "user", suggestedKind: null, suggestedReason: null, suggestedConfidence: null });
 }
 
 export async function setContactStage(contactId: string, stage: ContactStage) {
@@ -134,7 +135,7 @@ export async function confirmSuggestion(contactId: string): Promise<TriageAction
 
 /** "Keep personal": drop J's "move to Sales?" flag. */
 export async function dismissSuggestion(contactId: string): Promise<TriageActionResult> {
-  await updateContact(contactId, { suggestedKind: null, suggestedReason: null });
+  await updateContact(contactId, { suggestedKind: null, suggestedReason: null, suggestedConfidence: null });
   return {};
 }
 
@@ -145,7 +146,7 @@ export async function confirmAllSuggestions(): Promise<TriageActionResult> {
   if (osMockEnabled()) {
     for (const t of mockThreads()) {
       if (t.contact?.kind !== "UNSORTED" || !t.contact.suggestedKind) continue;
-      updateMockContact(t.contact.id, { kind: t.contact.suggestedKind, kindSource: "user", suggestedKind: null, suggestedReason: null });
+      updateMockContact(t.contact.id, { kind: t.contact.suggestedKind, kindSource: "user", suggestedKind: null, suggestedReason: null, suggestedConfidence: null });
       n++;
     }
   } else {
@@ -153,7 +154,7 @@ export async function confirmAllSuggestions(): Promise<TriageActionResult> {
       (["SALES", "PERSONAL"] as const).map((kind) =>
         prisma.contact.updateMany({
           where: { workspaceId, kind: "UNSORTED", suggestedKind: kind },
-          data: { kind, kindSource: "user", suggestedKind: null, suggestedReason: null },
+          data: { kind, kindSource: "user", suggestedKind: null, suggestedReason: null, suggestedConfidence: null },
         })
       )
     );
@@ -190,6 +191,7 @@ export async function sortWithJ(): Promise<TriageActionResult> {
   }
 
   let suggested = 0;
+  let unsure = 0;
   let looked = 0;
   let left = 0;
   try {
@@ -201,6 +203,7 @@ export async function sortWithJ(): Promise<TriageActionResult> {
       const r = await triageContact(id, { workspaceId });
       if (r.status !== "skipped") looked++;
       if (r.status === "suggested") suggested++;
+      if (r.status === "unsure") unsure++;
     }
   } catch (err) {
     console.error("[OS Setter] triage failed:", err);
@@ -209,5 +212,6 @@ export async function sortWithJ(): Promise<TriageActionResult> {
   }
   revalidatePath("/os/inbox");
   const more = left ? ` ${left} still to look at: tap Sort with J again.` : "";
-  return { notice: `${suggested} new ${suggested === 1 ? "suggestion" : "suggestions"}.${more}` };
+  const notSure = unsure ? ` J isn't sure about ${unsure}.` : "";
+  return { notice: `${suggested} new ${suggested === 1 ? "suggestion" : "suggestions"}.${notSure}${more}` };
 }

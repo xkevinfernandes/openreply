@@ -6,6 +6,7 @@ import type { InboxThread } from "@/lib/os/inbox";
 import { entryLabels, kindTabs, shortAgo, stageLabels } from "@/lib/os/labels";
 import Avatar from "@/components/os/inbox/avatar";
 import { TriageBar, TriageSuggestion } from "@/components/os/inbox/triage";
+import { isUnsure } from "@/lib/os/triage-copy";
 
 interface ThreadListProps {
   threads: InboxThread[];
@@ -46,16 +47,66 @@ export default function ThreadList({ threads, tab, selected, now, draftContactId
   const flagged = threads.filter((t) => t.contact?.kind === "PERSONAL" && t.contact.suggestedKind === "SALES").length;
   // Only while J's suggestion is still on the contact: once the server has
   // the move, the row shows normally wherever it now belongs.
-  const leaving = (t: InboxThread) => Boolean(t.contact?.suggestedKind && decided.has(t.contact.id));
+  const leaving = (t: InboxThread) => Boolean(t.contact && (t.contact.suggestedKind || isUnsure(t.contact)) && decided.has(t.contact.id));
   const confirmAll = (on: boolean) => {
     for (const t of unsorted) if (t.contact?.suggestedKind) decide(t.contact.id, on);
   };
   const q = query.trim().toLowerCase().replace(/^@/, "");
-  const visible = threads.filter(
+  const matching = threads.filter(
     (t) =>
       (t.contact?.kind ?? "UNSORTED") === kind &&
       (!onlyDrafts || (t.contact && hasDraft.has(t.contact.id))) &&
       (!q || (t.username ?? "").toLowerCase().includes(q) || (t.preview ?? "").toLowerCase().includes(q))
+  );
+  // On Unsorted, the ones J isn't sure about sit in their own group at the end.
+  const unsureRows = kind === "UNSORTED" ? matching.filter((t) => isUnsure(t.contact)) : [];
+  const visible = unsureRows.length ? matching.filter((t) => !isUnsure(t.contact)) : matching;
+  const unsureLeft = unsureRows.filter((t) => !leaving(t)).length;
+
+  const renderRow = (t: InboxThread) => (
+    <li key={t.conversationId} className="os-thread-item" data-leaving={leaving(t) ? "true" : undefined}>
+      <div className="os-thread-inner">
+      <Link
+        href={`/os/inbox?tab=${tab}${keep}&c=${encodeURIComponent(t.conversationId)}`}
+        className="os-thread"
+        aria-current={t.conversationId === selected ? "true" : undefined}
+      >
+        <Avatar src={t.avatarUrl} username={t.username} className="avatar" />
+        <span className="body">
+          <span className="row">
+            <span className="name">@{t.username ?? "unknown"}</span>
+            <span className="when">
+              {shortAgo(t.updatedTime, now)}
+              {t.unreadCount ? (
+                <span className="os-unread" aria-label={`${t.unreadCount} unread`}>
+                  {t.unreadCount > 99 ? "99+" : t.unreadCount}
+                </span>
+              ) : null}
+            </span>
+          </span>
+          <span className="preview">{t.preview || "No preview"}</span>
+          {t.contact && kind === "SALES" && (
+            <span className="chips">
+              {t.contact.entryPath && <span className="chip">{entryLabels[t.contact.entryPath] ?? t.contact.entryPath}</span>}
+              <span className="chip">{stageLabels[t.contact.stage]}</span>
+              {t.contact.setterStage && <span className="chip quiet">J · {t.contact.setterStage}</span>}
+              {hasDraft.has(t.contact.id) && <span className="chip ready">Draft ready</span>}
+            </span>
+          )}
+        </span>
+      </Link>
+      {t.contact && kind !== "SALES" && ((t.contact.suggestedKind && (kind === "UNSORTED" || t.contact.suggestedKind === "SALES")) || isUnsure(t.contact)) && (
+        <TriageSuggestion
+          contactId={t.contact.id}
+          kind={t.contact.kind}
+          suggestedKind={t.contact.suggestedKind}
+          confidence={t.contact.suggestedConfidence}
+          reason={t.contact.suggestedReason}
+          onDecided={decide}
+        />
+      )}
+      </div>
+    </li>
   );
 
   return (
@@ -108,55 +159,19 @@ export default function ThreadList({ threads, tab, selected, now, draftContactId
       </label>
 
       <ul className="os-threads">
-        {visible.length === 0 && (
+        {visible.length === 0 && unsureRows.length === 0 && (
           <li className="os-threads-empty">
             {q ? "No conversations match." : onlyDrafts ? "No drafts waiting. J writes one when someone replies." : kind === "UNSORTED" ? "Nothing to sort. Nice." : "No conversations here yet."}
           </li>
         )}
-        {visible.map((t) => (
-          <li key={t.conversationId} className="os-thread-item" data-leaving={leaving(t) ? "true" : undefined}>
-            <div className="os-thread-inner">
-            <Link
-              href={`/os/inbox?tab=${tab}${keep}&c=${encodeURIComponent(t.conversationId)}`}
-              className="os-thread"
-              aria-current={t.conversationId === selected ? "true" : undefined}
-            >
-              <Avatar src={t.avatarUrl} username={t.username} className="avatar" />
-              <span className="body">
-                <span className="row">
-                  <span className="name">@{t.username ?? "unknown"}</span>
-                  <span className="when">
-                    {shortAgo(t.updatedTime, now)}
-                    {t.unreadCount ? (
-                      <span className="os-unread" aria-label={`${t.unreadCount} unread`}>
-                        {t.unreadCount > 99 ? "99+" : t.unreadCount}
-                      </span>
-                    ) : null}
-                  </span>
-                </span>
-                <span className="preview">{t.preview || "No preview"}</span>
-                {t.contact && kind === "SALES" && (
-                  <span className="chips">
-                    {t.contact.entryPath && <span className="chip">{entryLabels[t.contact.entryPath] ?? t.contact.entryPath}</span>}
-                    <span className="chip">{stageLabels[t.contact.stage]}</span>
-                    {t.contact.setterStage && <span className="chip quiet">J · {t.contact.setterStage}</span>}
-                    {hasDraft.has(t.contact.id) && <span className="chip ready">Draft ready</span>}
-                  </span>
-                )}
-              </span>
-            </Link>
-            {t.contact?.suggestedKind && kind !== "SALES" && (kind === "UNSORTED" || t.contact.suggestedKind === "SALES") && (
-              <TriageSuggestion
-                contactId={t.contact.id}
-                kind={t.contact.kind}
-                suggestedKind={t.contact.suggestedKind}
-                reason={t.contact.suggestedReason}
-                onDecided={decide}
-              />
-            )}
-            </div>
+        {visible.map(renderRow)}
+        {unsureRows.length > 0 && (
+          <li className="os-threads-group" data-empty={unsureLeft === 0 ? "true" : undefined} aria-hidden={unsureLeft === 0 ? "true" : undefined}>
+            <span>J isn&apos;t sure</span>
+            <span className="count">{unsureLeft}</span>
           </li>
-        ))}
+        )}
+        {unsureRows.map(renderRow)}
       </ul>
     </div>
   );
