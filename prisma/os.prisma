@@ -64,6 +64,10 @@ model Contact {
   /// J never drafts or nudges while true.
   paused    Boolean  @default(false)
   notes     String?
+  /// One-time imports that touched this contact (scripts/os-import-*.ts):
+  /// {leadflow?: {at, personId, stage, kind}, setter?: {at}}. A re-import only
+  /// changes stage/kind while they still equal what the last import wrote.
+  imported  Json?
 
   lastMessageAt DateTime?
   createdAt     DateTime  @default(now())
