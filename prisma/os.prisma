@@ -1,0 +1,63 @@
+// DM OS models (our fork only). Upstream lives in schema.prisma; nothing here
+// adds a relation field to an upstream model, so pulls from upstream never
+// conflict with this file. The cost: workspace/account ids below are plain
+// columns without foreign keys, and cleanup on delete is done in app code.
+
+enum ContactKind {
+  SALES
+  PERSONAL
+  UNSORTED
+}
+
+/// Kanban columns. J's six setting stages are a separate field, not columns.
+enum ContactStage {
+  NEW
+  LEAD_MAGNET_SENT
+  IN_CONVERSATION
+  QUALIFIED
+  NOT_QUALIFIED
+  CALL_OFFERED
+  CALL_BOOKED
+  SHOWED
+  WON
+  LOST
+}
+
+/// One person on one Instagram account. igUserId is the Instagram-scoped id
+/// Zernio gives us; it is the same on comments (DmLog.commenterId) and DMs
+/// (EmailCapture.userId), so both join here on (instagramAccountId, igUserId).
+model Contact {
+  id                 String       @id @default(cuid())
+  workspaceId        String
+  instagramAccountId String
+  igUserId           String
+
+  username             String?
+  fullName             String?
+  avatarUrl            String?
+  zernioConversationId String?
+  email                String?
+
+  kind ContactKind @default(UNSORTED)
+  /// Who set kind: "entry" (came in through a campaign), "triage" (J's guess,
+  /// not confirmed yet) or "user".
+  kindSource String?
+  stage      ContactStage @default(NEW)
+  /// J's setting stage (opener, value, permission, qualify, bridge, booked).
+  setterStage String?
+  /// How they first reached us, e.g. "comment", "keyword_dm", "story_reply".
+  entryPath String?
+  tags      String[]
+  /// J never drafts or nudges while true.
+  paused    Boolean  @default(false)
+  notes     String?
+
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([workspaceId, instagramAccountId, igUserId])
+  @@index([workspaceId, kind])
+  @@index([workspaceId, stage])
+  @@index([zernioConversationId])
+}

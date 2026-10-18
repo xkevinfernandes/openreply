@@ -4,7 +4,8 @@ import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
 export default defineConfig({
-  schema: "prisma/schema.prisma",
+  // Folder mode: schema.prisma is upstream; os.prisma holds our DM OS models.
+  schema: "prisma",
   migrations: {
     path: "prisma/migrations",
   },

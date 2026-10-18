@@ -1,0 +1,298 @@
+/* DM OS design tokens, copied from the Claudepreneur portal
+   (coach-portal-demo/app/globals.css). Everything is scoped under .os so the
+   upstream OpenReply pages keep their own look. Black and white: colour means
+   state and nothing else. */
+
+.os {
+  --accent: #111111;
+  --accent-ink: #ffffff;
+  --ink: #111111;
+  --paper: #ffffff;
+  --paper-2: #f7f7f5;
+  --card: #ffffff;
+  --ink-4: color-mix(in srgb, var(--ink) 4%, transparent);
+  --ink-8: color-mix(in srgb, var(--ink) 8%, transparent);
+  --line: color-mix(in srgb, var(--ink) 7%, transparent);
+  --line-strong: color-mix(in srgb, var(--ink) 14%, transparent);
+  --muted: color-mix(in srgb, var(--ink) 62%, transparent);
+  --faint: color-mix(in srgb, var(--ink) 60%, transparent);
+  --good: #1f7a45;
+  --warn: #b07a04;
+  --bad: #b42318;
+
+  --fs-h1: 34px;
+  --fs-h2: 18px;
+  --fs-body: 14px;
+  --fs-sm: 13px;
+  --fs-xs: 12px;
+  --fs-eyebrow: 10px;
+  --fs-stat: 24px;
+  --track-caps: 0.06em;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --radius: 4px;
+  --control-h: 32px;
+  --sidebar-w: 240px;
+
+  --font-display: var(--font-archivo), "Archivo", sans-serif;
+  --font-body: var(--font-inter), "Inter", sans-serif;
+
+  display: flex;
+  min-height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  letter-spacing: -0.006em;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+.os :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- Shell ------------------------------------------------------------- */
+
+.os-sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--paper-2);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+}
+
+.os-brand {
+  padding: var(--sp-5) var(--sp-5) var(--sp-4);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.os-brand small {
+  display: block;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  letter-spacing: 0;
+}
+
+.os-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-2) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.os-nav a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--control-h);
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius);
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.os-nav a:hover {
+  background: var(--ink-4);
+  color: var(--ink);
+}
+
+.os-nav a[aria-current="page"] {
+  background: var(--ink-8);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.os-nav .count {
+  font-size: var(--fs-xs);
+  color: var(--faint);
+}
+
+.os-sidebar-foot {
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--line);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.os-sidebar-foot a {
+  color: var(--muted);
+}
+
+.os-main {
+  flex: 1;
+  min-width: 0;
+  padding: var(--sp-8) var(--sp-8) 64px;
+}
+
+.os-menu-button {
+  display: none;
+}
+
+/* --- Page head and surfaces ------------------------------------------- */
+
+.os-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-6);
+}
+
+.os-eyebrow {
+  font-size: var(--fs-eyebrow);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: var(--sp-1);
+}
+
+.os-head h1 {
+  font-family: var(--font-display);
+  font-size: var(--fs-h1);
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.os-head p {
+  color: var(--muted);
+  margin-top: var(--sp-2);
+  max-width: 64ch;
+}
+
+.os-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: var(--sp-6);
+}
+
+.os-stat {
+  padding: var(--sp-4) var(--sp-5);
+  border-right: 1px solid var(--line);
+}
+
+.os-stat:last-child {
+  border-right: none;
+}
+
+.os-stat .label {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.os-stat .value {
+  font-family: var(--font-display);
+  font-size: var(--fs-stat);
+  font-weight: 600;
+  margin-top: var(--sp-1);
+}
+
+.os-empty {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  padding: var(--sp-8) var(--sp-6);
+  color: var(--muted);
+  max-width: 640px;
+}
+
+.os-empty strong {
+  display: block;
+  color: var(--ink);
+  font-weight: 600;
+  margin-bottom: var(--sp-1);
+}
+
+/* --- Phone ------------------------------------------------------------- */
+
+@media (max-width: 860px) {
+  .os {
+    flex-direction: column;
+  }
+
+  .os-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    width: min(var(--sidebar-w), 85vw);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease-out;
+  }
+
+  .os-sidebar[data-open="true"] {
+    transform: translateX(0);
+  }
+
+  .os-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgb(0 0 0 / 0.4);
+  }
+
+  .os-topbar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: calc(var(--sp-3) + env(safe-area-inset-top)) var(--sp-4) var(--sp-3);
+    border-bottom: 1px solid var(--line);
+    font-family: var(--font-display);
+    font-weight: 700;
+  }
+
+  .os-menu-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--control-h);
+    height: var(--control-h);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  .os-main {
+    padding: var(--sp-5) var(--sp-4) 48px;
+  }
+
+  .os-head h1 {
+    font-size: 26px;
+  }
+}
+
+@media (min-width: 861px) {
+  .os-topbar,
+  .os-scrim {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-sidebar {
+    transition: none;
+  }
+}
