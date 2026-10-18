@@ -1,10 +1,17 @@
 // Writes from the Contacts screen: bulk stage / kind / tag / pause changes and
 // the side panel's notes and email. Every write is an updateMany scoped to
 // the workspace, so an id from another workspace is a silent no-op.
+//
+// Stage, kind, tag and email changes go to the connected CRMs through the
+// same hook the Inbox actions use (fireContactEvent, lib/os/integrations),
+// with the same events (stage_changed, kind_changed, tags_changed). One
+// updateMany per bulk action instead of one setContactStage call per row.
 
 import { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { prisma } from "@/lib/db/client";
 import { normalizeTag, parseEmail } from "@/lib/os/contacts-filter";
+import { fireContactEvent } from "@/lib/os/integrations/events";
+import type { SyncEvent } from "@/lib/os/integrations/mapping";
 import { mockContactExtras, osMockEnabled, updateMockContact, updateMockContactExtras } from "@/lib/os/mock";
 
 export type ContactChange =
@@ -25,6 +32,25 @@ export interface ContactsEditDb {
     updateMany(args: { where: Where; data: Data }): Promise<{ count: number }>;
     findMany(args: { where: Where; select: { id: true; tags: true } }): Promise<{ id: string; tags: string[] }[]>;
   };
+}
+
+export type FireEvent = (event: { workspaceId: string; contactId: string; event: SyncEvent }) => Promise<void>;
+
+/** The CRM event a change raises, if any (notes and pause stay local). */
+export function syncEventFor(change: ContactChange): SyncEvent | null {
+  switch (change.type) {
+    case "stage":
+      return "stage_changed";
+    case "kind":
+      return "kind_changed";
+    case "addTag":
+    case "removeTag":
+      return "tags_changed";
+    case "details":
+      return change.email !== undefined ? "manual" : null;
+    default:
+      return null;
+  }
 }
 
 /** Most contacts one bulk action touches. */
@@ -78,7 +104,8 @@ export async function editContacts(
   workspaceId: string,
   ids: unknown,
   change: ContactChange,
-  db: ContactsEditDb = prisma as unknown as ContactsEditDb
+  db: ContactsEditDb = prisma as unknown as ContactsEditDb,
+  fire: FireEvent = fireContactEvent
 ): Promise<EditResult> {
   const list = cleanIds(ids);
   if (!list) return { error: "Pick at least one contact." };
@@ -88,9 +115,21 @@ export async function editContacts(
 
   if (osMockEnabled()) return { count: editMock(list, plan) };
 
+  const event = syncEventFor(change);
+  const changed: string[] = [];
+  const done = async (count: number): Promise<EditResult> => {
+    // Never throws (fireContactEvent catches); one event per changed contact.
+    if (event) for (const contactId of changed) await fire({ workspaceId, contactId, event });
+    return { count };
+  };
+
   if ("data" in plan) {
-    const r = await db.contact.updateMany({ where: { id: { in: list }, workspaceId }, data: plan.data });
-    return { count: r.count };
+    // Which ids are really this workspace's, so only those raise CRM events.
+    const mine = event ? (await db.contact.findMany({ where: { id: { in: list }, workspaceId }, select: { id: true, tags: true } })).map((r) => r.id) : list;
+    if (!mine.length) return { count: 0 };
+    const r = await db.contact.updateMany({ where: { id: { in: mine }, workspaceId }, data: plan.data });
+    changed.push(...mine);
+    return done(r.count);
   }
 
   // Tags: only rows that need the change, each written with its own new list.
@@ -103,8 +142,9 @@ export async function editContacts(
     const tags = plan.op === "add" ? [...row.tags, plan.tag] : row.tags.filter((t) => t !== plan.tag);
     const r = await db.contact.updateMany({ where: { id: row.id, workspaceId }, data: { tags } });
     count += r.count;
+    if (r.count) changed.push(row.id);
   }
-  return { count };
+  return done(count);
 }
 
 function editMock(ids: string[], plan: { data: Data } | { tag: string; op: "add" | "remove" }): number {

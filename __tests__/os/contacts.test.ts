@@ -105,18 +105,44 @@ describe("contact edits", () => {
         },
         findMany: async ({ where }) => {
           calls.push({ op: "findMany", where });
-          return Object.entries(tags).map(([id, t]) => ({ id, tags: t }));
+          const ids = (where.id as { in?: string[] })?.in;
+          const known = Object.keys(tags).length ? Object.entries(tags) : (ids ?? []).filter((id) => id !== "foreign").map((id) => [id, [] as string[]] as const);
+          return known.map(([id, t]) => ({ id, tags: [...t] }));
         },
       },
     };
-    return { db, calls };
+    const fired: { workspaceId: string; contactId: string; event: string }[] = [];
+    const fire = async (e: { workspaceId: string; contactId: string; event: string }) => {
+      fired.push(e);
+    };
+    return { db, calls, fire, fired };
   }
 
-  it("scopes every write to the workspace", async () => {
-    const { db, calls } = fakeDb();
-    expect(await editContacts("w1", ["a", "b", "a"], { type: "stage", stage: "QUALIFIED" }, db)).toEqual({ count: 2 });
-    expect(calls[0].where).toEqual({ id: { in: ["a", "b"] }, workspaceId: "w1" });
-    expect(calls[0].data).toEqual({ stage: "QUALIFIED" });
+  it("scopes every write to the workspace and syncs only this workspace's contacts", async () => {
+    const { db, calls, fire, fired } = fakeDb();
+    expect(await editContacts("w1", ["a", "b", "a", "foreign"], { type: "stage", stage: "QUALIFIED" }, db, fire)).toEqual({ count: 2 });
+    expect(calls[0]).toMatchObject({ op: "findMany", where: { id: { in: ["a", "b", "foreign"] }, workspaceId: "w1" } });
+    expect(calls[1]).toMatchObject({ op: "updateMany", where: { id: { in: ["a", "b"] }, workspaceId: "w1" }, data: { stage: "QUALIFIED" } });
+    expect(fired).toEqual([
+      { workspaceId: "w1", contactId: "a", event: "stage_changed" },
+      { workspaceId: "w1", contactId: "b", event: "stage_changed" },
+    ]);
+  });
+
+  it("pause and notes stay local; kind, tags and email go to the CRMs", async () => {
+    const pause = fakeDb();
+    await editContacts("w1", ["a"], { type: "paused", paused: true }, pause.db, pause.fire);
+    expect(pause.fired).toEqual([]);
+    expect(pause.calls.map((c) => c.op)).toEqual(["updateMany"]);
+    const kind = fakeDb();
+    await editContacts("w1", ["a"], { type: "kind", kind: "SALES" }, kind.db, kind.fire);
+    expect(kind.fired[0].event).toBe("kind_changed");
+    const tag = fakeDb({ a: [] });
+    await editContacts("w1", ["a"], { type: "addTag", tag: "hot" }, tag.db, tag.fire);
+    expect(tag.fired).toEqual([{ workspaceId: "w1", contactId: "a", event: "tags_changed" }]);
+    const email = fakeDb();
+    await editContacts("w1", ["a"], { type: "details", email: "a@b.co" }, email.db, email.fire);
+    expect(email.fired[0].event).toBe("manual");
   });
 
   it("a kind change is the user's decision and clears J's suggestion", () => {
@@ -127,29 +153,29 @@ describe("contact edits", () => {
 
   it("adds and removes tags per row, workspace-scoped", async () => {
     const add = fakeDb({ a: ["old"] });
-    expect(await editContacts("w1", ["a"], { type: "addTag", tag: "Hot" }, add.db)).toEqual({ count: 1 });
+    expect(await editContacts("w1", ["a"], { type: "addTag", tag: "Hot" }, add.db, add.fire)).toEqual({ count: 1 });
     expect(add.calls[0].where).toMatchObject({ workspaceId: "w1", NOT: { tags: { has: "hot" } } });
     expect(add.calls[1]).toMatchObject({ where: { id: "a", workspaceId: "w1" }, data: { tags: ["old", "hot"] } });
 
     const rm = fakeDb({ a: ["hot", "x"] });
-    await editContacts("w1", ["a"], { type: "removeTag", tag: "hot" }, rm.db);
+    await editContacts("w1", ["a"], { type: "removeTag", tag: "hot" }, rm.db, rm.fire);
     expect(rm.calls[0].where).toMatchObject({ workspaceId: "w1", tags: { has: "hot" } });
     expect(rm.calls[1].data).toEqual({ tags: ["x"] });
   });
 
   it("rejects bad input before touching the db", async () => {
-    const { db, calls } = fakeDb();
-    expect(await editContacts("w1", [], { type: "paused", paused: true }, db)).toEqual({ error: "Pick at least one contact." });
-    expect((await editContacts("w1", ["a"], { type: "stage", stage: "NOPE" as never }, db)).error).toBe("Unknown stage.");
-    expect((await editContacts("w1", ["a", "b"], { type: "details", notes: "x" }, db)).error).toBe("Edit one contact at a time.");
-    expect((await editContacts("w1", ["a"], { type: "details", email: "bad" }, db)).error).toMatch(/email/);
-    expect((await editContacts("w1", ["a"], { type: "addTag", tag: "  " }, db)).error).toBe("Write a tag first.");
+    const { db, calls, fire } = fakeDb();
+    expect(await editContacts("w1", [], { type: "paused", paused: true }, db, fire)).toEqual({ error: "Pick at least one contact." });
+    expect((await editContacts("w1", ["a"], { type: "stage", stage: "NOPE" as never }, db, fire)).error).toBe("Unknown stage.");
+    expect((await editContacts("w1", ["a", "b"], { type: "details", notes: "x" }, db, fire)).error).toBe("Edit one contact at a time.");
+    expect((await editContacts("w1", ["a"], { type: "details", email: "bad" }, db, fire)).error).toMatch(/email/);
+    expect((await editContacts("w1", ["a"], { type: "addTag", tag: "  " }, db, fire)).error).toBe("Write a tag first.");
     expect(calls).toEqual([]);
   });
 
   it("saves notes and email on one contact", async () => {
-    const { db, calls } = fakeDb();
-    await editContacts("w1", ["a"], { type: "details", notes: "  call thurs ", email: "" }, db);
-    expect(calls[0].data).toEqual({ notes: "call thurs", email: null });
+    const { db, calls, fire } = fakeDb();
+    await editContacts("w1", ["a"], { type: "details", notes: "  call thurs ", email: "" }, db, fire);
+    expect(calls.find((c) => c.op === "updateMany")!.data).toEqual({ notes: "call thurs", email: null });
   });
 });
