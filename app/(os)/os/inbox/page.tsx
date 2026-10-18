@@ -6,15 +6,23 @@ import { getCurrentWorkspaceId } from "@/lib/auth";
 import { getThreadMessages, listThreads, type InboxMessage, type InboxThread } from "@/lib/os/inbox";
 import { entryLabels, kindTabs } from "@/lib/os/labels";
 import { osMockEnabled } from "@/lib/os/mock";
+import { pendingDrafts } from "@/lib/os/setter/service";
+import type { DraftView } from "@/lib/os/setter/store";
 
-type PageProps = { searchParams: Promise<{ tab?: string; c?: string }> };
+type PageProps = { searchParams: Promise<{ tab?: string; c?: string; drafts?: string }> };
 
 async function loadInbox(workspaceId: string, conversationId: string | undefined) {
   try {
     const { account, threads } = await listThreads(workspaceId);
     const selected = threads.find((t) => t.conversationId === conversationId) ?? null;
-    const messages: InboxMessage[] = selected ? await getThreadMessages(workspaceId, selected.conversationId) : [];
-    return { connected: Boolean(account) || osMockEnabled(), threads, selected, messages, error: null, now: Date.now() };
+    const [messages, drafts] = await Promise.all([
+      selected ? getThreadMessages(workspaceId, selected.conversationId) : Promise.resolve([] as InboxMessage[]),
+      pendingDrafts(workspaceId).catch((err) => {
+        console.error("[OS Inbox] drafts failed:", err);
+        return [] as DraftView[];
+      }),
+    ]);
+    return { connected: Boolean(account) || osMockEnabled(), threads, selected, messages, drafts, error: null, now: Date.now() };
   } catch (err) {
     console.error("[OS Inbox] load failed:", err);
     return {
@@ -22,6 +30,7 @@ async function loadInbox(workspaceId: string, conversationId: string | undefined
       threads: [] as InboxThread[],
       selected: null,
       messages: [] as InboxMessage[],
+      drafts: [] as DraftView[],
       error: "Instagram didn't answer. Refresh in a minute; if it keeps failing, check Settings → Zernio.",
       now: Date.now(),
     };
@@ -34,7 +43,16 @@ export default async function InboxPage({ searchParams }: PageProps) {
 
   const params = await searchParams;
   const tab = kindTabs.some((k) => k.tab === params.tab) ? params.tab! : "sales";
-  const { connected, threads, selected, messages, error, now } = await loadInbox(workspaceId, params.c);
+  const { connected, threads, selected, messages, drafts, error, now } = await loadInbox(workspaceId, params.c);
+  const draftByContact = new Map(drafts.map((d) => [d.contactId, d]));
+  const selectedDraft = selected?.contact ? (draftByContact.get(selected.contact.id) ?? null) : null;
+  const draftBlockedReason = !selected?.contact
+    ? "Not a contact yet."
+    : selected.contact.kind !== "SALES"
+      ? "J drafts for Sales contacts only. Move this one to Sales first."
+      : selected.contact.paused
+        ? "J is paused for this contact."
+        : null;
 
   if (!connected) {
     return (
@@ -48,7 +66,14 @@ export default async function InboxPage({ searchParams }: PageProps) {
 
   return (
     <div className="os-inbox" data-thread-open={selected ? "true" : "false"}>
-      <ThreadList threads={threads} tab={tab} selected={selected?.conversationId ?? null} now={now} />
+      <ThreadList
+        threads={threads}
+        tab={tab}
+        selected={selected?.conversationId ?? null}
+        now={now}
+        draftContactIds={[...draftByContact.keys()]}
+        draftsOnly={params.drafts === "1"}
+      />
 
       <section className="os-inbox-thread" aria-label="Conversation">
         {error && <div className="os-banner">{error}</div>}
@@ -101,7 +126,14 @@ export default async function InboxPage({ searchParams }: PageProps) {
               ))}
             </ol>
 
-            <Composer igUserId={selected.igUserId} username={selected.username} />
+            <Composer
+              key={selected.conversationId}
+              igUserId={selected.igUserId}
+              username={selected.username}
+              contactId={selected.contact?.id ?? null}
+              draft={selectedDraft}
+              draftBlockedReason={draftBlockedReason}
+            />
           </>
         )}
       </section>

@@ -10,9 +10,13 @@ interface ThreadListProps {
   tab: string;
   selected: string | null;
   now: number;
+  /** Contacts with a draft from J waiting for approval. */
+  draftContactIds: string[];
+  /** Show only threads with a draft ready (Sales tab). */
+  draftsOnly: boolean;
 }
 
-export default function ThreadList({ threads, tab, selected, now }: ThreadListProps) {
+export default function ThreadList({ threads, tab, selected, now, draftContactIds, draftsOnly }: ThreadListProps) {
   const [query, setQuery] = useState("");
 
   const counts = useMemo(() => {
@@ -22,10 +26,15 @@ export default function ThreadList({ threads, tab, selected, now }: ThreadListPr
   }, [threads]);
 
   const kind = kindTabs.find((k) => k.tab === tab)?.kind ?? "SALES";
+  const hasDraft = useMemo(() => new Set(draftContactIds), [draftContactIds]);
+  const readyCount = threads.filter((t) => t.contact?.kind === "SALES" && hasDraft.has(t.contact.id)).length;
+  const onlyDrafts = draftsOnly && kind === "SALES";
+  const keep = onlyDrafts ? "&drafts=1" : "";
   const q = query.trim().toLowerCase().replace(/^@/, "");
   const visible = threads.filter(
     (t) =>
       (t.contact?.kind ?? "UNSORTED") === kind &&
+      (!onlyDrafts || (t.contact && hasDraft.has(t.contact.id))) &&
       (!q || (t.username ?? "").toLowerCase().includes(q) || (t.preview ?? "").toLowerCase().includes(q))
   );
 
@@ -45,6 +54,20 @@ export default function ThreadList({ threads, tab, selected, now }: ThreadListPr
           </Link>
         ))}
       </div>
+      {kind === "SALES" && (
+        <div className="os-queue-bar">
+          <Link
+            href={onlyDrafts ? "/os/inbox?tab=sales" : "/os/inbox?tab=sales&drafts=1"}
+            className="os-queue-chip"
+            aria-pressed={onlyDrafts}
+            data-empty={readyCount === 0 ? "true" : undefined}
+          >
+            <span className="dot" aria-hidden="true" />
+            Drafts ready
+            <span className="count">{readyCount}</span>
+          </Link>
+        </div>
+      )}
       <label className="os-search">
         <span className="sr-only">Search conversations</span>
         <input
@@ -59,13 +82,13 @@ export default function ThreadList({ threads, tab, selected, now }: ThreadListPr
       <ul className="os-threads">
         {visible.length === 0 && (
           <li className="os-threads-empty">
-            {q ? "No conversations match." : kind === "UNSORTED" ? "Nothing to sort. Nice." : "No conversations here yet."}
+            {q ? "No conversations match." : onlyDrafts ? "No drafts waiting. J writes one when someone replies." : kind === "UNSORTED" ? "Nothing to sort. Nice." : "No conversations here yet."}
           </li>
         )}
         {visible.map((t) => (
           <li key={t.conversationId}>
             <Link
-              href={`/os/inbox?tab=${tab}&c=${encodeURIComponent(t.conversationId)}`}
+              href={`/os/inbox?tab=${tab}${keep}&c=${encodeURIComponent(t.conversationId)}`}
               className="os-thread"
               aria-current={t.conversationId === selected ? "true" : undefined}
             >
@@ -83,6 +106,7 @@ export default function ThreadList({ threads, tab, selected, now }: ThreadListPr
                     {t.contact.entryPath && <span className="chip">{entryLabels[t.contact.entryPath] ?? t.contact.entryPath}</span>}
                     <span className="chip">{stageLabels[t.contact.stage]}</span>
                     {t.contact.setterStage && <span className="chip quiet">J · {t.contact.setterStage}</span>}
+                    {hasDraft.has(t.contact.id) && <span className="chip ready">Draft ready</span>}
                   </span>
                 )}
               </span>

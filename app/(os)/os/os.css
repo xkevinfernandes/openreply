@@ -710,3 +710,290 @@
     max-width: 85%;
   }
 }
+
+/* === J drafts (build step 3) ============================================
+   Draft card above the composer, "Drafts ready" queue chip, draft chips.
+   Self-contained so the later design pass can restyle it in one place.
+   Motion: the card rises out of the composer (where it was asked for);
+   approved bubbles leave upward into the thread, discarded ones drop back.
+   ======================================================================= */
+
+.os-composer-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.os-button:active:not(:disabled) {
+  transform: scale(0.97);
+  transition: transform 100ms ease-out;
+}
+
+.os-button.ghost {
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.os-button.ghost:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.os-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.os .chip.ready {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.os .chip.flag {
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+  color: var(--warn);
+}
+
+.os-draft {
+  margin: 0 var(--sp-5);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line-strong);
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--paper-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  transform-origin: bottom center;
+  animation: os-draft-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.os-draft[aria-busy="true"] {
+  opacity: 0.7;
+}
+
+.os-draft[data-leaving="approve"] {
+  animation: os-draft-out-up 260ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.os-draft[data-leaving="discard"] {
+  animation: os-draft-out-down 220ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@keyframes os-draft-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes os-draft-out-up {
+  to {
+    opacity: 0.35;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes os-draft-out-down {
+  to {
+    opacity: 0.35;
+    transform: translateY(6px);
+  }
+}
+
+.os-draft-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.os-draft-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.os-draft-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.os-draft-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+
+.os-draft-bubbles {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-1);
+}
+
+.os-draft-bubbles li {
+  max-width: min(80%, 520px);
+}
+
+/* Same shape as a sent bubble, outlined: written, not sent yet. */
+.os-draft-bubbles .bubble {
+  display: block;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: 14px;
+  border: 1px dashed var(--ink);
+  background: var(--paper);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.os-draft-why {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.os-draft-why summary {
+  cursor: pointer;
+  width: fit-content;
+}
+
+.os-draft-why p {
+  margin-top: var(--sp-1);
+  white-space: pre-wrap;
+}
+
+.os-draft-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.os-draft-writing {
+  flex-direction: row;
+  align-items: center;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.os-draft-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink);
+  animation: os-draft-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes os-draft-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.os-composer-notice,
+.os-composer-editing {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.os-queue-bar {
+  padding: var(--sp-2) var(--sp-3) 0;
+}
+
+.os-queue-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.os-queue-chip:hover {
+  background: var(--ink-4);
+}
+
+.os-queue-chip:active {
+  transform: scale(0.97);
+}
+
+.os-queue-chip[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.os-queue-chip .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.os-queue-chip[data-empty="true"] .dot {
+  opacity: 0.3;
+}
+
+.os-queue-chip .count {
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  opacity: 0.7;
+}
+
+@media (max-width: 860px) {
+  .os-draft {
+    margin: 0 var(--sp-3);
+  }
+
+  .os-draft-bubbles li {
+    max-width: 90%;
+  }
+
+  /* Thumb reach: the primary action spans the row on phones. */
+  .os-draft-actions .os-button.primary {
+    flex: 1 1 100%;
+    height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-draft,
+  .os-draft[data-leaving] {
+    animation: none;
+    transition: opacity 150ms ease;
+  }
+
+  .os-draft-dot {
+    animation: none;
+  }
+
+  .os-button:active:not(:disabled),
+  .os-queue-chip:active {
+    transform: none;
+  }
+}
+/* === end J drafts ===================================================== */
