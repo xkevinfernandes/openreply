@@ -42,6 +42,7 @@ interface LoadedCampaign {
   openingDmEnabled: boolean;
   openingDmMessage: string | null;
   openingDmButtonLabel: string | null;
+  readFallbackEnabled?: boolean;
   linkButtonLabel: string | null;
   requireFollow: boolean;
   followPromptMessage: string | null;
@@ -186,6 +187,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
   const [followUpEnabled, setFollowUpEnabled] = useState(false);
   const [followUpMessage, setFollowUpMessage] = useState("");
   const [followUpDelayMinutes, setFollowUpDelayMinutes] = useState(0);
+  const [readFallbackEnabled, setReadFallbackEnabled] = useState(false);
   const [requireEmail, setRequireEmail] = useState(false);
   const [emailPromptMessage, setEmailPromptMessage] = useState("");
   const [emailRetryMessage, setEmailRetryMessage] = useState("");
@@ -307,6 +309,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
         setFollowUpEnabled(c.followUpEnabled ?? false);
         setFollowUpMessage(c.followUpMessage ?? "");
         setFollowUpDelayMinutes(c.followUpDelayMinutes ?? 0);
+        setReadFallbackEnabled(c.readFallbackEnabled ?? false);
         setRequireEmail(c.requireEmail ?? false);
         setEmailPromptMessage(c.emailPromptMessage ?? "");
         setEmailRetryMessage(c.emailRetryMessage ?? "");
@@ -434,6 +437,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
       openingDmEnabled,
       openingDmMessage: openingDmEnabled ? openingDmMessage : null,
       openingDmButtonLabel: openingDmEnabled ? openingDmButtonLabel : null,
+      readFallbackEnabled: openingDmEnabled ? readFallbackEnabled : false,
       publicReplyEnabled,
       publicReplyMessages: publicReplyEnabled
         ? publicReplyMessages.map((m) => m.trim()).filter(Boolean)
@@ -849,6 +853,15 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
                   className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus:border-accent/40 focus:outline-none"
                   maxLength={64}
                 />
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <span className="text-xs text-muted">
+                    {t("If they read it but don't tap, send the next step after 5 minutes anyway")}
+                  </span>
+                  <Toggle
+                    on={readFallbackEnabled}
+                    onToggle={() => setReadFallbackEnabled(!readFallbackEnabled)}
+                  />
+                </div>
               </div>
             )}
           </div>

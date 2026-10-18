@@ -191,6 +191,9 @@ model Automation {
   openingDmEnabled     Boolean @default(false)
   openingDmMessage     String?
   openingDmButtonLabel String?
+  // Opt-in: if they read the opening DM but never tap, send the next step after
+  // five minutes anyway. Off by default — no tap, no resource.
+  readFallbackEnabled  Boolean @default(false)
   linkButtonLabel      String?
   requireFollow           Boolean @default(false)
   followPromptMessage     String?

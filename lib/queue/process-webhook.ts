@@ -143,6 +143,7 @@ export async function processInstagramWebhook({ payload: incoming, provider, wor
           automation: {
             isActive: true,
             openingDmEnabled: true,
+            readFallbackEnabled: true,
             instagramAccount: {
               instagramId: event.instagramAccountId,
             },

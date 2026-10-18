@@ -40,6 +40,7 @@ const createAutomationSchema = z
     openingDmEnabled: z.boolean().optional().default(false),
     openingDmMessage: z.string().max(1000).optional().nullable(),
     openingDmButtonLabel: z.string().max(64).optional().nullable(),
+    readFallbackEnabled: z.boolean().optional().default(false),
     linkButtonLabel: z.string().max(20).optional().nullable(),
     requireFollow: z.boolean().optional().default(false),
     followPromptMessage: z.string().max(1000).optional().nullable(),
@@ -107,6 +108,7 @@ const updateAutomationSchema = z.object({
   openingDmEnabled: z.boolean().optional(),
   openingDmMessage: z.string().max(1000).optional().nullable(),
   openingDmButtonLabel: z.string().max(64).optional().nullable(),
+  readFallbackEnabled: z.boolean().optional(),
   linkButtonLabel: z.string().max(20).optional().nullable(),
   requireFollow: z.boolean().optional(),
   followPromptMessage: z.string().max(1000).optional().nullable(),
@@ -399,6 +401,7 @@ export async function POST(request: NextRequest) {
       openingDmButtonLabel: openingDmEnabled
         ? parsed.data.openingDmButtonLabel || null
         : null,
+      readFallbackEnabled: openingDmEnabled ? parsed.data.readFallbackEnabled : false,
       linkButtonLabel: parsed.data.linkButtonLabel || null,
       requireFollow: parsed.data.requireFollow,
       followPromptMessage: parsed.data.requireFollow
@@ -513,6 +516,7 @@ export async function PATCH(request: NextRequest) {
   if (automationData.openingDmEnabled === false) {
     automationData.openingDmMessage = null;
     automationData.openingDmButtonLabel = null;
+    automationData.readFallbackEnabled = false;
   }
   if (automationData.requireFollow === false) {
     automationData.followPromptMessage = null;

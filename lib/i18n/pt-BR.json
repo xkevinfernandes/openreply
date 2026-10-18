@@ -460,5 +460,6 @@
   "hmm, that doesn't look like an email. what's the best one to send it to?": "hmm, isso não parece um e-mail. qual o melhor pra eu te mandar?",
   "No Kit tag": "Sem tag do Kit",
   "Connect Kit in Settings to save these emails to your list.": "Conecte o Kit nas Configurações para salvar esses e-mails na sua lista.",
-  "We ask for their email and send the link once they reply with one. If they don't give one after two tries, we send the link anyway.": "Pedimos o e-mail e enviamos o link quando a pessoa responder com um. Se não informar depois de duas tentativas, enviamos o link mesmo assim."
+  "We ask for their email and send the link once they reply with one. If they don't give one after two tries, we send the link anyway.": "Pedimos o e-mail e enviamos o link quando a pessoa responder com um. Se não informar depois de duas tentativas, enviamos o link mesmo assim.",
+  "If they read it but don't tap, send the next step after 5 minutes anyway": "Se a pessoa ler mas não tocar, enviar o próximo passo depois de 5 minutos mesmo assim"
 }

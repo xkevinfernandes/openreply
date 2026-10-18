@@ -972,6 +972,8 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
   ) {
     return;
   }
+  // A read-fallback job queued before the campaign turned it off.
+  if (fallback && !automation.readFallbackEnabled) return;
 
   // Duplicate sends are enabled: every button tap re-sends the reveal
   // instead of only firing once per person.

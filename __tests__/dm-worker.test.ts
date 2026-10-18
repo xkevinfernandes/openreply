@@ -727,10 +727,28 @@ describe("DM Worker — Full Pipeline", () => {
     expect(mockSendPrivateReplyWithLinkButton).not.toHaveBeenCalled();
   });
 
+  it("should drop a read fallback when the campaign has not opted in", async () => {
+    mockPrisma.automation.findMany.mockResolvedValue([]);
+    mockPrisma.automation.findFirst.mockResolvedValue({ ...mockAutomation, trackedLinks: [] });
+
+    await getProcessor()(
+      createMockPostbackJob({
+        instagramAccountId: "ig_456",
+        userId: "commenter_999",
+        payload: "reveal:auto_789",
+        fallback: true,
+      })
+    );
+
+    expect(mockSendDirectMessage).not.toHaveBeenCalled();
+    expect(mockSendDirectMessageWithLinkButton).not.toHaveBeenCalled();
+  });
+
   it("should deliver the next DM from a read fallback when no button tap has sent it yet", async () => {
     mockPrisma.automation.findMany.mockResolvedValue([]);
     mockPrisma.automation.findFirst.mockResolvedValue({
       ...mockAutomation,
+      readFallbackEnabled: true,
       trackedLinks: [],
     });
 
@@ -839,6 +857,7 @@ describe("DM Worker — Full Pipeline", () => {
     mockPrisma.automation.findMany.mockResolvedValue([]);
     mockPrisma.automation.findFirst.mockResolvedValue({
       ...mockAutomation,
+      readFallbackEnabled: true,
       requireFollow: true,
       trackedLinks: [],
     });
@@ -866,6 +885,7 @@ describe("DM Worker — Full Pipeline", () => {
     mockPrisma.automation.findMany.mockResolvedValue([]);
     mockPrisma.automation.findFirst.mockResolvedValue({
       ...mockAutomation,
+      readFallbackEnabled: true,
       trackedLinks: [],
     });
     mockSendDirectMessage.mockRejectedValue(
