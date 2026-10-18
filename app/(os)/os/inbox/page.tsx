@@ -79,7 +79,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
       <div className="os-empty">
         <strong>Connect Instagram first</strong>
         The inbox reads your DMs through Zernio. Connect it in{" "}
-        <Link href="/settings">Settings of the old dashboard</Link>, then come back.
+        <Link href="/os/settings">Settings</Link>, then come back.
       </div>
     );
   }

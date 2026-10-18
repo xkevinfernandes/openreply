@@ -1,0 +1,628 @@
+/* DM OS: Automations (list, cards on top, builder). BooSend BS-1's layout in
+   the Review Room look: two link cards, a tool row (search, filter, Create),
+   then the campaigns as a hairline table. The builder is OpenReply's
+   components/campaign-builder.tsx; .os-builder restyles its Tailwind classes. */
+
+/* --- Cards on top ------------------------------------------------------------ */
+
+.os-auto-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+
+.os-auto-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 14px;
+  padding: 18px 18px 18px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    border-color 120ms ease,
+    box-shadow 160ms var(--ease),
+    transform 100ms ease;
+}
+
+.os-auto-card:hover {
+  border-color: var(--line-strong);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 14px rgb(0 0 0 / 0.05);
+}
+
+.os-auto-card:active {
+  transform: scale(0.99);
+}
+
+.os-auto-card strong {
+  display: block;
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.os-auto-card > span:nth-child(2) > span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.os-auto-card-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+  background: var(--tint);
+}
+
+.os-auto-card-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.os .os-auto-card-go {
+  align-self: center;
+  color: var(--ghost);
+  transition:
+    transform 160ms var(--ease),
+    color 120ms ease;
+}
+
+.os-auto-card:hover .os-auto-card-go {
+  color: var(--ink);
+  transform: translateX(2px);
+}
+
+/* --- Tool row ---------------------------------------------------------------- */
+
+.os-auto-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+
+.os-search.os-auto-search {
+  flex: 1 1 240px;
+  padding: 0;
+  border: 0;
+}
+
+.os-auto-search svg {
+  left: 10px;
+}
+
+.os-auto-tools .os-segmented {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.os-auto-tools .os-segmented svg {
+  width: 13px;
+  height: 13px;
+}
+
+.os-auto-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ghost);
+}
+
+.os-auto-dot[data-on="true"] {
+  background: var(--mark);
+}
+
+.os-auto-new svg {
+  width: 13px;
+  height: 13px;
+}
+
+.os-auto-note {
+  margin: 0 0 var(--sp-3);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.os-auto-note[data-kind="error"] {
+  color: var(--bad);
+}
+
+/* --- Table -------------------------------------------------------------------- */
+
+.os-auto-table {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.os-auto-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px 150px 64px 56px 44px 36px;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 14px 12px 14px 14px;
+  font-size: var(--fs-sm);
+}
+
+.os-auto-row + .os-auto-row {
+  border-top: 1px solid var(--line);
+}
+
+.os-auto-headrow {
+  padding-block: 9px;
+  color: var(--faint);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+
+.os-auto-row .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.os-auto-row[data-off="true"] .os-auto-main,
+.os-auto-row[data-off="true"] .os-auto-gate,
+.os-auto-row[data-off="true"] .os-auto-setter,
+.os-auto-row[data-off="true"] .num {
+  opacity: 0.55;
+  transition: opacity 160ms ease;
+}
+
+.os-auto-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.os-auto-thumb {
+  flex: none;
+  width: 44px;
+  height: 56px;
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--tint);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+span.os-auto-thumb {
+  display: grid;
+  place-items: center;
+  color: var(--ghost);
+}
+
+.os-auto-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.os-auto-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.os-auto-title a {
+  color: var(--ink);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  text-decoration: none;
+}
+
+.os-auto-title a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line-strong);
+}
+
+.os-auto-meta {
+  color: var(--faint);
+  font-size: var(--fs-xs);
+}
+
+.os-auto-keys {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.os-auto-keys .chip {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.os-auto-opener {
+  margin: 6px 0 0;
+  overflow: hidden;
+  color: var(--muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.os-auto-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  color: var(--warn);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+
+.os-auto-action svg {
+  width: 13px;
+  height: 13px;
+}
+
+.os-auto-action span {
+  color: var(--faint);
+  font-weight: 400;
+}
+
+.os-auto-gate {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.os-auto-none {
+  color: var(--ghost);
+}
+
+.os-auto-setter {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.os-auto-setter > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.os-auto-setter small {
+  color: var(--faint);
+  font-size: var(--fs-xs);
+}
+
+.os-auto-switch {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Row menu */
+
+.os-auto-menu {
+  position: relative;
+}
+
+.os-button.os-auto-more {
+  width: 32px;
+  padding: 0;
+}
+
+.os-auto-more svg circle {
+  fill: currentColor;
+  stroke-width: 1.2;
+}
+
+.os-auto-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  min-width: 150px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  transform-origin: top right;
+  animation: os-auto-pop 160ms var(--ease);
+}
+
+@keyframes os-auto-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-2px);
+  }
+}
+
+.os-auto-pop a,
+.os-auto-pop button {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.os-auto-pop a:hover,
+.os-auto-pop button:hover {
+  background: var(--tint);
+}
+
+.os-auto-pop [data-danger="true"] {
+  color: var(--bad);
+}
+
+/* Empty states */
+
+.os-auto-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 56px 24px 64px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--paper-2);
+  text-align: center;
+}
+
+.os-auto-empty[data-small="true"] {
+  padding: 32px 24px;
+}
+
+.os-auto-empty strong {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.os-auto-empty p {
+  max-width: 44ch;
+  margin: 6px 0 18px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.os-auto-empty[data-small="true"] p {
+  margin-bottom: 0;
+}
+
+.os-auto-empty-mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 14px;
+  border-radius: 50%;
+  background: var(--tint-2);
+  color: var(--muted);
+}
+
+/* --- Edit page: Answered by --------------------------------------------------- */
+
+.os-auto-setterbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-6);
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-2);
+}
+
+.os-auto-setterbar strong {
+  font-weight: 600;
+}
+
+.os-auto-setterbar p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.os-auto-setterbar-control {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.os-auto-setterbar-control select {
+  min-width: 220px;
+}
+
+.os .os-auto-setterbar-empty a {
+  color: var(--ink);
+}
+
+/* --- OpenReply's builder, restyled ---------------------------------------------
+   Its Tailwind utilities sit in @layer utilities, so these plain rules win
+   without !important. Only colour, corners and borders change; layout and
+   behaviour stay upstream's. */
+
+.os-builder .rounded,
+.os-builder .rounded-lg,
+.os-builder .rounded-xl,
+.os-builder .rounded-md {
+  border-radius: var(--radius);
+}
+
+.os-builder .panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.os-builder .text-foreground {
+  color: var(--ink);
+}
+
+.os-builder .text-muted {
+  color: var(--muted);
+}
+
+.os-builder .text-zinc-500,
+.os-builder .placeholder\:text-zinc-500::placeholder {
+  color: var(--ghost);
+}
+
+.os-builder .hover\:text-foreground:hover {
+  color: var(--ink);
+}
+
+.os-builder .border-border {
+  border-color: var(--line);
+}
+
+.os-builder input.border-border,
+.os-builder textarea.border-border,
+.os-builder select.border-border,
+.os-builder button.border-border {
+  border-color: var(--line-strong);
+}
+
+.os-builder .bg-surface {
+  background: var(--card);
+}
+
+.os-builder .focus\:border-accent\/40:focus {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px var(--tint-2);
+}
+
+.os-builder .bg-accent {
+  background: var(--ink);
+}
+
+.os-builder .hover\:bg-accent-hover:hover {
+  background: var(--ink);
+  opacity: 0.86;
+}
+
+.os-builder .text-accent {
+  color: var(--ink);
+}
+
+.os-builder .border-accent {
+  border-color: var(--ink);
+}
+
+.os-builder .bg-accent\/5 {
+  background: var(--tint);
+}
+
+.os-builder .border-accent\/30 {
+  border-color: var(--line-strong);
+}
+
+.os-builder .bg-success\/15 {
+  background: var(--mark-bg);
+}
+
+.os-builder .text-success {
+  color: var(--mark);
+}
+
+.os-builder .text-error {
+  color: var(--bad);
+}
+
+.os-builder .bg-error\/10 {
+  background: var(--bad-bg);
+}
+
+.os-builder button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* --- Phone -------------------------------------------------------------------- */
+
+@media (max-width: 1080px) {
+  .os-auto-row {
+    grid-template-columns: minmax(0, 1fr) 120px 56px 48px 44px 36px;
+  }
+
+  .os-auto-row > .os-auto-gate {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .os-auto-cards {
+    grid-template-columns: 1fr;
+    gap: var(--sp-3);
+  }
+
+  .os-auto-card > span:nth-child(2) > span {
+    display: none;
+  }
+
+  .os-auto-card {
+    align-items: center;
+    padding: 12px 14px;
+  }
+
+  .os-auto-tools .os-segmented {
+    order: 3;
+    width: 100%;
+  }
+
+  .os-auto-headrow {
+    display: none;
+  }
+
+  .os-auto-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "main main main"
+      "setter switch menu";
+    row-gap: 10px;
+  }
+
+  .os-auto-main {
+    grid-area: main;
+  }
+
+  .os-auto-setter {
+    grid-area: setter;
+  }
+
+  .os-auto-switch {
+    grid-area: switch;
+  }
+
+  .os-auto-row > [role="cell"]:last-child {
+    grid-area: menu;
+  }
+
+  .os-auto-row > .num {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-auto-pop {
+    animation: none;
+  }
+
+  .os-auto-card:hover .os-auto-card-go {
+    transform: none;
+  }
+}

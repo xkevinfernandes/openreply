@@ -9,6 +9,8 @@ import "./os.css";
 import "./inbox.css";
 import "./knowledge.css";
 import "./integrations.css";
+import "./automations.css";
+import "./settings.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 

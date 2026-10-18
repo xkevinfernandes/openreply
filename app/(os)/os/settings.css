@@ -1,0 +1,528 @@
+/* DM OS: Settings (Instagram, DM logs, Diagnostics, Workspace). Sections are
+   hairline cards; tables follow the Review Room list. OpenReply components we
+   reuse (the Zernio card, the connect notice) sit in .os-upstream and are
+   restyled here. */
+
+.os-set-tabs {
+  margin-bottom: var(--sp-6);
+}
+
+.os-set-stack {
+  display: grid;
+  gap: var(--sp-5);
+  max-width: 920px;
+}
+
+.os-set-section {
+  max-width: 920px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.os-set-section-head {
+  margin-bottom: var(--sp-4);
+}
+
+.os-set-section-head-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.os-set-section h2 {
+  margin: 0;
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.os-set-section-head p {
+  margin: 4px 0 0;
+  max-width: 64ch;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  text-wrap: pretty;
+}
+
+.os-set-count {
+  color: var(--faint);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.os-set-empty {
+  margin: 0;
+  padding: 18px 0 4px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+/* Status dot tones, shared by .os-st and filter chips */
+
+.os-st[data-tone="good"] i,
+.os-set-dot[data-tone="good"] {
+  background: var(--good);
+}
+
+.os-st[data-tone="bad"] i,
+.os-set-dot[data-tone="bad"] {
+  background: var(--bad);
+}
+
+.os-st[data-tone="wait"] i,
+.os-set-dot[data-tone="wait"] {
+  background: var(--warn);
+}
+
+.os-st[data-tone="quiet"] i,
+.os-set-dot[data-tone="quiet"] {
+  background: var(--ghost);
+}
+
+.os-st[data-tone="bad"] {
+  color: var(--bad);
+}
+
+.os-set-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* Lists (accounts, team) */
+
+.os-set-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.os-set-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 12px 0;
+}
+
+.os-set-item + .os-set-item {
+  border-top: 1px solid var(--line);
+}
+
+.os-set-item-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.os-set-item-text strong {
+  font-weight: 600;
+}
+
+.os-set-item-text strong a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.os-set-item-text strong a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.os-set-item-text span {
+  color: var(--faint);
+  font-size: var(--fs-xs);
+}
+
+.os-set-item[data-pending="true"] .os-set-item-text strong {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.os-set-item-actions,
+.os-set-disconnect {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.os-set-invite {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 130px auto;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+
+.os-set-invite .os-select select {
+  width: 100%;
+}
+
+.os-set-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-4);
+  margin: 0;
+}
+
+.os-set-facts dt {
+  color: var(--faint);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+
+.os-set-facts dd {
+  margin: 4px 0 0;
+  font-weight: 500;
+}
+
+/* DM logs */
+
+.os-set-filter {
+  margin-bottom: var(--sp-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.os-set-tablewrap {
+  margin: 0 -20px;
+  overflow-x: auto;
+  transition: opacity 160ms ease;
+}
+
+.os-set-tablewrap[aria-busy="true"] {
+  opacity: 0.5;
+}
+
+.os-set-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.os-set-table th {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--faint);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.os-set-table td {
+  padding: 10px 12px;
+  vertical-align: top;
+}
+
+.os-set-table th:first-child,
+.os-set-table td:first-child {
+  padding-left: 20px;
+}
+
+.os-set-table th:last-child,
+.os-set-table td:last-child {
+  padding-right: 20px;
+}
+
+.os-set-table tbody tr + tr td {
+  border-top: 1px solid var(--line);
+}
+
+.os-set-table tbody tr:hover td {
+  background: var(--tint);
+}
+
+.os-set-table small {
+  display: block;
+  margin-top: 2px;
+  color: var(--faint);
+  font-size: var(--fs-xs);
+}
+
+.os-set-when {
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.os-set-person {
+  font-weight: 500;
+}
+
+.os-set-comment {
+  max-width: 280px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.os .os-set-table small.os-set-error {
+  max-width: 240px;
+  color: var(--bad);
+  overflow-wrap: anywhere;
+}
+
+.os-set-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Diagnostics */
+
+.os-set-verdict {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  font-weight: 500;
+}
+
+.os-set-verdict > span {
+  flex: 1;
+}
+
+.os-set-verdict i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ghost);
+  flex: none;
+}
+
+.os-set-verdict[data-tone="good"] i {
+  background: var(--good);
+}
+
+.os-set-verdict[data-tone="warn"] {
+  background: var(--warn-bg);
+  border-color: transparent;
+  color: var(--warn);
+}
+
+.os-set-verdict[data-tone="warn"] i {
+  background: var(--warn);
+}
+
+.os-set-verdict[data-tone="bad"] {
+  background: var(--bad-bg);
+  border-color: transparent;
+  color: var(--bad);
+}
+
+.os-set-verdict[data-tone="bad"] i {
+  background: var(--bad);
+}
+
+.os-stats.os-set-stats {
+  grid-template-columns: 1.6fr repeat(4, minmax(0, 1fr));
+  margin-bottom: 0;
+}
+
+.os-set-stat-word {
+  font-size: 20px;
+}
+
+.os-set-stat-sub {
+  margin-top: 4px;
+  color: var(--faint);
+  font-size: var(--fs-xs);
+}
+
+.os-stat[data-alert="true"] .value {
+  color: var(--bad);
+}
+
+.os-set-events {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.os-set-events li {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 0;
+}
+
+.os-set-events li + li {
+  border-top: 1px solid var(--line);
+}
+
+.os-set-event-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--fs-sm);
+}
+
+.os-set-event-top time {
+  margin-left: auto;
+  color: var(--faint);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.os-set-event-top > span:not(.os-st) {
+  color: var(--faint);
+  font-size: var(--fs-xs);
+}
+
+.os-set-event-body {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+/* --- OpenReply components, restyled ---------------------------------------- */
+
+.os .os-upstream .zernio-sponsor {
+  padding: 18px 20px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink);
+  font-family: var(--font);
+}
+
+.os .os-upstream .zernio-sponsor h2 {
+  font-size: var(--fs-h2);
+  letter-spacing: -0.01em;
+}
+
+.os .os-upstream .zernio-sponsor p {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.os .os-upstream .zernio-sponsor label {
+  color: var(--ink);
+  font-size: var(--fs-sm);
+}
+
+.os .os-upstream .zernio-sponsor a {
+  color: var(--ink);
+}
+
+.os .os-upstream .zernio-sponsor img {
+  height: 22px;
+  width: auto;
+  opacity: 0.85;
+}
+
+.os .os-upstream .zernio-sponsor input,
+.os .os-upstream .zernio-sponsor select {
+  height: var(--control-h);
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--card);
+  font: inherit;
+  font-size: var(--fs-body);
+}
+
+.os .os-upstream .zernio-sponsor input:focus,
+.os .os-upstream .zernio-sponsor select:focus {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px var(--tint-2);
+}
+
+.os .os-upstream .zernio-sponsor button {
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-h);
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink);
+  font: 500 var(--fs-sm) / 1 var(--font);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    transform 100ms ease;
+}
+
+.os .os-upstream .zernio-sponsor button:hover:not(:disabled) {
+  background: var(--tint);
+}
+
+.os .os-upstream .zernio-sponsor button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.os .os-upstream .zernio-sponsor .zernio-action {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.os .os-upstream .zernio-sponsor .zernio-action:hover:not(:disabled) {
+  background: var(--ink);
+  opacity: 0.86;
+}
+
+/* the quiet "Remove Zernio connection" link */
+.os .os-upstream .zernio-sponsor button.underline {
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-weight: 400;
+  font-size: var(--fs-xs);
+}
+
+.os .os-upstream .zernio-sponsor .text-error {
+  color: var(--bad);
+}
+
+.os .os-upstream [class*="rounded"] {
+  border-radius: var(--radius);
+}
+
+@media (max-width: 760px) {
+  .os-set-section {
+    padding: 16px;
+  }
+
+  .os-set-tablewrap {
+    margin: 0 -16px;
+  }
+
+  .os-set-item {
+    flex-wrap: wrap;
+  }
+
+  .os-set-invite {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .os-set-invite .os-input {
+    grid-column: 1 / -1;
+  }
+
+  .os-stats.os-set-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .os-set-stats .os-stat:first-child {
+    grid-column: 1 / -1;
+  }
+}
