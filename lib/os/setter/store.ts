@@ -2,10 +2,11 @@
 // OS_MOCK=1, an in-memory copy over the sample inbox so the whole Draft →
 // Approve flow can be clicked through locally.
 
-import type { ContactKind, Prisma } from "@/app/generated/prisma/client";
+import type { ContactKind, ContactStage, Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db/client";
 import { getInboxAccount, sendReply } from "@/lib/os/inbox";
-import { mockContact, mockMessages, osMockEnabled } from "@/lib/os/mock";
+import { isBookingPayload, type BookingPayload } from "@/lib/os/integrations/calendar/types";
+import { mockContact, mockContactExtras, mockMessages, osMockEnabled } from "@/lib/os/mock";
 import type { SetterRecord, ThreadMessage } from "@/lib/os/setter/state";
 import { readSetterThread } from "@/lib/os/setter/thread";
 
@@ -21,6 +22,12 @@ export interface SetterContact {
   /** For picking the setter (lib/os/setter/setters.ts). */
   instagramAccountId?: string | null;
   setterId?: string | null;
+  /** For booking: the name on the invite, an email we already have, and
+   *  whether a call is on the table yet. */
+  fullName?: string | null;
+  email?: string | null;
+  stage?: ContactStage | null;
+  setterStage?: string | null;
 }
 
 export type DraftStatusName = "PENDING" | "APPROVED" | "SENT" | "DISCARDED";
@@ -38,6 +45,10 @@ export interface DraftView {
   flags: string[];
   backend: string | null;
   createdAt: string;
+  /** kind "booking": what Approve books (lib/os/setter/booking.ts). */
+  booking?: BookingPayload | null;
+  /** Why the last Approve failed (the booking or the send). */
+  sendError?: string | null;
 }
 
 export interface NewDraft {
@@ -58,6 +69,7 @@ export interface NewDraft {
   outputTokens?: number;
   /** The knowledge base that wrote it; null = the file fallback. */
   setterId?: string | null;
+  booking?: BookingPayload | null;
 }
 
 export interface SetterStore {
@@ -96,6 +108,8 @@ function view(d: DraftRow): DraftView {
     flags: d.flags,
     backend: d.backend,
     createdAt: d.createdAt.toISOString(),
+    booking: isBookingPayload(d.booking) ? d.booking : null,
+    sendError: d.sendError,
   };
 }
 
@@ -114,6 +128,10 @@ const dbStore: SetterStore = {
       tags: c.tags,
       instagramAccountId: c.instagramAccountId,
       setterId: c.setterId,
+      fullName: c.fullName,
+      email: c.email,
+      stage: c.stage,
+      setterStage: c.setterStage,
     };
   },
   async readThread(contact) {
@@ -151,6 +169,7 @@ const dbStore: SetterStore = {
           ...input,
           proposedTags: input.proposedTags as Prisma.InputJsonValue,
           raw: (input.raw ?? null) as Prisma.InputJsonValue,
+          booking: input.booking ? (JSON.parse(JSON.stringify(input.booking)) as Prisma.InputJsonValue) : undefined,
         },
       }),
     ]);
@@ -215,6 +234,10 @@ const mockStore: SetterStore = {
       kind: m.contact.kind,
       paused: m.contact.paused,
       tags: [],
+      fullName: m.fullName ?? null,
+      email: mockContactExtras(contactId).email,
+      stage: m.contact.stage,
+      setterStage: m.contact.setterStage,
     };
   },
   async readThread(contact) {
@@ -223,6 +246,7 @@ const mockStore: SetterStore = {
       text: m.text,
       incoming: !m.fromMe,
       at: (m.createdTime ?? "").replace(/\.\d{3}Z$/, "Z"),
+      attachment: m.attachment ?? null,
     }));
   },
   async loadState(contactId) {
@@ -249,6 +273,7 @@ const mockStore: SetterStore = {
       flags: input.flags,
       backend: input.backend,
       createdAt: new Date().toISOString(),
+      booking: input.booking ?? null,
     };
     mem.drafts.set(d.id, d);
     return d;
@@ -266,9 +291,9 @@ const mockStore: SetterStore = {
     const d = mem.drafts.get(draftId);
     if (d) Object.assign(d, { status: "SENT", bubbles: sent.bubbles });
   },
-  async releaseDraft(draftId) {
+  async releaseDraft(draftId, error) {
     const d = mem.drafts.get(draftId);
-    if (d) d.status = "PENDING";
+    if (d) Object.assign(d, { status: "PENDING", sendError: error });
   },
   async discardDraft(draftId) {
     const d = mem.drafts.get(draftId);

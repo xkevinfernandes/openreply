@@ -42,6 +42,8 @@ export interface InboxMessage {
   text: string;
   fromMe: boolean;
   createdTime: string | null;
+  /** An image or file they sent ("image", …). */
+  attachment?: string | null;
 }
 
 interface RawThread {

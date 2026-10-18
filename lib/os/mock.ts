@@ -64,6 +64,19 @@ export function appendMockMessage(conversationId: string, text: string, at: Date
   }
 }
 
+/** Sample data only: a message "from them", so the booking flow (pick a
+ *  time, give an email, send the screenshot) can be clicked through. */
+export function appendMockIncoming(conversationId: string, text: string, attachment: string | null = null) {
+  const list = sent.get(conversationId) ?? [];
+  list.push({ id: `${conversationId}-in-${list.length + 1}`, text, fromMe: false, createdTime: new Date().toISOString(), attachment });
+  sent.set(conversationId, list);
+  const person = people.find((p) => p.conversationId === conversationId);
+  if (person) {
+    person.firstReply ??= person.preview ?? "";
+    person.preview = attachment ? "Sent a photo" : text;
+  }
+}
+
 export function mockMessages(conversationId: string): InboxMessage[] {
   const t = people.find((p) => p.conversationId === conversationId);
   if (!t) return [];
@@ -79,7 +92,7 @@ export function mockMessages(conversationId: string): InboxMessage[] {
 export function mockContact(contactId: string) {
   const p = people.find((x) => x.contact?.id === contactId);
   if (!p?.contact) return null;
-  return { conversationId: p.conversationId, igUserId: p.igUserId, username: p.username, contact: p.contact };
+  return { conversationId: p.conversationId, igUserId: p.igUserId, username: p.username, fullName: p.fullName ?? null, contact: p.contact };
 }
 
 /** Kind, stage and triage changes made while running on sample data. Kept in memory

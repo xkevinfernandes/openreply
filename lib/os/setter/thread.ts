@@ -21,8 +21,19 @@ export function normaliseZernio(raw: ZernioMessage[]): ThreadMessage[] {
       at: m.createdAt ?? m.timestamp ?? "",
       story_reply: Boolean(m.storyReply),
       postback: Boolean(m.metadata?.postbackTitle || m.metadata?.postbackPayload || m.type === "postback"),
+      attachment: mediaAttachment(m),
     }))
     .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+}
+
+/** The type of an image/file they sent (their invite screenshot), or null.
+ *  Button templates and generic cards are our own DMs, not attachments. */
+export function mediaAttachment(m: ZernioMessage): string | null {
+  for (const a of m.attachments ?? []) {
+    if (!a.type || a.type === "template" || a.payload?.generic?.elements?.length) continue;
+    return a.type;
+  }
+  return null;
 }
 
 export async function readSetterThread(account: InstagramAccount, conversationId: string): Promise<ThreadMessage[]> {

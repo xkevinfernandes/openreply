@@ -73,6 +73,30 @@ export interface ThreadMessage {
   at: string;
   story_reply?: boolean;
   postback?: boolean;
+  /** An image/file they sent ("image", "file", …); null for text. */
+  attachment?: string | null;
+}
+
+/** Where J is in booking a call inside the DM (lib/os/setter/booking.ts). */
+export type BookingPhase = "asked_timezone" | "proposed" | "awaiting_email" | "booked" | "link_sent" | "confirmed";
+
+export interface BookingState {
+  phase: BookingPhase;
+  /** Their IANA timezone once known. */
+  timezone?: string | null;
+  /** Slot ids (UTC starts) J offered last. */
+  proposed?: string[];
+  /** The slot they picked. */
+  picked?: string | null;
+  /** Times that turned out to be taken when Kevin approved. */
+  taken?: string[];
+  /** After the booking: our Booking row and the call start. */
+  booking_id?: string | null;
+  start?: string | null;
+  at: string;
+  confirmed_at?: string | null;
+  /** The message (their screenshot) that confirmed it. */
+  confirmed_by?: string | null;
 }
 
 export interface SetterAction {
@@ -102,7 +126,15 @@ export interface SetterRecord {
   friday_last_at: string | null;
   window: { state: WindowState; until: string | null };
   next_action: { kind: ActionKind | "none"; at: string | null };
-  draft: { anchor: string; kind: string; draft_id?: string; stage?: string; offer?: string | null } | null;
+  draft: {
+    anchor: string;
+    kind: string;
+    draft_id?: string;
+    stage?: string;
+    offer?: string | null;
+    /** The booking state this draft moves to once it is sent. */
+    booking?: BookingState | null;
+  } | null;
   proposed_tags: Record<string, string>;
   tags: string[];
   history: { at: string | null; event: string }[];
@@ -112,6 +144,7 @@ export interface SetterRecord {
   invited?: { route: string; offer?: string | null; at: string } | null;
   fit_score?: number | null;
   sends?: { at: string; kind: string; edited: boolean; human_agent: boolean; bubbles: string[]; first: boolean }[];
+  booking?: BookingState | null;
 }
 
 // ---------------------------------------------------------------- time
@@ -254,6 +287,13 @@ export function isEmailOnly(text: string | null | undefined): boolean {
   return !rest.replace(/[\s.,!:;'"()-]|its|it's|here|sure|ok|okay|yes|yep/g, "");
 }
 
+const ATTACHMENT_TEXT = /\[(image|photo|video|file|share|ig_reel|reel|story)?\s*attachment\]/i;
+
+/** An image or file (their screenshot of the invite), not text. */
+export function hasAttachment(m: Pick<ThreadMessage, "text" | "attachment">): boolean {
+  return Boolean(m.attachment) || ATTACHMENT_TEXT.test(m.text ?? "");
+}
+
 export function slugsWithTagPrefix(tags: string[] | null | undefined, prefix: string): string[] {
   const out = new Set<string>();
   for (const t of tags ?? []) if (t.startsWith(prefix) && t.slice(prefix.length)) out.add(t.slice(prefix.length));
@@ -357,11 +397,29 @@ export function observe(
   const incoming = msgs.filter((m) => m.incoming);
   const outgoing = msgs.filter((m) => !m.incoming);
 
+  // Booked in the DM, then they sent a screenshot of the invite: confirmed
+  // (Kevin's commitment step). The screenshot counts as something they said,
+  // so J drafts a short thanks.
+  const bk = rec.booking;
+  if (bk && (bk.phase === "booked" || bk.phase === "link_sent")) {
+    const shot = incoming.find((m) => (m.at ?? "") > (bk.at ?? "") && hasAttachment(m));
+    if (shot) {
+      rec.booking = { ...bk, phase: "confirmed", confirmed_at: shot.at, confirmed_by: shot.id };
+      rec.stage = "booked";
+      logEvent(rec, shot.at || now, "booking:confirmed");
+    }
+  }
+  const confirmedBy = rec.booking?.confirmed_by ?? null;
+  // Mid-booking, a bare email is the answer J asked for: reply to it (the
+  // email-gate rule below would otherwise skip it).
+  const askingEmail = Boolean(rec.booking && ["asked_timezone", "proposed", "awaiting_email"].includes(rec.booking.phase));
+  const isAnswer = (m: ThreadMessage) => askingEmail && (m.at ?? "") > (rec.booking?.at ?? "") && Boolean(emailIn(m.text));
+
   if (incoming.length) {
     const last = incoming[incoming.length - 1];
     rec.their_last_at = last.at || rec.their_last_at;
     rec.last_incoming_id = last.id;
-    const said = incoming.filter((m) => !m.postback && !isTriggerText(m.text, catalog) && !isEmailOnly(m.text));
+    const said = incoming.filter((m) => m.id === confirmedBy || isAnswer(m) || (!m.postback && !isTriggerText(m.text, catalog) && !isEmailOnly(m.text)));
     const emails = incoming.map((m) => emailIn(m.text)).filter((e): e is string => Boolean(e));
     if (emails.length) rec.email = emails[emails.length - 1];
     rec.last_incoming_text_id = said.length ? said[said.length - 1].id : null;

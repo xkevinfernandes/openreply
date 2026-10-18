@@ -237,6 +237,44 @@ async function fake({ prompt, job }: Call): Promise<[string, DraftUsage]> {
       usage,
     ];
   }
+  // Booking in the DM (lib/os/setter/booking.ts): markers pick the step; the
+  // slot ids come from the CALENDAR section of the prompt.
+  const slotIds = [...prompt.matchAll(/^- (\d{4}-\d{2}-\d{2}T[\d:]+Z) = /gm)].map((m) => m[1]);
+  if (prompt.includes("[fake:book-confirm]")) {
+    const email = /[\w.+-]+@[\w-]+\.[\w.]+/.exec(prompt.split("The WHOLE conversation")[1] ?? "")?.[0] ?? null;
+    const link = prompt.includes("{booking_link}") ? " {booking_link}" : "";
+    return [
+      JSON.stringify({
+        bubbles: [`done, booked you in${link}`, "once the invite lands can you send me a screenshot of it? just so I know it came through"],
+        stage_proposed: "booked",
+        stage_reasoning: "fake backend",
+        booking: { action: "confirm", slot: slotIds[0] ?? null, email, name: null, timezone: null },
+      }),
+      usage,
+    ];
+  }
+  if (prompt.includes("[fake:book-email]")) {
+    return [
+      JSON.stringify({
+        bubbles: ["perfect", "what's the best email for the invite?"],
+        stage_proposed: "booked",
+        stage_reasoning: "fake backend",
+        booking: { action: "ask_email", slot: slotIds[0] ?? null },
+      }),
+      usage,
+    ];
+  }
+  if (prompt.includes("[fake:book-propose]")) {
+    return [
+      JSON.stringify({
+        bubbles: ["bet, would either of these work? (your time)"],
+        stage_proposed: "booked",
+        stage_reasoning: "fake backend",
+        booking: { action: "propose", slots: slotIds.slice(0, 2) },
+      }),
+      usage,
+    ];
+  }
   if (prompt.includes("[fake:hold]")) {
     return [JSON.stringify({ bubbles: [], hold: true, hold_reason: "fake backend holds" }), usage];
   }

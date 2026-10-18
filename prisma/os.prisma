@@ -90,6 +90,8 @@ model Contact {
   /// One row per connected CRM / email list (lib/os/integrations).
   syncs       ContactSync[]
   fridaySends FridaySend[]
+  /// Calls J booked in the DM (lib/os/integrations/calendar).
+  bookings    Booking[]
 
   @@unique([workspaceId, instagramAccountId, igUserId])
   @@index([workspaceId, kind])
@@ -159,6 +161,10 @@ model Draft {
   /// Which knowledge base wrote it (null = the file fallback).
   setterId     String?
   sendError    String?
+  /// kind "booking": what Approve books before it sends (BookingPayload in
+  /// lib/os/integrations/calendar/types.ts): provider, event type, slot start,
+  /// timezone, name, email.
+  booking      Json?
   createdAt    DateTime    @default(now())
   decidedAt    DateTime?
   sentAt       DateTime?
@@ -282,7 +288,8 @@ model CampaignSetter {
 // providers the upstream CrmProvider enum doesn't know (GoHighLevel) keep their
 // credentials here. Every provider keeps its field mapping here.
 
-/// One provider's settings for a workspace. provider: "kit" | "ghl".
+/// One provider's settings for a workspace. provider: "kit" | "ghl" |
+/// "calcom" | "calendly". Calendar tokens are encrypted in credentials too.
 model OsIntegration {
   id           String    @id @default(cuid())
   workspaceId  String
@@ -294,8 +301,12 @@ model OsIntegration {
   locationId   String?
   /// FieldMapping (lib/os/integrations/mapping.ts).
   mapping      Json      @default("{}")
-  /// Paused: events are not pushed to this provider.
+  /// Paused: events are not pushed to this provider. For a calendar
+  /// (calcom, calendly): J books on it.
   enabled      Boolean   @default(true)
+  /// Calendar providers only: CalendarSettings (lib/os/integrations/calendar/settings.ts),
+  /// e.g. the event type per setter, working hours, how many times to offer.
+  settings     Json      @default("{}")
   lastTestedAt DateTime?
   lastError    String?
   createdAt    DateTime  @default(now())
@@ -354,4 +365,50 @@ model FridaySend {
 
   @@unique([contactId, resourceSlug])
   @@index([workspaceId, friday])
+}
+
+// --- Calendar booking --------------------------------------------------------
+// J books calls inside the DM: it offers real times, takes their email and,
+// once Kevin approves, books through Cal.com or Calendly (spec item 9: only
+// an Approve books).
+
+enum BookingStatus {
+  /// The provider has the booking; waiting for their screenshot.
+  BOOKED
+  /// They sent the screenshot of the calendar invite (Kevin's commitment step).
+  CONFIRMED
+  /// Calendly without direct booking: we sent a link for that exact time.
+  LINK_SENT
+  CANCELLED
+}
+
+model Booking {
+  id          String        @id @default(cuid())
+  workspaceId String
+  contactId   String
+  contact     Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  /// The approved draft that booked it: one booking per draft, so a retried
+  /// approve (bubbles failed to send) never books twice.
+  draftId     String?       @unique
+  /// "calcom" | "calendly" | "mock"
+  provider    String
+  eventTypeId String
+  eventName   String?
+  /// The provider's id: Cal.com booking uid, Calendly invitee uri.
+  externalId  String?
+  start       DateTime
+  end         DateTime?
+  /// The lead's IANA timezone (what J quoted the time in).
+  timezone    String
+  name        String?
+  email       String
+  status      BookingStatus @default(BOOKED)
+  /// Calendly link fallback, or the provider's manage link.
+  url         String?
+  confirmedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([workspaceId, start])
+  @@index([contactId])
 }

@@ -59,7 +59,9 @@ export function buildPrompt(
   msgs: ThreadMessage[],
   action: SetterAction,
   catalog: Catalog,
-  now: Date
+  now: Date,
+  /** Extra sections from the service, e.g. the CALENDAR block (booking.ts). */
+  extras: string[] = []
 ): string {
   const kind = action.kind;
   const lines = msgs.filter((m) => (m.text ?? "").trim()).map((m) => `${m.incoming ? "THEM" : "YOU"}: ${m.text}`);
@@ -85,7 +87,8 @@ export function buildPrompt(
   if (inv) {
     parts.push(
       `ALREADY INVITED on ${(inv.at ?? "").slice(0, 10)} via ${inv.route} (${inv.offer || "offer"}). ` +
-        "Do NOT invite again, do not re-ask for the call. Answer what they say; if they said yes, move to Stage 6."
+        "Do NOT invite again, do not re-ask for the call. Answer what they say; if they said yes, move to Stage 6 " +
+        "(book it in the DM when a CALENDAR section is below, otherwise send the booking link)."
     );
   }
   if (action.human_agent) {
@@ -96,6 +99,7 @@ export function buildPrompt(
   }
   if (pathBlock) parts.push(pathBlock);
   if (brief) parts.push(brief);
+  for (const extra of extras) if (extra.trim()) parts.push(extra);
   parts.push(
     `The WHOLE conversation so far (${lines.length} messages), oldest first — use all of it, ` +
       "especially what they told you early on:\n" +
