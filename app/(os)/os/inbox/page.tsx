@@ -14,6 +14,7 @@ import { contactSyncLines, type ContactSyncLine } from "@/lib/os/integrations/vi
 import { entryLabels, kindTabs } from "@/lib/os/labels";
 import { osMockEnabled } from "@/lib/os/mock";
 import { pendingDrafts } from "@/lib/os/setter/service";
+import { clearSampleSuggestionsOnce, triageDisabled } from "@/lib/os/setter/triage";
 import type { DraftView } from "@/lib/os/setter/store";
 
 /** The selected contact's CRM sync log. Cheap reads; a failure hides it. */
@@ -60,6 +61,8 @@ export default async function InboxPage({ searchParams }: PageProps) {
 
   const params = await searchParams;
   const tab = kindTabs.some((k) => k.tab === params.tab) ? params.tab! : "sales";
+  // One-off: drop fake "(sample)" guesses an ungated deploy wrote (no-op after the first load).
+  await clearSampleSuggestionsOnce(workspaceId);
   const { connected, threads, selected, messages, drafts, error, now } = await loadInbox(workspaceId, params.c);
   const syncLines = await loadSyncLines(workspaceId, selected?.contact?.id);
   const draftByContact = new Map(drafts.map((d) => [d.contactId, d]));
@@ -93,6 +96,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
         now={now}
         draftContactIds={[...draftByContact.keys()]}
         draftsOnly={params.drafts === "1"}
+        triageDisabled={triageDisabled()}
       />
 
       <section className="os-inbox-thread" aria-label="Conversation">

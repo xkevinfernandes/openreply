@@ -15,10 +15,10 @@
 import type { ContactKind } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db/client";
 import { mockContact, osMockEnabled, updateMockContact } from "@/lib/os/mock";
-import { getSetterConfig } from "@/lib/os/setter/config";
+import { getSetterConfig, resolveBackend } from "@/lib/os/setter/config";
 import { draft as runDrafter, DraftError } from "@/lib/os/setter/drafter";
 import { ask as askJev, jevConfigured, JevError, readChoice, readNoul, type AskOptions, type JevQuestion } from "@/lib/os/setter/jev";
-import { jevReason } from "@/lib/os/triage-copy";
+import { jevReason, TRIAGE_DISABLED_NOTICE } from "@/lib/os/triage-copy";
 import type { ThreadMessage } from "@/lib/os/setter/state";
 import { setterStore } from "@/lib/os/setter/store";
 
@@ -99,19 +99,36 @@ export function looksLikeSales(texts: string[]): boolean {
 }
 
 // ---------------------------------------------------------------- backend
-export type TriageBackend = "jev" | "llm" | "fake";
+/** "disabled": production with neither Jev nor a real LLM, so triage would
+ *  only produce the drafter's canned "(sample)" verdicts. It writes nothing. */
+export type TriageBackend = "jev" | "llm" | "fake" | "disabled";
+
+export { TRIAGE_DISABLED_NOTICE };
 
 /**
  * Which backend judges. OS_TRIAGE wins when set (jev | llm | fake).
  * Otherwise Jev when its key is set (OPENROUTER_API_KEY, or TYPESAFE_API_KEY
  * under JEV_PROVIDER=typesafe), else the LLM path. A test run never reaches
  * the network unless it asks for jev explicitly.
+ *
+ * In production the fake never judges: a forced fake, or the LLM path when
+ * the drafter would fall back to its fake (no Anthropic key), is "disabled".
  */
 export function resolveTriageBackend(env: Record<string, string | undefined> = process.env): TriageBackend {
   const forced = env.OS_TRIAGE?.trim().toLowerCase();
-  if (forced === "jev" || forced === "llm" || forced === "fake") return forced;
-  if (env.VITEST) return "llm";
-  return jevConfigured(env) ? "jev" : "llm";
+  const prod = env.NODE_ENV === "production";
+  if (forced === "jev") return "jev";
+  if (forced === "fake") return prod ? "disabled" : "fake";
+  if (forced !== "llm") {
+    if (env.VITEST && !prod) return "llm";
+    if (jevConfigured(env)) return "jev";
+  }
+  if (prod && resolveBackend(env as NodeJS.ProcessEnv) === "fake") return "disabled";
+  return "llm";
+}
+
+export function triageDisabled(env: Record<string, string | undefined> = process.env): boolean {
+  return resolveTriageBackend(env) === "disabled";
 }
 
 export const DEFAULT_JEV_MIN = 0.7;
@@ -197,6 +214,10 @@ export interface TriageOptions {
 }
 
 export async function triageContact(contactId: string, opts: TriageOptions = {}): Promise<TriageResult> {
+  const backend = opts.backend ?? resolveTriageBackend();
+  // Never write a fake verdict where a person could take it for J's, and
+  // don't spend a thread read on a call that can't happen.
+  if (backend === "disabled") return { status: "skipped", reason: TRIAGE_DISABLED_NOTICE };
   const store = opts.store ?? triageStore();
   const now = opts.now ?? new Date();
   const contact = await store.getContact(contactId, opts.workspaceId);
@@ -211,7 +232,6 @@ export async function triageContact(contactId: string, opts: TriageOptions = {})
   }
   if (!opts.force && contact.triagedMessageId === lastIn.id) return { status: "skipped", reason: "J already looked at this message." };
 
-  const backend = opts.backend ?? resolveTriageBackend();
   const min = opts.jevMin ?? jevMin();
   const cfg = getSetterConfig();
   const call = async (prompt: string) => {
@@ -360,6 +380,49 @@ const mockTriageStore: TriageStore = {
     if (mockContact(contactId)?.contact.kind === kind) updateMockContact(contactId, update);
   },
 };
+
+// ---------------------------------------------------------------- cleanup
+/** The drafter's fake writes this into every reason it makes up. */
+export const SAMPLE_REASON_MARK = "(sample)";
+
+export interface SampleCleanupDb {
+  contact: {
+    updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }): Promise<{ count: number }>;
+  };
+}
+
+/**
+ * Clear fake "(sample)" suggestions a production deploy wrote before triage
+ * was gated (spec: production never shows fake suggestions). Also forgets
+ * which message J looked at, so a real backend judges them fresh. A contact
+ * whose kind the user set is untouched apart from the suggestion fields.
+ */
+export async function clearSampleSuggestions(workspaceId: string, db: SampleCleanupDb = prisma as unknown as SampleCleanupDb): Promise<number> {
+  const where = { workspaceId, suggestedReason: { contains: SAMPLE_REASON_MARK } };
+  const clear = { suggestedKind: null, suggestedReason: null, suggestedConfidence: null, triagedAt: null, triagedMessageId: null };
+  // J's own guesses drop their "triage" source first (the second call would
+  // no longer match them once the reason is gone).
+  const guessed = await db.contact.updateMany({ where: { ...where, kindSource: "triage" }, data: { ...clear, kindSource: null } });
+  const rest = await db.contact.updateMany({ where, data: clear });
+  return guessed.count + rest.count;
+}
+
+const cleanedWorkspaces = ((globalThis as { __osSampleCleaned?: Set<string> }).__osSampleCleaned ??= new Set());
+
+/** clearSampleSuggestions at most once per workspace per server process:
+ *  cheap enough for a page load, and a no-op after the first. Never throws. */
+export async function clearSampleSuggestionsOnce(workspaceId: string, db: SampleCleanupDb = prisma as unknown as SampleCleanupDb): Promise<number> {
+  if (osMockEnabled() || cleanedWorkspaces.has(workspaceId)) return 0;
+  try {
+    const n = await clearSampleSuggestions(workspaceId, db);
+    cleanedWorkspaces.add(workspaceId);
+    if (n) console.log(`[OS Triage] cleared ${n} sample suggestions in workspace ${workspaceId}`);
+    return n;
+  } catch (err) {
+    console.error("[OS Triage] sample cleanup failed:", err instanceof Error ? err.message : err);
+    return 0;
+  }
+}
 
 export function triageStore(): TriageStore {
   return osMockEnabled() ? mockTriageStore : dbTriageStore;

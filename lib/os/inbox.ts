@@ -9,6 +9,7 @@ import {
 import { zernioRequest } from "@/lib/zernio/client";
 import { upsertContact } from "@/lib/os/contacts";
 import { enqueueTriageMany } from "@/lib/os/setter/queue";
+import { triageDisabled } from "@/lib/os/setter/triage";
 import { appendMockMessage, mockMessages, mockThreads, osMockEnabled } from "@/lib/os/mock";
 
 /** What Zernio tells us about the person on each list read (not stored). */
@@ -167,7 +168,7 @@ export async function listThreads(workspaceId: string): Promise<{ account: Insta
 
   // New Unsorted contacts get J's sales/personal guess in the background.
   const untriaged = contacts.filter((c) => c.kind === "UNSORTED" && !c.triagedAt && c.zernioConversationId).map((c) => c.id);
-  if (untriaged.length) {
+  if (untriaged.length && !triageDisabled()) {
     void enqueueTriageMany(untriaged, "new").catch((err) =>
       console.error("[OS Inbox] could not queue triage:", err instanceof Error ? err.message : err)
     );

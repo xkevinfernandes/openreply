@@ -18,9 +18,11 @@ interface ThreadListProps {
   draftContactIds: string[];
   /** Show only threads with a draft ready (Sales tab). */
   draftsOnly: boolean;
+  /** Production without Jev or a model: "Sort with J" explains instead. */
+  triageDisabled?: boolean;
 }
 
-export default function ThreadList({ threads, tab, selected, now, draftContactIds, draftsOnly }: ThreadListProps) {
+export default function ThreadList({ threads, tab, selected, now, draftContactIds, draftsOnly, triageDisabled = false }: ThreadListProps) {
   const [query, setQuery] = useState("");
   // Rows the user just sorted: they leave at once, before the server answers.
   const [decided, setDecided] = useState<Set<string>>(() => new Set());
@@ -151,7 +153,7 @@ export default function ThreadList({ threads, tab, selected, now, draftContactId
         </div>
       )}
       {kind === "UNSORTED" && (
-        <TriageBar unsortedCount={unsorted.length} suggestedCount={suggestedCount} onConfirmAll={confirmAll} />
+        <TriageBar unsortedCount={unsorted.length} suggestedCount={suggestedCount} onConfirmAll={confirmAll} disabled={triageDisabled} />
       )}
       <label className="os-search">
         <span className="sr-only">Search conversations</span>

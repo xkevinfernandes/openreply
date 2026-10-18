@@ -3,6 +3,9 @@
 // mentions pricing") and the UI shows the percentage from suggestedConfidence
 // plus only the hint. Pure: safe in client components.
 
+/** What "Sort with J" says when triage is disabled (production without Jev). */
+export const TRIAGE_DISABLED_NOTICE = "Connect Jev (OPENROUTER_API_KEY) to let J sort";
+
 export type Lean = "sales" | "personal";
 
 export function jevReason(probability: number, lean: Lean, opts: { unsure?: boolean; hint?: string | null } = {}): string {

@@ -15,7 +15,7 @@ import {
   type TriageActionResult,
 } from "@/app/(os)/os/inbox/actions";
 import type { ContactKind } from "@/app/generated/prisma/enums";
-import { triageCopy } from "@/lib/os/triage-copy";
+import { TRIAGE_DISABLED_NOTICE, triageCopy } from "@/lib/os/triage-copy";
 
 interface SuggestionProps {
   contactId: string;
@@ -115,9 +115,11 @@ interface BarProps {
   /** Called when Confirm all is tapped (true), so the list can let go of
    *  those rows; false if it failed. */
   onConfirmAll?: (on: boolean) => void;
+  /** Triage can't run here (production without Jev): no Sort button, just why. */
+  disabled?: boolean;
 }
 
-export function TriageBar({ unsortedCount, suggestedCount, onConfirmAll }: BarProps) {
+export function TriageBar({ unsortedCount, suggestedCount, onConfirmAll, disabled = false }: BarProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<"sort" | "confirm" | null>(null);
@@ -146,9 +148,11 @@ export function TriageBar({ unsortedCount, suggestedCount, onConfirmAll }: BarPr
   return (
     <div className="os-triage-bar" aria-busy={pending}>
       <div className="os-triage-bar-actions">
-        <button type="button" className="os-button" disabled={pending || !unsortedCount} onClick={() => run("sort")}>
-          {busy === "sort" ? "J is sorting…" : "Sort with J"}
-        </button>
+        {!disabled && (
+          <button type="button" className="os-button" disabled={pending || !unsortedCount} onClick={() => run("sort")}>
+            {busy === "sort" ? "J is sorting…" : "Sort with J"}
+          </button>
+        )}
         <button
           type="button"
           className="os-button primary"
@@ -160,7 +164,7 @@ export function TriageBar({ unsortedCount, suggestedCount, onConfirmAll }: BarPr
         </button>
       </div>
       <p className="os-triage-bar-note" aria-live="polite" data-error={message?.error ? "true" : undefined}>
-        {message?.text ?? (suggestedCount ? "Check J's guesses, then confirm in one go." : "J reads each thread and guesses sales or personal.")}
+        {message?.text ?? (disabled ? TRIAGE_DISABLED_NOTICE : suggestedCount ? "Check J's guesses, then confirm in one go." : "J reads each thread and guesses sales or personal.")}
       </p>
     </div>
   );

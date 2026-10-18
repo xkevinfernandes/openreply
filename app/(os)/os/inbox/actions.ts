@@ -9,7 +9,7 @@ import { fireContactEvent } from "@/lib/os/integrations/events";
 import type { SyncEvent } from "@/lib/os/integrations/mapping";
 import { mockThreads, osMockEnabled, updateMockContact } from "@/lib/os/mock";
 import { enqueueTriageMany, redisConfigured, scheduleNextAction } from "@/lib/os/setter/queue";
-import { triageContact } from "@/lib/os/setter/triage";
+import { TRIAGE_DISABLED_NOTICE, triageContact, triageDisabled } from "@/lib/os/setter/triage";
 import { approveDraft, discardDraft, draftForContact } from "@/lib/os/setter/service";
 import type { SetterRecord } from "@/lib/os/setter/state";
 
@@ -187,6 +187,8 @@ const INLINE_TRIAGE_CAP = 10;
  *  already judged on their latest message. */
 export async function sortWithJ(): Promise<TriageActionResult> {
   const workspaceId = await requireWorkspace();
+  // Production without Jev or a model: say so, never write fake guesses.
+  if (triageDisabled()) return { notice: `${TRIAGE_DISABLED_NOTICE}.` };
   const ids = osMockEnabled()
     ? mockThreads()
         .filter((t) => t.contact?.kind === "UNSORTED")
