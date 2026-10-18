@@ -7,10 +7,11 @@ import { prisma } from "@/lib/db/client";
 import { sendReply } from "@/lib/os/inbox";
 import { fireContactEvent } from "@/lib/os/integrations/events";
 import type { SyncEvent } from "@/lib/os/integrations/mapping";
-import { mockThreads, osMockEnabled, updateMockContact } from "@/lib/os/mock";
+import { appendMockIncoming, mockThreads, osMockEnabled, updateMockContact } from "@/lib/os/mock";
 import { enqueueTriageMany, redisConfigured, scheduleNextAction } from "@/lib/os/setter/queue";
 import { TRIAGE_DISABLED_NOTICE, triageContact, triageDisabled } from "@/lib/os/setter/triage";
 import { approveDraft, discardDraft, draftForContact } from "@/lib/os/setter/service";
+import { setterStore } from "@/lib/os/setter/store";
 import type { SetterRecord } from "@/lib/os/setter/state";
 
 async function requireWorkspace() {
@@ -111,12 +112,32 @@ export async function draftWithJ(contactId: string): Promise<DraftActionResult> 
 
 export async function approveJDraft(draftId: string, editedText?: string | null): Promise<DraftActionResult> {
   const workspaceId = await requireWorkspace();
+  const contactId = (await setterStore().getDraft(draftId, workspaceId))?.contactId ?? null;
   const result = await approveDraft(draftId, workspaceId, {
     editedText: editedText ?? null,
     onState: (rec) => (rec.contact_id ? scheduleTimer(rec.contact_id, rec) : undefined),
   });
+  if (result.rebook && contactId) {
+    // The time was taken (or Calendly can't book on this plan): nothing was
+    // sent. J offers times again right away; Kevin still approves that one.
+    const again = await draftWithJ(contactId);
+    revalidatePath("/os/inbox");
+    return { error: result.error, notice: again.error ?? again.notice };
+  }
   revalidatePath("/os/inbox");
-  return result;
+  return { error: result.error };
+}
+
+/** OS_MOCK only: a message from them, so the booking flow can be clicked
+ *  through on sample data (pick a time, give an email, send the screenshot). */
+export async function simulateTheirReply(conversationId: string, text: string, screenshot = false): Promise<DraftActionResult> {
+  await requireWorkspace();
+  if (!osMockEnabled()) return { error: "Only on sample data." };
+  const message = screenshot ? "[image attachment]" : text.trim();
+  if (!message) return { error: "Write what they say first." };
+  appendMockIncoming(conversationId, message, screenshot ? "image" : null);
+  revalidatePath("/os/inbox");
+  return {};
 }
 
 export async function discardJDraft(draftId: string): Promise<DraftActionResult> {

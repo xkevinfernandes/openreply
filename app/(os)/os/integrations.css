@@ -548,3 +548,88 @@
     animation: none;
   }
 }
+
+/* --- Calendar & Scheduling ------------------------------------------------ */
+.os-int-logo[data-provider="calcom"] {
+  background: #111;
+}
+.os-int-logo[data-provider="calendly"] {
+  background: #006bff;
+}
+.os-cal-types {
+  display: grid;
+  gap: 8px;
+}
+.os-cal-type {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr);
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+.os-cal-type > span:first-child {
+  color: var(--muted);
+}
+.os-cal-type .os-select select {
+  width: 100%;
+}
+.os-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px 16px;
+}
+.os-cal-grid .os-field > span:first-child {
+  font-size: 12px;
+  color: var(--muted);
+}
+.os-cal-wide {
+  grid-column: 1 / -1;
+}
+.os-cal-hours {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.os-cal-save {
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+.os-cal-warn {
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.os-cal-preview {
+  margin-top: 12px;
+  font-size: 13px;
+}
+.os-cal-preview ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.os-cal-preview li {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--tint-2);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.os-cal-preview li[data-offered] {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+@media (max-width: 560px) {
+  .os-cal-type {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+.os-cal-grid .os-segmented {
+  align-self: flex-start;
+  width: max-content;
+}

@@ -396,6 +396,8 @@ describe("booking draft → approve → book → send", () => {
     const { d, mem, bk, deps, later } = await toBookingDraft(cal);
     expect(d.kind).toBe("booking");
     expect(d.flags).toContain("booking");
+    // "booked" waits for their screenshot.
+    expect(d.setterStage).toBe("bridge");
     expect(d.booking).toMatchObject({ email: "sam@ortega.io", timezone: "America/New_York", mode: "book" });
     const sentBefore = mem.sent.length;
     expect(cal.booked).toHaveLength(0); // drafting never books

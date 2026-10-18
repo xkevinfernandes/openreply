@@ -2,7 +2,9 @@ import Link from "next/link";
 import Avatar from "@/components/os/inbox/avatar";
 import Composer from "@/components/os/inbox/composer";
 import { initialSource, threadName } from "@/components/os/inbox/names";
+import BookedCallChip, { type BookedCall } from "@/components/os/inbox/booked-call";
 import ContactControls from "@/components/os/inbox/contact-controls";
+import MockReply from "@/components/os/inbox/mock-reply";
 import SyncStatus from "@/components/os/integrations/sync-status";
 import ThreadList from "@/components/os/inbox/thread-list";
 import { TriageSuggestion } from "@/components/os/inbox/triage";
@@ -13,6 +15,7 @@ import { activeProviders } from "@/lib/os/integrations/store";
 import { contactSyncLines, type ContactSyncLine } from "@/lib/os/integrations/view";
 import { entryLabels, kindTabs } from "@/lib/os/labels";
 import { osMockEnabled } from "@/lib/os/mock";
+import { bookingStore, calendarSource } from "@/lib/os/setter/booking-store";
 import { pendingDrafts } from "@/lib/os/setter/service";
 import { clearSampleSuggestionsOnce, triageDisabled } from "@/lib/os/setter/triage";
 import type { DraftView } from "@/lib/os/setter/store";
@@ -24,6 +27,19 @@ async function loadSyncLines(workspaceId: string, contactId: string | undefined)
     return await contactSyncLines(workspaceId, contactId, await activeProviders(workspaceId));
   } catch {
     return [];
+  }
+}
+
+/** The selected contact's booked call, in Kevin's time. A failure hides it. */
+async function loadBookedCall(workspaceId: string, contactId: string | undefined): Promise<BookedCall | null> {
+  if (!contactId) return null;
+  try {
+    const b = await bookingStore().latest(workspaceId, contactId);
+    if (!b) return null;
+    const cal = await calendarSource.forSetter(workspaceId, null).catch(() => null);
+    return { start: b.start, timezone: b.timezone, hostTimezone: cal?.settings.hostTimezone ?? b.timezone, status: b.status, email: b.email };
+  } catch {
+    return null;
   }
 }
 
@@ -64,7 +80,10 @@ export default async function InboxPage({ searchParams }: PageProps) {
   // One-off: drop fake "(sample)" guesses an ungated deploy wrote (no-op after the first load).
   await clearSampleSuggestionsOnce(workspaceId);
   const { connected, threads, selected, messages, drafts, error, now } = await loadInbox(workspaceId, params.c);
-  const syncLines = await loadSyncLines(workspaceId, selected?.contact?.id);
+  const [syncLines, bookedCall] = await Promise.all([
+    loadSyncLines(workspaceId, selected?.contact?.id),
+    loadBookedCall(workspaceId, selected?.contact?.id),
+  ]);
   const draftByContact = new Map(drafts.map((d) => [d.contactId, d]));
   const selectedDraft = selected?.contact ? (draftByContact.get(selected.contact.id) ?? null) : null;
   const draftBlockedReason = !selected?.contact
@@ -132,6 +151,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                 )}
                 {selected.contact?.kindSource === "triage" && <span className="chip quiet">J&apos;s guess</span>}
                 {selected.profile?.isFollower && <span className="os-follows">Follows you</span>}
+                {bookedCall && <BookedCallChip booking={bookedCall} />}
               </div>
               {selected.contact && (
                 <ContactControls
@@ -165,7 +185,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
               {messages.length === 0 && <li className="os-thread-placeholder">No messages loaded.</li>}
               {messages.map((m) => (
                 <li key={m.id} className={m.fromMe ? "me" : "them"}>
-                  <span className="bubble">{m.text || "(attachment)"}</span>
+                  <span className="bubble">{m.attachment || m.text === "[image attachment]" ? "Sent a photo" : m.text || "(attachment)"}</span>
                   {m.createdTime && (
                     <time dateTime={m.createdTime}>
                       {new Date(m.createdTime).toLocaleString("en-GB", {
@@ -179,6 +199,8 @@ export default async function InboxPage({ searchParams }: PageProps) {
                 </li>
               ))}
             </ol>
+
+            {osMockEnabled() && <MockReply conversationId={selected.conversationId} who={threadName(selected.username, selected.fullName)} />}
 
             <Composer
               key={selected.conversationId}

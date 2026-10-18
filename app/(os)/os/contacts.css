@@ -878,3 +878,11 @@
   text-decoration-color: var(--line-strong);
   text-underline-offset: 3px;
 }
+
+.os-ct-call {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: var(--fs-sm);
+}

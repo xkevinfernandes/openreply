@@ -5,6 +5,9 @@
 import type { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { prisma } from "@/lib/db/client";
 import { mockContactExtras, mockThreads, osMockEnabled } from "@/lib/os/mock";
+import type { BookedCall } from "@/components/os/inbox/booked-call";
+import { activeCalendar } from "@/lib/os/integrations/calendar/store";
+import { latestBookings } from "@/lib/os/setter/booking-store";
 import { pendingDrafts } from "@/lib/os/setter/service";
 
 export interface ContactRow {
@@ -28,6 +31,8 @@ export interface ContactRow {
   setterId: string | null;
   /** J has a draft waiting for approval. */
   draftWaiting: boolean;
+  /** The call J booked in the DM, if any. */
+  booking?: BookedCall | null;
 }
 
 export interface SetterOption {
@@ -82,9 +87,25 @@ function mockContacts(drafts: Set<string>): ContactRow[] {
   });
 }
 
+/** Each contact's booked call, in Kevin's time. A failure leaves them off. */
+async function withBookings(workspaceId: string, rows: ContactRow[]): Promise<ContactRow[]> {
+  try {
+    const map = await latestBookings(workspaceId, rows.map((r) => r.id));
+    if (!map.size) return rows;
+    const host = (await activeCalendar(workspaceId, null).catch(() => null))?.settings.hostTimezone;
+    return rows.map((r) => {
+      const b = map.get(r.id);
+      return b ? { ...r, booking: { start: b.start, timezone: b.timezone, hostTimezone: host ?? b.timezone, status: b.status, email: b.email } } : r;
+    });
+  } catch (err) {
+    console.error("[OS Contacts] bookings failed:", err instanceof Error ? err.message : err);
+    return rows;
+  }
+}
+
 export async function listContacts(workspaceId: string): Promise<ContactsData> {
   const drafts = await draftContactIds(workspaceId);
-  if (osMockEnabled()) return { contacts: mockContacts(drafts), setters: [], truncated: false };
+  if (osMockEnabled()) return { contacts: await withBookings(workspaceId, mockContacts(drafts)), setters: [], truncated: false };
 
   const [rows, setters] = await Promise.all([
     prisma.contact.findMany({
@@ -114,11 +135,14 @@ export async function listContacts(workspaceId: string): Promise<ContactsData> {
   ]);
 
   return {
-    contacts: rows.slice(0, CONTACTS_CAP).map((c) => ({
-      ...c,
-      lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
-      draftWaiting: drafts.has(c.id),
-    })),
+    contacts: await withBookings(
+      workspaceId,
+      rows.slice(0, CONTACTS_CAP).map((c) => ({
+        ...c,
+        lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
+        draftWaiting: drafts.has(c.id),
+      }))
+    ),
     setters,
     truncated: rows.length > CONTACTS_CAP,
   };

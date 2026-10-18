@@ -1092,3 +1092,110 @@
     transform: none;
   }
 }
+
+/* --- Booking (J books the call in the DM) ---------------------------------- */
+.os-draft-booking {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--mark-bg);
+  color: var(--ink);
+}
+.os-draft-booking-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--mark);
+}
+.os-draft-booking-icon svg,
+.os-booked svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.os-draft-booking-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.os-draft-booking-main strong {
+  font-size: var(--fs-body);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.os-draft-booking-main span {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.os-draft-booking-via {
+  font-size: 12px;
+  color: var(--mark);
+  white-space: nowrap;
+}
+.os-draft-senderr {
+  font-size: var(--fs-sm);
+  color: var(--bad);
+}
+@media (max-width: 560px) {
+  .os-draft-booking {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .os-draft-booking-via {
+    grid-column: 2;
+    white-space: normal;
+  }
+}
+
+/* The booked call in the thread header */
+.os-booked {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--mark-bg);
+  color: var(--mark);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.os-booked svg {
+  width: 14px;
+  height: 14px;
+}
+.os-booked[data-status="BOOKED"],
+.os-booked[data-status="LINK_SENT"] {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+/* OS_MOCK: reply as them */
+.os-mock-reply {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px 8px;
+  padding: 8px 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.os-mock-reply .os-input {
+  flex: 1 1 200px;
+  min-width: 0;
+}

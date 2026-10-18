@@ -209,7 +209,10 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
   if (result.usage.backend === "fake") flags.push("sample");
 
   const kind = booking?.kind === "booking" ? "booking" : invite ? "invite" : action.kind;
-  const stage = obj.stage_proposed || obj.stage || null;
+  let stage = obj.stage_proposed || obj.stage || null;
+  // "booked" only once their screenshot confirms the call (Kevin's commitment
+  // step); until then the DM booking is still the bridge.
+  if (bookingCtx && stage === "booked" && rec.booking?.phase !== "confirmed") stage = "bridge";
   const d = await store.createDraft({
     workspaceId: contact.workspaceId,
     contactId: contact.id,
