@@ -1,0 +1,159 @@
+import type { Contact, InstagramAccount } from "@/app/generated/prisma/client";
+import { prisma } from "@/lib/db/client";
+import {
+  createInstagramContext,
+  getConversationMessages,
+  getConversations,
+  sendDirectMessage,
+} from "@/lib/instagram/provider";
+import { zernioRequest } from "@/lib/zernio/client";
+import { upsertContact } from "@/lib/os/contacts";
+import { mockMessages, mockThreads, osMockEnabled } from "@/lib/os/mock";
+
+export interface InboxThread {
+  conversationId: string;
+  igUserId: string;
+  username: string | null;
+  updatedTime: string | null;
+  preview: string | null;
+  contact: Pick<Contact, "id" | "kind" | "kindSource" | "stage" | "entryPath" | "setterStage" | "paused"> | null;
+}
+
+export interface InboxMessage {
+  id: string;
+  text: string;
+  fromMe: boolean;
+  createdTime: string | null;
+}
+
+interface RawThread {
+  conversationId: string;
+  igUserId: string;
+  username: string | null;
+  updatedTime: string | null;
+  preview: string | null;
+}
+
+export async function getInboxAccount(workspaceId: string) {
+  return prisma.instagramAccount.findFirst({
+    where: { workspaceId },
+    orderBy: { connectedAt: "desc" },
+  });
+}
+
+/** Threads from Zernio (or Meta), newest first. Zernio's list carries the last
+ *  message text, which the upstream reader drops, so we read it directly. */
+async function readThreads(account: InstagramAccount): Promise<RawThread[]> {
+  const context = await createInstagramContext(account);
+  if (context.provider === "ZERNIO") {
+    const result = await zernioRequest<{
+      data: {
+        id: string;
+        participantId?: string;
+        participantUsername?: string;
+        updatedTime: string;
+        lastMessage?: string;
+      }[];
+    }>({
+      apiKey: context.apiKey,
+      path: `/inbox/conversations?accountId=${encodeURIComponent(context.accountId)}&limit=50`,
+    });
+    return result.data
+      .filter((c) => c.participantId)
+      .map((c) => ({
+        conversationId: c.id,
+        igUserId: c.participantId!,
+        username: c.participantUsername ?? null,
+        updatedTime: c.updatedTime ?? null,
+        preview: c.lastMessage ?? null,
+      }));
+  }
+
+  const raw = await getConversations({ context, igUserId: account.instagramId });
+  return raw.flatMap((c) => {
+    const other = c.participants?.data?.find((p) => p.id !== account.instagramId);
+    if (!other) return [];
+    return [
+      {
+        conversationId: c.id,
+        igUserId: other.id,
+        username: other.username ?? null,
+        updatedTime: c.updated_time ?? null,
+        preview: c.messages?.data?.[0]?.message ?? null,
+      },
+    ];
+  });
+}
+
+/**
+ * The inbox list. Every thread we read is recorded as a Contact, so contacts
+ * fill up from the inbox even before the webhook writes them. Someone who
+ * commented on one of our campaigns comes in as sales.
+ */
+export async function listThreads(workspaceId: string): Promise<{ account: InstagramAccount | null; threads: InboxThread[] }> {
+  if (osMockEnabled()) return { account: null, threads: mockThreads() };
+
+  const account = await getInboxAccount(workspaceId);
+  if (!account) return { account: null, threads: [] };
+
+  const raw = await readThreads(account);
+  const commenters = new Set(
+    (
+      await prisma.dmLog.findMany({
+        where: { instagramAccountId: account.id, commenterId: { in: raw.map((t) => t.igUserId) } },
+        select: { commenterId: true },
+        distinct: ["commenterId"],
+      })
+    ).map((l) => l.commenterId)
+  );
+
+  const contacts = await Promise.all(
+    raw.map((t) =>
+      upsertContact({
+        workspaceId,
+        instagramAccountId: account.id,
+        igUserId: t.igUserId,
+        username: t.username,
+        zernioConversationId: t.conversationId,
+        entryPath: commenters.has(t.igUserId) ? "comment" : null,
+        at: t.updatedTime ? new Date(t.updatedTime) : undefined,
+      })
+    )
+  );
+
+  return {
+    account,
+    threads: raw.map((t, i) => ({ ...t, contact: contacts[i] })),
+  };
+}
+
+export async function getThreadMessages(workspaceId: string, conversationId: string): Promise<InboxMessage[]> {
+  if (osMockEnabled()) return mockMessages(conversationId);
+
+  const account = await getInboxAccount(workspaceId);
+  if (!account) return [];
+  const context = await createInstagramContext(account);
+  const raw = await getConversationMessages({ context, conversationId });
+  return raw
+    .map((m) => ({
+      id: m.id,
+      text: m.message ?? "",
+      fromMe: m.from?.id === account.instagramId,
+      createdTime: m.created_time ?? null,
+    }))
+    .reverse();
+}
+
+export async function sendReply(workspaceId: string, igUserId: string, text: string) {
+  if (osMockEnabled()) return;
+
+  const account = await getInboxAccount(workspaceId);
+  if (!account) throw new Error("Instagram account not connected.");
+  const context = await createInstagramContext(account);
+  await sendDirectMessage({
+    context,
+    instagramAccountId: account.instagramId,
+    userId: igUserId,
+    message: text,
+  });
+}
