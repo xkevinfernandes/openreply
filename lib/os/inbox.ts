@@ -33,7 +33,7 @@ export interface InboxThread {
   profile?: InboxProfile | null;
   contact: Pick<
     Contact,
-    "id" | "kind" | "kindSource" | "stage" | "entryPath" | "setterStage" | "paused" | "suggestedKind" | "suggestedReason" | "suggestedConfidence" | "suggestedBy" | "triagedMessageId"
+    "id" | "kind" | "kindSource" | "stage" | "entryPath" | "setterStage" | "paused" | "suggestedKind" | "suggestedReason" | "suggestedConfidence" | "suggestedBy" | "triagedMessageId" | "onFriday"
   > | null;
 }
 

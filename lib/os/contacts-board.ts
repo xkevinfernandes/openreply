@@ -18,6 +18,8 @@ export interface ContactRow {
   entryPath: string | null;
   tags: string[];
   paused: boolean;
+  /** On the Follow-up Friday list. */
+  onFriday: boolean;
   notes: string | null;
   email: string | null;
   lastMessageAt: string | null;
@@ -68,6 +70,7 @@ function mockContacts(drafts: Set<string>): ContactRow[] {
         entryPath: t.contact.entryPath,
         tags: [...x.tags],
         paused: t.contact.paused,
+        onFriday: t.contact.onFriday,
         notes: x.notes,
         email: x.email,
         lastMessageAt: t.updatedTime,
@@ -99,6 +102,7 @@ export async function listContacts(workspaceId: string): Promise<ContactsData> {
         entryPath: true,
         tags: true,
         paused: true,
+        onFriday: true,
         notes: true,
         email: true,
         lastMessageAt: true,

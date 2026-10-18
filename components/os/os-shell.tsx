@@ -141,7 +141,7 @@ export default function OsShell({ workspaceName, instagramUsername, counts = {},
                       </svg>
                       <span className="lbl">{item.label}</span>
                       {n ? (
-                        <span className="n" aria-label={href === "/os/inbox" ? `${n} drafts waiting` : undefined}>
+                        <span className="n" aria-label={href === "/os/inbox" ? `${n} drafts waiting` : href === "/os/follow-ups" ? `${n} follow-ups due` : undefined}>
                           {n}
                         </span>
                       ) : null}

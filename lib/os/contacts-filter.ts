@@ -94,6 +94,8 @@ export function applyChangeLocally(rows: ContactRow[], ids: string[], change: Co
         return { ...c, kind: change.kind };
       case "paused":
         return { ...c, paused: change.paused };
+      case "friday":
+        return { ...c, onFriday: change.on };
       case "addTag": {
         const tag = normalizeTag(change.tag);
         return tag && !c.tags.includes(tag) ? { ...c, tags: [...c.tags, tag] } : c;

@@ -67,6 +67,10 @@ model Contact {
   tags      String[]
   /// J never drafts or nudges while true.
   paused    Boolean  @default(false)
+  /// On the Follow-up Friday list (the Follow-ups screen). Stays on after a
+  /// send; the next Friday offers them the next resource they haven't had.
+  onFriday      Boolean   @default(false)
+  fridayAddedAt DateTime?
   notes     String?
   /// One-time imports that touched this contact (scripts/os-import-*.ts):
   /// {leadflow?: {at, personId, stage, kind}, setter?: {at}}. A re-import only
@@ -85,10 +89,12 @@ model Contact {
   setter      Setter?      @relation(fields: [setterId], references: [id], onDelete: SetNull)
   /// One row per connected CRM / email list (lib/os/integrations).
   syncs       ContactSync[]
+  fridaySends FridaySend[]
 
   @@unique([workspaceId, instagramAccountId, igUserId])
   @@index([workspaceId, kind])
   @@index([workspaceId, stage])
+  @@index([workspaceId, onFriday])
   @@index([zernioConversationId])
 }
 
@@ -104,6 +110,8 @@ model SetterState {
   record         Json
   nextActionKind String?
   nextActionAt   DateTime?
+  /// Snoozed on the Follow-ups screen: the nudge stays out of the queue until then.
+  snoozedUntil   DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -319,4 +327,31 @@ model ContactSync {
 
   @@unique([contactId, provider])
   @@index([workspaceId, provider])
+}
+
+// --- Follow-ups (Friday sends) -------------------------------------------------
+
+/// One resource sent to one person from the Follow-up Friday list. The unique
+/// (contactId, resourceSlug) is the send claim: a resource never goes to the
+/// same person twice, even with two tabs racing. A send that fails before any
+/// bubble went out deletes its row so it can be retried.
+model FridaySend {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  contactId    String
+  contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  resourceId   String?
+  resourceSlug String
+  /// The Friday this send belongs to, "YYYY-MM-DD" in the workspace timezone.
+  friday       String
+  bubbles      String[]
+  humanAgent   Boolean   @default(false)
+  /// sending | sent | partial
+  status       String    @default("sending")
+  error        String?
+  createdAt    DateTime  @default(now())
+  sentAt       DateTime?
+
+  @@unique([contactId, resourceSlug])
+  @@index([workspaceId, friday])
 }

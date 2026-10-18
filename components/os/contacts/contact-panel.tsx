@@ -205,6 +205,31 @@ function Details({
         </div>
 
         <div>
+          <dt id="ct-friday">Friday</dt>
+          <dd className="os-ct-switch-row">
+            <button
+              type="button"
+              role="switch"
+              className="os-switch"
+              aria-checked={c.onFriday}
+              aria-labelledby="ct-friday ct-friday-state"
+              onClick={() => onChange({ type: "friday", on: !c.onFriday }, c.onFriday ? "Off the Friday list." : "Added to Friday.")}
+            >
+              <span className="os-switch-knob" />
+            </button>
+            <span id="ct-friday-state" className="muted">
+              {c.onFriday ? (
+                <>
+                  On the <Link href="/os/follow-ups#friday">Friday list</Link>
+                </>
+              ) : (
+                "Add to Follow-up Friday"
+              )}
+            </span>
+          </dd>
+        </div>
+
+        <div>
           <dt>Setter</dt>
           <dd className="muted">{setterName(c.setterId)}</dd>
         </div>

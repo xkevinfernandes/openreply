@@ -8,13 +8,14 @@ export function osMockEnabled() {
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
 
-const untriaged = { suggestedKind: null, suggestedReason: null, suggestedConfidence: null, suggestedBy: null, triagedMessageId: null };
+const untriaged = { suggestedKind: null, suggestedReason: null, suggestedConfidence: null, suggestedBy: null, triagedMessageId: null, onFriday: false };
+const friday = { onFriday: true };
 
 type MockPerson = Omit<InboxThread, "updatedTime"> & { hours: number; firstReply?: string };
 
 const seedPeople: MockPerson[] = [
   { conversationId: "m1", igUserId: "101", username: "maya.builds", preview: "honestly figuring out what to post", hours: 0.4,
-    contact: { id: "c1", kind: "SALES", kindSource: "entry", stage: "IN_CONVERSATION", entryPath: "comment", setterStage: "qualify", paused: false, ...untriaged } },
+    contact: { id: "c1", kind: "SALES", kindSource: "entry", stage: "IN_CONVERSATION", entryPath: "comment", setterStage: "qualify", paused: false, ...untriaged, ...friday } },
   { conversationId: "m2", igUserId: "102", username: "tom.k", preview: "no way this is real 😂", hours: 1,
     contact: { id: "c2", kind: "SALES", kindSource: "entry", stage: "LEAD_MAGNET_SENT", entryPath: "story_reply", setterStage: "opener", paused: false, ...untriaged } },
   { conversationId: "m3", igUserId: "103", username: "jordan.ops", preview: "100%. what would that look like", hours: 2,
@@ -24,15 +25,15 @@ const seedPeople: MockPerson[] = [
   { conversationId: "m5", igUserId: "105", username: "priya.studio", preview: "nice, how's it going so far?", hours: 26,
     contact: { id: "c5", kind: "UNSORTED", kindSource: null, stage: "NEW", entryPath: null, setterStage: null, paused: false, ...untriaged } },
   { conversationId: "m6", igUserId: "106", username: "lena.fit", preview: "booked for thursday!", hours: 30,
-    contact: { id: "c6", kind: "SALES", kindSource: "entry", stage: "CALL_BOOKED", entryPath: "keyword_dm", setterStage: "booked", paused: false, ...untriaged } },
+    contact: { id: "c6", kind: "SALES", kindSource: "entry", stage: "CALL_BOOKED", entryPath: "keyword_dm", setterStage: "booked", paused: false, ...untriaged, ...friday } },
   { conversationId: "m7", igUserId: "107", username: "growthguru_99", preview: "Hey! Want to grow your page 10x?", hours: 80,
     contact: { id: "c7", kind: "UNSORTED", kindSource: null, stage: "NEW", entryPath: null, setterStage: null, paused: false, ...untriaged } },
   { conversationId: "m8", igUserId: "108", username: "sam.creates", fullName: "Sam Ortega", preview: "about 40k a month right now", hours: 50,
-    contact: { id: "c8", kind: "SALES", kindSource: "entry", stage: "QUALIFIED", entryPath: "keyword_dm", setterStage: "qualify", paused: false, ...untriaged } },
+    contact: { id: "c8", kind: "SALES", kindSource: "entry", stage: "QUALIFIED", entryPath: "keyword_dm", setterStage: "qualify", paused: false, ...untriaged, ...friday } },
   { conversationId: "m9", igUserId: "109", username: "nora.coaching", fullName: "Nora Lind", preview: "just paid, so excited", hours: 120,
     contact: { id: "c9", kind: "SALES", kindSource: "entry", stage: "WON", entryPath: "comment", setterStage: "booked", paused: true, ...untriaged } },
   { conversationId: "m10", igUserId: "110", username: "dev.hobby", preview: "just curious tbh, not running anything", hours: 200,
-    contact: { id: "c10", kind: "SALES", kindSource: "entry", stage: "NOT_QUALIFIED", entryPath: "story_reply", setterStage: "qualify", paused: false, ...untriaged } },
+    contact: { id: "c10", kind: "SALES", kindSource: "entry", stage: "NOT_QUALIFIED", entryPath: "story_reply", setterStage: "qualify", paused: false, ...untriaged, ...friday } },
 ];
 
 // On globalThis so kind/stage/triage changes made by server actions are seen
@@ -52,9 +53,9 @@ export function mockThreads(): InboxThread[] {
 // module reloads; gone on restart.
 const sent = ((globalThis as { __osMockSent?: Map<string, InboxMessage[]> }).__osMockSent ??= new Map());
 
-export function appendMockMessage(conversationId: string, text: string) {
+export function appendMockMessage(conversationId: string, text: string, at: Date = new Date()) {
   const list = sent.get(conversationId) ?? [];
-  list.push({ id: `${conversationId}-sent-${list.length + 1}`, text, fromMe: true, createdTime: new Date().toISOString() });
+  list.push({ id: `${conversationId}-sent-${list.length + 1}`, text, fromMe: true, createdTime: at.toISOString() });
   sent.set(conversationId, list);
   const person = people.find((p) => p.conversationId === conversationId);
   if (person) {

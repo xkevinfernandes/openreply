@@ -25,6 +25,7 @@ const row = (over: Partial<ContactRow>): ContactRow => ({
   entryPath: null,
   tags: [],
   paused: false,
+  onFriday: false,
   notes: null,
   email: null,
   lastMessageAt: null,

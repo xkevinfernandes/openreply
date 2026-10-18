@@ -138,6 +138,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                   contactId={selected.contact.id}
                   kind={selected.contact.kind}
                   stage={selected.contact.stage}
+                  onFriday={selected.contact.onFriday}
                 />
               )}
             </header>

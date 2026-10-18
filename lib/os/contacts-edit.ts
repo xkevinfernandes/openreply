@@ -18,6 +18,8 @@ export type ContactChange =
   | { type: "stage"; stage: ContactStage }
   | { type: "kind"; kind: ContactKind }
   | { type: "paused"; paused: boolean }
+  /** On / off the Follow-up Friday list (Follow-ups screen). */
+  | { type: "friday"; on: boolean }
   | { type: "addTag"; tag: string }
   | { type: "removeTag"; tag: string }
   | { type: "details"; notes?: string | null; email?: string | null };
@@ -75,6 +77,8 @@ export function planChange(change: ContactChange): { data: Data } | { tag: strin
       return { data: { kind: change.kind, kindSource: "user", suggestedKind: null, suggestedReason: null, suggestedConfidence: null } };
     case "paused":
       return typeof change.paused === "boolean" ? { data: { paused: change.paused } } : { error: "Pause needs on or off." };
+    case "friday":
+      return typeof change.on === "boolean" ? { data: { onFriday: change.on, fridayAddedAt: change.on ? new Date() : null } } : { error: "Friday needs on or off." };
     case "addTag":
     case "removeTag": {
       const tag = typeof change.tag === "string" ? normalizeTag(change.tag) : "";
@@ -154,7 +158,8 @@ function editMock(ids: string[], plan: { data: Data } | { tag: string; op: "add"
       updateMockContactExtras(id, { tags: plan.op === "add" ? [...tags, plan.tag] : tags });
       continue;
     }
-    const { notes, email, ...rest } = plan.data as { notes?: string | null; email?: string | null } & Data;
+    const { notes, email, fridayAddedAt: _added, ...rest } = plan.data as { notes?: string | null; email?: string | null } & Data;
+    void _added;
     if (notes !== undefined || email !== undefined) updateMockContactExtras(id, { notes, email });
     if (Object.keys(rest).length) updateMockContact(id, rest);
   }

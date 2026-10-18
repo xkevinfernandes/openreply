@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { setOnFriday } from "@/app/(os)/os/follow-ups/actions";
 import { setContactKind, setContactStage } from "@/app/(os)/os/inbox/actions";
 import type { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { kindTabs, stageLabels, stageOrder } from "@/lib/os/labels";
@@ -9,9 +10,11 @@ interface ContactControlsProps {
   contactId: string;
   kind: ContactKind;
   stage: ContactStage;
+  /** On the Follow-up Friday list. */
+  onFriday?: boolean;
 }
 
-export default function ContactControls({ contactId, kind, stage }: ContactControlsProps) {
+export default function ContactControls({ contactId, kind, stage, onFriday = false }: ContactControlsProps) {
   const [pending, startTransition] = useTransition();
 
   return (
@@ -49,6 +52,16 @@ export default function ContactControls({ contactId, kind, stage }: ContactContr
           </select>
         </label>
       )}
+      <button
+        type="button"
+        className="os-button os-friday-toggle"
+        aria-pressed={onFriday}
+        disabled={pending}
+        title={onFriday ? "On the Follow-up Friday list. Click to take them off." : "Add to the Follow-up Friday list"}
+        onClick={() => startTransition(async () => void (await setOnFriday(contactId, !onFriday)))}
+      >
+        {onFriday ? "On Friday" : "Add to Friday"}
+      </button>
     </div>
   );
 }
