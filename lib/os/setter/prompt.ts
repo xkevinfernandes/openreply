@@ -2,15 +2,17 @@
 // CONTEXT) and the per-draft user prompt. Ported from setter_local.py
 // (agent_system_prompt, build_prompt, bubbles_of, is_invitation).
 
-import { renderBrandBlock, type KnowledgeFiles } from "@/lib/os/setter/profile";
+import { renderBrandBlock, type SetterProfile } from "@/lib/os/setter/profile";
 import { contextBlock, entryBlock, getRow, resolve } from "@/lib/os/setter/resources";
 import { parseIso, type SetterAction, type SetterRecord, type ThreadMessage } from "@/lib/os/setter/state";
 import type { Catalog } from "@/lib/os/setter/types";
 
-export function systemPrompt(method: string, knowledge: KnowledgeFiles, catalog: Catalog, today: string): string {
+/** The shared method + this setter's BRAND CONTEXT. `offered` is the catalog
+ *  filtered to the lead magnets this setter may offer. */
+export function systemPrompt(method: string, profile: SetterProfile, offered: Catalog, today: string): string {
   let brand: string;
   try {
-    brand = renderBrandBlock(knowledge, catalog.resources, today);
+    brand = renderBrandBlock(profile, offered.resources, today);
   } catch (err) {
     brand = `(BRAND CONTEXT unavailable: ${err instanceof Error ? err.message : String(err)}. Do not invent offer details or links.)`;
   }

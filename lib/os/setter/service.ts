@@ -8,7 +8,8 @@
 import { osMockEnabled } from "@/lib/os/mock";
 import { getSetterConfig, type SetterConfig } from "@/lib/os/setter/config";
 import { draft as runDrafter, DraftError } from "@/lib/os/setter/drafter";
-import { loadCatalog, loadKnowledge, loadMethod } from "@/lib/os/setter/knowledge";
+import type { KnowledgeSource } from "@/lib/os/setter/kb";
+import { loadMethod } from "@/lib/os/setter/knowledge";
 import {
   bubblesOf,
   buildPrompt,
@@ -31,6 +32,7 @@ import {
   type SetterAction,
   type SetterRecord,
 } from "@/lib/os/setter/state";
+import { dbKnowledge } from "@/lib/os/setter/setters";
 import { setterStore, type DraftView, type SetterContact, type SetterStore } from "@/lib/os/setter/store";
 
 export type DraftResult =
@@ -46,6 +48,8 @@ export interface DraftOptions {
   /** Scope the contact lookup to this workspace (server actions). */
   workspaceId?: string;
   store?: SetterStore;
+  /** Where the setter's knowledge comes from (default: Postgres, file fallback). */
+  knowledge?: KnowledgeSource;
   now?: Date;
   /** Called with the record after every evaluation (the worker schedules timers from it). */
   onState?: (rec: SetterRecord) => Promise<void> | void;
@@ -86,7 +90,8 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
   const blocked = gate(contact, cfg);
   if (blocked) return { status: "skipped", reason: blocked };
 
-  const catalog = loadCatalog(cfg.client);
+  const setter = await (opts.knowledge ?? dbKnowledge).forContact(contact);
+  const catalog = setter.catalog;
   const msgs = await store.readThread(contact);
   let rec = (await store.loadState(contact.id)) ?? newRecord(contact.conversationId ?? contact.id, contact.username ?? "", contact.id);
   rec = observe(rec, msgs, contact.tags, catalog.resources, now, cfg);
@@ -120,9 +125,8 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
     return { status: "held", reason: "You skipped this one already." };
   }
 
-  const knowledge = loadKnowledge(cfg.client);
   const today = now.toISOString().slice(0, 10);
-  const system = systemPrompt(loadMethod(), knowledge, catalog, today);
+  const system = systemPrompt(loadMethod(), setter.profile, setter.offered, today);
   const prompt = buildPrompt(rec, msgs, action, catalog, now);
   let result;
   try {
@@ -175,6 +179,7 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
     model: result.usage.model,
     inputTokens: result.usage.inputTokens,
     outputTokens: result.usage.outputTokens,
+    setterId: setter.setterId,
   });
   const invitePayload = invite && obj.invite && typeof obj.invite === "object" ? obj.invite : null;
   rec.draft = { anchor: action.anchor, kind, draft_id: d.id, stage: stage ?? undefined, offer: (invitePayload?.offer as string) ?? null };

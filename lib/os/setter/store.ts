@@ -18,6 +18,9 @@ export interface SetterContact {
   kind: ContactKind;
   paused: boolean;
   tags: string[];
+  /** For picking the setter (lib/os/setter/setters.ts). */
+  instagramAccountId?: string | null;
+  setterId?: string | null;
 }
 
 export type DraftStatusName = "PENDING" | "APPROVED" | "SENT" | "DISCARDED";
@@ -53,6 +56,8 @@ export interface NewDraft {
   model: string;
   inputTokens?: number;
   outputTokens?: number;
+  /** The knowledge base that wrote it; null = the file fallback. */
+  setterId?: string | null;
 }
 
 export interface SetterStore {
@@ -107,6 +112,8 @@ const dbStore: SetterStore = {
       kind: c.kind,
       paused: c.paused,
       tags: c.tags,
+      instagramAccountId: c.instagramAccountId,
+      setterId: c.setterId,
     };
   },
   async readThread(contact) {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveBackend } from "../../lib/os/setter/config";
 import { draft, extractJson, resolveModel } from "../../lib/os/setter/drafter";
-import { loadCatalog, loadKnowledge, loadMethod } from "../../lib/os/setter/knowledge";
+import { fileKnowledgeSource, fileSetter, loadCatalog, loadMethod } from "../../lib/os/setter/knowledge";
 import { commentPathPlan } from "../../lib/os/setter/comment-path";
 import { buildPrompt, systemPrompt } from "../../lib/os/setter/prompt";
 import { entryBlock, flattenMessage, resolve } from "../../lib/os/setter/resources";
@@ -59,6 +59,7 @@ const contact: SetterContact = {
   tags: [],
 };
 const now = new Date("2026-10-18T10:05:00Z");
+const knowledge = fileKnowledgeSource();
 const thread: ThreadMessage[] = [
   { id: "m1", text: "hey man love the content, how do you build these agents?", incoming: true, at: "2026-10-18T10:00:00Z" },
 ];
@@ -95,7 +96,8 @@ describe("drafter seam", () => {
 
 describe("knowledge and prompt", () => {
   it("builds the system prompt from the bundled method + brand block", () => {
-    const system = systemPrompt(loadMethod(), loadKnowledge(), loadCatalog(), "2026-10-18");
+    const fs = fileSetter();
+    const system = systemPrompt(loadMethod(), fs.profile, fs.offered, "2026-10-18");
     expect(system).toContain("DM Setter — claudepreneur");
     expect(system).toContain("## BRAND CONTEXT");
     expect(system).toContain("@claudepreneur");
@@ -140,26 +142,26 @@ describe("knowledge and prompt", () => {
 describe("draftForContact", () => {
   it("drafts for a sales contact and returns the same draft for the same anchor", async () => {
     const { store, states } = memoryStore(contact, thread);
-    const r = await draftForContact("c1", { store, now });
+    const r = await draftForContact("c1", { store, knowledge, now });
     expect(r.status).toBe("drafted");
     if (r.status !== "drafted") return;
     expect(r.draft.bubbles.length).toBeGreaterThan(0);
     expect(r.draft.anchor).toBe("m1");
     expect(r.draft.flags).toContain("sample");
     expect(states.get("c1")?.state).toBe("in_conversation");
-    const again = await draftForContact("c1", { store, now });
+    const again = await draftForContact("c1", { store, knowledge, now });
     expect(again.status).toBe("existing");
   });
 
   it("only drafts for sales contacts that aren't paused (spec item 7)", async () => {
-    expect((await draftForContact("c1", { store: memoryStore({ ...contact, kind: "PERSONAL" }, thread).store, now })).status).toBe("skipped");
-    expect((await draftForContact("c1", { store: memoryStore({ ...contact, paused: true }, thread).store, now })).status).toBe("skipped");
-    expect((await draftForContact("c1", { store: memoryStore({ ...contact, tags: ["friend"] }, thread).store, now })).status).toBe("skipped");
+    expect((await draftForContact("c1", { store: memoryStore({ ...contact, kind: "PERSONAL" }, thread).store, knowledge, now })).status).toBe("skipped");
+    expect((await draftForContact("c1", { store: memoryStore({ ...contact, paused: true }, thread).store, knowledge, now })).status).toBe("skipped");
+    expect((await draftForContact("c1", { store: memoryStore({ ...contact, tags: ["friend"] }, thread).store, knowledge, now })).status).toBe("skipped");
   });
 
   it("holding is valid: a hold drafts nothing and remembers the anchor", async () => {
     const { store, states, drafts } = memoryStore(contact, [{ ...thread[0], text: "[fake:hold] ok" }]);
-    const r = await draftForContact("c1", { store, now });
+    const r = await draftForContact("c1", { store, knowledge, now });
     expect(r.status).toBe("held");
     expect(drafts.size).toBe(0);
     expect(states.get("c1")?.skipped_anchors).toContain("m1");
@@ -168,8 +170,8 @@ describe("draftForContact", () => {
   it("is idle when nothing is due, unless a person asks", async () => {
     const ours: ThreadMessage[] = [...thread, { id: "m2", text: "ha what are you building?", incoming: false, at: "2026-10-18T10:03:00Z" }];
     const { store } = memoryStore(contact, ours);
-    expect((await draftForContact("c1", { store, now })).status).toBe("idle");
-    const forced = await draftForContact("c1", { store, now, force: true });
+    expect((await draftForContact("c1", { store, knowledge, now })).status).toBe("idle");
+    const forced = await draftForContact("c1", { store, knowledge, now, force: true });
     expect(forced.status).toBe("drafted");
     if (forced.status === "drafted") expect(forced.draft.kind).toBe("nudge");
   });
@@ -178,7 +180,7 @@ describe("draftForContact", () => {
 describe("approve / discard", () => {
   it("sends every bubble, logs an edit, and moves the state on", async () => {
     const { store, states, drafts, sent } = memoryStore(contact, thread);
-    const r = await draftForContact("c1", { store, now });
+    const r = await draftForContact("c1", { store, knowledge, now });
     if (r.status !== "drafted") throw new Error("expected a draft");
     const res = await approveDraft(r.draft.id, "w1", { store, now: () => now, gapMs: 0, editedText: "yo\n\nwhat are you building?" });
     expect(res.error).toBeUndefined();
@@ -192,11 +194,11 @@ describe("approve / discard", () => {
 
   it("discard skips the anchor so J doesn't redraft it", async () => {
     const { store, states } = memoryStore(contact, thread);
-    const r = await draftForContact("c1", { store, now });
+    const r = await draftForContact("c1", { store, knowledge, now });
     if (r.status !== "drafted") throw new Error("expected a draft");
     expect(await discardDraft(r.draft.id, "w1", store)).toEqual({});
     expect(states.get("c1")?.skipped_anchors).toContain("m1");
-    expect((await draftForContact("c1", { store, now })).status).toBe("idle");
+    expect((await draftForContact("c1", { store, knowledge, now })).status).toBe("idle");
   });
 
   it("splits composer text into bubbles on blank lines", () => {

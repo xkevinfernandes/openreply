@@ -1,15 +1,20 @@
-// Loads J's knowledge from the markdown bundled in this repo.
+// J's knowledge from the markdown bundled in this repo.
 //
-// TEMPORARY (build step 3): these files are copies of the DM Setter repo's
-// `DM Setter/Setting Script.md`, `clients/claudepreneur/` and
-// `scripts/dms/resources.json`. Railway can't read that repo, so the fork ships
-// its own copy; step 4 moves the per-setter parts into Postgres (Knowledge
-// base UI) and this loader goes away. Until then, edits made in the DM Setter
-// repo must be copied here too.
+// method.md (the Setting Script) is the shared method and STAYS here: it ships
+// with the code and clients can't edit it (spec item 12). setter.config.json
+// (timers, models) stays too.
+//
+// Everything under claudepreneur/ is the per-setter knowledge from before
+// build step 4. It now lives in Postgres (Setter + Resource rows, edited in
+// Knowledge bases). These copies are only (a) the source for the one-time
+// import (scripts/os-import-knowledge.ts) and (b) the FALLBACK J uses for a
+// workspace that has no Setter row yet. Once every workspace has a Setter,
+// claudepreneur/ can be deleted.
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import type { ClientSettings, KnowledgeFiles } from "@/lib/os/setter/profile";
+import type { KnowledgeSource, ResolvedSetter } from "@/lib/os/setter/kb";
+import { profileFromFiles, type ClientSettings, type KnowledgeFiles } from "@/lib/os/setter/profile";
 import type { Catalog } from "@/lib/os/setter/types";
 
 const ROOT = path.join(process.cwd(), "lib", "os", "setter", "knowledge");
@@ -59,4 +64,28 @@ export function loadCatalog(clientId = "claudepreneur"): Catalog {
 
 export function loadSetterConfigFile(): Record<string, unknown> {
   return readJson<Record<string, unknown>>({}, "setter.config.json");
+}
+
+/** The file-based setter: what J used before knowledge bases existed. */
+export function fileSetter(clientId = "claudepreneur"): ResolvedSetter {
+  const k = loadKnowledge(clientId);
+  const catalog = loadCatalog(clientId);
+  const settings = k.settings ?? {};
+  if (catalog.tag_options?.length && !settings.tag_options) settings.tag_options = catalog.tag_options;
+  return {
+    source: "files",
+    setterId: null,
+    autonomy: settings.autonomy === "auto" ? "auto" : "approve",
+    profile: profileFromFiles(k),
+    catalog,
+    offered: catalog,
+  };
+}
+
+/** A KnowledgeSource that always answers from the files (tests, fallback). */
+export function fileKnowledgeSource(clientId = "claudepreneur"): KnowledgeSource {
+  return {
+    forContact: async () => fileSetter(clientId),
+    forSetter: async () => fileSetter(clientId),
+  };
 }

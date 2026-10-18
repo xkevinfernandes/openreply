@@ -1,7 +1,10 @@
 // Port of DM Setter/scripts/dms/file_profile.py: the per-setter knowledge
 // (voice, offer, offers, funnel, examples, voice corrections) rendered into the
-// BRAND CONTEXT block that is appended to the shared method. Pure: it takes
-// the file contents as strings; lib/os/setter/knowledge.ts does the reading.
+// BRAND CONTEXT block that is appended to the shared method.
+//
+// One shape, SetterProfile, is what a knowledge base holds. It comes from a
+// Setter row (lib/os/setter/setters.ts) or, as a fallback, from the markdown
+// files (profileFromFiles). Pure: no I/O here.
 
 import type { CatalogRow } from "@/lib/os/setter/types";
 
@@ -137,11 +140,15 @@ export function parsePlaybook(text: string) {
   return out;
 }
 
-const OFFER_KEYS = ["status", "sold_by", "price", "price_in_dms", "length", "open_from", "open_until", "doc_url", "payment_url"];
+const OFFER_KEYS = ["status", "sold_by", "price", "price_in_dms", "length", "open_from", "open_until", "doc_url", "payment_url", "pitch", "fit_criteria"];
 
 export interface Offer {
   name: string;
   notes: string;
+  /** One or two lines J can paraphrase when inviting. */
+  pitch?: string;
+  /** Who this offer is right for: J uses it to pick between open offers. */
+  fit_criteria?: string;
   status: string;
   sold_by: string;
   price?: string;
@@ -210,23 +217,122 @@ export function parseOffer(text: string): { sections: Record<string, string>; ob
   return { sections, objections };
 }
 
-/** memory/voice-corrections.md folded into the context. Most recent `limit` entries win. */
-export function correctionsBlock(text: string, limit = 25): string {
-  const body = stripFrontmatter(text).trim();
-  if (!body) return "";
-  let entries = body
-    .split(/^(?=## Correction \d+)/m)
-    .map((e) => e.trim())
-    .filter(Boolean);
-  if (entries.length > limit) entries = entries.slice(-limit);
-  const joined = entries.join("\n\n");
-  if (!/^(- you wrote:|## Correction|\*\*J drafted:\*\*)/m.test(joined)) return "";
+/** One correction: what J drafted vs what was sent, and why (markdown). */
+export interface VoiceCorrection {
+  title: string;
+  body: string;
+}
+
+/** memory/voice-corrections.md → entries. Each `## Correction N` block is one
+ *  entry; loose bullets before the first one ("- you wrote: … my version: …")
+ *  become one entry each. Comments and the explanatory blockquote are dropped. */
+export function parseCorrections(text: string): VoiceCorrection[] {
+  const body = stripCommentLines(stripFrontmatter(text)).trim();
+  if (!body) return [];
+  const chunks = body.split(/^(?=## Correction \d+)/m);
+  const out: VoiceCorrection[] = [];
+  for (const raw of chunks) {
+    const chunk = raw.trim();
+    if (!chunk) continue;
+    if (chunk.startsWith("## ")) {
+      const nl = chunk.indexOf("\n");
+      const title = (nl === -1 ? chunk : chunk.slice(0, nl)).replace(/^##\s+/, "").trim();
+      const b = (nl === -1 ? "" : chunk.slice(nl + 1))
+        .replace(/\n-{3,}\s*$/, "")
+        .trim();
+      out.push({ title, body: b });
+      continue;
+    }
+    // Preamble: keep only "- you wrote:" bullets (with their indented lines).
+    const bullets = chunk.split(/^(?=- you wrote:)/m).filter((b) => b.startsWith("- you wrote:"));
+    for (const b of bullets) {
+      const lines = b.split("\n");
+      const kept = [lines[0], ...lines.slice(1).filter((l) => /^\s+\S/.test(l))].join("\n").trim();
+      out.push({ title: "Pinned correction", body: kept });
+    }
+  }
+  return out;
+}
+
+export function correctionsMarkdown(entries: VoiceCorrection[]): string {
+  return entries
+    .filter((e) => e.body.trim())
+    .map((e) => `## ${e.title.trim() || "Correction"}\n\n${e.body.trim()}`)
+    .join("\n\n---\n\n");
+}
+
+/** Voice corrections folded into the context. Most recent `limit` entries win. */
+export function correctionsBlock(entries: VoiceCorrection[], limit = 25): string {
+  let list = entries.filter((e) => e.body.trim());
+  if (!list.length) return "";
+  if (list.length > limit) list = list.slice(-limit);
   return (
     "VOICE CORRECTIONS — replies you drafted before that Kevin rewrote before sending. " +
     "Internalize the PATTERN (tone, length, word choice, how they open and react); " +
     "the rewritten version is always the target voice:\n" +
-    joined
+    correctionsMarkdown(list)
   );
+}
+
+// ── the profile ──────────────────────────────────────────────────────────────
+
+/** The business facts J may state, one field per offer.md section. */
+export const BUSINESS_FIELDS = [
+  { key: "offer", label: "Offer", hint: "What you sell, in a few lines." },
+  { key: "outcome", label: "Outcome they buy", hint: "The result, in their words." },
+  { key: "price", label: "Price / how it's discussed", hint: "Blank = never quote a price in DMs." },
+  { key: "mechanism", label: "Mechanism", hint: "How it works." },
+  { key: "what_it_is_not", label: "What it is NOT", hint: "" },
+  { key: "guarantee", label: "Guarantee", hint: "Blank = none, J never promises one." },
+  { key: "icp", label: "ICP (who you serve)", hint: "" },
+  { key: "who_i_dont_serve", label: "Who you do NOT serve", hint: "" },
+  { key: "proof", label: "Proof J may reference", hint: "Blank = J cites no numbers or client results." },
+  { key: "backstory", label: "Backstory", hint: "" },
+  { key: "booking_link", label: "Booking link", hint: "The only link J sends at the bridge." },
+  { key: "voice_never_do", label: "Never do", hint: "Hard rules, one per line." },
+] as const;
+
+export type BusinessKey = (typeof BUSINESS_FIELDS)[number]["key"];
+
+export interface BusinessFacts {
+  sections: Partial<Record<BusinessKey | string, string>>;
+  objections: Objection[];
+}
+
+/** Everything one knowledge base holds (the per-setter parts; the method is shared). */
+export interface SetterProfile {
+  name: string;
+  settings: ClientSettings;
+  business: BusinessFacts;
+  offers: Offer[];
+  funnel: FunnelStage[];
+  /** Voice rules (voice.md above `## Examples`). */
+  voice: string;
+  /** Short voice examples (voice.md `## Examples`). */
+  voiceExamples: string;
+  /** Full example threads (conversation-examples.md). */
+  examples: string;
+  voiceCorrections: VoiceCorrection[];
+}
+
+/** The markdown files → a profile. playbook.md only fills gaps in offer.md. */
+export function profileFromFiles(k: KnowledgeFiles): SetterProfile {
+  const [voice, voiceExamples] = parseVoice(k.voice);
+  const pb = parsePlaybook(k.playbook);
+  const { sections, objections } = parseOffer(k.offer);
+  if (!sections.offer && pb.offer_summary) sections.offer = pb.offer_summary;
+  if (!sections.icp && pb.icp_description) sections.icp = pb.icp_description;
+  return {
+    name: k.setterName,
+    settings: k.settings ?? {},
+    business: { sections, objections: objections.length ? objections : pb.objection_playbook },
+    offers: parseOffers(k.offers),
+    funnel: parseFunnel(k.funnel),
+    voice,
+    voiceExamples,
+    examples: stripFrontmatter(k.conversationExamples).trim(),
+    voiceCorrections: parseCorrections(k.voiceCorrections),
+  };
 }
 
 function section(title: string, body: string): string {
@@ -252,6 +358,8 @@ export function renderOffers(offers: Offer[], today: string): string {
     if (o.sold_by === "doc" || o.sold_by === "either")
       lines.push(`- doc: ${o.doc_url || "NO DOC YET — doc route unavailable, use the call"}`);
     if (o.open_until) lines.push(`- closes after ${o.open_until} (limited spots — say so only if true)`);
+    if (o.pitch) lines.push(`- pitch: ${o.pitch.replace(/\n/g, " ")}`);
+    if (o.fit_criteria) lines.push(`- right for: ${o.fit_criteria.replace(/\n/g, " ")}`);
     if (o.notes) lines.push("- " + o.notes.replace(/\n/g, "\n  "));
   }
   if (closed.length) lines.push("Not open today — NEVER mention, hint at, or invite to: " + closed.map((o) => o.name).join(", "));
@@ -259,17 +367,15 @@ export function renderOffers(offers: Offer[], today: string): string {
 }
 
 /** The BRAND CONTEXT text appended to the method at runtime. */
-export function renderBrandBlock(k: KnowledgeFiles, catalogRows: CatalogRow[], today: string): string {
-  const settings = k.settings ?? {};
-  const [voice, voiceExamples] = parseVoice(k.voice);
-  const stages = parseFunnel(k.funnel);
-  const pb = parsePlaybook(k.playbook);
-  const { sections: offer, objections } = parseOffer(k.offer);
-  const offerList = parseOffers(k.offers);
-  const threads = stripFrontmatter(k.conversationExamples).trim();
+export function renderBrandBlock(p: SetterProfile, catalogRows: CatalogRow[], today: string): string {
+  const settings = p.settings ?? {};
+  const offer = p.business?.sections ?? {};
+  const stages = p.funnel ?? [];
+  const threads = (p.examples ?? "").trim();
+  const voiceExamples = (p.voiceExamples ?? "").trim();
   const examples = threads ? (voiceExamples ? `${voiceExamples}\n\n${threads}`.trim() : threads) : voiceExamples;
   const audience = (settings.audience || "b2b").toLowerCase();
-  const objectionPlaybook = objections.length ? objections : pb.objection_playbook;
+  const objectionPlaybook = p.business?.objections ?? [];
   const calUrl = offer.booking_link || settings.cal_com_url || "";
   const unknown = "unknown — do NOT claim or invent anything here";
   const val = (key: string, fallback = "") => offer[key] || fallback || unknown;
@@ -278,17 +384,17 @@ export function renderBrandBlock(k: KnowledgeFiles, catalogRows: CatalogRow[], t
     "## BRAND CONTEXT (supplied at runtime — this is the account you are writing for)",
     `- **Account:** @${settings.ig_username || "?"}`,
     `- **Operator:** ${settings.operator || "the account owner"} (first person — you ARE the operator)`,
-    `- **Active setter profile:** ${k.setterName}`,
+    `- **Active setter profile:** ${p.name}`,
     `- **AUDIENCE: ${audience.toUpperCase()}** — apply the ${audience.toUpperCase()} frame rules from the method`,
     "",
   ];
-  out.push(section("Offer", val("offer", pb.offer_summary)));
+  out.push(section("Offer", val("offer")));
   out.push(section("Outcome they buy", val("outcome")));
   out.push(section("Price / how it's discussed", val("price", "never quote a price in DMs; it depends, that is what the call is for")));
   out.push(section("Mechanism", val("mechanism")));
   out.push(section("What it is NOT", val("what_it_is_not")));
   out.push(section("Guarantee", val("guarantee", "none stated — never promise one")));
-  out.push(section("ICP (who we serve)", val("icp", pb.icp_description)));
+  out.push(section("ICP (who we serve)", val("icp")));
   out.push(section("Who we do NOT serve", val("who_i_dont_serve")));
   out.push(section("Proof you may reference", val("proof", "none listed — do not cite numbers or client results")));
   out.push(section("Backstory", val("backstory")));
@@ -299,7 +405,7 @@ export function renderBrandBlock(k: KnowledgeFiles, catalogRows: CatalogRow[], t
         "\n"
     );
   }
-  if (offerList.length) out.push(renderOffers(offerList, today));
+  if (p.offers?.length) out.push(renderOffers(p.offers, today));
   out.push(section("Booking link (the ONLY link you send at the bridge)", calUrl || unknown));
   if (offer.voice_never_do) out.push(section("Voice — never do", offer.voice_never_do));
   if (stages.length) {
@@ -309,7 +415,7 @@ export function renderBrandBlock(k: KnowledgeFiles, catalogRows: CatalogRow[], t
         "\n"
     );
   }
-  if (voice) out.push("### VOICE (overrides the method's default voice rules)\n" + voice + "\n");
+  if (p.voice?.trim()) out.push("### VOICE (overrides the method's default voice rules)\n" + p.voice.trim() + "\n");
   if (examples) out.push("### VOICE EXAMPLES\n" + examples + "\n");
   if (settings.allowed_emojis?.length) out.push(`### ALLOWED EMOJIS\n${settings.allowed_emojis.join(" ")}\n`);
   const rows = catalogRows.filter((r) => r.type !== "setter" && r.status === "active");
@@ -322,14 +428,14 @@ export function renderBrandBlock(k: KnowledgeFiles, catalogRows: CatalogRow[], t
   } else {
     out.push("### RESOURCES\nnone — never invent a resource or a link.\n");
   }
-  const corr = correctionsBlock(k.voiceCorrections);
+  const corr = correctionsBlock(p.voiceCorrections ?? []);
   if (corr) out.push(corr);
   return out.join("\n").trim();
 }
 
 /** The open offer an invitation is for: the named one if open, else the first open one. */
-export function openOffer(offersMd: string, today: string, name?: string | null): Offer | null {
-  const live = parseOffers(offersMd).filter((o) => offerIsOpen(o, today));
+export function openOffer(offers: Offer[], today: string, name?: string | null): Offer | null {
+  const live = offers.filter((o) => offerIsOpen(o, today));
   if (name) {
     const hit = live.find((o) => o.name.toLowerCase() === String(name).toLowerCase());
     if (hit) return hit;

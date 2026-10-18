@@ -68,6 +68,10 @@ model Contact {
 
   setterState SetterState?
   drafts      Draft[]
+  /// The knowledge base that answers this person. Null = the default setter
+  /// for the IG account; set when a campaign override picked one (spec 13).
+  setterId    String?
+  setter      Setter?      @relation(fields: [setterId], references: [id], onDelete: SetNull)
 
   @@unique([workspaceId, instagramAccountId, igUserId])
   @@index([workspaceId, kind])
@@ -131,6 +135,8 @@ model Draft {
   /// voice-corrections loop.
   editedText   String?
   edited       Boolean     @default(false)
+  /// Which knowledge base wrote it (null = the file fallback).
+  setterId     String?
   sendError    String?
   createdAt    DateTime    @default(now())
   decidedAt    DateTime?
@@ -138,4 +144,113 @@ model Draft {
 
   @@index([workspaceId, status])
   @@index([contactId, status])
+}
+
+// --- Knowledge bases (build step 4) ------------------------------------------
+// The Setting Script (method) ships with the code and is the same for every
+// setter. A Setter row holds only the per-setter parts (spec items 11-15).
+
+enum SetterAutonomy {
+  APPROVE
+  /// Reserved: no code path sends without approval (spec item 9).
+  AUTO
+}
+
+/// One knowledge base: what one setter knows. JSON shapes are in
+/// lib/os/setter/profile.ts (SetterProfile).
+model Setter {
+  id          String         @id @default(cuid())
+  workspaceId String
+  name        String
+  autonomy    SetterAutonomy @default(APPROVE)
+  /// The IG account this setter answers for when isDefault is true; null with
+  /// isDefault = the workspace default. App code keeps one default per account.
+  instagramAccountId String?
+  isDefault          Boolean @default(false)
+
+  /// ig_username, operator, audience, allowed_emojis, cal_com_url, tag_options…
+  settings         Json   @default("{}")
+  /// The business facts J may state: {sections: {offer, icp, …}, objections: []}.
+  business         Json   @default("{}")
+  /// Offer[]: name, status, sold_by, price, pitch, fit_criteria…
+  offers           Json   @default("[]")
+  /// FunnelStage[]: the client journey, one entry per stage.
+  funnel           Json   @default("[]")
+  voice            String @default("")
+  voiceExamples    String @default("")
+  /// Full example threads (markdown).
+  examples         String @default("")
+  /// VoiceCorrection[]: {title, body}, oldest first.
+  voiceCorrections Json   @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resources SetterResource[]
+  campaigns CampaignSetter[]
+  contacts  Contact[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, instagramAccountId])
+}
+
+enum ResourceStatus {
+  ACTIVE
+  TEST
+  DRAFT
+}
+
+/// One row of the workspace catalog (was scripts/dms/resources.json). kind
+/// "resource" is a lead magnet J may offer; kind "setter" is an entry path
+/// (a keyword that opens a setter conversation), never offered.
+model Resource {
+  id          String         @id @default(cuid())
+  workspaceId String
+  slug        String
+  kind        String         @default("resource")
+  name        String
+  link        String?
+  keyword     String?
+  status      ResourceStatus @default(DRAFT)
+  /// What J should know about it (for_setter).
+  description String         @default("")
+  /// The rest of the catalog row (triggers, zernio/dm copy, opener, match,
+  /// next_step…) so J's matching keeps working exactly as with the file.
+  data        Json           @default("{}")
+  sortOrder   Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  setters SetterResource[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId])
+}
+
+/// Which lead magnets a setter may offer (the toggle list in its knowledge base).
+model SetterResource {
+  setterId   String
+  setter     Setter   @relation(fields: [setterId], references: [id], onDelete: Cascade)
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@id([setterId, resourceId])
+  @@index([resourceId])
+}
+
+/// Campaign override: contacts who came in through this OpenReply automation
+/// are answered by this setter. automationId is a plain column (no relation
+/// to the upstream Automation model).
+model CampaignSetter {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  automationId String   @unique
+  setterId     String
+  setter       Setter   @relation(fields: [setterId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([setterId])
 }
