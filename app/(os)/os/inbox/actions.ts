@@ -5,7 +5,12 @@ import { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
 import { osEventHooks } from "@/lib/os/events-hooks";
-import { sendReply } from "@/lib/os/inbox";
+import { holdDraft, loadThreadData, sendReply, type ThreadData } from "@/lib/os/inbox";
+import { loadContactPanel } from "@/lib/os/contact-panel/load";
+import { dropOnColumn } from "@/lib/os/funnel";
+import { pendingDrafts } from "@/lib/os/setter/service";
+import type { DraftView } from "@/lib/os/setter/store";
+import { draftBlockedReason } from "@/components/os/inbox/categories";
 import { fireContactEvent } from "@/lib/os/integrations/events";
 import type { SyncEvent } from "@/lib/os/integrations/mapping";
 import { appendMockIncoming, mockThreads, osMockEnabled, updateMockContact } from "@/lib/os/mock";
@@ -69,12 +74,19 @@ export async function setContactTags(contactId: string, tags: string[]) {
   await updateContact(contactId, { tags: clean }, "tags_changed");
 }
 
-export async function sendInboxMessage(igUserId: string, text: string): Promise<{ error?: string }> {
+export async function sendInboxMessage(
+  igUserId: string,
+  text: string | string[],
+  where: { conversationId?: string | null; contactId?: string | null } = {}
+): Promise<{ error?: string }> {
   const workspaceId = await requireWorkspace();
-  const message = text.trim();
-  if (!message) return { error: "Write a message first." };
+  // One message per bubble, in order (a link is its own bubble).
+  const bubbles = (Array.isArray(text) ? text : [text]).map((t) => t.trim()).filter(Boolean);
+  if (!bubbles.length) return { error: "Write a message first." };
   try {
-    await sendReply(workspaceId, igUserId, message);
+    for (const message of bubbles) {
+      await sendReply(workspaceId, igUserId, message, { conversationId: where.conversationId ?? null, contactId: where.contactId ?? null });
+    }
   } catch (err) {
     // The common failure is Meta's 24-hour window closing; show its message.
     return { error: err instanceof Error ? err.message : "The message didn't send. Try again." };
@@ -268,4 +280,82 @@ export async function sortWithJ(): Promise<TriageActionResult> {
   const more = left ? ` ${left} still to look at: tap Sort with J again.` : "";
   const notSure = unsure ? ` J isn't sure about ${unsure}.` : "";
   return { notice: `${suggested} new ${suggested === 1 ? "suggestion" : "suggestions"}.${notSure}${more}` };
+}
+
+// --- Inbox A (S1) -----------------------------------------------------------
+
+/** Hold (H): say nothing for now. Nothing sends; J drafts again when they write. */
+export async function holdJDraft(draftId: string, reason?: string | null): Promise<DraftActionResult> {
+  const workspaceId = await requireWorkspace();
+  const contactId = (await setterStore().getDraft(draftId, workspaceId))?.contactId ?? null;
+  const result = await holdDraft(draftId, workspaceId, reason ?? null);
+  if (contactId) await syncFollowupsQuietly(contactId, { workspaceId });
+  revalidatePath("/os/inbox");
+  revalidatePath("/os/follow-ups");
+  return result;
+}
+
+/** The panel's stage pill (event bus "move-stage"): a funnel column sets J's
+ *  stage hint, an outcome column sets the CRM stage. */
+export async function moveContactStage(contactId: string, column: string): Promise<{ error?: string }> {
+  const workspaceId = await requireWorkspace();
+  const panel = await loadContactPanel(workspaceId, contactId);
+  if (!panel) return { error: "That contact is gone. Refresh the page." };
+  const drop = dropOnColumn(column, panel.stage.columns);
+  if ("error" in drop) return { error: drop.error };
+  if ("stage" in drop) {
+    await setContactStage(contactId, drop.stage);
+    return {};
+  }
+  if (osMockEnabled()) updateMockContact(contactId, { setterStage: drop.setterStage });
+  else await prisma.contact.updateMany({ where: { id: contactId, workspaceId }, data: { setterStage: drop.setterStage } });
+  revalidatePath("/os/inbox");
+  revalidatePath("/os/contacts");
+  return {};
+}
+
+/** "Earlier messages": the next older page of the open thread. */
+export async function loadEarlierMessages(conversationId: string, contactId: string | null, cursor: string): Promise<ThreadData | { error: string }> {
+  const workspaceId = await requireWorkspace();
+  try {
+    return await loadThreadData(workspaceId, conversationId, contactId, cursor);
+  } catch (err) {
+    console.error("[OS Inbox] earlier messages failed:", err);
+    return { error: "Older messages didn't load. Try again." };
+  }
+}
+
+export interface ChatTabData {
+  contactId: string;
+  igUserId: string;
+  conversationId: string;
+  who: string;
+  draft: DraftView | null;
+  draftBlockedReason: string | null;
+  thread: ThreadData;
+}
+
+/** The Contacts panel's Chat tab: the same thread and composer as the Inbox. */
+export async function loadChatTab(contactId: string): Promise<ChatTabData | { error: string }> {
+  const workspaceId = await requireWorkspace();
+  const contact = await setterStore().getContact(contactId, workspaceId);
+  if (!contact?.conversationId) return { error: "No conversation yet." };
+  try {
+    const [thread, drafts] = await Promise.all([
+      loadThreadData(workspaceId, contact.conversationId, contactId),
+      pendingDrafts(workspaceId).catch(() => [] as DraftView[]),
+    ]);
+    return {
+      contactId,
+      igUserId: contact.igUserId,
+      conversationId: contact.conversationId,
+      who: contact.username ? `@${contact.username}` : (contact.fullName ?? "them"),
+      draft: drafts.find((d) => d.contactId === contactId) ?? null,
+      draftBlockedReason: draftBlockedReason(contact),
+      thread,
+    };
+  } catch (err) {
+    console.error("[OS Inbox] chat tab failed:", err);
+    return { error: "Instagram didn't answer. Try again in a minute." };
+  }
 }
