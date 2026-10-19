@@ -5,6 +5,7 @@
 import type { ContactKind, ContactStage, Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db/client";
 import { getInboxAccount, sendReply } from "@/lib/os/inbox";
+import { readAbTags, type AbTag } from "@/lib/os/experiments/types";
 import { isBookingPayload, type BookingPayload } from "@/lib/os/integrations/calendar/types";
 import { mockContact, mockContactExtras, mockMessages, osMockEnabled } from "@/lib/os/mock";
 import type { SetterRecord, ThreadMessage } from "@/lib/os/setter/state";
@@ -49,6 +50,8 @@ export interface DraftView {
   booking?: BookingPayload | null;
   /** Why the last Approve failed (the booking or the send). */
   sendError?: string | null;
+  /** A/B lines this draft carries (lib/os/experiments). */
+  abVariants?: AbTag[] | null;
 }
 
 export interface NewDraft {
@@ -70,6 +73,7 @@ export interface NewDraft {
   /** The knowledge base that wrote it; null = the file fallback. */
   setterId?: string | null;
   booking?: BookingPayload | null;
+  abVariants?: AbTag[] | null;
 }
 
 export interface SetterStore {
@@ -110,6 +114,7 @@ function view(d: DraftRow): DraftView {
     createdAt: d.createdAt.toISOString(),
     booking: isBookingPayload(d.booking) ? d.booking : null,
     sendError: d.sendError,
+    abVariants: d.abVariants ? readAbTags(d.abVariants) : null,
   };
 }
 
@@ -170,6 +175,7 @@ const dbStore: SetterStore = {
           proposedTags: input.proposedTags as Prisma.InputJsonValue,
           raw: (input.raw ?? null) as Prisma.InputJsonValue,
           booking: input.booking ? (JSON.parse(JSON.stringify(input.booking)) as Prisma.InputJsonValue) : undefined,
+          abVariants: input.abVariants?.length ? (input.abVariants as unknown as Prisma.InputJsonValue) : undefined,
         },
       }),
     ]);
@@ -274,6 +280,7 @@ const mockStore: SetterStore = {
       backend: input.backend,
       createdAt: new Date().toISOString(),
       booking: input.booking ?? null,
+      abVariants: input.abVariants ?? null,
     };
     mem.drafts.set(d.id, d);
     return d;

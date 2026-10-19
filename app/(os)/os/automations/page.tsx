@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AutomationsTabs } from "@/components/os/automations/automations-tabs";
 import AutomationList from "@/components/os/automations/automation-list";
 import { PageHead } from "@/components/os/page-head";
 import { getCurrentWorkspaceId } from "@/lib/auth";
@@ -18,6 +19,7 @@ export default async function AutomationsPage({ searchParams }: PageProps) {
   return (
     <>
       <PageHead title="Automations" description="Comment and DM keywords that send the opener and the link. When they reply, J takes over." />
+      <AutomationsTabs active="campaigns" />
 
       <div className="os-auto-cards">
         <Link href="/os/knowledge" className="os-auto-card">

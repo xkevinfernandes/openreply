@@ -5,6 +5,8 @@
 // approveDraft is only reachable from a person pressing Approve. The setter
 // config carries an `autonomy` field for later; `auto` has no code path.
 
+import { linesBlock, linesForDraft, recordSent, tagsFor } from "@/lib/os/experiments";
+import type { ExperimentStore, Person } from "@/lib/os/experiments/store";
 import { formatSlot } from "@/lib/os/integrations/calendar/slots";
 import { CalendarApiError, type BookingPayload } from "@/lib/os/integrations/calendar/types";
 import { osMockEnabled } from "@/lib/os/mock";
@@ -36,6 +38,7 @@ import {
   advance,
   iso,
   logEvent,
+  matchOutgoing,
   newRecord,
   observe,
   recordSend,
@@ -68,6 +71,13 @@ export interface DraftOptions {
   /** The booking calendar and where bookings are kept (default: DB / OS_MOCK). */
   calendar?: CalendarSource;
   bookings?: BookingStore;
+  /** A/B lines (default: DB / OS_MOCK). */
+  experiments?: ExperimentStore;
+}
+
+/** Who an A/B assignment belongs to (lib/os/experiments). */
+function abPerson(contact: SetterContact): Person {
+  return { workspaceId: contact.workspaceId, instagramAccountId: contact.instagramAccountId ?? "mock", igUserId: contact.igUserId, contactId: contact.id };
 }
 
 function frozenBy(contact: SetterContact, cfg: SetterConfig): string | null {
@@ -167,6 +177,24 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
     }
   }
 
+  // A/B: the assigned variant is the line to use for each slot this draft
+  // might fill (J's opener, the permission ask, the invite, follow-up 1…).
+  const abLines = await linesForDraft({
+    workspaceId: contact.workspaceId,
+    setterId: setter.setterId,
+    person: abPerson(contact),
+    name: contact.fullName ?? contact.username,
+    entry: rec.entry?.via ?? null,
+    actionKind: action.kind,
+    // J's first message: nothing from us yet except automated opener/resource DMs.
+    firstMessage: !(rec.sends ?? []).length && !rec.opener_sent_at && msgs.every((m) => m.incoming || Boolean(matchOutgoing(m.text, catalog.resources))),
+    nudgesSoFar: rec.nudges ?? 0,
+    alreadyInvited: Boolean(rec.invited),
+    store: opts.experiments,
+  });
+  const abBlock = linesBlock(abLines);
+  if (abBlock) extras.push(abBlock);
+
   const today = now.toISOString().slice(0, 10);
   const system = systemPrompt(loadMethod(), setter.profile, setter.offered, today);
   const prompt = buildPrompt(rec, msgs, action, catalog, now, extras);
@@ -205,6 +233,7 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
   if (invite) flags.push("invite");
   if (invite && missingQualifiers(obj.invite as Record<string, unknown>).length) flags.push("unqualified");
   const finalBubbles = booking?.bubbles.length ? booking.bubbles : bubbles;
+  const abVariants = abLines.length ? tagsFor(abLines, obj.ab_lines_used, finalBubbles) : null;
   if (mentionsPrice(finalBubbles)) flags.push("price");
   if (result.usage.backend === "fake") flags.push("sample");
 
@@ -231,6 +260,7 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
     outputTokens: result.usage.outputTokens,
     setterId: setter.setterId,
     booking: booking?.payload ?? null,
+    abVariants,
   });
   const invitePayload = invite && obj.invite && typeof obj.invite === "object" ? obj.invite : null;
   rec.draft = {
@@ -273,6 +303,7 @@ export interface ApproveOptions {
   gapMs?: number;
   calendar?: CalendarSource;
   bookings?: BookingStore;
+  experiments?: ExperimentStore;
 }
 
 export interface ApproveResult {
@@ -420,6 +451,7 @@ export async function approveDraft(draftId: string, workspaceId: string, opts: A
     return { error: `Sent ${sentCount} of ${bubbles.length} bubbles, then: ${message}` };
   }
   await store.markSent(d.id, { bubbles, editedText: edited ? opts.editedText! : null, edited });
+  await recordSent({ person: abPerson(contact), draftId: d.id, abVariants: d.abVariants, bubbles, edited, at: now(), store: opts.experiments });
 
   let rec = prev ?? newRecord(contact.conversationId ?? contact.id, contact.username ?? "", contact.id);
   // The booking step this draft moved to (proposed, awaiting email…) only

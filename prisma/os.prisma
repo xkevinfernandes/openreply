@@ -165,6 +165,9 @@ model Draft {
   /// lib/os/integrations/calendar/types.ts): provider, event type, slot start,
   /// timezone, name, email.
   booking      Json?
+  /// A/B lines this draft carries: AbTag[] (lib/os/experiments/types.ts),
+  /// {experimentId, variantId, slot}. Approve attributes the send to them.
+  abVariants   Json?
   createdAt    DateTime    @default(now())
   decidedAt    DateTime?
   sentAt       DateTime?
@@ -410,5 +413,97 @@ model Booking {
   updatedAt   DateTime      @updatedAt
 
   @@index([workspaceId, start])
+  @@index([contactId])
+}
+
+// --- A/B tests (wave 2, item 2) ------------------------------------------------
+// Variants for openers and key lines. A slot names where the text goes:
+// campaign_opener:<automationId> (OpenReply's opening DM), j_opener:<entry>
+// (J's first message, entry = how they arrived or "any") and line:<key>
+// (permission_ask, value_offer, invite, follow_up_1). Funnel numbers are not
+// stored: lib/os/experiments/funnel.ts counts them from existing data.
+
+enum ExperimentStatus {
+  RUNNING
+  PAUSED
+  FINISHED
+}
+
+enum ExperimentAllocation {
+  EVEN
+  WEIGHTED
+}
+
+model Experiment {
+  id          String               @id @default(cuid())
+  workspaceId String
+  /// Only this setter's drafts use it; null = every setter. Ignored for campaign openers.
+  setterId    String?
+  name        String
+  slot        String
+  status      ExperimentStatus     @default(RUNNING)
+  allocation  ExperimentAllocation @default(EVEN)
+  /// Sends per variant before the table stops saying "too early".
+  minSends    Int                  @default(50)
+  /// Picked winner: the only active variant once finished.
+  winnerVariantId String?
+  notes       String?
+  startedAt   DateTime             @default(now())
+  finishedAt  DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  variants    Variant[]
+  assignments Assignment[]
+
+  @@index([workspaceId, slot, status])
+}
+
+model Variant {
+  id           String     @id @default(cuid())
+  experimentId String
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  /// "A", "B"… shown in the table.
+  label        String
+  text         String
+  /// Used when the experiment's allocation is WEIGHTED.
+  weight       Int        @default(1)
+  /// Inactive variants get no new contacts; existing ones keep theirs.
+  active       Boolean    @default(true)
+  /// pattern_interrupt | specific_question | references_action | custom…
+  style        String?
+  sortOrder    Int        @default(0)
+  createdAt    DateTime   @default(now())
+
+  assignments Assignment[]
+
+  @@index([experimentId])
+}
+
+/// One person in one experiment. A contact keeps its variant: the unique key is
+/// the person (IG account + Instagram-scoped id), so it holds before a Contact
+/// row exists (campaign openers go out at comment time).
+model Assignment {
+  id                 String     @id @default(cuid())
+  workspaceId        String
+  experimentId       String
+  experiment         Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  variantId          String
+  variant            Variant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  instagramAccountId String
+  igUserId           String
+  contactId          String?
+  assignedAt         DateTime   @default(now())
+  /// When the line first went out (J's approved draft). Campaign openers leave
+  /// it null; their send is read from DmLog.
+  sentAt             DateTime?
+  draftId            String?
+  /// Kevin rewrote the line heavily before sending. Still attributed.
+  edited             Boolean    @default(false)
+  sentText           String?
+
+  @@unique([experimentId, instagramAccountId, igUserId])
+  @@index([workspaceId])
+  @@index([variantId])
   @@index([contactId])
 }

@@ -14,6 +14,7 @@ import "./automations.css";
 import "./settings.css";
 import "./contacts.css";
 import "./followups.css";
+import "./experiments.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 

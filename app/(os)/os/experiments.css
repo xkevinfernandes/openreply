@@ -1,0 +1,599 @@
+/* Experiments (Automations tab): the SetDM-style opener table and the
+   create form. Same system as os.css: hairlines, 4px corners, ink; the green
+   mark only for the leader / winner, amber for "too early". Numbers are
+   tabular so columns line up; the range bar is the one piece of drawing. */
+
+.os-auto-tabs {
+  margin: -12px 0 var(--sp-6);
+}
+
+.os-exp-list {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+.os-exp-empty p {
+  max-width: 52ch;
+  margin: 6px 0 14px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.os-exp {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.os-exp-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3) var(--sp-4);
+  flex-wrap: wrap;
+  padding: var(--sp-4) var(--sp-4) var(--sp-3);
+}
+
+.os-exp-title {
+  min-width: 0;
+}
+
+.os-exp-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.os-exp-title h2 {
+  margin: 0;
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.os-exp-title p {
+  margin-top: 3px;
+  color: var(--faint);
+  font-size: var(--fs-sm);
+}
+
+.os-exp-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.os-st[data-tone="live"] i {
+  background: var(--mark);
+}
+
+.os-st[data-tone="paused"] i {
+  background: var(--warn);
+}
+
+.os-st[data-tone="done"] i {
+  background: var(--ghost);
+}
+
+/* The table */
+
+.os-exp-scroll {
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+  -webkit-overflow-scrolling: touch;
+}
+
+.os-exp-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.os-exp-table th,
+.os-exp-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.os-exp-table thead th {
+  padding-top: 9px;
+  padding-bottom: 9px;
+  color: var(--faint);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.os-exp-table thead th[title] {
+  cursor: help;
+}
+
+.os-exp-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.os-exp-table td.num strong {
+  display: block;
+  font-weight: 600;
+}
+
+.os-exp-table td.num small {
+  display: block;
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.os-exp-variant {
+  width: 34%;
+  min-width: 260px;
+  font-weight: 400;
+}
+
+.os-exp-vcell {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.os-exp-label {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  background: var(--tint-2);
+  color: var(--ink);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.os-exp-text {
+  min-width: 0;
+}
+
+.os-exp-text > span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+.os-exp-text small {
+  display: block;
+  margin-top: 2px;
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.os-exp-table tr[data-leader] .os-exp-label {
+  background: var(--mark);
+  color: var(--on-ink);
+}
+
+.os-exp-table tr[data-inactive] .os-exp-text > span,
+.os-exp-table tr[data-inactive] td {
+  color: var(--ghost);
+}
+
+.os-exp-table tfoot th,
+.os-exp-table tfoot td {
+  border-bottom: 0;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.os-exp-rangecol {
+  width: 160px;
+}
+
+.os-exp-pick {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.os-exp-confirm {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.os-exp-dash {
+  color: var(--ghost);
+}
+
+/* Booked per send: the 95% range as a bar, the rate as a dot. */
+.os-exp-range {
+  display: grid;
+  gap: 4px;
+}
+
+.os-exp-range-track {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--tint-2);
+}
+
+.os-exp-range-span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 2px;
+  border-radius: 3px;
+  background: rgb(17 17 17 / 0.22);
+}
+
+.os-exp-range-dot {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 0 2px var(--card);
+  transform: translate(-50%, -50%);
+}
+
+tr[data-leader] .os-exp-range-span {
+  background: color-mix(in srgb, var(--mark) 35%, transparent);
+}
+
+tr[data-leader] .os-exp-range-dot {
+  background: var(--mark);
+}
+
+.os-exp-range-text {
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.os-exp-foot {
+  display: grid;
+  gap: 4px;
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+
+.os-exp-verdict {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.os-exp-verdict i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ghost);
+  flex: none;
+}
+
+.os-exp-verdict[data-kind="too_early"] {
+  color: var(--warn);
+}
+
+.os-exp-verdict[data-kind="too_early"] i {
+  background: var(--warn);
+}
+
+.os-exp-verdict[data-kind="leader"] {
+  color: var(--mark);
+}
+
+.os-exp-verdict[data-kind="leader"] i {
+  background: var(--mark);
+}
+
+.os-exp-note {
+  color: var(--faint);
+  font-size: var(--fs-xs);
+}
+
+.os-exp-error,
+.os-exp-warn {
+  color: var(--bad);
+  font-size: var(--fs-sm);
+}
+
+.os-exp-warn {
+  margin-top: var(--sp-3);
+  color: var(--warn);
+}
+
+/* --- Create form ------------------------------------------------------------ */
+
+.os-exp-form {
+  display: grid;
+  gap: var(--sp-6);
+  max-width: 820px;
+}
+
+.os-exp-step {
+  margin: 0;
+  padding: var(--sp-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  min-width: 0;
+}
+
+.os-exp-step legend {
+  padding: 0 6px;
+  margin-left: -6px;
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.os-exp-kinds {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.os-exp-kind {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  padding: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    transform 100ms ease;
+}
+
+.os-exp-kind:hover {
+  background: var(--tint);
+}
+
+.os-exp-kind:active {
+  transform: scale(0.98);
+}
+
+.os-exp-kind[aria-checked="true"] {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.os-exp-kind strong {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.os-exp-kind span {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+}
+
+.os-exp-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+}
+
+.os-exp-field {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-width: 220px;
+  max-width: 360px;
+  flex: 1;
+}
+
+.os-exp-field > span:first-child {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.os-exp-field small {
+  color: var(--faint);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+}
+
+.os-exp-field .os-select,
+.os-exp-field .os-select select {
+  width: 100%;
+}
+
+.os-exp-name {
+  max-width: none;
+  flex-basis: 100%;
+}
+
+.os-exp-num {
+  max-width: 120px;
+}
+
+.os-exp-variants {
+  display: grid;
+  gap: var(--sp-3);
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.os-exp-variants li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.os-exp-variants .os-exp-label {
+  margin-top: 6px;
+}
+
+.os-exp-variant-body {
+  display: grid;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.os-exp-variant-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 20px;
+}
+
+.os-exp-variant-meta:empty {
+  display: none;
+}
+
+.os-exp-weight {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.os-exp-weight .os-input {
+  width: 64px;
+  height: 26px;
+}
+
+.os-exp-add {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-top: var(--sp-3);
+}
+
+.os-exp-hint {
+  color: var(--faint);
+  font-size: var(--fs-xs);
+}
+
+.os-exp-ideas {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+
+.os-exp-ideas h3 {
+  margin: 0 0 var(--sp-2);
+  color: var(--faint);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+
+.os-exp-ideas ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.os-exp-idea {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  height: 100%;
+  padding: 10px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    transform 100ms ease;
+}
+
+.os-exp-idea:hover {
+  border-style: solid;
+  background: var(--tint);
+}
+
+.os-exp-idea:active {
+  transform: scale(0.98);
+}
+
+.os-exp-idea strong {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.os-exp-idea-text {
+  font-size: var(--fs-sm);
+}
+
+.os-exp-idea small {
+  color: var(--faint);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.os-exp-submit {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+}
+
+@media (max-width: 760px) {
+  .os-exp-kinds,
+  .os-exp-ideas ul {
+    grid-template-columns: 1fr;
+  }
+
+  .os-exp-field {
+    max-width: none;
+  }
+
+  .os-exp-head {
+    padding: var(--sp-3);
+  }
+
+  .os-exp-actions {
+    width: 100%;
+  }
+
+  .os-exp-actions .os-button {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-exp-kind,
+  .os-exp-idea {
+    transition: none;
+  }
+
+  .os-exp-kind:active,
+  .os-exp-idea:active {
+    transform: none;
+  }
+}
+
+.os-exp-field .os-segmented {
+  justify-self: start;
+}

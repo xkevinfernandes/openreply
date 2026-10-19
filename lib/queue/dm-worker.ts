@@ -64,6 +64,7 @@ import {
   syncCapture,
 } from "@/lib/email-gate";
 import { recordCapturedEmail } from "@/lib/os/integrations/events";
+import { campaignOpenerText } from "@/lib/os/experiments";
 
 const BACKOFF_DELAYS = [5 * 60 * 1000, 15 * 60 * 1000, 45 * 60 * 1000];
 
@@ -710,7 +711,14 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
     try {
       if (useOpeningDm) {
         const openingText = renderMessageWithTracking({
-          message: automation.openingDmMessage as string,
+          // DM OS A/B hook: this person's opener variant, or the original.
+          message: await campaignOpenerText({
+            workspaceId: automation.workspaceId,
+            automationId: automation.id,
+            instagramAccountId: automation.instagramAccountId,
+            igUserId: commenterId,
+            original: automation.openingDmMessage as string,
+          }),
           commenterName,
           trackedLinks: [],
         });
