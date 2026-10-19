@@ -5,7 +5,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { createExperiment } from "@/app/(os)/os/automations/experiments/actions";
+import { createExperiment } from "@/app/(os)/os/automations/tests/actions";
 import type { CreateOptions } from "@/lib/os/experiments/data";
 import type { Suggestion } from "@/lib/os/experiments/suggestions";
 import type { AllocationName } from "@/lib/os/experiments/types";
@@ -107,7 +107,7 @@ export default function ExperimentForm({ options, entries, lines, suggestions }:
         variants: variants.map((v) => ({ text: v.text, weight: v.weight, style: v.style })),
       });
       if (r.error) return setError(r.error);
-      router.push("/os/automations/experiments");
+      router.push("/os/automations/tests");
       router.refresh();
     });
   };

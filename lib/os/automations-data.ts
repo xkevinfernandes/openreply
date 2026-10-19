@@ -5,7 +5,19 @@
 import { prisma } from "@/lib/db/client";
 import { osMockEnabled } from "@/lib/os/mock";
 import { calculateCtr, CLICK_ROW_SELECT, countUniqueClicksBy } from "@/lib/tracking/analytics";
-import { actionNeeded, RECENT_FAILURE_DAYS, type AutomationRow, type TriggerShape, type WorkspaceHealth } from "@/lib/os/automations";
+import {
+  actionNeeded,
+  campaignResource,
+  campaignStats,
+  firstUrl,
+  RECENT_FAILURE_DAYS,
+  type AutomationRow,
+  type TriggerShape,
+  type WorkspaceHealth,
+} from "@/lib/os/automations";
+import { nextRunDate } from "@/lib/os/home";
+import { catalogRowFromResource } from "@/lib/os/setter/kb";
+import { resolve } from "@/lib/os/setter/resources";
 
 interface SetterLite {
   id: string;
@@ -64,6 +76,41 @@ export async function listAutomationRows(workspaceId: string, now = new Date()):
 
   if (!automations.length && osMockEnabled()) return { rows: sampleRows(now), sample: true };
 
+  const ids = automations.map((a) => a.id);
+  const [mapped, resources, links, experiments, people] = await Promise.all([
+    prisma.campaignResource.findMany({ where: { workspaceId, automationId: { in: ids } }, select: { automationId: true, resourceId: true } }),
+    prisma.resource.findMany({ where: { workspaceId, kind: "resource" } }),
+    prisma.trackedLink.findMany({ where: { workspaceId, automationId: { in: ids } }, select: { automationId: true, destinationUrl: true, position: true, createdAt: true } }),
+    prisma.experiment.findMany({ where: { workspaceId, status: "RUNNING", slot: { startsWith: "campaign_opener:" } }, select: { slot: true } }),
+    prisma.dmLog.findMany({
+      where: { workspaceId, automationId: { in: ids } },
+      select: { automationId: true, instagramAccountId: true, commenterId: true },
+      distinct: ["automationId", "commenterId"],
+      take: 20000,
+    }),
+  ]);
+  const contacts = people.length
+    ? await prisma.contact.findMany({
+        where: { workspaceId, igUserId: { in: [...new Set(people.map((p) => p.commenterId))] } },
+        select: { id: true, instagramAccountId: true, igUserId: true },
+      })
+    : [];
+  const events = contacts.length
+    ? await prisma.osEvent.findMany({
+        where: { workspaceId, kind: { in: ["conversation_started", "call_booked"] }, contactId: { in: contacts.map((c) => c.id) } },
+        select: { contactId: true, kind: true },
+      })
+    : [];
+  const stats = campaignStats(people, contacts, events);
+  const abOn = new Set(experiments.map((e) => e.slot.slice("campaign_opener:".length)));
+  const mappedMap = new Map(mapped.map((m) => [m.automationId, m.resourceId]));
+  const catalog = resources.map(catalogRowFromResource);
+  const idBySlug = new Map(resources.map((r) => [r.slug, r.id]));
+  const firstLink = new Map<string, string>();
+  for (const l of [...links].sort((a, b) => a.position - b.position || a.createdAt.getTime() - b.createdAt.getTime())) {
+    if (!firstLink.has(l.automationId)) firstLink.set(l.automationId, l.destinationUrl);
+  }
+
   const ws: WorkspaceHealth = { zernioReady: Boolean(zernio?.webhookId), kitConnected: Boolean(kit) };
   const overrideMap = new Map(overrides.map((o) => [o.automationId, o.setterId]));
   const failedRecent = new Map(recentFailed.map((r) => [r.automationId, r._count._all]));
@@ -94,8 +141,17 @@ export async function listAutomationRows(workspaceId: string, now = new Date()):
     const c = counts.get(a.id) ?? { runs: 0, sent: 0, failed: 0 };
     const clickCount = clicks.get(a.id) ?? 0;
     const acc = a.instagramAccount;
+    const link = firstLink.get(a.id) ?? firstUrl(a.dmMessage) ?? firstUrl(a.openingDmMessage);
+    const hit = resolve([link ?? "", a.dmMessage, a.openingDmMessage ?? ""], catalog)[0];
+    const resolvedId = hit ? idBySlug.get(hit.slug) : undefined;
+    const st = stats.get(a.id);
     return {
       ...shapes[i],
+      resource: campaignResource(a.id, mappedMap, resources, resolvedId ? { id: resolvedId } : null),
+      link,
+      ab: abOn.has(a.id),
+      replied: st?.replied ?? 0,
+      booked: st?.booked ?? 0,
       username: acc?.username ?? null,
       postUrl: a.postUrl,
       opener: (a.openingDmEnabled && a.openingDmMessage?.trim()) || a.dmMessage,
@@ -148,74 +204,144 @@ export async function campaignSetterChoice(workspaceId: string, automationId: st
   };
 }
 
+// ---------------------------------------------------------------- tabs, broadcasts, pickers
+
+export interface BroadcastSummary {
+  key: string;
+  name: string;
+  window: string;
+  audience: string;
+  status: "needs_link" | "review" | "scheduled" | "done" | "off";
+}
+
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** Pure: a broadcast's state for its next run. */
+export function broadcastStatus(
+  b: { enabled: boolean; template?: string; windowDay: number; windowEnd: string; timezone: string },
+  runs: { runDate: string; status: string }[],
+  now: Date
+): BroadcastSummary["status"] {
+  // Saving this week's link is what starts a run, so a set-up broadcast needs one even while off.
+  if (!b.enabled && !b.template?.trim()) return "off";
+  const next = nextRunDate(b.windowDay, b.windowEnd, b.timezone, now);
+  const run = runs.find((r) => r.runDate === next.date);
+  if (!run) return "needs_link";
+  return run.status === "done" ? "done" : run.status === "scheduled" ? "scheduled" : "review";
+}
+
+/** Read-only list for the Campaigns tab; the builder is S5's /os/automations/broadcasts. */
+export async function listBroadcastSummaries(workspaceId: string, now = new Date()): Promise<BroadcastSummary[]> {
+  const list = await prisma.broadcast.findMany({
+    where: { workspaceId },
+    orderBy: { createdAt: "asc" },
+    select: { key: true, name: true, audienceTag: true, enabled: true, template: true, windowDay: true, windowStart: true, windowEnd: true, timezone: true, runs: { select: { runDate: true, status: true }, orderBy: { runDate: "desc" }, take: 4 } },
+  });
+  return list.map((b) => ({
+    key: b.key,
+    name: b.name,
+    window: `${DAYS[b.windowDay] ?? "?"} ${b.windowStart}–${b.windowEnd}`,
+    audience: b.audienceTag,
+    status: broadcastStatus(b, b.runs, now),
+  }));
+}
+
+export async function automationTabCounts(workspaceId: string, campaignCount?: number) {
+  const [campaigns, broadcasts, tests] = await Promise.all([
+    campaignCount ?? prisma.automation.count({ where: { workspaceId } }).then((n) => (n || !osMockEnabled() ? n : sampleRows(new Date()).length)).catch(() => 0),
+    prisma.broadcast.count({ where: { workspaceId } }).catch(() => 0),
+    prisma.experiment.count({ where: { workspaceId, status: "RUNNING" } }).catch(() => 0),
+  ]);
+  return { campaigns, broadcasts, tests };
+}
+
+/** Lead magnets for the keyword → resource picker on the edit page. */
+export async function campaignResourceChoice(workspaceId: string, automationId: string) {
+  const [resources, row] = await Promise.all([
+    prisma.resource.findMany({ where: { workspaceId, kind: "resource" }, select: { id: true, name: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
+    prisma.campaignResource.findUnique({ where: { automationId }, select: { resourceId: true, workspaceId: true } }),
+  ]);
+  return { resources, selected: row && row.workspaceId === workspaceId ? row.resourceId : null };
+}
+
 // ---------------------------------------------------------------- OS_MOCK
+/** The AutomationsA board's three campaigns. */
 function sampleRows(now: Date): AutomationRow[] {
   const day = (d: number) => new Date(now.getTime() - d * 86400_000).toISOString();
   const base = {
     instagramAccountId: "acc1",
     username: "claudepreneur",
-    postUrl: null,
     matchAnyPost: false,
     pendingNextReel: false,
     dmTriggerEnabled: false,
     matchAnyWord: false,
     requireFollow: false,
     requireEmail: false,
+    failed: 0,
+    clicks: 0,
+    ctr: 0,
+    actions: [] as string[],
   };
+  const j = { id: "s-j", name: "J", viaCampaign: false };
+  const nova = { id: "s-nova", name: "Nova", viaCampaign: true };
+  const starter = { id: "r-starter", name: "Claude Code Setter Starter", viaLink: false };
   return [
     {
       ...base,
       id: "sample-1",
-      name: "AI setter reel",
+      name: "AI setter demo",
       postId: "p1",
-      keywords: ["setter", "SETTER"],
-      opener: "hey! here's the setter prompt 👇 want the full walkthrough too?",
-      requireEmail: true,
+      postUrl: "https://www.instagram.com/reel/sample1/",
+      keywords: ["SETTER"],
+      opener: "here you go, the starter I use for my own DMs",
+      resource: starter,
+      link: "https://claudepreneur.com/starter",
+      ab: true,
       isActive: true,
-      setter: { id: "s1", name: "Claudepreneur", viaCampaign: false },
-      runs: 412,
-      sent: 398,
-      failed: 4,
-      clicks: 171,
-      ctr: 43,
-      actions: ["4 DMs failed in the last 7 days"],
+      setter: j,
+      runs: 64,
+      sent: 64,
+      replied: 27,
+      booked: 3,
       createdAt: day(2),
     },
     {
       ...base,
       id: "sample-2",
-      name: "Workshop keyword",
+      name: "DM scripts",
       postId: null,
+      postUrl: null,
       dmTriggerEnabled: true,
-      matchAnyPost: true,
-      keywords: ["workshop"],
-      opener: "yo! the workshop replay is here",
+      keywords: ["SCRIPT"],
+      opener: "sending the vault now, steal what works",
+      resource: { id: "r-vault", name: "DM Script Vault", viaLink: false },
+      link: "https://claudepreneur.com/vault",
+      ab: false,
       isActive: true,
-      setter: { id: "s2", name: "Workshop setter", viaCampaign: true },
-      runs: 96,
-      sent: 96,
-      failed: 0,
-      clicks: 51,
-      ctr: 53.1,
-      actions: [],
+      setter: j,
+      runs: 38,
+      sent: 38,
+      replied: 15,
+      booked: 1,
       createdAt: day(9),
     },
     {
       ...base,
       id: "sample-3",
-      name: "Notion template",
+      name: "setter in 5 steps",
       postId: "p3",
-      keywords: ["notion", "template"],
-      opener: "sending the template now, follow so you catch the next one",
-      requireFollow: true,
+      postUrl: "https://www.instagram.com/p/sample3/",
+      keywords: ["STARTER"],
+      opener: "here it is, the exact starter from the carousel",
+      resource: starter,
+      link: "https://claudepreneur.com/starter",
+      ab: false,
       isActive: false,
-      setter: { id: "s1", name: "Claudepreneur", viaCampaign: false },
-      runs: 1203,
-      sent: 1180,
-      failed: 11,
-      clicks: 402,
-      ctr: 34.1,
-      actions: [],
+      setter: nova,
+      runs: 12,
+      sent: 12,
+      replied: 4,
+      booked: 0,
       createdAt: day(40),
     },
   ];

@@ -15,7 +15,7 @@ async function requireWorkspace() {
 }
 
 function refresh() {
-  revalidatePath("/os/automations/experiments");
+  revalidatePath("/os/automations/tests");
 }
 
 export async function createExperiment(raw: ExperimentInput): Promise<{ error?: string; id?: string }> {

@@ -5,13 +5,13 @@
 //
 // Every hook swallows its own errors: a lost event never fails a send.
 // dm_sent is NOT recorded here: lib/os/sending/cap.ts counts each bubble.
-// conversation_started is S6's (it needs the episode rule); the observe hook
-// is wired so S6 only fills it in.
+// conversation_started follows the episode rule in lib/os/metrics.ts.
 
 import type { ContactStage } from "@/app/generated/prisma/enums";
 import { prisma } from "@/lib/db/client";
 import { eventKey, recordEventQuietly, recordEvents, type OsEventInput } from "@/lib/os/events";
 import { captureFields } from "@/lib/os/fields/capture";
+import { conversationStartFromRecord } from "@/lib/os/metrics";
 import { catalogRowFromResource } from "@/lib/os/setter/kb";
 import { resolve } from "@/lib/os/setter/resources";
 import type { SetterRecord } from "@/lib/os/setter/state";
@@ -81,8 +81,9 @@ export const osEventHooks: OsEventHooks = {
     await quiet("draft sent", async () => recordEvents(draftSentEvents(info, await leadMagnetsIn(info.workspaceId, info.bubbles))));
     await quiet("capture fields", () => captureFields({ workspaceId: info.workspaceId, contactId: info.contactId, setterId: info.setterId, draftId: info.draftId, raw: info.raw }));
   },
-  async onThreadObserved() {
-    // S6: conversation_started (a lead message after a setter/opener message, once per episode).
+  async onThreadObserved({ workspaceId, contactId, setterId, record }) {
+    const e = conversationStartFromRecord(record, { workspaceId, contactId, setterId });
+    if (e) await recordEventQuietly(e);
   },
   async onStageChanged({ workspaceId, contactId, stage, at }) {
     if (stage !== "WON") return;

@@ -1,4 +1,4 @@
-// Loading experiments for /os/automations/experiments: each variant's funnel,
+// Loading experiments for /os/automations/tests: each variant's funnel,
 // counted from existing data (funnel.ts), plus the confidence hint (stats.ts).
 
 import { prisma } from "@/lib/db/client";

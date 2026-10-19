@@ -132,6 +132,15 @@ export interface AutomationRow {
   requireFollow: boolean;
   isActive: boolean;
   setter: { id: string; name: string; viaCampaign: boolean } | null;
+  /** Keyword → lead magnet (CampaignResource, else resolved from the link). */
+  resource?: { id: string; name: string; viaLink: boolean } | null;
+  /** The link they get (first tracked link, else the first URL in the DM). */
+  link?: string | null;
+  /** An opener A/B test is running on this campaign. */
+  ab?: boolean;
+  /** Distinct people who triggered it, replied (a conversation started) and booked. */
+  replied?: number;
+  booked?: number;
   runs: number;
   sent: number;
   failed: number;
@@ -181,4 +190,123 @@ export function triggerLabel(row: Pick<AutomationRow, "postId" | "matchAnyPost" 
   else if (row.postId) parts.push("One post");
   if (row.dmTriggerEnabled) parts.push("DMs");
   return parts.join(" + ") || "No trigger";
+}
+
+// --- Campaigns tab (AutomationsA board) -----------------------------------------
+
+/** Filter chips by trigger type. Upstream has no story trigger yet, so Stories is 0. */
+export type TriggerChip = "all" | "stories" | "reels" | "posts" | "dm";
+
+export const TRIGGER_CHIPS: { value: TriggerChip; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "stories", label: "Stories" },
+  { value: "reels", label: "Reels" },
+  { value: "posts", label: "Posts" },
+  { value: "dm", label: "DM keyword" },
+];
+
+export function parseChip(v: string | null | undefined): TriggerChip {
+  return TRIGGER_CHIPS.some((c) => c.value === v) ? (v as TriggerChip) : "all";
+}
+
+type ChipShape = Pick<AutomationRow, "postId" | "postUrl" | "matchAnyPost" | "pendingNextReel" | "dmTriggerEnabled">;
+
+const isReelUrl = (url: string | null) => !!url && /\/reels?\//i.test(url);
+
+/** Which chips a campaign belongs to (a post campaign can also take DMs). */
+export function triggerKinds(row: ChipShape): Exclude<TriggerChip, "all">[] {
+  const out: Exclude<TriggerChip, "all">[] = [];
+  if (row.pendingNextReel || (row.postId && isReelUrl(row.postUrl))) out.push("reels");
+  else if (row.postId || row.matchAnyPost) out.push("posts");
+  if (row.dmTriggerEnabled) out.push("dm");
+  return out;
+}
+
+export function matchesChip(row: ChipShape, chip: TriggerChip): boolean {
+  return chip === "all" || (triggerKinds(row) as TriggerChip[]).includes(chip);
+}
+
+export function chipCounts(rows: ChipShape[]): Record<TriggerChip, number> {
+  const out: Record<TriggerChip, number> = { all: rows.length, stories: 0, reels: 0, posts: 0, dm: 0 };
+  for (const r of rows) for (const k of triggerKinds(r)) out[k]++;
+  return out;
+}
+
+/** "Comment on post" + "Reel · AI setter demo". */
+export function triggerSummary(row: ChipShape & Pick<AutomationRow, "name">): { trigger: string; where: string } {
+  const kinds = triggerKinds(row);
+  if (row.matchAnyPost) return { trigger: "Comment on post", where: kinds.includes("dm") ? "Any post · DMs too" : "Any post" };
+  if (row.pendingNextReel) return { trigger: "Comment on post", where: "Next reel" };
+  if (row.postId) {
+    const where = `${isReelUrl(row.postUrl) ? "Reel" : "Post"} · ${row.name}`;
+    return { trigger: "Comment on post", where: kinds.includes("dm") ? `${where} · DMs too` : where };
+  }
+  if (row.dmTriggerEnabled) return { trigger: "DM keyword", where: row.name };
+  return { trigger: "No trigger", where: row.name };
+}
+
+/** The first URL in a message. */
+export function firstUrl(text: string | null | undefined): string | null {
+  const m = (text ?? "").match(/https?:\/\/[^\s<>"')]+/i);
+  return m ? m[0].replace(/[.,!?]+$/, "") : null;
+}
+
+/** "claudepreneur.com/starter" from a full URL. */
+export function shortLink(url: string | null): string | null {
+  if (!url) return null;
+  return url.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "");
+}
+
+export interface StatsLog {
+  automationId: string;
+  instagramAccountId: string;
+  commenterId: string;
+}
+
+/**
+ * Pure: per campaign, how many distinct people who triggered it went on to a
+ * conversation and a booked call. A person counts for every campaign they
+ * triggered.
+ */
+export function campaignStats(
+  logs: StatsLog[],
+  contacts: { id: string; instagramAccountId: string; igUserId: string }[],
+  events: { contactId: string | null; kind: string }[]
+): Map<string, { replied: number; booked: number }> {
+  const contactOf = new Map(contacts.map((c) => [`${c.instagramAccountId}:${c.igUserId}`, c.id]));
+  const replied = new Set(events.filter((e) => e.kind === "conversation_started" && e.contactId).map((e) => e.contactId!));
+  const booked = new Set(events.filter((e) => e.kind === "call_booked" && e.contactId).map((e) => e.contactId!));
+  const people = new Map<string, Set<string>>();
+  for (const l of logs) {
+    const id = contactOf.get(`${l.instagramAccountId}:${l.commenterId}`);
+    if (!id) continue;
+    const set = people.get(l.automationId) ?? new Set<string>();
+    set.add(id);
+    people.set(l.automationId, set);
+  }
+  const out = new Map<string, { replied: number; booked: number }>();
+  for (const [automationId, ids] of people) {
+    let r = 0;
+    let b = 0;
+    for (const id of ids) {
+      if (replied.has(id)) r++;
+      if (booked.has(id)) b++;
+    }
+    out.set(automationId, { replied: r, booked: b });
+  }
+  return out;
+}
+
+/** Pure: the campaign's resource: its CampaignResource row, else the catalog entry its link points at. */
+export function campaignResource(
+  automationId: string,
+  mapped: Map<string, string>,
+  resources: { id: string; name: string }[],
+  resolvedFromLink: { id: string } | null
+): NonNullable<AutomationRow["resource"]> | null {
+  const byId = new Map(resources.map((r) => [r.id, r]));
+  const own = byId.get(mapped.get(automationId) ?? "");
+  if (own) return { id: own.id, name: own.name, viaLink: false };
+  const linked = resolvedFromLink ? byId.get(resolvedFromLink.id) : undefined;
+  return linked ? { id: linked.id, name: linked.name, viaLink: true } : null;
 }

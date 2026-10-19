@@ -9,7 +9,7 @@ import { useState, useTransition } from "react";
 import {
   pickWinner,
   setExperimentStatus,
-} from "@/app/(os)/os/automations/experiments/actions";
+} from "@/app/(os)/os/automations/tests/actions";
 import type { ExperimentView, VariantRow } from "@/lib/os/experiments/data";
 import type { FunnelCounts } from "@/lib/os/experiments/funnel";
 import { pct, rate } from "@/lib/os/experiments/stats";

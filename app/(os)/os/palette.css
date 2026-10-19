@@ -1,5 +1,4 @@
-/* palette.css: owned by S6 after wave 0. Scoped under .os.
-   Wave-0 stub styles for components/os/palette/mount.tsx. */
+/* palette.css: the ⌘K command palette (Palette board). Owner: S6. */
 
 .os-palette-scrim {
   position: fixed;
@@ -8,33 +7,272 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding-top: 14vh;
-  background: rgb(0 0 0 / 0.24);
+  padding: 120px 16px 16px;
+  box-sizing: border-box;
+  background: rgb(17 17 17 / 0.28);
+  animation: os-pal-fade 120ms ease;
 }
 
 .os-palette {
-  width: min(560px, calc(100vw - 32px));
+  width: 100%;
+  max-width: 620px;
+  max-height: calc(100dvh - 160px);
+  display: flex;
+  flex-direction: column;
   border-radius: var(--radius);
   background: var(--paper);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
+  transform-origin: top center;
+  animation: os-pal-in 160ms var(--ease);
 }
 
-.os-palette-input {
-  width: 100%;
-  height: 48px;
+@keyframes os-pal-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes os-pal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-palette {
+    animation: os-pal-fade 120ms ease;
+  }
+}
+
+.os-pal-q {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
   padding: 0 16px;
-  box-sizing: border-box;
-  border: 0;
   border-bottom: 1px solid var(--line);
-  font: inherit;
-  font-size: var(--fs-body);
-  outline: none;
 }
 
-.os-palette-empty {
+.os .os-pal-q input,
+.os-pal-q input {
+  height: auto;
+  padding: 0;
+  box-shadow: none;
+  border-radius: 0;
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+}
+
+.os-pal-q input::placeholder {
+  color: var(--ghost);
+}
+
+.os-pal-crumb {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  background: var(--tint-2);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+
+.os-pal-ic {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.os-palette kbd {
+  min-width: 18px;
+  height: 20px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+}
+
+.os-pal-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 520px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.os-pal-group {
+  padding: 12px 10px 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.os-pal-group:first-child {
+  padding-top: 8px;
+}
+
+.os-pal-opt {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.os-pal-opt[data-kind="contact"] {
+  height: 40px;
+}
+
+.os-pal-opt[aria-selected="true"] {
+  background: var(--tint-2);
+}
+
+.os-pal-main {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+}
+
+.os-pal-opt[data-kind="contact"] .os-pal-main {
+  font-weight: 500;
+}
+
+.os-pal-main strong {
+  font-weight: 600;
+}
+
+.os-pal-main .muted {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.os-pal-main .ghost {
+  color: var(--ghost);
+}
+
+.os-pal-av {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tint-2);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.os-pal-draft {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--mark);
+  white-space: nowrap;
+}
+
+.os-pal-enter {
+  min-width: 28px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--ghost);
+}
+
+.os-pal-keys {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.os-pal-note {
+  font-size: 11px;
+  color: var(--ghost);
+  white-space: nowrap;
+}
+
+.os-pal-empty {
   margin: 0;
-  padding: 16px;
+  padding: 16px 10px;
   color: var(--muted);
   font-size: var(--fs-sm);
+}
+
+.os-pal-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 36px;
+  padding: 0 16px;
+  border-top: 1px solid var(--line);
+  background: var(--paper-2);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.os-pal-foot > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.os-pal-foot kbd {
+  height: 18px;
+  min-width: 16px;
+}
+
+.os-pal-hint {
+  margin-left: auto;
+}
+
+.os-pal-hint b {
+  font-weight: 400;
+  color: var(--ink);
+}
+
+@media (max-width: 560px) {
+  .os-palette-scrim {
+    padding-top: 56px;
+  }
+  .os-pal-foot > span:not(.os-pal-hint) {
+    display: none;
+  }
+  .os-pal-hint {
+    margin-left: 0;
+  }
+  .os-pal-note,
+  .os-pal-opt .os-pal-keys {
+    display: none;
+  }
 }

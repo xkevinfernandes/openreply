@@ -1,69 +1,103 @@
 "use client";
 
-// "Answered by": which knowledge base J uses for people who come in through
-// this campaign. Writes our CampaignSetter table through the same server
-// action as the knowledge base's Campaigns section.
+// The campaign bar on the edit page: which lead magnet the keyword hands out
+// (CampaignResource) and which setter answers when they reply (CampaignSetter).
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { setCampaignSetter } from "@/app/(os)/os/knowledge/actions";
-import { useSaver } from "@/components/os/knowledge/fields";
+import { useState, useTransition } from "react";
+import { setCampaignResource, setCampaignSetter, type AutomationActionResult } from "@/app/(os)/os/automations/actions";
+import { InfoTip } from "@/components/os/ui";
+
+interface Option {
+  id: string;
+  name: string;
+}
 
 interface Props {
   automationId: string;
-  setters: { id: string; name: string }[];
+  setters: Option[];
   selected: string | null;
   defaultName: string | null;
+  resources: Option[];
+  resourceId: string | null;
 }
 
-export default function SetterPicker({ automationId, setters, selected, defaultName }: Props) {
+function Picker({
+  label,
+  tip,
+  value,
+  empty,
+  options,
+  save,
+}: {
+  label: string;
+  tip: string;
+  value: string | null;
+  empty: string;
+  options: Option[];
+  save: (v: string | null) => Promise<AutomationActionResult>;
+}) {
   const router = useRouter();
-  const saver = useSaver();
-  const [value, setValue] = useState(selected ?? "");
-
+  const [v, setV] = useState(value ?? "");
+  const [note, setNote] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [pending, start] = useTransition();
   return (
-    <section className="os-auto-setterbar" aria-labelledby="os-auto-setter-label">
-      <div>
-        <strong id="os-auto-setter-label">Answered by</strong>
-        <p>When someone from this campaign replies, J drafts with this knowledge base. A contact keeps its setter.</p>
-      </div>
-      {setters.length ? (
-        <div className="os-auto-setterbar-control">
-          <span className="os-select">
-            <select
-              aria-labelledby="os-auto-setter-label"
-              value={value}
-              disabled={saver.pending}
-              onChange={(e) => {
-                const next = e.target.value;
-                setValue(next);
-                saver.run(async () => {
-                  const r = await setCampaignSetter(automationId, next || null);
-                  router.refresh();
-                  return r;
-                });
-              }}
-            >
-              <option value="">Account default{defaultName ? ` (${defaultName})` : ""}</option>
-              {setters.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </span>
-          {saver.note && (
-            <span className="os-kb-note" data-kind={saver.note.kind} role={saver.note.kind === "error" ? "alert" : "status"}>
-              {saver.note.text}
-            </span>
-          )}
-        </div>
-      ) : (
-        <p className="os-auto-setterbar-empty">
-          No knowledge base yet, so J uses the bundled files. <Link href="/os/knowledge">Set one up</Link>.
-        </p>
+    <label className="os-auto-pick">
+      <span className="os-auto-pick-label">
+        {label}
+        <InfoTip>{tip}</InfoTip>
+      </span>
+      <span className="os-select">
+        <select
+          value={v}
+          disabled={pending}
+          onChange={(e) => {
+            const next = e.target.value;
+            setV(next);
+            setNote(null);
+            start(async () => {
+              const r = await save(next || null);
+              setNote(r.error ? { kind: "error", text: r.error } : { kind: "ok", text: "Saved" });
+              router.refresh();
+            });
+          }}
+        >
+          <option value="">{empty}</option>
+          {options.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+            </option>
+          ))}
+        </select>
+      </span>
+      {note && (
+        <span className="os-auto-pick-note" data-kind={note.kind} role={note.kind === "error" ? "alert" : "status"}>
+          {note.text}
+        </span>
       )}
+    </label>
+  );
+}
+
+export default function SetterPicker({ automationId, setters, selected, defaultName, resources, resourceId }: Props) {
+  return (
+    <section className="os-auto-bar" aria-label="Campaign">
+      <Picker
+        label="Lead magnet"
+        tip="What this keyword hands out. Counted as a lead magnet sent; shown on the contact. Empty = worked out from the link."
+        value={resourceId}
+        empty="From the link"
+        options={resources}
+        save={(id) => setCampaignResource(automationId, id)}
+      />
+      <Picker
+        label="Setter"
+        tip="Who drafts when they reply. A contact keeps its setter."
+        value={selected}
+        empty={`Account default${defaultName ? ` (${defaultName})` : ""}`}
+        options={setters}
+        save={(id) => setCampaignSetter(automationId, id)}
+      />
     </section>
   );
 }
