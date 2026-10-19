@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { PageHead } from "@/components/os/page-head";
+import { KbIcon } from "@/components/os/knowledge/icons";
+import { NewSetter } from "@/components/os/knowledge/setter-list-actions";
 
-export function KbTabs({ active }: { active: "setters" | "resources" }) {
+/** Setters · Resources, under the header. */
+export function KbTabs({ active, settersHref = "/os/knowledge" }: { active: "setters" | "resources"; settersHref?: string }) {
   return (
-    <nav className="os-kb-tabs" aria-label="Knowledge bases">
-      <Link href="/os/knowledge" aria-current={active === "setters" ? "page" : undefined}>
+    <nav className="kb-tabs" aria-label="Knowledge bases">
+      <Link href={settersHref} aria-current={active === "setters" ? "page" : undefined}>
         Setters
       </Link>
       <Link href="/os/knowledge/resources" aria-current={active === "resources" ? "page" : undefined}>
@@ -14,31 +16,66 @@ export function KbTabs({ active }: { active: "setters" | "resources" }) {
   );
 }
 
-export function SetterHead({ id, name, active }: { id: string; name: string; active: "knowledge" | "sandbox" }) {
+interface SetterBarProps {
+  id: string;
+  name: string;
+  setters: { id: string; name: string }[];
+  /** Kept when switching setter, so you stay on the same file. */
+  query?: string;
+  active?: "knowledge" | "sandbox";
+}
+
+/** Knowledge bases › J, the setter switcher, Download .md and Test in sandbox. */
+export function SetterBar({ id, name, setters, query = "", active = "knowledge" }: SetterBarProps) {
   return (
     <>
-      <PageHead
-        eyebrow="Knowledge base"
-        title={name}
-        actions={
-          <div className="os-kb-inline">
-            <Link href="/os/knowledge" className="os-button ghost">
-              All setters
+      <header className="kb-bar">
+        <nav aria-label="Breadcrumb" className="kb-crumb">
+          <Link href="/os/knowledge">Knowledge bases</Link>
+          <KbIcon name="chevron" size={12} />
+          {active === "sandbox" ? <Link href={`/os/knowledge/${id}`}>{name}</Link> : <span className="kb-crumb-now">{name}</span>}
+          {active === "sandbox" && (
+            <>
+              <KbIcon name="chevron" size={12} />
+              <span className="kb-crumb-now">Sandbox</span>
+            </>
+          )}
+        </nav>
+        <div role="tablist" aria-label="Setter" className="kb-switch">
+          {setters.map((s) => (
+            <Link
+              key={s.id}
+              role="tab"
+              aria-selected={s.id === id}
+              href={`/os/knowledge/${s.id}${active === "sandbox" ? "/sandbox" : query}`}
+              className="kb-switch-tab"
+            >
+              <span className="kb-mark" data-on={s.id === id ? "true" : undefined} aria-hidden="true">
+                {s.name.trim().charAt(0).toUpperCase()}
+              </span>
+              {s.name}
             </Link>
-            <a href={`/os/knowledge/${id}/export`} className="os-button" download>
-              Download as markdown
-            </a>
-          </div>
-        }
-      />
-      <nav className="os-kb-tabs" aria-label="This setter">
-        <Link href={`/os/knowledge/${id}`} aria-current={active === "knowledge" ? "page" : undefined}>
-          Knowledge
-        </Link>
-        <Link href={`/os/knowledge/${id}/sandbox`} aria-current={active === "sandbox" ? "page" : undefined}>
-          Test this setter
-        </Link>
-      </nav>
+          ))}
+          <NewSetter setters={setters} compact />
+        </div>
+        <div className="kb-grow" />
+        <a href={`/os/knowledge/${id}/export`} className="kb-btn" download>
+          <KbIcon name="download" />
+          Download .md
+        </a>
+        {active === "knowledge" && (
+          <Link href={`/os/knowledge/${id}/sandbox`} className="kb-btn kb-btn-p">
+            <KbIcon name="play" />
+            Test in sandbox
+          </Link>
+        )}
+      </header>
+      <KbTabs active="setters" settersHref={`/os/knowledge/${id}`} />
     </>
   );
+}
+
+/** The sandbox page's header (same bar, the sandbox crumb). */
+export function SetterHead({ id, name, setters = [{ id, name }] }: { id: string; name: string; setters?: { id: string; name: string }[]; active?: string }) {
+  return <SetterBar id={id} name={name} setters={setters} active="sandbox" />;
 }

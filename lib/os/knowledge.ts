@@ -2,14 +2,22 @@
 // pages and client components. Writes are in app/(os)/os/knowledge/actions.ts.
 
 import { prisma } from "@/lib/db/client";
-import { offerIsOpen, type SetterProfile } from "@/lib/os/setter/profile";
+import { connectedCalendar } from "@/lib/os/integrations/calendar/store";
+import { bookingOf, type SetterBooking } from "@/lib/os/integrations/calendar/setter-booking";
+import { calendarName } from "@/lib/os/integrations/calendar/types";
+import { bookingLinkOf, offerIsOpen, type ClientSettings, type FunnelStage, type VoiceCorrection } from "@/lib/os/setter/profile";
 import { profileFromRow, type ResourceStatusName } from "@/lib/os/setter/kb";
+import { docCount, type DocKey } from "@/lib/os/setter/knowledge/docs";
+import { ensureDocs, loadDocViews, loadDocs, type DocRevisionView } from "@/lib/os/setter/knowledge/doc-store";
 import { resolveSequenceSet, type SequenceSet } from "@/lib/os/sequences/types";
+import { VOICE_SLOTS } from "@/lib/os/voice/slots";
+
+export type ResourceKind = "resource" | "setter" | "episode";
 
 export interface ResourceView {
   id: string;
   slug: string;
-  kind: "resource" | "setter";
+  kind: ResourceKind;
   name: string;
   link: string | null;
   keyword: string | null;
@@ -17,6 +25,14 @@ export interface ResourceView {
   description: string;
   /** How many setters may offer it. */
   setterCount: number;
+  /** Resource.keyword plus the keywords of campaigns mapped to it. */
+  keywords: { word: string; automationId: string | null }[];
+  usedBy: { id: string; name: string }[];
+  /** Times it went out (OsEvent lead_magnet_sent). */
+  sent: number;
+  /** Episodes: when J shares it. */
+  when: string;
+  sortOrder: number;
 }
 
 export interface SetterCard {
@@ -32,45 +48,64 @@ export interface SetterCard {
   updatedAt: string;
 }
 
-export interface SetterEditorView {
-  id: string;
-  name: string;
-  autonomy: "approve" | "auto";
-  isDefault: boolean;
-  instagramAccountId: string | null;
-  profile: SetterProfile;
-  enabledResourceIds: string[];
-  resources: ResourceView[];
-  accounts: { id: string; username: string }[];
-  campaigns: { id: string; name: string; setterId: string | null; setterName: string | null }[];
-  otherSetters: { id: string; name: string }[];
-  /** Follow-up sequences (lib/os/sequences), defaults filled in. */
-  sequences: SequenceSet;
+export const kindOf = (k: string): ResourceKind => (k === "setter" ? "setter" : k === "episode" ? "episode" : "resource");
+
+export function keywordsFor(
+  r: { id: string; keyword: string | null },
+  maps: { automationId: string; resourceId: string }[],
+  automations: { id: string; keywords: string[] }[]
+): { word: string; automationId: string | null }[] {
+  const out = new Map<string, { word: string; automationId: string | null }>();
+  for (const w of (r.keyword ?? "").split(/[,\s]+/)) if (w.trim()) out.set(w.trim().toUpperCase(), { word: w.trim().toUpperCase(), automationId: null });
+  for (const m of maps.filter((x) => x.resourceId === r.id)) {
+    const a = automations.find((x) => x.id === m.automationId);
+    for (const w of a?.keywords ?? []) if (w.trim()) out.set(w.trim().toUpperCase(), { word: w.trim().toUpperCase(), automationId: a!.id });
+  }
+  return [...out.values()];
 }
 
-type ResourceRow = Awaited<ReturnType<typeof prisma.resource.findMany>>[number] & { _count?: { setters: number } };
-
-function resourceView(r: ResourceRow): ResourceView {
-  return {
-    id: r.id,
-    slug: r.slug,
-    kind: r.kind === "setter" ? "setter" : "resource",
-    name: r.name,
-    link: r.link,
-    keyword: r.keyword,
-    status: r.status,
-    description: r.description,
-    setterCount: r._count?.setters ?? 0,
-  };
+export function sentCounts(events: { data: unknown }[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const e of events) {
+    const id = e.data && typeof e.data === "object" ? (e.data as { resourceId?: unknown }).resourceId : null;
+    if (typeof id === "string") out.set(id, (out.get(id) ?? 0) + 1);
+  }
+  return out;
 }
 
 export async function listResources(workspaceId: string): Promise<ResourceView[]> {
-  const rows = await prisma.resource.findMany({
-    where: { workspaceId },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    include: { _count: { select: { setters: true } } },
+  const [rows, maps, events] = await Promise.all([
+    prisma.resource.findMany({
+      where: { workspaceId },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      include: { setters: { select: { setter: { select: { id: true, name: true } } } } },
+    }),
+    prisma.campaignResource.findMany({ where: { workspaceId }, select: { automationId: true, resourceId: true } }).catch(() => []),
+    prisma.osEvent.findMany({ where: { workspaceId, kind: "lead_magnet_sent" }, select: { data: true } }).catch(() => []),
+  ]);
+  const automations = maps.length
+    ? await prisma.automation.findMany({ where: { workspaceId, id: { in: maps.map((m) => m.automationId) } }, select: { id: true, keywords: true } }).catch(() => [])
+    : [];
+  const sent = sentCounts(events);
+  return rows.map((r) => {
+    const data = (r.data && typeof r.data === "object" ? r.data : {}) as { when?: unknown };
+    return {
+      id: r.id,
+      slug: r.slug,
+      kind: kindOf(r.kind),
+      name: r.name,
+      link: r.link,
+      keyword: r.keyword,
+      status: r.status,
+      description: r.description,
+      setterCount: r.setters.length,
+      keywords: keywordsFor(r, maps, automations),
+      usedBy: r.setters.map((s) => s.setter),
+      sent: sent.get(r.id) ?? 0,
+      when: typeof data.when === "string" ? data.when : "",
+      sortOrder: r.sortOrder,
+    };
   });
-  return rows.map(resourceView);
 }
 
 export async function listSetterCards(workspaceId: string): Promise<SetterCard[]> {
@@ -83,51 +118,155 @@ export async function listSetterCards(workspaceId: string): Promise<SetterCard[]
     prisma.instagramAccount.findMany({ where: { workspaceId }, select: { id: true, username: true } }),
   ]);
   const today = new Date().toISOString().slice(0, 10);
-  return setters.map((s) => {
-    const p = profileFromRow(s);
-    const acc = accounts.find((a) => a.id === s.instagramAccountId);
-    return {
-      id: s.id,
-      name: s.name,
-      isDefault: s.isDefault,
-      defaultFor: s.isDefault ? (acc ? `@${acc.username}` : "this workspace") : null,
-      openOffers: p.offers.filter((o) => offerIsOpen(o, today)).length,
-      offers: p.offers.length,
-      leadMagnets: s._count.resources,
-      corrections: p.voiceCorrections.length,
-      campaigns: s._count.campaigns,
-      updatedAt: s.updatedAt.toISOString(),
-    };
-  });
+  return Promise.all(
+    setters.map(async (s) => {
+      const p = profileFromRow(s, await loadDocs(s.id).catch(() => null));
+      const acc = accounts.find((a) => a.id === s.instagramAccountId);
+      return {
+        id: s.id,
+        name: s.name,
+        isDefault: s.isDefault,
+        defaultFor: s.isDefault ? (acc ? `@${acc.username}` : "this workspace") : null,
+        openOffers: p.offers.filter((o) => offerIsOpen(o, today)).length,
+        offers: p.offers.length,
+        leadMagnets: s._count.resources,
+        corrections: p.voiceCorrections.length,
+        campaigns: s._count.campaigns,
+        updatedAt: s.updatedAt.toISOString(),
+      };
+    })
+  );
+}
+
+// ---------------------------------------------------------------- one setter
+export interface DocFileView {
+  key: DocKey;
+  body: string;
+  updatedAt: string | null;
+  count: number | null;
+  revisions: DocRevisionView[];
+}
+
+export interface FieldPick {
+  id: string;
+  key: string;
+  label: string;
+  type: string;
+  builtIn: boolean;
+  ghl: boolean;
+  kit: boolean;
+  on: boolean;
+  /** Other setters that fill it. */
+  usedBy: string[];
+}
+
+export interface BookingView extends SetterBooking {
+  configured: boolean;
+  /** What J sends when nothing is set here (Business.md or the old setting). */
+  inheritedLink: string;
+  calendar: {
+    provider: string;
+    eventName: string | null;
+    durationMinutes: number | null;
+    hours: string;
+    timezone: string;
+    minNoticeHours: number;
+  } | null;
+}
+
+export interface SetterEditorView {
+  id: string;
+  name: string;
+  autonomy: "approve" | "auto";
+  isDefault: boolean;
+  instagramAccountId: string | null;
+  settings: ClientSettings;
+  funnel: FunnelStage[];
+  voiceCorrections: VoiceCorrection[];
+  docs: DocFileView[];
+  setters: { id: string; name: string }[];
+  enabledResourceIds: string[];
+  resources: ResourceView[];
+  accounts: { id: string; username: string }[];
+  /** Follow-up sequences (lib/os/sequences), defaults filled in. */
+  sequences: SequenceSet;
+  fields: FieldPick[];
+  booking: BookingView;
+  testsRunning: number;
+  voice: { recorded: number; total: number };
+}
+
+const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const hh = (h: number) => `${String(h).padStart(2, "0")}:00`;
+
+/** [1,2,3,4,5] → "Mon–Fri". */
+export function daysLabel(days: number[]): string {
+  const d = [...days].sort();
+  if (!d.length) return "No days";
+  const contiguous = d.every((x, i) => i === 0 || x === d[i - 1] + 1);
+  return contiguous && d.length > 2 ? `${DAY[d[0]]}–${DAY[d[d.length - 1]]}` : d.map((x) => DAY[x]).join(", ");
 }
 
 export async function loadSetterEditor(workspaceId: string, setterId: string): Promise<SetterEditorView | null> {
   const s = await prisma.setter.findFirst({ where: { id: setterId, workspaceId }, include: { resources: { select: { resourceId: true } } } });
   if (!s) return null;
-  const [resources, accounts, automations, maps, setters, sequenceRows] = await Promise.all([
+  // The one-time JSON → docs import, lazily on first open.
+  await ensureDocs(s).catch((err) => console.error("[OS Knowledge] docs import failed:", err));
+  const [docs, resources, accounts, setters, sequenceRows, fieldRows, cal, testsRunning, clips] = await Promise.all([
+    loadDocViews(s.id),
     listResources(workspaceId),
     prisma.instagramAccount.findMany({ where: { workspaceId }, select: { id: true, username: true }, orderBy: { connectedAt: "asc" } }),
-    prisma.automation.findMany({ where: { workspaceId }, select: { id: true, name: true }, orderBy: { createdAt: "desc" } }),
-    prisma.campaignSetter.findMany({ where: { workspaceId }, select: { automationId: true, setterId: true } }),
     prisma.setter.findMany({ where: { workspaceId }, select: { id: true, name: true }, orderBy: { createdAt: "asc" } }),
     prisma.followupSequence.findMany({ where: { setterId, workspaceId } }),
+    prisma.customField.findMany({ where: { workspaceId }, orderBy: { sortOrder: "asc" }, include: { setters: { select: { setterId: true } } } }).catch(() => []),
+    connectedCalendar(workspaceId, s.id).catch(() => null),
+    prisma.experiment.count({ where: { workspaceId, status: "RUNNING", OR: [{ setterId: s.id }, { setterId: null }] } }).catch(() => 0),
+    prisma.voiceClip.findMany({ where: { setterId: s.id, slot: { not: null } }, select: { slot: true, audioId: true } }).catch(() => [] as { slot: string | null; audioId: string | null }[]),
   ]);
   const nameOf = new Map(setters.map((x) => [x.id, x.name]));
+  const profile = profileFromRow(s, Object.fromEntries(docs.filter((d) => d.updatedAt).map((d) => [d.key, d.body])));
+  const booking = bookingOf(s.settings);
   return {
     id: s.id,
     name: s.name,
     autonomy: s.autonomy === "AUTO" ? "auto" : "approve",
     isDefault: s.isDefault,
     instagramAccountId: s.instagramAccountId,
-    profile: profileFromRow(s),
+    settings: profile.settings,
+    funnel: profile.funnel,
+    voiceCorrections: profile.voiceCorrections,
+    docs: docs.map((d) => ({ ...d, count: docCount(d.key, d.body) })),
+    setters,
     enabledResourceIds: s.resources.map((r) => r.resourceId),
     resources,
     accounts,
-    campaigns: automations.map((a) => {
-      const m = maps.find((x) => x.automationId === a.id);
-      return { id: a.id, name: a.name, setterId: m?.setterId ?? null, setterName: m ? (nameOf.get(m.setterId) ?? null) : null };
-    }),
-    otherSetters: setters.filter((x) => x.id !== s.id),
     sequences: resolveSequenceSet(sequenceRows),
+    fields: fieldRows.map((f) => ({
+      id: f.id,
+      key: f.key,
+      label: f.label,
+      type: f.type,
+      builtIn: f.builtIn,
+      ghl: Boolean(f.ghlField),
+      kit: Boolean(f.kitField),
+      on: f.setters.some((x) => x.setterId === s.id),
+      usedBy: f.setters.filter((x) => x.setterId !== s.id).map((x) => nameOf.get(x.setterId) ?? "").filter(Boolean),
+    })),
+    booking: {
+      ...booking,
+      inheritedLink: bookingLinkOf(profile.settings) ? "" : profile.business.sections.booking_link || profile.settings.cal_com_url || "",
+      calendar: cal
+        ? {
+            provider: calendarName(cal.provider),
+            eventName: cal.eventName,
+            durationMinutes: cal.durationMinutes,
+            hours: `${daysLabel(cal.settings.workDays)} · ${hh(cal.settings.workStart)}–${hh(cal.settings.workEnd)}`,
+            timezone: cal.settings.hostTimezone,
+            minNoticeHours: cal.settings.minNoticeHours,
+          }
+        : null,
+    },
+    testsRunning,
+    voice: { recorded: new Set(clips.filter((c) => c.audioId).map((c) => c.slot)).size, total: VOICE_SLOTS.length },
   };
 }

@@ -5,6 +5,7 @@
 
 import { useId, useState, useTransition } from "react";
 import type { ActionResult } from "@/app/(os)/os/knowledge/actions";
+import { InfoTip } from "@/components/os/ui";
 
 export function useSaver() {
   const [pending, start] = useTransition();
@@ -36,9 +37,9 @@ export function Section({ id, title, description, children, onSave, dirty, pendi
   return (
     <section id={id} className="os-kb-section" aria-labelledby={`${id}-title`}>
       <header className="os-kb-section-head">
-        <div>
+        <div className="os-kb-section-title">
           <h2 id={`${id}-title`}>{title}</h2>
-          {description && <p>{description}</p>}
+          {description && <InfoTip label={`About ${title}`}>{description}</InfoTip>}
         </div>
         {aside}
       </header>

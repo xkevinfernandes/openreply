@@ -6,6 +6,7 @@
 import { useState, useTransition } from "react";
 import { saveFollowupSequence } from "@/app/(os)/os/knowledge/actions";
 import { Field, Section, Switch, TextArea, TextInput } from "@/components/os/knowledge/fields";
+import { InfoTip } from "@/components/os/ui";
 import {
   SEQUENCE_KEYS,
   SEQUENCE_META,
@@ -18,9 +19,9 @@ import {
 } from "@/lib/os/sequences/types";
 
 const GROUPS: { id: "no_reply" | "booked" | "after_call"; title: string; lede: string }[] = [
-  { id: "no_reply", title: "When they go quiet", lede: "Value first, then social proof, a direct ask, a breakup. Stops the moment they reply. Fits inside Instagram's 7-day window." },
-  { id: "booked", title: "Booked, before the call", lede: "Times are in their timezone, counted from the booking or the call. A reschedule moves them, a cancel stops them." },
-  { id: "after_call", title: "After the call", lede: "From the calendar, or when you mark Showed / No-show on the contact." },
+  { id: "no_reply", title: "Gone quiet", lede: "Value first, then social proof, a direct ask, a breakup. Stops the moment they reply. Fits inside Instagram's 7-day window." },
+  { id: "booked", title: "Before the call", lede: "Times are in their timezone, counted from the booking or the call. A reschedule moves them, a cancel stops them." },
+  { id: "after_call", title: "After the call: Showed / No-show", lede: "From the calendar, or when you mark Showed / No-show on the contact." },
 ];
 
 const TIMING_NAMES: Record<StepTiming["kind"], string> = {
@@ -33,14 +34,15 @@ const TIMING_NAMES: Record<StepTiming["kind"], string> = {
 export default function FollowupsEditor({ setterId, sequences }: { setterId: string; sequences: SequenceSet }) {
   return (
     <Section
-      id="follow-ups"
+      id="followups"
       title="Follow-ups"
-      description="What J sends when nothing happens, before a call, and after it. Every step is a draft you approve, and J may hold if nothing natural fits."
+      description="J writes each step at send time. Every step is a draft you approve, and J may hold if nothing natural fits."
     >
       {GROUPS.map((g) => (
         <div key={g.id} className="os-seq-group">
-          <h3 className="os-kb-sub">{g.title}</h3>
-          <p className="os-kb-help">{g.lede}</p>
+          <h3 className="os-kb-sub">
+            {g.title} <InfoTip label={`About ${g.title}`}>{g.lede}</InfoTip>
+          </h3>
           <ul className="os-seq-list">
             {SEQUENCE_KEYS.filter((k) => SEQUENCE_META[k].group === g.id).map((k) => (
               <SequenceCard key={k} setterId={setterId} initial={sequences[k]} />

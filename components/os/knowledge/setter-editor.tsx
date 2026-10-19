@@ -1,40 +1,20 @@
 "use client";
 
-// One knowledge base: Setup, Voice, Offers, Funnel, Lead magnets, Examples,
-// Voice corrections, Campaigns. Each section saves on its own, so an edit in
-// one never overwrites another.
+// One setter's Setup pages (the left tree's lower half): Funnel, Lead magnets,
+// Voice corrections, Tests, Autopilot and Profile. Each saves on its own, so
+// an edit in one never overwrites another. The knowledge itself (voice,
+// business, offers, objections, examples) is in the Markdown files.
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import {
-  deleteSetter,
-  saveSetter,
-  setCampaignSetter,
-  setDefaultFor,
-  setLeadMagnet,
-  type ActionResult,
-  type SetterPatch,
-} from "@/app/(os)/os/knowledge/actions";
-import FollowupsEditor from "@/components/os/knowledge/followups-editor";
+import { deleteSetter, saveSetter, setDefaultFor, setLeadMagnet, type ActionResult, type SetterPatch } from "@/app/(os)/os/knowledge/actions";
 import { Field, RepeatItem, Section, Select, Switch, TextArea, TextInput, useSaver } from "@/components/os/knowledge/fields";
-import VoiceNotesSection from "@/components/os/knowledge/voice-notes-section";
 import type { SetterEditorView } from "@/lib/os/knowledge";
+import type { FunnelStage, VoiceCorrection } from "@/lib/os/setter/profile";
+import BookingSetup from "@/components/os/knowledge/booking-setup";
+import VoiceNotesSection from "@/components/os/knowledge/voice-notes-section";
 import type { VoiceClipView } from "@/lib/os/voice/clips";
-import { BUSINESS_FIELDS, type FunnelStage, type Objection, type Offer, type VoiceCorrection } from "@/lib/os/setter/profile";
-
-export const SECTIONS = [
-  ["setup", "Setup"],
-  ["voice", "Voice"],
-  ["voice-notes", "Voice notes"],
-  ["offers", "Offers"],
-  ["funnel", "Funnel"],
-  ["lead-magnets", "Lead magnets"],
-  ["examples", "Examples"],
-  ["corrections", "Voice corrections"],
-  ["campaigns", "Campaigns"],
-  ["follow-ups", "Follow-ups"],
-] as const;
 
 function useSection<T>(initial: T) {
   const [value, set] = useState<T>(initial);
@@ -52,39 +32,11 @@ function useSection<T>(initial: T) {
   return { value, set, dirty, save, ...saver };
 }
 
-export default function SetterEditor({ view, voiceClips = [], sampleData = false }: { view: SetterEditorView; voiceClips?: VoiceClipView[]; sampleData?: boolean }) {
-  const save = (p: SetterPatch) => saveSetter(view.id, p);
-  return (
-    <div className="os-kb-editor">
-      <nav className="os-kb-index" aria-label="Sections">
-        {SECTIONS.map(([id, label]) => (
-          <a key={id} href={`#${id}`}>
-            {label}
-          </a>
-        ))}
-      </nav>
-      <div className="os-kb-sections">
-        <SetupSection view={view} save={save} />
-        <VoiceSection view={view} save={save} />
-        <VoiceNotesSection setterId={view.id} clips={voiceClips} sampleData={sampleData} />
-        <OffersSection view={view} save={save} />
-        <FunnelSection view={view} save={save} />
-        <LeadMagnetsSection view={view} />
-        <ExamplesSection view={view} save={save} />
-        <CorrectionsSection view={view} save={save} />
-        <CampaignsSection view={view} />
-        <FollowupsEditor setterId={view.id} sequences={view.sequences} />
-        <DangerZone view={view} />
-      </div>
-    </div>
-  );
-}
-
 type SaveFn = (p: SetterPatch) => Promise<ActionResult>;
 
-// ---------------------------------------------------------------- setup
-function SetupSection({ view, save }: { view: SetterEditorView; save: SaveFn }) {
-  const s = view.profile.settings;
+// ---------------------------------------------------------------- profile
+export function ProfileSetup({ view, save }: { view: SetterEditorView; save: SaveFn }) {
+  const s = view.settings;
   const sec = useSection({
     name: view.name,
     autonomy: view.autonomy,
@@ -105,8 +57,8 @@ function SetupSection({ view, save }: { view: SetterEditorView; save: SaveFn }) 
   ];
   return (
     <Section
-      id="setup"
-      title="Setup"
+      id="profile"
+      title="Profile"
       description="Who this setter is and when it answers. The Setting Script (the method) is shared by every setter and ships with the app."
       onSave={() =>
         sec.save(
@@ -190,172 +142,9 @@ function SetupSection({ view, save }: { view: SetterEditorView; save: SaveFn }) 
   );
 }
 
-// ---------------------------------------------------------------- voice
-function VoiceSection({ view, save }: { view: SetterEditorView; save: SaveFn }) {
-  const sec = useSection({ voice: view.profile.voice, voiceExamples: view.profile.voiceExamples });
-  return (
-    <Section
-      id="voice"
-      title="Voice"
-      description="How this setter texts. Overrides the method's default voice rules."
-      onSave={() => sec.save((x) => x, save)}
-      dirty={sec.dirty}
-      pending={sec.pending}
-      note={sec.note}
-    >
-      <Field label="Voice rules" hint="Markdown. Energy, words they use, words they never use." wide>
-        {(id) => <TextArea id={id} rows={14} value={sec.value.voice} onChange={(x) => sec.set({ ...sec.value, voice: x })} mono />}
-      </Field>
-      <Field label="Short examples" hint="A few lines in the voice. J learns the pattern, never copies them." wide>
-        {(id) => <TextArea id={id} rows={8} value={sec.value.voiceExamples} onChange={(x) => sec.set({ ...sec.value, voiceExamples: x })} mono />}
-      </Field>
-    </Section>
-  );
-}
-
-// ---------------------------------------------------------------- offers
-const EMPTY_OFFER: Offer = { name: "", status: "draft", sold_by: "call", price_in_dms: "no", notes: "" };
-
-function OffersSection({ view, save }: { view: SetterEditorView; save: SaveFn }) {
-  const sec = useSection({
-    offers: view.profile.offers,
-    sections: view.profile.business.sections as Record<string, string>,
-    objections: view.profile.business.objections,
-  });
-  const v = sec.value;
-  const setOffer = (i: number, p: Partial<Offer>) => sec.set({ ...v, offers: v.offers.map((o, j) => (j === i ? { ...o, ...p } : o)) });
-  const setObj = (i: number, p: Partial<Objection>) => sec.set({ ...v, objections: v.objections.map((o, j) => (j === i ? { ...o, ...p } : o)) });
-  return (
-    <Section
-      id="offers"
-      title="Offers"
-      description="What J may invite to, and the facts it may state. A blank fact is told to J as unknown, so leaving one empty is safe; guessing is not."
-      onSave={() =>
-        sec.save((x) => ({ offers: x.offers, business: { sections: x.sections, objections: x.objections } }), save)
-      }
-      dirty={sec.dirty}
-      pending={sec.pending}
-      note={sec.note}
-    >
-      <h3 className="os-kb-sub">Offers J can invite to</h3>
-      <p className="os-kb-help">J only ever invites to an open offer, and never mentions a closed one.</p>
-      <ul className="os-kb-list">
-        {v.offers.map((o, i) => (
-          <RepeatItem key={i} removeLabel="Remove offer" onRemove={() => sec.set({ ...v, offers: v.offers.filter((_, j) => j !== i) })}>
-            <div className="os-kb-grid2">
-              <Field label="Name">{(id) => <TextInput id={id} value={o.name} onChange={(x) => setOffer(i, { name: x })} />}</Field>
-              <Field label="Status">
-                {(id) => (
-                  <Select
-                    id={id}
-                    value={o.status}
-                    onChange={(x) => setOffer(i, { status: x })}
-                    options={[
-                      ["open", "Open"],
-                      ["draft", "Draft"],
-                      ["closed", "Closed"],
-                    ]}
-                  />
-                )}
-              </Field>
-              <Field label="Action" hint="What J does at the bridge.">
-                {(id) => (
-                  <Select
-                    id={id}
-                    value={o.sold_by}
-                    onChange={(x) => setOffer(i, { sold_by: x })}
-                    options={[
-                      ["call", "Book a call"],
-                      ["doc", "Send the offer doc"],
-                      ["either", "Call or doc (you pick)"],
-                    ]}
-                  />
-                )}
-              </Field>
-              <Field label="Price band" hint="e.g. 3.5k, $2k–5k">
-                {(id) => <TextInput id={id} value={o.price ?? ""} onChange={(x) => setOffer(i, { price: x })} />}
-              </Field>
-              <Field label="Price in DMs">
-                {(id) => (
-                  <Select
-                    id={id}
-                    value={o.price_in_dms ?? "no"}
-                    onChange={(x) => setOffer(i, { price_in_dms: x })}
-                    options={[
-                      ["no", "Never said in DMs"],
-                      ["yes", "J may say it"],
-                    ]}
-                  />
-                )}
-              </Field>
-              <Field label="Length">{(id) => <TextInput id={id} value={o.length ?? ""} onChange={(x) => setOffer(i, { length: x })} />}</Field>
-              <Field label="Link" hint="The offer doc or sales page.">
-                {(id) => <TextInput id={id} value={o.doc_url ?? ""} placeholder="https://" onChange={(x) => setOffer(i, { doc_url: x })} />}
-              </Field>
-              <Field label="Payment link">
-                {(id) => <TextInput id={id} value={o.payment_url ?? ""} placeholder="https://" onChange={(x) => setOffer(i, { payment_url: x })} />}
-              </Field>
-              <Field label="Open from" hint="Optional, YYYY-MM-DD">
-                {(id) => <TextInput id={id} type="date" value={o.open_from ?? ""} onChange={(x) => setOffer(i, { open_from: x })} />}
-              </Field>
-              <Field label="Open until" hint="Optional: closes after this day">
-                {(id) => <TextInput id={id} type="date" value={o.open_until ?? ""} onChange={(x) => setOffer(i, { open_until: x })} />}
-              </Field>
-            </div>
-            <Field label="Pitch" hint="One or two lines J can paraphrase." wide>
-              {(id) => <TextArea id={id} rows={2} value={o.pitch ?? ""} onChange={(x) => setOffer(i, { pitch: x })} />}
-            </Field>
-            <Field label="Fit criteria" hint="Who this offer is right for. J uses it to pick between open offers." wide>
-              {(id) => <TextArea id={id} rows={2} value={o.fit_criteria ?? ""} onChange={(x) => setOffer(i, { fit_criteria: x })} />}
-            </Field>
-            <Field label="Notes" hint="Anything else J should know about this offer." wide>
-              {(id) => <TextArea id={id} rows={3} value={o.notes} onChange={(x) => setOffer(i, { notes: x })} />}
-            </Field>
-          </RepeatItem>
-        ))}
-      </ul>
-      <button type="button" className="os-button" onClick={() => sec.set({ ...v, offers: [...v.offers, { ...EMPTY_OFFER }] })}>
-        Add offer
-      </button>
-
-      <h3 className="os-kb-sub">The business</h3>
-      <div className="os-kb-grid2">
-        {BUSINESS_FIELDS.map((f) => (
-          <Field key={f.key} label={f.label} hint={f.hint || undefined}>
-            {(id) =>
-              f.key === "booking_link" ? (
-                <TextInput id={id} value={v.sections[f.key] ?? ""} placeholder="https://cal.com/…" onChange={(x) => sec.set({ ...v, sections: { ...v.sections, [f.key]: x } })} />
-              ) : (
-                <TextArea id={id} rows={3} value={v.sections[f.key] ?? ""} onChange={(x) => sec.set({ ...v, sections: { ...v.sections, [f.key]: x } })} />
-              )
-            }
-          </Field>
-        ))}
-      </div>
-
-      <h3 className="os-kb-sub">Objections</h3>
-      <ul className="os-kb-list">
-        {v.objections.map((o, i) => (
-          <RepeatItem key={i} removeLabel="Remove objection" onRemove={() => sec.set({ ...v, objections: v.objections.filter((_, j) => j !== i) })}>
-            <Field label="When they say" wide>
-              {(id) => <TextInput id={id} value={o.objection} onChange={(x) => setObj(i, { objection: x })} />}
-            </Field>
-            <Field label="J answers" wide>
-              {(id) => <TextArea id={id} rows={3} value={o.response} onChange={(x) => setObj(i, { response: x })} />}
-            </Field>
-          </RepeatItem>
-        ))}
-      </ul>
-      <button type="button" className="os-button" onClick={() => sec.set({ ...v, objections: [...v.objections, { objection: "", response: "" }] })}>
-        Add objection
-      </button>
-    </Section>
-  );
-}
-
 // ---------------------------------------------------------------- funnel
-function FunnelSection({ view, save }: { view: SetterEditorView; save: SaveFn }) {
-  const sec = useSection<FunnelStage[]>(view.profile.funnel);
+export function FunnelSetup({ view, save }: { view: SetterEditorView; save: SaveFn }) {
+  const sec = useSection<FunnelStage[]>(view.funnel);
   const setStage = (i: number, p: Partial<FunnelStage>) => sec.set(sec.value.map((s, j) => (j === i ? { ...s, ...p } : s)));
   const move = (i: number, d: -1 | 1) => {
     const next = [...sec.value];
@@ -402,7 +191,7 @@ function FunnelSection({ view, save }: { view: SetterEditorView; save: SaveFn })
 }
 
 // ---------------------------------------------------------------- lead magnets
-function LeadMagnetsSection({ view }: { view: SetterEditorView }) {
+export function LeadMagnetsSetup({ view }: { view: SetterEditorView }) {
   const [on, setOn] = useState(() => new Set(view.enabledResourceIds));
   const [error, setError] = useState<string | null>(null);
   const [, start] = useTransition();
@@ -462,29 +251,9 @@ export function StatusChip({ status }: { status: "ACTIVE" | "TEST" | "DRAFT" }) 
   );
 }
 
-// ---------------------------------------------------------------- examples
-function ExamplesSection({ view, save }: { view: SetterEditorView; save: SaveFn }) {
-  const sec = useSection(view.profile.examples);
-  return (
-    <Section
-      id="examples"
-      title="Examples"
-      description="Whole threads, opener to booked, in this setter's voice. J studies the rhythm and pacing; it never copies them."
-      onSave={() => sec.save((x) => ({ examples: x }), save)}
-      dirty={sec.dirty}
-      pending={sec.pending}
-      note={sec.note}
-    >
-      <Field label="Example threads" hint="Markdown. One ## heading per thread, then - prospect: / - setter: lines." wide>
-        {(id) => <TextArea id={id} rows={18} value={sec.value} onChange={sec.set} mono />}
-      </Field>
-    </Section>
-  );
-}
-
 // ---------------------------------------------------------------- corrections
-function CorrectionsSection({ view, save }: { view: SetterEditorView; save: SaveFn }) {
-  const sec = useSection<VoiceCorrection[]>(view.profile.voiceCorrections);
+export function CorrectionsSetup({ view, save }: { view: SetterEditorView; save: SaveFn }) {
+  const sec = useSection<VoiceCorrection[]>(view.voiceCorrections);
   const set = (i: number, p: Partial<VoiceCorrection>) => sec.set(sec.value.map((c, j) => (j === i ? { ...c, ...p } : c)));
   const [draft, setDraft] = useState({ wrote: "", sent: "", why: "" });
   function addFromDraft() {
@@ -541,52 +310,7 @@ function CorrectionsSection({ view, save }: { view: SetterEditorView; save: Save
   );
 }
 
-// ---------------------------------------------------------------- campaigns
-function CampaignsSection({ view }: { view: SetterEditorView }) {
-  const router = useRouter();
-  const saver = useSaver();
-  return (
-    <Section
-      id="campaigns"
-      title="Campaigns"
-      description="People who come in through a campaign checked here are answered by this setter instead of the account default. A contact keeps its setter."
-    >
-      {!view.campaigns.length && <p className="os-kb-help">No OpenReply campaigns in this workspace yet.</p>}
-      <ul className="os-kb-toggles">
-        {view.campaigns.map((c) => {
-          const mine = c.setterId === view.id;
-          return (
-            <li key={c.id} data-off={mine ? undefined : "true"}>
-              <div className="os-kb-toggle-text">
-                <strong>{c.name}</strong>
-                <span className="os-kb-url">{mine ? "Answered by this setter" : c.setterName ? `Answered by ${c.setterName}` : "Account default"}</span>
-              </div>
-              <Switch
-                checked={mine}
-                disabled={saver.pending}
-                label={`${c.name} uses this setter`}
-                onChange={(x) =>
-                  saver.run(async () => {
-                    const r = await setCampaignSetter(c.id, x ? view.id : null);
-                    router.refresh();
-                    return r;
-                  })
-                }
-              />
-            </li>
-          );
-        })}
-      </ul>
-      {saver.note?.kind === "error" && (
-        <p className="os-kb-note" data-kind="error">
-          {saver.note.text}
-        </p>
-      )}
-    </Section>
-  );
-}
-
-function DangerZone({ view }: { view: SetterEditorView }) {
+export function DangerZone({ view }: { view: SetterEditorView }) {
   const saver = useSaver();
   const [confirming, setConfirming] = useState(false);
   return (
@@ -610,5 +334,62 @@ function DangerZone({ view }: { view: SetterEditorView }) {
         </div>
       )}
     </section>
+  );
+}
+
+// ---------------------------------------------------------------- tests
+export function TestsSetup({ view }: { view: SetterEditorView }) {
+  return (
+    <Section id="tests" title="Tests" description="Line A/B tests: two versions of one line, split across new conversations. They live in Automations › Tests.">
+      <p className="kb-line">
+        <strong>{view.testsRunning}</strong> running for {view.name}
+        <Link href="/os/automations/experiments" className="kb-btn">
+          Open Tests
+        </Link>
+      </p>
+    </Section>
+  );
+}
+
+// ---------------------------------------------------------------- autopilot
+export function AutopilotSetup({ view }: { view: SetterEditorView }) {
+  return (
+    <Section id="autopilot" title="Autopilot" description="Per stage, whether drafts send on their own. For now every draft waits for your Approve.">
+      <ol className="kb-auto">
+        {view.funnel.map((s, i) => (
+          <li key={s.key || i}>
+            <span className="kb-auto-n">{i + 1}</span>
+            <span>{s.label}</span>
+            <span className="kb-quiet">Approve</span>
+          </li>
+        ))}
+      </ol>
+      {!view.funnel.length && <p className="kb-quiet">Add funnel stages first.</p>}
+    </Section>
+  );
+}
+
+// ---------------------------------------------------------------- the pane
+export type SetupPage = "funnel" | "lead-magnets" | "voice-notes" | "booking" | "tests" | "corrections" | "autopilot" | "profile";
+
+/** The right pane for a Setup item. */
+export default function SetupPane({ view, page, voiceClips = [], sampleData = false }: { view: SetterEditorView; page: SetupPage; voiceClips?: VoiceClipView[]; sampleData?: boolean }) {
+  const save = (p: SetterPatch) => saveSetter(view.id, p);
+  return (
+    <div className="kb-setup">
+      {page === "funnel" && <FunnelSetup view={view} save={save} />}
+      {page === "lead-magnets" && <LeadMagnetsSetup view={view} />}
+      {page === "voice-notes" && <VoiceNotesSection setterId={view.id} clips={voiceClips} sampleData={sampleData} />}
+      {page === "booking" && <BookingSetup view={view} />}
+      {page === "tests" && <TestsSetup view={view} />}
+      {page === "corrections" && <CorrectionsSetup view={view} save={save} />}
+      {page === "autopilot" && <AutopilotSetup view={view} />}
+      {page === "profile" && (
+        <>
+          <ProfileSetup view={view} save={save} />
+          <DangerZone view={view} />
+        </>
+      )}
+    </div>
   );
 }

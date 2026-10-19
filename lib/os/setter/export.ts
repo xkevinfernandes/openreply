@@ -43,6 +43,7 @@ export function setterMarkdown(p: SetterProfile, resources: ExportResource[], ex
     `- Audience: ${(s.audience || "b2b").toUpperCase()}`,
     `- Allowed emojis: ${(s.allowed_emojis ?? []).join(" ") || "none"}`,
     "",
+    ...(p.persona?.trim() ? [block("Who you are", p.persona)] : []),
     block("Voice", p.voice),
     block("Voice examples", p.voiceExamples),
     "## The business\n",
@@ -73,6 +74,14 @@ export function setterMarkdown(p: SetterProfile, resources: ExportResource[], ex
         )
         .join("\n") + "\n"
     );
+  if (p.episodes?.length) {
+    out.push("## Best episodes\n");
+    out.push(p.episodes.map((e, i) => `${i + 1}. **${e.name}** ${e.link}${e.when ? ` — ${e.when.replace(/\n/g, " ")}` : ""}`).join("\n") + "\n");
+  }
+  if (p.fields?.length) {
+    out.push("## Fields J fills\n");
+    out.push(p.fields.map((f) => `- ${f.label} (\`${f.key}\`, ${f.type.toLowerCase()})`).join("\n") + "\n");
+  }
   out.push(block("Conversation examples", p.examples));
   out.push(block("Voice corrections", correctionsMarkdown(p.voiceCorrections).replace(/^## /gm, "### ")));
   return out.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";

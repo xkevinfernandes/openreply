@@ -3,14 +3,20 @@
 import { useState } from "react";
 import { createSetter, importKnowledge } from "@/app/(os)/os/knowledge/actions";
 import { useSaver } from "@/components/os/knowledge/fields";
+import { KbIcon } from "@/components/os/knowledge/icons";
 
-export function NewSetter({ setters }: { setters: { id: string; name: string }[] }) {
+export function NewSetter({ setters, compact = false }: { setters: { id: string; name: string }[]; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [copy, setCopy] = useState(setters[0]?.id ?? "");
   const saver = useSaver();
   if (!open) {
-    return (
+    return compact ? (
+      <button type="button" className="kb-switch-tab kb-switch-new" onClick={() => setOpen(true)}>
+        <KbIcon name="plus" size={12} />
+        New setter
+      </button>
+    ) : (
       <button type="button" className="os-button primary" onClick={() => setOpen(true)}>
         New setter
       </button>
