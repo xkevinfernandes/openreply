@@ -428,7 +428,7 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
             defaultEdgeOptions={{ type: "default" }}
             proOptions={{ hideAttribution: true }}
           >
-            <Background variant={BackgroundVariant.Dots} gap={16} size={1.2} color="rgb(17 17 17 / 0.16)" />
+            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgb(17 17 17 / 0.08)" />
             <Controls showInteractive={false} position="bottom-left" />
             <MiniMap position="bottom-right" pannable zoomable nodeColor="rgb(17 17 17 / 0.14)" nodeStrokeWidth={0} maskColor="rgb(247 247 245 / 0.7)" ariaLabel="Minimap" />
           </ReactFlow>
