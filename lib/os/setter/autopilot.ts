@@ -21,7 +21,7 @@ export const AUTO_FLAG = "autopilot";
 /** The OsEvent kind logged for every auto-send. */
 export const AUTO_EVENT = "autopilot_sent";
 /** Drafts that always wait for a person, whatever the stage says. */
-export const NEEDS_A_PERSON = ["human_agent", "price", "unqualified", "sample", "calendar_off"] as const;
+export const NEEDS_A_PERSON = ["human_agent", "price", "unqualified", "sample", "calendar_off", "hand_to_kevin"] as const;
 /** The pause before an auto-send: long enough to read as a person, short enough to matter. */
 export const DELAY_MS = { min: 25_000, max: 75_000 } as const;
 

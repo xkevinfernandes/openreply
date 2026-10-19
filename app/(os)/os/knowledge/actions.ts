@@ -289,7 +289,7 @@ export async function runSandbox(
   try {
     const setter = await dbKnowledge.forSetter(workspaceId, setterId);
     if (!setter) return { error: "That knowledge base is gone. Refresh the page." };
-    const reply = await sandboxReply(setter, TurnsSchema.parse(turns), { entrySlug });
+    const reply = await sandboxReply(setter, TurnsSchema.parse(turns), { entrySlug, workspaceId });
     return { reply };
   } catch (err) {
     console.error("[OS Sandbox]", err);

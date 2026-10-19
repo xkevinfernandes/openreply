@@ -74,7 +74,7 @@ describe("autopilot: the decision", () => {
 
   it("leaves bookings, flagged, held and handled drafts to a person", () => {
     expect(decideAutoSend({ draft: draft({ kind: "booking" }), contact: contact(), funnel: FUNNEL }).send).toBe(false);
-    for (const f of ["human_agent", "price", "unqualified", "sample", "calendar_off"]) expect(decideAutoSend({ draft: draft({ flags: [f] }), contact: contact(), funnel: FUNNEL }).send).toBe(false);
+    for (const f of ["human_agent", "price", "unqualified", "sample", "calendar_off", "hand_to_kevin"]) expect(decideAutoSend({ draft: draft({ flags: [f] }), contact: contact(), funnel: FUNNEL }).send).toBe(false);
     expect(decideAutoSend({ draft: draft(), contact: contact(), funnel: FUNNEL, held: true }).send).toBe(false);
     expect(decideAutoSend({ draft: draft({ status: "SENT" }), contact: contact(), funnel: FUNNEL }).send).toBe(false);
     expect(decideAutoSend({ draft: draft({ setterStage: "bridge", flags: ["invite"] }), contact: contact(), funnel: FUNNEL }).send).toBe(true);
