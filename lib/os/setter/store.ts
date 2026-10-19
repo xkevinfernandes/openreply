@@ -10,6 +10,7 @@ import { isBookingPayload, type BookingPayload } from "@/lib/os/integrations/cal
 import { mockContact, mockContactExtras, mockMessages, osMockEnabled } from "@/lib/os/mock";
 import type { SetterRecord, ThreadMessage } from "@/lib/os/setter/state";
 import { readSetterThread } from "@/lib/os/setter/thread";
+import { voiceTranscripts } from "@/lib/os/voice/store";
 
 export interface SetterContact {
   id: string;
@@ -52,6 +53,8 @@ export interface DraftView {
   sendError?: string | null;
   /** A/B lines this draft carries (lib/os/experiments). */
   abVariants?: AbTag[] | null;
+  /** The knowledge base that wrote it (its voice bank plays on Approve). */
+  setterId?: string | null;
 }
 
 export interface NewDraft {
@@ -115,6 +118,7 @@ function view(d: DraftRow): DraftView {
     booking: isBookingPayload(d.booking) ? d.booking : null,
     sendError: d.sendError,
     abVariants: d.abVariants ? readAbTags(d.abVariants) : null,
+    setterId: d.setterId,
   };
 }
 
@@ -143,7 +147,12 @@ const dbStore: SetterStore = {
     const account = await getInboxAccount(contact.workspaceId);
     if (!account) throw new Error("Instagram account not connected.");
     if (!contact.conversationId) throw new Error("No conversation recorded for this contact yet. Open it in the Inbox once.");
-    return readSetterThread(account, contact.conversationId);
+    const [msgs, voice] = await Promise.all([
+      readSetterThread(account, contact.conversationId),
+      voiceTranscripts(contact.workspaceId, contact.conversationId).catch(() => new Map<string, string>()),
+    ]);
+    // Our voice notes read as the line said, not "[audio attachment]".
+    return voice.size ? msgs.map((m) => (voice.has(m.id) ? { ...m, text: voice.get(m.id)!, attachment: null } : m)) : msgs;
   },
   async loadState(contactId) {
     const row = await prisma.setterState.findUnique({ where: { contactId } });
@@ -253,6 +262,7 @@ const mockStore: SetterStore = {
       incoming: !m.fromMe,
       at: (m.createdTime ?? "").replace(/\.\d{3}Z$/, "Z"),
       attachment: m.attachment ?? null,
+      ...(m.voice ? { text: m.voice.transcript ? `[voice note] ${m.voice.transcript}` : "[voice note]" } : {}),
     }));
   },
   async loadState(contactId) {
@@ -281,6 +291,7 @@ const mockStore: SetterStore = {
       createdAt: new Date().toISOString(),
       booking: input.booking ?? null,
       abVariants: input.abVariants ?? null,
+      setterId: input.setterId ?? null,
     };
     mem.drafts.set(d.id, d);
     return d;

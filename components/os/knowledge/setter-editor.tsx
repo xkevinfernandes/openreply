@@ -17,12 +17,15 @@ import {
   type SetterPatch,
 } from "@/app/(os)/os/knowledge/actions";
 import { Field, RepeatItem, Section, Select, Switch, TextArea, TextInput, useSaver } from "@/components/os/knowledge/fields";
+import VoiceNotesSection from "@/components/os/knowledge/voice-notes-section";
 import type { SetterEditorView } from "@/lib/os/knowledge";
+import type { VoiceClipView } from "@/lib/os/voice/clips";
 import { BUSINESS_FIELDS, type FunnelStage, type Objection, type Offer, type VoiceCorrection } from "@/lib/os/setter/profile";
 
 export const SECTIONS = [
   ["setup", "Setup"],
   ["voice", "Voice"],
+  ["voice-notes", "Voice notes"],
   ["offers", "Offers"],
   ["funnel", "Funnel"],
   ["lead-magnets", "Lead magnets"],
@@ -47,7 +50,7 @@ function useSection<T>(initial: T) {
   return { value, set, dirty, save, ...saver };
 }
 
-export default function SetterEditor({ view }: { view: SetterEditorView }) {
+export default function SetterEditor({ view, voiceClips = [], sampleData = false }: { view: SetterEditorView; voiceClips?: VoiceClipView[]; sampleData?: boolean }) {
   const save = (p: SetterPatch) => saveSetter(view.id, p);
   return (
     <div className="os-kb-editor">
@@ -61,6 +64,7 @@ export default function SetterEditor({ view }: { view: SetterEditorView }) {
       <div className="os-kb-sections">
         <SetupSection view={view} save={save} />
         <VoiceSection view={view} save={save} />
+        <VoiceNotesSection setterId={view.id} clips={voiceClips} sampleData={sampleData} />
         <OffersSection view={view} save={save} />
         <FunnelSection view={view} save={save} />
         <LeadMagnetsSection view={view} />

@@ -49,6 +49,8 @@ import {
 } from "@/lib/os/setter/state";
 import { dbKnowledge } from "@/lib/os/setter/setters";
 import { setterStore, type DraftView, type SetterContact, type SetterStore } from "@/lib/os/setter/store";
+import { planBubbles, voiceBlock, type BankClip, type BubblePlan } from "@/lib/os/voice/match";
+import { voiceBank, type VoiceBank } from "@/lib/os/voice/store";
 
 export type DraftResult =
   | { status: "drafted"; draft: DraftView }
@@ -73,6 +75,13 @@ export interface DraftOptions {
   bookings?: BookingStore;
   /** A/B lines (default: DB / OS_MOCK). */
   experiments?: ExperimentStore;
+  /** The voice bank (default: DB / OS_MOCK; none when a test passes its own store). */
+  voice?: VoiceBank | null;
+}
+
+/** Tests that bring their own store get no voice bank unless they pass one. */
+function voiceFor(opts: { voice?: VoiceBank | null; store?: SetterStore }): VoiceBank | null {
+  return opts.voice !== undefined ? opts.voice : opts.store ? null : voiceBank();
 }
 
 /** Who an A/B assignment belongs to (lib/os/experiments). */
@@ -195,6 +204,20 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
   const abBlock = linesBlock(abLines);
   if (abBlock) extras.push(abBlock);
 
+  // Voice notes: the recorded lines this person hasn't heard yet, so J uses
+  // them word for word where they fit (Approve swaps them for the audio).
+  const voice = voiceFor(opts);
+  if (voice) {
+    try {
+      const { clips, heard } = await voice.load(contact, setter.setterId);
+      const fresh = clips.filter((c) => !heard.includes(c.id));
+      const block = voiceBlock(fresh, contact.username ? `@${contact.username}` : "this person", setter.profile.settings.operator);
+      if (block) extras.push(block);
+    } catch (err) {
+      console.error("[OS Setter] voice bank read failed:", err instanceof Error ? err.message : err);
+    }
+  }
+
   const today = now.toISOString().slice(0, 10);
   const system = systemPrompt(loadMethod(), setter.profile, setter.offered, today);
   const prompt = buildPrompt(rec, msgs, action, catalog, now, extras);
@@ -304,6 +327,7 @@ export interface ApproveOptions {
   calendar?: CalendarSource;
   bookings?: BookingStore;
   experiments?: ExperimentStore;
+  voice?: VoiceBank | null;
 }
 
 export interface ApproveResult {
@@ -433,12 +457,31 @@ export async function approveDraft(draftId: string, workspaceId: string, opts: A
   }
 
   const mock = osMockEnabled();
+  // Bubbles carrying a recorded line go as the voice note (first time per person).
+  const voice = voiceFor(opts);
+  let plan: BubblePlan[] = bubbles.map((text) => [{ type: "text", text }]);
+  if (voice) {
+    try {
+      const { clips, heard } = await voice.load(contact, d.setterId ?? null);
+      plan = planBubbles(bubbles, clips, heard);
+    } catch (err) {
+      console.error("[OS Setter] voice bank read failed, sending text:", err instanceof Error ? err.message : err);
+    }
+  }
   let sentCount = 0;
+  let first = true;
   try {
-    for (const [i, b] of bubbles.entries()) {
-      if (i) await sleep(opts.gapMs ?? bubbleGap(mock));
-      await store.send(contact, b, humanAgent);
-      sentCount++;
+    for (const [i, parts] of plan.entries()) {
+      for (const part of parts) {
+        if (!first) await sleep(opts.gapMs ?? bubbleGap(mock));
+        first = false;
+        if (part.type === "text") {
+          await store.send(contact, part.text, humanAgent);
+        } else {
+          await sendVoicePart(voice!, contact, part.clip, d.id, humanAgent, store);
+        }
+        sentCount = i + 1;
+      }
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "The message didn't send.";
@@ -482,6 +525,31 @@ export async function approveDraft(draftId: string, workspaceId: string, opts: A
   await store.saveState(contact, rec);
   await opts.onState?.(rec);
   return {};
+}
+
+/** One recorded line: claim it for this person, send the audio, log it. When
+ *  they already heard it (a race, a manual send), the words go as text. */
+async function sendVoicePart(
+  voice: VoiceBank,
+  contact: SetterContact,
+  clip: BankClip,
+  draftId: string,
+  humanAgent: boolean,
+  store: SetterStore
+) {
+  const sendId = await voice.claim({ workspaceId: contact.workspaceId, contactId: contact.id, conversationId: contact.conversationId, clip, draftId });
+  if (!sendId) {
+    await store.send(contact, clip.phrase, humanAgent);
+    return;
+  }
+  let messageId: string | null;
+  try {
+    messageId = await voice.sendAudio(contact, clip, sendId, humanAgent);
+  } catch (err) {
+    await voice.release(sendId).catch(() => {});
+    throw err;
+  }
+  await voice.sent(sendId, messageId).catch((err) => console.error("[OS Setter] voice log failed:", err instanceof Error ? err.message : err));
 }
 
 /** Discard = Python's "skip": J won't redraft this anchor until they write again. */

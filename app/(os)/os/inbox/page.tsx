@@ -18,7 +18,11 @@ import { osMockEnabled } from "@/lib/os/mock";
 import { bookingStore, calendarSource } from "@/lib/os/setter/booking-store";
 import { pendingDrafts } from "@/lib/os/setter/service";
 import { clearSampleSuggestionsOnce, triageDisabled } from "@/lib/os/setter/triage";
-import type { DraftView } from "@/lib/os/setter/store";
+import { setterStore, type DraftView } from "@/lib/os/setter/store";
+import { resolveSetterId } from "@/lib/os/setter/setters";
+import VoicePlayer from "@/components/os/voice/voice-player";
+import { sendableClips, type VoiceClipView } from "@/lib/os/voice/clips";
+import { previewDraftVoice, type DraftVoicePreview } from "@/lib/os/voice/preview";
 
 /** The selected contact's CRM sync log. Cheap reads; a failure hides it. */
 async function loadSyncLines(workspaceId: string, contactId: string | undefined): Promise<ContactSyncLine[]> {
@@ -40,6 +44,18 @@ async function loadBookedCall(workspaceId: string, contactId: string | undefined
     return { start: b.start, timezone: b.timezone, hostTimezone: cal?.settings.hostTimezone ?? b.timezone, status: b.status, email: b.email };
   } catch {
     return null;
+  }
+}
+
+/** The mic's clip list (the contact's setter first). A failure hides them. */
+async function loadVoiceClips(workspaceId: string, contactId: string | undefined): Promise<VoiceClipView[]> {
+  if (!contactId) return [];
+  try {
+    const contact = await setterStore().getContact(contactId, workspaceId);
+    const setterId = contact ? await resolveSetterId(contact) : null;
+    return await sendableClips(workspaceId, setterId);
+  } catch {
+    return [];
   }
 }
 
@@ -86,6 +102,10 @@ export default async function InboxPage({ searchParams }: PageProps) {
   ]);
   const draftByContact = new Map(drafts.map((d) => [d.contactId, d]));
   const selectedDraft = selected?.contact ? (draftByContact.get(selected.contact.id) ?? null) : null;
+  const [draftVoice, voiceClips]: [DraftVoicePreview | null, VoiceClipView[]] = await Promise.all([
+    selectedDraft ? previewDraftVoice(workspaceId, selectedDraft) : Promise.resolve(null),
+    loadVoiceClips(workspaceId, selected?.contact?.id),
+  ]);
   const draftBlockedReason = !selected?.contact
     ? "Not a contact yet."
     : selected.contact.kind === "PERSONAL" && selected.contact.suggestedKind === "SALES"
@@ -185,7 +205,11 @@ export default async function InboxPage({ searchParams }: PageProps) {
               {messages.length === 0 && <li className="os-thread-placeholder">No messages loaded.</li>}
               {messages.map((m) => (
                 <li key={m.id} className={m.fromMe ? "me" : "them"}>
-                  <span className="bubble">{m.attachment || m.text === "[image attachment]" ? "Sent a photo" : m.text || "(attachment)"}</span>
+                  {m.voice ? (
+                    <VoicePlayer url={m.voice.url} durationMs={m.voice.durationMs} transcript={m.voice.transcript} tone={m.fromMe ? "me" : "plain"} />
+                  ) : (
+                    <span className="bubble">{m.attachment || m.text === "[image attachment]" ? "Sent a photo" : m.text || "(attachment)"}</span>
+                  )}
                   {m.createdTime && (
                     <time dateTime={m.createdTime}>
                       {new Date(m.createdTime).toLocaleString("en-GB", {
@@ -211,6 +235,8 @@ export default async function InboxPage({ searchParams }: PageProps) {
               contactId={selected.contact?.id ?? null}
               draft={selectedDraft}
               draftBlockedReason={draftBlockedReason}
+              draftVoice={draftVoice}
+              voiceClips={voiceClips}
             />
           </>
         )}

@@ -10,6 +10,7 @@ import { zernioRequest } from "@/lib/zernio/client";
 import { upsertContact } from "@/lib/os/contacts";
 import { enqueueTriageMany } from "@/lib/os/setter/queue";
 import { triageDisabled } from "@/lib/os/setter/triage";
+import { voiceByMessage } from "@/lib/os/voice/store";
 import { appendMockMessage, mockMessages, mockThreads, osMockEnabled } from "@/lib/os/mock";
 
 /** What Zernio tells us about the person on each list read (not stored). */
@@ -44,6 +45,17 @@ export interface InboxMessage {
   createdTime: string | null;
   /** An image or file they sent ("image", …). */
   attachment?: string | null;
+  /** A voice note we sent (lib/os/voice): the player and the line said. */
+  voice?: InboxVoice | null;
+}
+
+export interface InboxVoice {
+  /** Same-origin path to the file. */
+  url: string;
+  transcript: string;
+  durationMs: number | null;
+  /** bank | manual | oneoff */
+  kind?: string;
 }
 
 interface RawThread {
@@ -188,13 +200,18 @@ export async function getThreadMessages(workspaceId: string, conversationId: str
   const account = await getInboxAccount(workspaceId);
   if (!account) return [];
   const context = await createInstagramContext(account);
-  const raw = await getConversationMessages({ context, conversationId });
+  const [raw, voice] = await Promise.all([
+    getConversationMessages({ context, conversationId }),
+    // Our voice notes, so the thread shows a player and the line said.
+    voiceByMessage(workspaceId, conversationId).catch(() => new Map<string, InboxVoice>()),
+  ]);
   return raw
     .map((m) => ({
       id: m.id,
       text: m.message ?? "",
       fromMe: m.from?.id === account.instagramId,
       createdTime: m.created_time ?? null,
+      voice: voice.get(m.id) ?? null,
     }))
     .reverse();
 }

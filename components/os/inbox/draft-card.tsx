@@ -6,7 +6,9 @@ import { approveJDraft, discardJDraft } from "@/app/(os)/os/inbox/actions";
 import Avatar from "@/components/os/inbox/avatar";
 import { formatSlot, formatTime, tzCity } from "@/lib/os/integrations/calendar/slots";
 import { calendarName, type BookingPayload } from "@/lib/os/integrations/calendar/types";
+import VoicePlayer from "@/components/os/voice/voice-player";
 import type { DraftView } from "@/lib/os/setter/store";
+import type { DraftVoicePreview } from "@/lib/os/voice/preview";
 
 const KIND_LABEL: Record<string, string> = {
   reply: "Reply",
@@ -35,17 +37,21 @@ interface DraftCardProps {
   /** How they read: "@handle", their name, or "Instagram user". */
   name?: string;
   avatarUrl?: string | null;
+  /** Bubbles (or parts) that go as recorded voice notes on Approve. */
+  voice?: DraftVoicePreview | null;
   regenerating: boolean;
   onEdit: () => void;
   onRegenerate: () => void;
   onError: (message: string | null) => void;
 }
 
-export default function DraftCard({ draft, username, name, avatarUrl, regenerating, onEdit, onRegenerate, onError }: DraftCardProps) {
+export default function DraftCard({ draft, username, name, avatarUrl, voice = null, regenerating, onEdit, onRegenerate, onError }: DraftCardProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [action, setAction] = useState<"approve" | "discard" | null>(null);
   const busy = pending || regenerating;
+  const voiceNotes = voice ? voice.flat().filter((p) => p.type === "voice").length : 0;
+  const parts = voice ? voice.flat().length : draft.bubbles.length;
 
   function run(kind: "approve" | "discard") {
     onError(null);
@@ -72,6 +78,11 @@ export default function DraftCard({ draft, username, name, avatarUrl, regenerati
         </span>
         <span className="os-draft-chips">
           {draft.setterStage && <span className="chip quiet">{draft.setterStage}</span>}
+          {voiceNotes > 0 && (
+            <span className="chip voice" title="These lines go as your recorded voice notes, the first time this person hears them.">
+              {voiceNotes === 1 ? "1 voice note" : `${voiceNotes} voice notes`}
+            </span>
+          )}
           {draft.flags.map((f) =>
             FLAG_LABEL[f] ? (
               <span key={f} className={`chip${f === "sample" ? " quiet" : " flag"}`} title={FLAG_LABEL[f].title}>
@@ -90,11 +101,24 @@ export default function DraftCard({ draft, username, name, avatarUrl, regenerati
       )}
 
       <ol className="os-draft-bubbles">
-        {draft.bubbles.map((b, i) => (
-          <li key={i}>
-            <span className="bubble">{b}</span>
-          </li>
-        ))}
+        {voice
+          ? voice.flat().map((p, i) =>
+              p.type === "voice" ? (
+                <li key={i} className="voice">
+                  <span className="os-draft-voice-tag">Voice note{p.leadIn ? " · lead-in" : ""}</span>
+                  <VoicePlayer url={p.url} durationMs={p.durationMs} transcript={p.phrase} tone="draft" label={p.label} />
+                </li>
+              ) : (
+                <li key={i}>
+                  <span className="bubble">{p.text}</span>
+                </li>
+              )
+            )
+          : draft.bubbles.map((b, i) => (
+              <li key={i}>
+                <span className="bubble">{b}</span>
+              </li>
+            ))}
       </ol>
 
       {draft.reasoning && (
@@ -118,16 +142,18 @@ export default function DraftCard({ draft, username, name, avatarUrl, regenerati
           {pending && action === "approve"
             ? draft.booking?.mode === "book"
               ? "Booking…"
-              : draft.bubbles.length > 1
-                ? `Sending ${draft.bubbles.length} bubbles…`
+              : parts > 1
+                ? `Sending ${parts} messages…`
                 : "Sending…"
             : draft.booking?.mode === "book"
               ? draft.bubbles.length > 1
                 ? `Book & send ${draft.bubbles.length}`
                 : "Book & send"
-              : draft.bubbles.length > 1
-                ? `Approve & send ${draft.bubbles.length}`
-                : "Approve & send"}
+              : parts > 1
+                ? `Approve & send ${parts}${voiceNotes ? ` (${voiceNotes} voice)` : ""}`
+                : voiceNotes
+                  ? "Approve & send voice"
+                  : "Approve & send"}
         </button>
       </div>
     </section>

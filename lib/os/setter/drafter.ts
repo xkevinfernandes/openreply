@@ -285,6 +285,9 @@ async function fake({ prompt, job }: Call): Promise<[string, DraftUsage]> {
       nudge: ["no stress if not, just lmk if it was useful"],
       friday: ["thought of you when I saw this, sharing in case it helps"],
     }[kind] ?? ["ha okay that's actually interesting", "what are you working on right now?"];
+  // Like the real model, use a recorded line word for word when one is offered.
+  const voiceLine = /Use as its own bubble:\n- "([^"\n]+)"/.exec(prompt)?.[1];
+  if (voiceLine) bubbles[bubbles.length - 1] = voiceLine;
   return [
     JSON.stringify({
       bubbles,

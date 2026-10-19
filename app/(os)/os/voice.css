@@ -1,0 +1,622 @@
+/* DM OS: voice notes. The player (thread, J's draft, lists), the recorder,
+   Knowledge base → Voice notes and the composer's mic panel.
+
+   The player is Instagram's voice-note shape in the Review Room's ink: a
+   round play button, bars that fill as it plays, the time left. Sent ones are
+   an ink bubble like any sent message; in J's draft it's outlined (written,
+   not sent yet). The line said sits under it as the transcript. */
+
+/* --- Player ---------------------------------------------------------------- */
+
+.os-voice {
+  --vc-bg: var(--paper-2);
+  --vc-fg: var(--ink);
+  --vc-btn: var(--ink);
+  --vc-btn-fg: var(--on-ink);
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.os-voice-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  background: var(--vc-bg);
+  color: var(--vc-fg);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.os-voice[data-tone="me"] {
+  --vc-bg: var(--ink);
+  --vc-fg: var(--on-ink);
+  --vc-btn: var(--on-ink);
+  --vc-btn-fg: var(--ink);
+  align-items: flex-end;
+}
+
+.os-voice[data-tone="me"] .os-voice-row {
+  box-shadow: none;
+}
+
+.os-voice[data-tone="draft"] {
+  --vc-bg: var(--card);
+  align-items: flex-end;
+}
+
+.os-voice[data-tone="draft"] .os-voice-row {
+  box-shadow: none;
+  outline: 1px dashed var(--ink);
+  outline-offset: -1px;
+}
+
+.os-voice-play {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--vc-btn);
+  color: var(--vc-btn-fg);
+  cursor: pointer;
+  transition: transform 100ms ease, opacity 120ms ease;
+}
+
+.os-voice-play:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.os-voice-play:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.os-voice-play:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.os-voice-play svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.os-voice-wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 112px;
+  height: 22px;
+  cursor: pointer;
+}
+
+.os-voice-wave i {
+  flex: 1;
+  min-height: 3px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.32;
+  transition: opacity 120ms ease;
+}
+
+.os-voice-wave i[data-on="true"] {
+  opacity: 1;
+}
+
+.os-voice-time {
+  min-width: 30px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.os-voice-line {
+  max-width: 340px;
+  padding: 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: inherit;
+}
+
+.os-voice[data-tone="me"] .os-voice-line,
+.os-voice[data-tone="draft"] .os-voice-line {
+  text-align: right;
+}
+
+/* In J's draft: the tag says this bubble goes as your voice. */
+.os-draft-bubbles li.voice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.os-draft-voice-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding-right: 6px;
+  color: var(--mark);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.os-draft-voice-tag::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+.os .chip.voice {
+  background: var(--mark-bg);
+  color: var(--mark);
+}
+
+/* --- Recorder --------------------------------------------------------------- */
+
+.os-rec {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.os-rec-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.os-rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bad);
+}
+
+.os-rec-live {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--bad-bg);
+}
+
+.os-rec-live .os-rec-dot {
+  width: 10px;
+  height: 10px;
+  animation: os-rec-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes os-rec-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.os-rec-meter {
+  position: relative;
+  width: 120px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--tint-2);
+}
+
+.os-rec-meter span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--ink);
+  transform-origin: left center;
+  transition: transform 80ms linear;
+}
+
+.os-rec-time {
+  min-width: 84px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.os-rec-error {
+  margin: 0;
+  color: var(--bad);
+  font-size: var(--fs-sm);
+}
+
+/* --- Knowledge base → Voice notes ------------------------------------------- */
+
+.os-vn-tally {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.os-vn-tally strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.os-vn-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.os-vn-clip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--card);
+  transition: opacity 120ms ease, box-shadow 160ms ease;
+}
+
+.os-vn-clip[data-empty="true"] {
+  border-style: dashed;
+  background: var(--paper-2);
+}
+
+.os-vn-clip[data-active="true"] {
+  box-shadow: inset 3px 0 0 var(--mark);
+}
+
+.os-vn-clip[aria-busy="true"] {
+  opacity: 0.7;
+}
+
+.os-vn-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.os-vn-label,
+.os-vn-stage {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.os-vn-label {
+  width: 150px;
+  font-weight: 600;
+}
+
+.os-vn-stage {
+  width: 120px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.os-vn-label:hover,
+.os-vn-stage:hover {
+  border-color: var(--line-strong);
+}
+
+.os-vn-label:focus,
+.os-vn-stage:focus {
+  border-color: var(--ink);
+  background: var(--card);
+  outline: none;
+}
+
+.os-vn-kind {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: var(--radius);
+  background: var(--tint);
+}
+
+.os-vn-kind button {
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font: 500 var(--fs-xs) / 1 var(--font);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, transform 100ms ease;
+}
+
+.os-vn-kind button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.os-vn-kind button[aria-checked="true"] {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.os-vn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.os-vn-phrase {
+  display: block;
+}
+
+.os-vn-phrase textarea {
+  width: 100%;
+  min-height: 0;
+}
+
+.os-vn-hint {
+  margin: -2px 0 0;
+  color: var(--warn);
+  font-size: var(--fs-xs);
+}
+
+.os-vn-audio {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.os-vn-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.os-vn-foot > :last-child {
+  margin-left: auto;
+}
+
+.os-vn-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.os-vn-check input {
+  accent-color: var(--ink);
+}
+
+.os-vn-meta {
+  font-variant-numeric: tabular-nums;
+}
+
+.os-vn-add {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+/* --- Composer mic ------------------------------------------------------------ */
+
+.os-mic {
+  width: var(--control-h);
+  padding: 0;
+}
+
+.os-mic svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.os-mic[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.os-button.ghost.os-mic[aria-pressed="true"]:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--on-ink);
+  opacity: 0.86;
+}
+
+/* Rises out of the mic, bottom right, the way J's draft rises out of the composer. */
+.os-voicepanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 20px 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  transform-origin: bottom right;
+  animation: os-voicepanel-in 240ms var(--ease) both;
+}
+
+@keyframes os-voicepanel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+.os-voicepanel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--fs-sm);
+}
+
+.os-voicepanel-close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 120ms ease, transform 100ms ease;
+}
+
+.os-voicepanel-close:hover {
+  background: var(--tint-2);
+  color: var(--ink);
+}
+
+.os-voicepanel-close:active {
+  transform: scale(0.94);
+}
+
+.os-voicepanel-close svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.os-voicepanel-record {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.os-voicepanel-note {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.os-voicepanel-sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.os-voicepanel-clips {
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+}
+
+.os-voicepanel-clips li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.os-voicepanel-clips li:first-child {
+  border-top: 0;
+}
+
+.os-voicepanel-clip-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.os-voicepanel-clip-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.os-voicepanel-clip-line {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.os-voicepanel-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+@media (max-width: 720px) {
+  .os-voicepanel-clips li {
+    flex-wrap: wrap;
+  }
+
+  .os-voice-wave {
+    width: 84px;
+  }
+
+  .os-vn-switch {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-voicepanel {
+    animation: os-voicepanel-fade 160ms ease both;
+  }
+
+  .os-rec-live .os-rec-dot {
+    animation: none;
+  }
+
+  .os-rec-meter span {
+    transition: none;
+  }
+}
+
+@keyframes os-voicepanel-fade {
+  from {
+    opacity: 0;
+  }
+}

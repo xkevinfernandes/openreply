@@ -1,6 +1,6 @@
 // Sample data for running the DM OS locally without Instagram: start the dev
 // server with OS_MOCK=1. Never on in production.
-import type { InboxMessage, InboxThread } from "@/lib/os/inbox";
+import type { InboxMessage, InboxThread, InboxVoice } from "@/lib/os/inbox";
 
 export function osMockEnabled() {
   return process.env.OS_MOCK === "1" && process.env.NODE_ENV !== "production";
@@ -62,6 +62,20 @@ export function appendMockMessage(conversationId: string, text: string, at: Date
     person.firstReply ??= person.preview ?? "";
     person.preview = text;
   }
+}
+
+/** A voice note sent on sample data; returns its message id. */
+export function appendMockVoice(conversationId: string, voice: InboxVoice): string {
+  const list = sent.get(conversationId) ?? [];
+  const id = `${conversationId}-voice-${list.length + 1}`;
+  list.push({ id, text: "", fromMe: true, createdTime: new Date().toISOString(), voice });
+  sent.set(conversationId, list);
+  const person = people.find((p) => p.conversationId === conversationId);
+  if (person) {
+    person.firstReply ??= person.preview ?? "";
+    person.preview = "Sent a voice note";
+  }
+  return id;
 }
 
 /** Sample data only: a message "from them", so the booking flow (pick a

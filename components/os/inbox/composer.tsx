@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { approveJDraft, draftWithJ, sendInboxMessage } from "@/app/(os)/os/inbox/actions";
 import DraftCard from "@/components/os/inbox/draft-card";
+import VoicePanel from "@/components/os/inbox/voice-panel";
 import type { DraftView } from "@/lib/os/setter/store";
+import type { VoiceClipView } from "@/lib/os/voice/clips";
+import type { DraftVoicePreview } from "@/lib/os/voice/preview";
 
 interface ComposerProps {
   igUserId: string;
@@ -17,9 +20,13 @@ interface ComposerProps {
   draft: DraftView | null;
   /** Why "Draft with J" is unavailable (personal / unsorted / paused), or null. */
   draftBlockedReason: string | null;
+  /** Which of the draft's bubbles go as voice notes (null: none). */
+  draftVoice?: DraftVoicePreview | null;
+  /** Clips the mic can send. */
+  voiceClips?: VoiceClipView[];
 }
 
-export default function Composer({ igUserId, username, name, avatarUrl, contactId, draft, draftBlockedReason }: ComposerProps) {
+export default function Composer({ igUserId, username, name, avatarUrl, contactId, draft, draftBlockedReason, draftVoice = null, voiceClips = [] }: ComposerProps) {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState("");
@@ -29,6 +36,7 @@ export default function Composer({ igUserId, username, name, avatarUrl, contactI
   const [notice, setNotice] = useState<string | null>(null);
   const [sending, startSend] = useTransition();
   const [drafting, startDraft] = useTransition();
+  const [voiceOpen, setVoiceOpen] = useState(false);
 
   const editing = Boolean(draft && editingDraftId === draft.id);
   const who = name ?? (username ? `@${username}` : "them");
@@ -77,6 +85,7 @@ export default function Composer({ igUserId, username, name, avatarUrl, contactI
           username={username}
           name={who}
           avatarUrl={avatarUrl ?? null}
+          voice={draftVoice}
           regenerating={drafting}
           onEdit={() => editDraft(draft)}
           onRegenerate={askJ}
@@ -89,6 +98,8 @@ export default function Composer({ igUserId, username, name, avatarUrl, contactI
           J is reading the thread and writing…
         </div>
       )}
+
+      {voiceOpen && contactId && <VoicePanel contactId={contactId} who={who} clips={voiceClips} onClose={() => setVoiceOpen(false)} />}
 
       <form
         className="os-composer"
@@ -109,7 +120,7 @@ export default function Composer({ igUserId, username, name, avatarUrl, contactI
         )}
         {editing && (
           <p className="os-composer-editing">
-            Editing J&apos;s draft. A blank line starts a new bubble.
+            Editing J&apos;s draft. A blank line starts a new bubble. Recorded lines still go as voice notes.
             <button
               type="button"
               className="os-link"
@@ -143,6 +154,20 @@ export default function Composer({ igUserId, username, name, avatarUrl, contactI
               <kbd>↵</kbd> to send
             </span>
             <div className="os-composer-actions">
+              <button
+                type="button"
+                className="os-button ghost os-mic"
+                aria-pressed={voiceOpen}
+                aria-label="Voice note"
+                title={contactId ? "Record or send a voice note" : "Not a contact yet."}
+                disabled={!contactId || sending}
+                onClick={() => setVoiceOpen((v) => !v)}
+              >
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <rect x="5.5" y="1.75" width="5" height="8" rx="2.5" />
+                  <path d="M3.25 7.5a4.75 4.75 0 0 0 9.5 0M8 12.25v2" />
+                </svg>
+              </button>
               {!draft && (
                 <button
                   type="button"

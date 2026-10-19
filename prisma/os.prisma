@@ -216,9 +216,10 @@ model Setter {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  resources SetterResource[]
-  campaigns CampaignSetter[]
-  contacts  Contact[]
+  resources  SetterResource[]
+  campaigns  CampaignSetter[]
+  contacts   Contact[]
+  voiceClips VoiceClip[]
 
   @@index([workspaceId])
   @@index([workspaceId, instagramAccountId])
@@ -506,4 +507,94 @@ model Assignment {
   @@index([workspaceId])
   @@index([variantId])
   @@index([contactId])
+}
+
+// --- Voice notes (wave 2, item 1) --------------------------------------------
+// Kevin's real recordings. Bank clips are phrase-matched: when a message J
+// sends contains a clip's line and that person hasn't heard it, the clip goes
+// instead of the text (once per person). Manual clips and one-off recordings
+// are sent by hand from the Inbox composer.
+
+/// The audio bytes of one recording. Railway has no persistent disk and
+/// Zernio's uploads expire after 7 days, so clips live here (they are tiny)
+/// and are served from /api/os/voice/<id>.<ext>: id is 32 random url-safe
+/// characters (192 bits), the only way to reach a file. There is no listing.
+model VoiceAudio {
+  id          String   @id
+  workspaceId String
+  /// audio/mp4 (m4a), audio/wav or audio/aac: formats Instagram accepts.
+  mimeType    String
+  /// m4a | wav | aac (the extension in the public url).
+  ext         String
+  bytes       Bytes
+  sizeBytes   Int
+  durationMs  Int?
+  createdAt   DateTime @default(now())
+
+  clips VoiceClip[]
+
+  @@index([workspaceId])
+}
+
+enum VoiceClipKind {
+  /// Sent automatically in place of matching text (first time per person).
+  BANK
+  /// Only sent by hand from the composer.
+  MANUAL
+}
+
+model VoiceClip {
+  id          String        @id @default(cuid())
+  workspaceId String
+  setterId    String
+  setter      Setter        @relation(fields: [setterId], references: [id], onDelete: Cascade)
+  /// The suggested slot it was pre-filled from (v01-v15), if any.
+  slot        String?
+  label       String        @default("")
+  /// The exact line spoken. Bank matching is a normalised contains-match on it.
+  phrase      String        @default("")
+  /// Setter stage it belongs to (Open, Value, Qualify…), free text.
+  stage       String?
+  kind        VoiceClipKind @default(BANK)
+  /// A lead-in ("just headed to the gym, quick one.."): it matches only at the
+  /// start of a bubble and the rest of the bubble follows as text.
+  leadIn      Boolean       @default(false)
+  active      Boolean       @default(false)
+  audioId     String?
+  audio       VoiceAudio?   @relation(fields: [audioId], references: [id], onDelete: SetNull)
+  sortOrder   Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([setterId, sortOrder])
+  @@index([workspaceId])
+}
+
+/// One voice note that went to one person. contactId/clipId/audioId are plain
+/// columns (sample-data contacts are not rows). bankKey ("<contact>:<clip>")
+/// is set only for bank sends: its unique index is the once-per-person claim,
+/// so two approvals racing can't both play the same line. A send that fails
+/// deletes its row.
+model VoiceSend {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  contactId      String
+  conversationId String?
+  clipId         String?
+  audioId        String
+  /// bank | manual | oneoff
+  kind           String
+  /// What was said: the clip's line, or Kevin's note for a one-off.
+  transcript     String    @default("")
+  bankKey        String?   @unique
+  draftId        String?
+  /// Instagram's message id (mid), to show the player in the thread.
+  messageId      String?
+  /// sending | sent
+  status         String    @default("sending")
+  sentAt         DateTime  @default(now())
+
+  @@index([contactId])
+  @@index([workspaceId, conversationId])
+  @@index([messageId])
 }
