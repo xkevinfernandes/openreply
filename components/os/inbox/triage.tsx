@@ -40,7 +40,7 @@ export function TriageSuggestion({ contactId, kind, suggestedKind, confidence = 
   const flag = kind === "PERSONAL";
   const unsure = !suggestedKind;
   const other: ContactKind = suggestedKind === "SALES" ? "PERSONAL" : "SALES";
-  const copy = triageCopy({ flag, suggested: suggestedKind === "UNSORTED" ? null : suggestedKind, confidence, reason });
+  const copy = triageCopy({ flag, suggested: suggestedKind === "UNSORTED" || suggestedKind === "PITCHES" ? null : suggestedKind, confidence, reason });
 
   function run(act: () => Promise<TriageActionResult | void>) {
     setError(null);

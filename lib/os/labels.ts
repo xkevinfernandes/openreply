@@ -3,6 +3,7 @@ import type { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 export const kindTabs: { kind: ContactKind; tab: string; label: string }[] = [
   { kind: "SALES", tab: "sales", label: "Sales" },
   { kind: "PERSONAL", tab: "personal", label: "Personal" },
+  { kind: "PITCHES", tab: "pitches", label: "Pitches" },
   { kind: "UNSORTED", tab: "unsorted", label: "Unsorted" },
 ];
 

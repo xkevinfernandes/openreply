@@ -114,7 +114,7 @@ export function firstNameOf(fullName: string | null | undefined): string | null 
   return first ? first.slice(0, 80) : null;
 }
 
-const KIND_LABELS: Record<ContactKind, string> = { SALES: "Sales", PERSONAL: "Personal", UNSORTED: "Unsorted" };
+const KIND_LABELS: Record<ContactKind, string> = { SALES: "Sales", PERSONAL: "Personal", UNSORTED: "Unsorted", PITCHES: "Pitches" };
 
 export function buildPayload(c: ContactSnapshot, m: FieldMapping): SyncPayload {
   const custom: Record<string, string> = {};

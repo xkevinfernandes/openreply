@@ -68,7 +68,7 @@ export interface PlanBooking {
 }
 
 export interface PlanContact {
-  kind: "SALES" | "PERSONAL" | "UNSORTED";
+  kind: "SALES" | "PERSONAL" | "UNSORTED" | "PITCHES";
   paused: boolean;
   /** Per-thread "Follow-ups off". */
   followupsOff: boolean;

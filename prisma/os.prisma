@@ -7,6 +7,8 @@ enum ContactKind {
   SALES
   PERSONAL
   UNSORTED
+  /// People selling to Kevin and other creators' automations. J never drafts here.
+  PITCHES
 }
 
 /// Kanban columns. J's six setting stages are a separate field, not columns.
@@ -78,6 +80,9 @@ model Contact {
   imported  Json?
 
   lastMessageAt DateTime?
+  /// When they last read our messages (message.read webhook, or readAt on the
+  /// newest outgoing Zernio message). Drives "Seen" in the thread.
+  seenAt        DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -172,6 +177,10 @@ model Draft {
   /// A/B lines this draft carries: AbTag[] (lib/os/experiments/types.ts),
   /// {experimentId, variantId, slot}. Approve attributes the send to them.
   abVariants   Json?
+  /// Hold (H in the composer): kept PENDING but out of the review queue
+  /// until they write again or Kevin un-holds it.
+  heldAt       DateTime?
+  heldReason   String?
   createdAt    DateTime    @default(now())
   decidedAt    DateTime?
   sentAt       DateTime?
@@ -714,4 +723,239 @@ model VoiceSend {
   @@index([contactId])
   @@index([workspaceId, conversationId])
   @@index([messageId])
+}
+
+// --- UI redesign (wave 0, 2026-10-20) ------------------------------------------
+// docs/sp/dms/2026-10-19-dm-os-ui-plan.md section 2. No relations to upstream
+// models; ids of upstream rows (workspace, automation) are plain columns.
+
+/// Workspace-level switches: the daily send cap and the kill switch.
+/// One row per workspace, created on first read (lib/os/workspace-settings.ts).
+model OsWorkspace {
+  workspaceId   String   @id
+  /// Every outgoing bubble counts (lib/os/sending/cap.ts).
+  sendCapPerDay Int      @default(80)
+  /// Pause all: no send and no draft job runs while true.
+  pausedAll     Boolean  @default(false)
+  /// IANA zone the "today" of the cap and the Friday window are read in.
+  timezone      String   @default("Europe/Luxembourg")
+  updatedAt     DateTime @updatedAt
+}
+
+enum CustomFieldType {
+  TEXT
+  LONG_TEXT
+  NUMBER
+  EMAIL
+  DATE
+  TIMEZONE
+  SELECT
+  URL
+}
+
+/// A global contact field (Settings › Custom fields). Setters only tick which
+/// fields J fills (SetterField). first_name and email are built in.
+model CustomField {
+  id          String          @id @default(cuid())
+  workspaceId String
+  /// snake_case, stable: J's output JSON and the CRM mapping use it.
+  key         String
+  label       String
+  type        CustomFieldType @default(TEXT)
+  builtIn     Boolean         @default(false)
+  /// SELECT choices: string[].
+  options     Json            @default("[]")
+  /// GoHighLevel custom field id / "contact.x" key, and Kit field key. Null = not sent.
+  ghlField    String?
+  kitField    String?
+  sortOrder   Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  setters SetterField[]
+  values  ContactFieldValue[]
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId, sortOrder])
+}
+
+/// Which fields a setter fills from the chat.
+model SetterField {
+  setterId String
+  fieldId  String
+  field    CustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@id([setterId, fieldId])
+  @@index([fieldId])
+}
+
+/// One field value on one contact. source: j | user | import. J never
+/// overwrites a user value (lib/os/fields/capture.ts).
+model ContactFieldValue {
+  contactId String
+  fieldId   String
+  field     CustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  value     String
+  source    String      @default("j")
+  /// The draft J filled it from.
+  draftId   String?
+  updatedAt DateTime    @updatedAt
+
+  @@id([contactId, fieldId])
+  @@index([fieldId])
+}
+
+/// Keyword → resource: the lead magnet an OpenReply automation hands out.
+/// Without a row the resource is resolved from the automation's link.
+model CampaignResource {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  automationId String   @unique
+  resourceId   String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([resourceId])
+}
+
+/// Media in a DM, enriched at arrival (CDN urls expire): voice transcript,
+/// image description, shared post caption, story card. Fed to J as text.
+model MessageMedia {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  contactId      String?
+  conversationId String
+  /// Instagram message id (mid).
+  messageId      String   @unique
+  /// incoming | outgoing
+  direction      String
+  /// voice | image | video | share | story_reply | link | file
+  kind           String
+  sourceUrl      String?
+  /// pending | done | failed | skipped | expired
+  status         String   @default("pending")
+  transcript     String?
+  description    String?
+  caption        String?
+  /// Story card from Data OS: {id, thumbnailUrl, caption, topic, postedAt, permalink}.
+  story          Json?
+  provider       String?
+  error          String?
+  attempts       Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([workspaceId, conversationId])
+}
+
+/// Outcome log behind Home's numbers. kind: keyword_trigger | conversation_started |
+/// lead_magnet_sent | offer_made | call_booked | showed | won | dm_sent.
+/// dedupeKey makes every recorder idempotent (lib/os/events.ts).
+model OsEvent {
+  id          String   @id @default(cuid())
+  workspaceId String
+  contactId   String?
+  setterId    String?
+  kind        String
+  at          DateTime @default(now())
+  dedupeKey   String   @unique
+  data        Json     @default("{}")
+
+  @@index([workspaceId, kind, at])
+  @@index([contactId])
+}
+
+/// A setter's knowledge as Markdown docs. key: system_prompt | business |
+/// offers | objections | examples. The profile is built from these when present.
+model SetterDoc {
+  id        String   @id @default(cuid())
+  setterId  String
+  key       String
+  body      String   @default("")
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  revisions SetterDocRevision[]
+
+  @@unique([setterId, key])
+}
+
+model SetterDocRevision {
+  id        String    @id @default(cuid())
+  docId     String
+  doc       SetterDoc @relation(fields: [docId], references: [id], onDelete: Cascade)
+  body      String
+  author    String?
+  createdAt DateTime  @default(now())
+
+  @@index([docId, createdAt])
+}
+
+/// A recurring personalised send to a tagged audience (Follow-up Friday).
+/// Nothing sends without Kevin approving each message.
+model Broadcast {
+  id               String   @id @default(cuid())
+  workspaceId      String
+  /// URL slug, e.g. follow-up-friday.
+  key              String
+  name             String
+  audienceTag      String
+  /// This week's link (any URL), pasted by Kevin.
+  link             String?
+  /// Uses {first_name} and {link}.
+  template         String   @default("")
+  followupTemplate String?
+  followupDelayMin Int      @default(5)
+  /// 0 = Sunday … 6 = Saturday, in timezone.
+  windowDay        Int      @default(5)
+  /// "HH:MM"
+  windowStart      String   @default("10:00")
+  windowEnd        String   @default("15:00")
+  timezone         String   @default("Europe/Luxembourg")
+  setterId         String?
+  enabled          Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  runs BroadcastRun[]
+
+  @@unique([workspaceId, key])
+}
+
+/// One week's run of a broadcast. status: drafting | review | scheduled | done.
+model BroadcastRun {
+  id          String    @id @default(cuid())
+  broadcastId String
+  broadcast   Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  /// "YYYY-MM-DD" in the broadcast timezone.
+  runDate     String
+  link        String
+  status      String    @default("drafting")
+  createdAt   DateTime  @default(now())
+
+  messages BroadcastMessage[]
+
+  @@unique([broadcastId, runDate])
+}
+
+/// One personalised message of a run. status: drafted | approved | scheduled |
+/// sent | skipped | failed | outside_window.
+model BroadcastMessage {
+  id              String       @id @default(cuid())
+  runId           String
+  run             BroadcastRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  workspaceId     String
+  contactId       String
+  bubbles         String[]
+  followupBubbles String[]
+  status          String       @default("drafted")
+  edited          Boolean      @default(false)
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  error           String?
+  reasoning       String?
+
+  @@unique([runId, contactId])
+  @@index([workspaceId, status])
 }

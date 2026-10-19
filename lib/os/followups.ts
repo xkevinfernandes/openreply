@@ -31,7 +31,7 @@ export interface QueueContact {
   fullName: string | null;
   avatarUrl: string | null;
   conversationId: string | null;
-  kind: "SALES" | "PERSONAL" | "UNSORTED";
+  kind: "SALES" | "PERSONAL" | "UNSORTED" | "PITCHES";
   paused: boolean;
   tags: string[];
   /** SetterState columns (null when J never looked at them). */
