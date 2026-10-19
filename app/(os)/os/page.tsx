@@ -5,7 +5,7 @@ import Link from "next/link";
 import ReviewButton from "@/components/os/home/review-button";
 import TodoCheck from "@/components/os/home/todo-check";
 import { auth, getCurrentWorkspaceId } from "@/lib/auth";
-import { broadcastTodos, greeting, homeDate, loadPipeline, type HomeTodo } from "@/lib/os/home";
+import { broadcastTodos, greeting, homeDate, loadPipeline, workflowTodos, type HomeTodo } from "@/lib/os/home";
 import { loadOutcomes, parsePeriod, PERIODS, type OutcomeCell, type Period } from "@/lib/os/metrics";
 import { loadHomeFollowups } from "@/lib/os/sequences/view";
 import { getWorkspaceSettings } from "@/lib/os/workspace-settings";
@@ -69,7 +69,7 @@ export default async function OsHome({ searchParams }: PageProps) {
     quiet("outcomes", loadOutcomes(workspaceId, period, tz, now), null),
     quiet("pipeline", loadPipeline(workspaceId, params.setter ?? null), null),
     quiet("follow-ups", loadHomeFollowups(workspaceId, now), null),
-    quiet("broadcasts", broadcastTodos(workspaceId, now), [] as HomeTodo[]),
+    quiet("broadcasts", Promise.all([broadcastTodos(workspaceId, now), workflowTodos(workspaceId, now)]).then((x) => x.flat()), [] as HomeTodo[]),
   ]);
 
   const todos: TodoRow[] = [

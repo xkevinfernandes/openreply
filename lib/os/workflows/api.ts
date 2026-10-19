@@ -90,10 +90,23 @@ export interface KeywordClash {
   name: string;
 }
 
+export type ReleaseRuleKey = "booked" | "quiet" | "notReady" | "askedTwice" | "notFit";
+
 export interface SetterNodeStats {
   reached: number;
   replied: number;
   released: number;
+  /** People released per rule: R1 booked, R2 quiet, R3 notReady, R4 askedTwice, R5 notFit. */
+  releasedBy: Record<ReleaseRuleKey, number>;
+  booked: number;
+  showed: number;
+}
+
+/** One Randomizer branch's funnel: people sent down it, and how far they got (anywhere after). */
+export interface BranchFunnel {
+  reached: number;
+  replied: number;
+  leadMagnet: number;
   booked: number;
   showed: number;
 }
@@ -103,9 +116,12 @@ export interface NodeStats {
   type: StepType;
   /** People who reached it in the period. */
   reached: number;
-  /** % of the step before it (null for the trigger / no predecessor). */
+  /** Share of the step before it, as a fraction 0–1 (0.64 = 64%). Null for
+   *  the trigger, a step nothing points at, or when the step before has 0. */
   pctOfPrev: number | null;
   setter?: SetterNodeStats;
+  /** Randomizer only: the funnel per branch id. */
+  branches?: Record<string, BranchFunnel>;
 }
 
 export interface WorkflowStats {

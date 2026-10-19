@@ -157,3 +157,10 @@ export async function broadcastTodos(workspaceId: string, now = new Date()): Pro
     href: n.href,
   }));
 }
+
+/** K3: workflow threads Kevin paused (he replied) and left for 3+ days. */
+export async function workflowTodos(workspaceId: string, now = new Date()): Promise<HomeTodo[]> {
+  const { pausedThreadsCount } = await import("@/lib/os/workflows/hooks");
+  const n = await pausedThreadsCount(workspaceId, now);
+  return n ? [{ id: "workflows:paused", label: "Resume or close", strong: `${n} paused ${n === 1 ? "thread" : "threads"}`, due: "3d+", tone: "warn", href: "/os/inbox" }] : [];
+}

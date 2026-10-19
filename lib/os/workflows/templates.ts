@@ -15,8 +15,9 @@ export const TEMPLATES: TemplateInfo[] = [
   { id: "blank", name: "Blank", description: "Just a trigger." },
 ];
 
-const at = (i: number, x = 0) => ({ x, y: i * 160 });
-const node = (id: string, type: GraphNode["type"], i: number, data: unknown, x = 0): GraphNode => ({ id, type, position: at(i, x), data });
+/** Left to right: step i at x = i·280; side branches drop below (y). */
+const at = (i: number, y = 0) => ({ x: i * 280, y });
+const node = (id: string, type: GraphNode["type"], i: number, data: unknown, y = 0): GraphNode => ({ id, type, position: at(i, y), data });
 const edge = (from: string, fromPort: string, to: string): GraphEdge => ({ id: `${from}-${fromPort}-${to}`.replace(/[^a-zA-Z0-9_-]/g, "_"), from, fromPort, to });
 
 const PUBLIC_REPLIES = ["sent you a DM 🙌", "check your DMs!", "just sent it over 👀"];
@@ -39,7 +40,7 @@ export function templateGraph(id: TemplateId, opts: { keyword?: string; resource
             quietHours: [18, 22],
             saveTo: [],
           }),
-          node("ghosted", "action", 3, { ops: [{ op: "add_tag", key: "ghosted" }, { op: "friday" }] }, 240),
+          node("ghosted", "action", 3, { ops: [{ op: "add_tag", key: "ghosted" }, { op: "friday" }] }, 200),
           node("end", "end", 4, {}),
         ],
         edges: [edge("trigger", "next", "opener"), edge("opener", "next", "setter"), edge("setter", "exit:quiet", "ghosted"), edge("ghosted", "next", "end")],

@@ -643,7 +643,10 @@ export class WorkflowEngine {
         if (r === "gate") return { wait: "reply", until: this.replyDeadline(run, contact) };
         if (r !== "sent") return r;
         const b = d.bubbles[i];
-        if (b.kind === "link" && b.resourceSlug && !run.setter.released.includes(b.resourceSlug)) run.setter.released.push(b.resourceSlug);
+        if (b.kind === "link" && b.resourceSlug && !run.setter.released.includes(b.resourceSlug)) {
+          run.setter.released.push(b.resourceSlug);
+          await this.event(run, node.id, "released", null, { slug: b.resourceSlug, rule: "message" });
+        }
       }
       run.state.bubble = i + 1;
       await this.store.saveRun(run);

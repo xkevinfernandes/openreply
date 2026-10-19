@@ -110,9 +110,12 @@ export function keywordClashes(graph: WorkflowGraph, others: OtherWorkflow[], ca
   }
   for (const c of campaigns) {
     if (t.data.kind === "dm" && !c.dmTriggerEnabled) continue;
-    if (t.data.kind === "comment" && !postsCollide(t.data.postIds, c.matchAnyPost ? "any" : c.postId ? [c.postId] : [])) {
-      // A campaign on another post: still the same keyword in two places only when either is "any".
-      continue;
+    if (t.data.kind === "comment") {
+      // OpenReply doesn't know "the specific post wins": any overlap is a clash ("any" overlaps every post).
+      const theirs: string[] | "any" = c.matchAnyPost ? "any" : c.postId ? [c.postId] : [];
+      const mine = t.data.postIds;
+      const overlapPosts = mine === "any" || theirs === "any" ? mine === "any" || theirs.length > 0 || theirs === "any" : mine.some((p) => theirs.includes(p));
+      if (!overlapPosts) continue;
     }
     for (const k of overlap(mine, c.keywords)) out.push({ keyword: k, with: "campaign", id: c.id, name: c.name });
   }
