@@ -51,12 +51,14 @@ export interface SetterCard {
 export const kindOf = (k: string): ResourceKind => (k === "setter" ? "setter" : k === "episode" ? "episode" : "resource");
 
 export function keywordsFor(
-  r: { id: string; keyword: string | null },
+  r: { id: string; keyword: string | null; data?: unknown },
   maps: { automationId: string; resourceId: string }[],
   automations: { id: string; keywords: string[] }[]
 ): { word: string; automationId: string | null }[] {
   const out = new Map<string, { word: string; automationId: string | null }>();
   for (const w of (r.keyword ?? "").split(/[,\s]+/)) if (w.trim()) out.set(w.trim().toUpperCase(), { word: w.trim().toUpperCase(), automationId: null });
+  const extra = r.data && typeof r.data === "object" ? (r.data as { keywords?: unknown }).keywords : null;
+  if (Array.isArray(extra)) for (const w of extra) if (typeof w === "string" && w.trim()) out.set(w.trim().toUpperCase(), { word: w.trim().toUpperCase(), automationId: null });
   for (const m of maps.filter((x) => x.resourceId === r.id)) {
     const a = automations.find((x) => x.id === m.automationId);
     for (const w of a?.keywords ?? []) if (w.trim()) out.set(w.trim().toUpperCase(), { word: w.trim().toUpperCase(), automationId: a!.id });

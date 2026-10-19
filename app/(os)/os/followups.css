@@ -374,6 +374,17 @@
   }
   .os-tl-todo li {
     flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  /* The sentence keeps its own line; source, due and action wrap under it. */
+  .os-tl-todo-text {
+    flex: 1 1 calc(100% - 40px);
+  }
+  .os-tl-todo li > :nth-child(n + 3) {
+    font-size: var(--fs-xs);
+  }
+  .os-tl-due {
+    width: auto;
   }
 }
 

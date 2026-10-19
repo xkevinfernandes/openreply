@@ -146,22 +146,12 @@ async function ensureResources(workspaceId: string, setterIds: string[]) {
     skipDuplicates: true,
   });
 
-  // Keyword → resource, on real Automation rows (a dev Instagram account
-  // holds them when none is connected), so Resources shows every keyword.
-  await prisma.campaignResource.deleteMany({ where: { workspaceId, automationId: { startsWith: "seed-automation-" } } });
-  let account = await prisma.instagramAccount.findFirst({ where: { workspaceId }, select: { id: true } });
-  account ??= await prisma.instagramAccount.create({
-    data: { workspaceId, instagramId: `dev-${workspaceId}`, username: "claudepreneur", accessToken: "dev-only" },
-    select: { id: true },
-  });
+  // Keyword → resource. Real automations when they exist, else stand-in ids
+  // (Resources also reads Resource.data.keywords, so every keyword shows).
   for (const [keyword, resourceId] of [["SETTER", starter.id], ["STARTER", starter.id], ["SCRIPT", vault.id]] as const) {
-    const auto =
-      (await prisma.automation.findFirst({ where: { workspaceId, keywords: { has: keyword } }, select: { id: true } })) ??
-      (await prisma.automation.create({
-        data: { workspaceId, instagramAccountId: account.id, name: `Comment ${keyword}`, keywords: [keyword], dmMessage: `Here you go: {link}`, isActive: true },
-        select: { id: true },
-      }));
-    await prisma.campaignResource.upsert({ where: { automationId: auto.id }, create: { workspaceId, automationId: auto.id, resourceId }, update: {} });
+    const auto = await prisma.automation.findFirst({ where: { workspaceId, keywords: { has: keyword } }, select: { id: true } });
+    const automationId = auto?.id ?? `seed-automation-${keyword.toLowerCase()}`;
+    await prisma.campaignResource.upsert({ where: { automationId }, create: { workspaceId, automationId, resourceId }, update: {} });
   }
 }
 

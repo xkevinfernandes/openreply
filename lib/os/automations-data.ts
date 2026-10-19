@@ -237,6 +237,17 @@ export async function listBroadcastSummaries(workspaceId: string, now = new Date
     orderBy: { createdAt: "asc" },
     select: { key: true, name: true, audienceTag: true, enabled: true, template: true, windowDay: true, windowStart: true, windowEnd: true, timezone: true, runs: { select: { runDate: true, status: true }, orderBy: { runDate: "desc" }, take: 4 } },
   });
+  // OS_MOCK keeps runs in memory (lib/os/mock-followups.ts), like the builder.
+  if (osMockEnabled()) {
+    const { broadcastStore } = await import("@/lib/os/broadcasts/store");
+    const store = broadcastStore();
+    const mine = await store.list(workspaceId).catch(() => []);
+    for (const b of list) {
+      const m = mine.find((x) => x.key === b.key);
+      const run = m ? await store.getRun(m.id, nextRunDate(b.windowDay, b.windowEnd, b.timezone, now).date).catch(() => null) : null;
+      if (run) b.runs = [{ runDate: run.runDate, status: run.status }, ...b.runs];
+    }
+  }
   return list.map((b) => ({
     key: b.key,
     name: b.name,

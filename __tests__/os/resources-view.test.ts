@@ -60,3 +60,11 @@ describe("helper panel: rejected / chosen corrections", () => {
     expect(c.sent).toMatch(/^ha all good, I'm not here to sell you anything/);
   });
 });
+
+describe("keywordsFor reads Resource.data.keywords", () => {
+  it("adds stored keywords next to the primary one", async () => {
+    const { keywordsFor } = await import("../../lib/os/knowledge");
+    const out = keywordsFor({ id: "r", keyword: "SETTER", data: { keywords: ["setter", "Starter"] } }, [], []);
+    expect(out.map((k) => k.word)).toEqual(["SETTER", "STARTER"]);
+  });
+});

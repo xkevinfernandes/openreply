@@ -1345,6 +1345,7 @@ a.kb-quiet:hover {
 
 .kb-bub {
   max-width: 85%;
+  overflow-wrap: anywhere;
   padding: 6px 10px;
   border-radius: 14px;
   font-size: var(--fs-xs);
