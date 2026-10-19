@@ -113,6 +113,3 @@ export async function disableDirectBooking(workspaceId: string, provider: Calend
   await prisma.osIntegration.update({ where: { id: row.id }, data: { settings: JSON.parse(JSON.stringify(settings)) } });
 }
 
-export function mockCalendarSettings(): CalendarSettings {
-  return mockSettings;
-}

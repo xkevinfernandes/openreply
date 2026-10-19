@@ -237,7 +237,3 @@ export function mockBroadcastStore(): BroadcastStore {
   return store;
 }
 
-/** Sample: does this contact carry the tag (contact panel, Inbox controls). */
-export function mockHasTag(contactId: string, tag: string): boolean {
-  return mem.tags.get(contactId)?.has(tag) ?? false;
-}

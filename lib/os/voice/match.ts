@@ -121,10 +121,6 @@ export function planBubbles(bubbles: string[], clips: BankClip[], heard: Iterabl
   return bubbles.map((b) => planOne(b, usable, used));
 }
 
-export function voiceCount(plan: BubblePlan[]): number {
-  return plan.reduce((n, b) => n + b.filter((p) => p.type === "voice").length, 0);
-}
-
 /** The prompt block that teaches J the lines this person hasn't heard yet. */
 export function voiceBlock(clips: Pick<BankClip, "phrase" | "leadIn" | "label">[], who: string, operator?: string | null): string {
   const lines = clips.filter((c) => matchable(c.phrase));

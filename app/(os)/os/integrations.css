@@ -2,25 +2,6 @@
    sync strip in the Inbox. Same system as os.css: hairlines, 4px corners,
    colour only for state (green synced, amber paused, red failing). */
 
-.os-int {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-5);
-}
-
-.os-int-note {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--fs-sm);
-}
-
-.os-int-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-  gap: var(--sp-4);
-  align-items: start;
-}
-
 /* --- Card ------------------------------------------------------------------ */
 
 .os-int-card {
@@ -444,51 +425,6 @@
 }
 
 /* --- Inbox: the contact's sync strip ------------------------------------ */
-
-.os-sync-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px var(--sp-4);
-  margin: 0;
-  padding: 6px var(--sp-4);
-  list-style: none;
-  border-bottom: 1px solid var(--line);
-  color: var(--faint);
-  font-size: var(--fs-xs);
-}
-
-.os-sync-strip li {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.os-sync-strip i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--ghost);
-  flex: none;
-}
-
-.os-sync-strip [data-state="synced"] i {
-  background: var(--good);
-}
-
-.os-sync-strip [data-state="error"] i {
-  background: var(--bad);
-}
-
-.os-sync-strip [data-state="error"] .os-link {
-  color: var(--bad);
-  font-size: inherit;
-}
-
-.os-sync-strip .name {
-  color: var(--muted);
-  font-weight: 500;
-}
 
 /* --- Small screens and preferences -------------------------------------- */
 

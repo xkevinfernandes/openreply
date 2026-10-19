@@ -249,7 +249,6 @@
   border: 0 !important;
 }
 
-.os-ix-rows .os-triage-row,
 .os-ix-rows > li > :not(.os-ix-row) {
   margin: 0 16px 10px 58px;
 }

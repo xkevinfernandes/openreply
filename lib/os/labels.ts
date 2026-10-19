@@ -7,10 +7,6 @@ export const kindTabs: { kind: ContactKind; tab: string; label: string }[] = [
   { kind: "UNSORTED", tab: "unsorted", label: "Unsorted" },
 ];
 
-export function kindForTab(tab: string | undefined): ContactKind {
-  return kindTabs.find((t) => t.tab === tab)?.kind ?? "SALES";
-}
-
 export const stageLabels: Record<ContactStage, string> = {
   NEW: "New",
   LEAD_MAGNET_SENT: "Lead magnet sent",

@@ -132,31 +132,6 @@
 }
 
 /* In J's draft: the tag says this bubble goes as your voice. */
-.os-draft-bubbles li.voice {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
-}
-
-.os-draft-voice-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding-right: 6px;
-  color: var(--mark);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.os-draft-voice-tag::before {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  content: "";
-}
 
 .os .chip.voice {
   background: var(--mark-bg);
@@ -421,31 +396,6 @@
 }
 
 /* --- Composer mic ------------------------------------------------------------ */
-
-.os-mic {
-  width: var(--control-h);
-  padding: 0;
-}
-
-.os-mic svg {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.4;
-  stroke-linecap: round;
-}
-
-.os-mic[aria-pressed="true"] {
-  background: var(--ink);
-  color: var(--on-ink);
-}
-
-.os-button.ghost.os-mic[aria-pressed="true"]:hover:not(:disabled) {
-  background: var(--ink);
-  color: var(--on-ink);
-  opacity: 0.86;
-}
 
 /* Rises out of the mic, bottom right, the way J's draft rises out of the composer. */
 .os-voicepanel {

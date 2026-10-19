@@ -6,10 +6,8 @@ import {
   cleanFieldInput,
   cleanFieldValue,
   fieldKeyFrom,
-  type ContactFieldValueView,
   type CustomFieldView,
   type FieldInput,
-  type FieldValueSource,
 } from "@/lib/os/fields/types";
 import { fireContactEvent } from "@/lib/os/integrations/events";
 import { osMockEnabled } from "@/lib/os/mock";
@@ -33,13 +31,6 @@ export async function listCustomFields(workspaceId: string): Promise<CustomField
     sortOrder: r.sortOrder,
     usedBy: r.setters.map((s) => s.setterId),
   }));
-}
-
-export async function contactFieldValues(contactId: string): Promise<ContactFieldValueView[]> {
-  const rows = await prisma.contactFieldValue.findMany({ where: { contactId }, include: { field: true } });
-  return rows
-    .sort((a, b) => a.field.sortOrder - b.field.sortOrder)
-    .map((r) => ({ fieldId: r.fieldId, key: r.field.key, label: r.field.label, value: r.value, source: r.source as FieldValueSource, updatedAt: r.updatedAt.toISOString() }));
 }
 
 /** A key not taken yet: business, business_2, … */

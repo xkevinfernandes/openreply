@@ -11,7 +11,7 @@ import { upsertContact } from "@/lib/os/contacts";
 import { enqueueTriageMany } from "@/lib/os/setter/queue";
 import { triageDisabled } from "@/lib/os/setter/triage";
 import { voiceByMessage } from "@/lib/os/voice/store";
-import { appendMockMessage, mockMessages, mockThreads, osMockEnabled } from "@/lib/os/mock";
+import { appendMockMessage, mockThreads, osMockEnabled } from "@/lib/os/mock";
 import { assertCanSend, recordSend } from "@/lib/os/sending/cap";
 import { fillStoryCards, mediaForMessages, type MediaView } from "@/lib/os/media";
 import { parseZernioMessages, splitLinks } from "@/lib/os/messages/parse";
@@ -201,28 +201,6 @@ export async function listThreads(workspaceId: string): Promise<{ account: Insta
     account,
     threads: raw.map((t, i) => ({ ...t, contact: contacts[i] })),
   };
-}
-
-export async function getThreadMessages(workspaceId: string, conversationId: string): Promise<InboxMessage[]> {
-  if (osMockEnabled()) return mockMessages(conversationId);
-
-  const account = await getInboxAccount(workspaceId);
-  if (!account) return [];
-  const context = await createInstagramContext(account);
-  const [raw, voice] = await Promise.all([
-    getConversationMessages({ context, conversationId }),
-    // Our voice notes, so the thread shows a player and the line said.
-    voiceByMessage(workspaceId, conversationId).catch(() => new Map<string, InboxVoice>()),
-  ]);
-  return raw
-    .map((m) => ({
-      id: m.id,
-      text: m.message ?? "",
-      fromMe: m.from?.id === account.instagramId,
-      createdTime: m.created_time ?? null,
-      voice: voice.get(m.id) ?? null,
-    }))
-    .reverse();
 }
 
 export interface SendReplyOptions {

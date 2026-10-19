@@ -18,12 +18,3 @@ export function PageHead({ eyebrow, title, description, actions }: PageHeadProps
   );
 }
 
-/** Placeholder for a section that a later build step fills in. */
-export function ComingSoon({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="os-empty">
-      <strong>{title}</strong>
-      {children}
-    </div>
-  );
-}

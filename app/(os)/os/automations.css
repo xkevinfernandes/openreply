@@ -536,17 +536,6 @@
   margin-bottom: 0;
 }
 
-.os-auto-empty-mark {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  margin-bottom: 14px;
-  border-radius: 50%;
-  background: var(--tint-2);
-  color: var(--muted);
-}
-
 /* --- Edit page: lead magnet + setter ---------------------------------------- */
 
 .os .os-auto-bar {
@@ -690,75 +679,8 @@
 
 /* --- Phone -------------------------------------------------------------------- */
 
-@media (max-width: 1080px) {
-  .os-auto-row {
-    grid-template-columns: minmax(0, 1fr) 120px 56px 48px 44px 36px;
-  }
-
-  .os-auto-row > .os-auto-gate {
-    display: none;
-  }
-}
-
-@media (max-width: 760px) {
-  .os-auto-cards {
-    grid-template-columns: 1fr;
-    gap: var(--sp-3);
-  }
-
-  .os-auto-card > span:nth-child(2) > span {
-    display: none;
-  }
-
-  .os-auto-card {
-    align-items: center;
-    padding: 12px 14px;
-  }
-
-  .os-auto-tools .os-segmented {
-    order: 3;
-    width: 100%;
-  }
-
-  .os-auto-headrow {
-    display: none;
-  }
-
-  .os-auto-row {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-areas:
-      "main main main"
-      "setter switch menu";
-    row-gap: 10px;
-  }
-
-  .os-auto-main {
-    grid-area: main;
-  }
-
-  .os-auto-setter {
-    grid-area: setter;
-  }
-
-  .os-auto-switch {
-    grid-area: switch;
-  }
-
-  .os-auto-row > [role="cell"]:last-child {
-    grid-area: menu;
-  }
-
-  .os-auto-row > .num {
-    display: none;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .os-auto-pop {
     animation: none;
-  }
-
-  .os-auto-card:hover .os-auto-card-go {
-    transform: none;
   }
 }

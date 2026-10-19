@@ -3,10 +3,6 @@
    reuse (the Zernio card, the connect notice) sit in .os-upstream and are
    restyled here. */
 
-.os-set-tabs {
-  margin-bottom: var(--sp-6);
-}
-
 .os-set-stack {
   display: grid;
   gap: var(--sp-5);

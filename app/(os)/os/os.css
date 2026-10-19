@@ -267,8 +267,7 @@
 
 .os-input,
 .os-textarea,
-.os-select select,
-.os-search input {
+.os-select select {
   width: 100%;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
@@ -304,7 +303,6 @@
 
 .os-input::placeholder,
 .os-textarea::placeholder,
-.os-search input::placeholder,
 .os-compose textarea::placeholder {
   color: var(--ghost);
 }
@@ -317,8 +315,7 @@
 
 .os-input:focus,
 .os-textarea:focus,
-.os-select select:focus,
-.os-search input:focus {
+.os-select select:focus {
   outline: none;
   border-color: var(--ink);
   box-shadow: 0 0 0 3px var(--tint-2);
@@ -348,9 +345,7 @@
 }
 
 /* Segmented control (Review Room .seg): a tinted track, the choice lifts. */
-.os-seg,
-.os-segmented,
-.os-kb-tabs {
+.os-segmented {
   display: inline-flex;
   gap: 2px;
   padding: 2px;
@@ -359,9 +354,7 @@
   max-width: 100%;
 }
 
-.os-seg > *,
-.os-segmented button,
-.os-kb-tabs a {
+.os-segmented button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -382,13 +375,11 @@
     box-shadow 120ms ease;
 }
 
-.os-segmented button:hover:not(:disabled),
-.os-kb-tabs a:hover {
+.os-segmented button:hover:not(:disabled) {
   color: var(--ink);
 }
 
-.os-segmented button[aria-pressed="true"],
-.os-kb-tabs a[aria-current="page"] {
+.os-segmented button[aria-pressed="true"] {
   background: var(--card);
   color: var(--ink);
   box-shadow:
@@ -974,132 +965,11 @@
 }
 
 /* Setter cards: the stat tile as a link, with a one-line hint. */
-.os-home-title {
-  margin: 0 0 12px;
-  font-size: var(--fs-h2);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.os-stat-link {
-  display: block;
-  color: inherit;
-  text-decoration: none;
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease,
-    transform 100ms ease;
-}
-
-.os-stat-link:hover {
-  border-color: var(--line-strong);
-  background: var(--paper-2);
-}
-
-.os-stat-link:active {
-  transform: scale(0.985);
-}
-
-.os-stat-link[data-hot] .value {
-  color: var(--ink);
-}
-
-.os-stat-link:not([data-hot]) .value {
-  color: var(--ghost);
-}
 
 .os-stat .sub {
   margin-top: 4px;
   font-size: var(--fs-xs);
   color: var(--faint);
-}
-
-.os-home-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: var(--sp-4);
-}
-
-.os-home-panel {
-  padding: 14px 16px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--card);
-}
-
-.os-home-panel header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.os-home-panel h2 {
-  margin: 0;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-
-.os-home-panel header span {
-  font-size: var(--fs-xs);
-  color: var(--faint);
-  font-variant-numeric: tabular-nums;
-}
-
-.os-bars {
-  display: grid;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.os-bars li {
-  display: grid;
-  grid-template-columns: 112px 1fr 32px;
-  align-items: center;
-  gap: 10px;
-  font-size: var(--fs-sm);
-}
-
-.os-bars .lbl {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--muted);
-}
-
-.os-bars .track {
-  height: 8px;
-  border-radius: 999px;
-  background: var(--tint);
-  overflow: hidden;
-}
-
-.os-bars .fill {
-  display: block;
-  height: 100%;
-  min-width: 2px;
-  border-radius: inherit;
-  background: var(--ink);
-  transform-origin: left center;
-  animation: os-bar-grow 420ms var(--ease) both;
-}
-
-.os-bars li[data-zero] .fill {
-  min-width: 0;
-}
-
-.os-bars li[data-zero] .n,
-.os-bars li[data-zero] .lbl {
-  color: var(--ghost);
-}
-
-.os-bars .n {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
 }
 
 @keyframes os-bar-grow {
@@ -1686,7 +1556,6 @@
   .os-input,
   .os-textarea,
   .os-select select,
-  .os-search input,
   .os-compose textarea {
     font-size: 16px;
   }
@@ -1707,14 +1576,6 @@
 
   .os-switch-knob {
     transition: transform 1ms, width 1ms;
-  }
-
-  .os-bars .fill {
-    animation: none;
-  }
-
-  .os-stat-link:active {
-    transform: none;
   }
 }
 

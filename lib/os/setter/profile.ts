@@ -483,12 +483,3 @@ export function renderBrandBlock(p: SetterProfile, catalogRows: CatalogRow[], to
   return out.join("\n").trim();
 }
 
-/** The open offer an invitation is for: the named one if open, else the first open one. */
-export function openOffer(offers: Offer[], today: string, name?: string | null): Offer | null {
-  const live = offers.filter((o) => offerIsOpen(o, today));
-  if (name) {
-    const hit = live.find((o) => o.name.toLowerCase() === String(name).toLowerCase());
-    if (hit) return hit;
-  }
-  return live[0] ?? null;
-}

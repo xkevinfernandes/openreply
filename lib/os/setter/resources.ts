@@ -4,13 +4,6 @@
 
 import type { CatalogRow } from "@/lib/os/setter/types";
 
-/** Deliberately loose: IG/Zernio wrap and shorten links. */
-const URL_RE = /https?:\/\/[^\s"'<>()[\]]+/gi;
-
-export function urlsIn(text: string | null | undefined): string[] {
-  return (text ?? "").match(URL_RE) ?? [];
-}
-
 /** Every string that identifies this resource inside a URL. */
 export function fragments(res: CatalogRow): string[] {
   const frags: string[] = [...(res.match ?? [])];

@@ -5,7 +5,6 @@ import type { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { stageLabels } from "@/lib/os/labels";
 
 export type SyncProviderId = "kit" | "ghl";
-export const SYNC_PROVIDERS: SyncProviderId[] = ["kit", "ghl"];
 
 export type SyncEvent = "email_captured" | "stage_changed" | "tags_changed" | "kind_changed" | "backfill" | "manual";
 

@@ -196,13 +196,6 @@ export async function listExperiments(workspaceId: string): Promise<ExperimentVi
   );
 }
 
-export async function getExperiment(workspaceId: string, id: string): Promise<ExperimentView | null> {
-  const e = await experimentStore().get(workspaceId, id);
-  if (!e) return null;
-  const [{ counts, sample }, n] = await Promise.all([countsFor(e), names(workspaceId)]);
-  return toView(e, counts, n, sample);
-}
-
 export interface CreateOptions {
   campaigns: { id: string; name: string; openingDm: string | null }[];
   setters: { id: string; name: string }[];

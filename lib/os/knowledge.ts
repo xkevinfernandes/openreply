@@ -5,10 +5,10 @@ import { prisma } from "@/lib/db/client";
 import { connectedCalendar } from "@/lib/os/integrations/calendar/store";
 import { bookingOf, type SetterBooking } from "@/lib/os/integrations/calendar/setter-booking";
 import { calendarName } from "@/lib/os/integrations/calendar/types";
-import { bookingLinkOf, offerIsOpen, type ClientSettings, type FunnelStage, type VoiceCorrection } from "@/lib/os/setter/profile";
+import { bookingLinkOf, type ClientSettings, type FunnelStage, type VoiceCorrection } from "@/lib/os/setter/profile";
 import { profileFromRow, type ResourceStatusName } from "@/lib/os/setter/kb";
 import { docCount, type DocKey } from "@/lib/os/setter/knowledge/docs";
-import { ensureDocs, loadDocViews, loadDocs, type DocRevisionView } from "@/lib/os/setter/knowledge/doc-store";
+import { ensureDocs, loadDocViews, type DocRevisionView } from "@/lib/os/setter/knowledge/doc-store";
 import { resolveSequenceSet, type SequenceSet } from "@/lib/os/sequences/types";
 import { VOICE_SLOTS } from "@/lib/os/voice/slots";
 
@@ -106,36 +106,6 @@ export async function listResources(workspaceId: string): Promise<ResourceView[]
       sortOrder: r.sortOrder,
     };
   });
-}
-
-export async function listSetterCards(workspaceId: string): Promise<SetterCard[]> {
-  const [setters, accounts] = await Promise.all([
-    prisma.setter.findMany({
-      where: { workspaceId },
-      orderBy: { createdAt: "asc" },
-      include: { _count: { select: { resources: true, campaigns: true } } },
-    }),
-    prisma.instagramAccount.findMany({ where: { workspaceId }, select: { id: true, username: true } }),
-  ]);
-  const today = new Date().toISOString().slice(0, 10);
-  return Promise.all(
-    setters.map(async (s) => {
-      const p = profileFromRow(s, await loadDocs(s.id).catch(() => null));
-      const acc = accounts.find((a) => a.id === s.instagramAccountId);
-      return {
-        id: s.id,
-        name: s.name,
-        isDefault: s.isDefault,
-        defaultFor: s.isDefault ? (acc ? `@${acc.username}` : "this workspace") : null,
-        openOffers: p.offers.filter((o) => offerIsOpen(o, today)).length,
-        offers: p.offers.length,
-        leadMagnets: s._count.resources,
-        corrections: p.voiceCorrections.length,
-        campaigns: s._count.campaigns,
-        updatedAt: s.updatedAt.toISOString(),
-      };
-    })
-  );
 }
 
 // ---------------------------------------------------------------- one setter

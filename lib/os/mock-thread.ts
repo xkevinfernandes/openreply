@@ -83,10 +83,6 @@ export function markMockHeld(draftId: string, reason: string | null) {
   held.set(draftId, { at: new Date().toISOString(), reason });
 }
 
-export function mockHeld(draftId: string) {
-  return held.get(draftId) ?? null;
-}
-
 /** Sent sample drafts (the J marker on what was approved since load). */
 export function mockSentDrafts(contactId: string | null): { bubbles: string[]; editedText?: string | null }[] {
   const mem = (globalThis as { __osSetterMock?: { drafts: Map<string, { contactId: string; status: string; bubbles: string[] }> } }).__osSetterMock;

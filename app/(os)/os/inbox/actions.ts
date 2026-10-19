@@ -17,7 +17,7 @@ import { appendMockIncoming, mockThreads, osMockEnabled, updateMockContact } fro
 import { enqueueTriageMany, redisConfigured, scheduleNextAction } from "@/lib/os/setter/queue";
 import { TRIAGE_DISABLED_NOTICE, triageContact, triageDisabled } from "@/lib/os/setter/triage";
 import { markAttendance, syncFollowupsQuietly } from "@/lib/os/sequences/engine";
-import { approveDraft, discardDraft, draftForContact } from "@/lib/os/setter/service";
+import { approveDraft, draftForContact } from "@/lib/os/setter/service";
 import { setterStore } from "@/lib/os/setter/store";
 import type { SetterRecord } from "@/lib/os/setter/state";
 
@@ -66,12 +66,6 @@ export async function setContactStage(contactId: string, stage: ContactStage) {
   // Showed on the board = they came to the call: Kevin's voice-note task.
   if (stage === "SHOWED") await markAttendance(await requireWorkspace(), contactId, "SHOWED").catch(() => null);
   revalidatePath("/os/follow-ups");
-}
-
-/** Replace a contact's tags (trimmed, deduped). Pushed to the CRMs. */
-export async function setContactTags(contactId: string, tags: string[]) {
-  const clean = [...new Set(tags.map((t) => String(t).trim().slice(0, 60)).filter(Boolean))].slice(0, 50);
-  await updateContact(contactId, { tags: clean }, "tags_changed");
 }
 
 export async function sendInboxMessage(
@@ -162,16 +156,6 @@ export async function simulateTheirReply(conversationId: string, text: string, s
   appendMockIncoming(conversationId, message, screenshot ? "image" : null);
   revalidatePath("/os/inbox");
   return {};
-}
-
-export async function discardJDraft(draftId: string): Promise<DraftActionResult> {
-  const workspaceId = await requireWorkspace();
-  const contactId = (await setterStore().getDraft(draftId, workspaceId))?.contactId ?? null;
-  const result = await discardDraft(draftId, workspaceId);
-  if (contactId) await syncFollowupsQuietly(contactId, { workspaceId });
-  revalidatePath("/os/inbox");
-  revalidatePath("/os/follow-ups");
-  return result;
 }
 
 // --- Triage (spec item 7) --------------------------------------------------

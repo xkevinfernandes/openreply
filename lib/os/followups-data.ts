@@ -5,13 +5,13 @@
 // Approve-only: the Friday send runs only from a person pressing Send (one
 // row, or a batch they confirmed). J's nudges go out through approveDraft.
 
+import { fridayTags } from "@/lib/os/broadcasts/migrate";
 import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db/client";
 import {
   DEFAULT_FRIDAY_NOTE,
   dueCount,
   fridayFor,
-  fridaySendProblem,
   isFriday,
   selectFriday,
   selectNudges,
@@ -23,12 +23,9 @@ import {
   type NudgeItem,
   type QueueContact,
 } from "@/lib/os/followups";
-import { fireContactEvent } from "@/lib/os/integrations/events";
-import { appendMockMessage, mockContactExtras, mockThreads, osMockEnabled, updateMockContact, updateMockContactExtras } from "@/lib/os/mock";
+import { appendMockMessage, mockContactExtras, mockThreads, osMockEnabled, updateMockContact } from "@/lib/os/mock";
 import { getSetterConfig } from "@/lib/os/setter/config";
-import { catalogRowFromResource } from "@/lib/os/setter/kb";
-import { dmPayload, linkOf } from "@/lib/os/setter/resources";
-import { iso, logEvent, newRecord, recordSkip, windowState, type SetterRecord } from "@/lib/os/setter/state";
+import { iso, newRecord, type SetterRecord } from "@/lib/os/setter/state";
 import { setterStore, type DraftView } from "@/lib/os/setter/store";
 
 const HOUR = 3600_000;
@@ -270,173 +267,6 @@ export async function followupsDue(workspaceId: string, now: Date = new Date()):
   return dueCount(data.nudges, [], false) + sequences + needs.length;
 }
 
-// ---------------------------------------------------------------- nudge writes
-export async function snoozeContact(workspaceId: string, contactId: string, hours: number): Promise<{ error?: string }> {
-  const h = Math.min(Math.max(Math.round(hours), 1), 24 * 14);
-  const until = new Date(Date.now() + h * HOUR);
-  if (osMockEnabled()) {
-    mockFu.snoozed.set(contactId, until.toISOString());
-    return {};
-  }
-  const r = await prisma.setterState.updateMany({ where: { contactId, workspaceId }, data: { snoozedUntil: until } });
-  return r.count ? {} : { error: "J has no timer for this person any more. Refresh the page." };
-}
-
-/** Skip a due timer that has no draft: J won't draft this nudge until they write again. */
-export async function skipTimer(workspaceId: string, contactId: string, anchor: string): Promise<{ error?: string }> {
-  const store = setterStore();
-  const contact = await store.getContact(contactId, workspaceId);
-  const rec = contact ? await store.loadState(contactId) : null;
-  if (!contact || !rec) return { error: "J has no timer for this person any more. Refresh the page." };
-  await store.saveState(contact, recordSkip(rec, anchor, "skipped:followup", iso(new Date())));
-  return {};
-}
-
-// ---------------------------------------------------------------- Friday writes
-export interface FridaySendInput {
-  contactId: string;
-  resourceId: string;
-  /** The line before the resource; blank = resource only. */
-  note?: string | null;
-}
-
-export interface FridaySendResult {
-  contactId: string;
-  error?: string;
-  /** Sent under HUMAN_AGENT (they last wrote over 24h ago). */
-  humanAgent?: boolean;
-}
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-function resourceText(r: { id: string; slug: string; kind: string; name: string; link: string | null; keyword: string | null; status: "ACTIVE" | "TEST" | "DRAFT"; description: string; data: unknown }): string {
-  const row = catalogRowFromResource(r);
-  const p = dmPayload(r.slug, [row]);
-  // sendReply is text only: a button becomes the link under the message.
-  return p.buttons?.length ? `${p.message}\n\n${linkOf(row)}` : p.message;
-}
-
-/** Send one Friday resource. Never the same resource twice to one person. */
-export async function sendFridayResource(workspaceId: string, input: FridaySendInput, now: () => Date = () => new Date()): Promise<FridaySendResult> {
-  const fail = (error: string): FridaySendResult => ({ contactId: input.contactId, error });
-  const mock = osMockEnabled();
-  const store = setterStore();
-  const cfg = getSetterConfig();
-
-  const contact = await store.getContact(input.contactId, workspaceId);
-  if (!contact) return fail("Contact not found.");
-
-  const resource = mock
-    ? (() => {
-        const r = MOCK_RESOURCES.find((x) => x.id === input.resourceId);
-        return r ? { ...r, kind: "resource", keyword: null, description: "", data: { dm: { message: `here's the ${r.name.toLowerCase()}` } } } : null;
-      })()
-    : await prisma.resource.findFirst({ where: { id: input.resourceId, workspaceId, kind: "resource" } });
-  if (!resource) return fail("That resource is gone. Refresh the page.");
-  if (resource.status !== "ACTIVE" || !resource.link) return fail("Only active resources with a link can be sent.");
-
-  // Their real last message, read now: the window decides if this can go.
-  let msgs;
-  try {
-    msgs = await store.readThread(contact);
-  } catch (err) {
-    return fail(err instanceof Error ? err.message : "Couldn't read their thread.");
-  }
-  const theirLast = [...msgs].reverse().find((m) => m.incoming)?.at ?? null;
-  const rec = await store.loadState(contact.id);
-  const tags = mock ? mockContactExtras(contact.id).tags : contact.tags;
-  const sends: FridaySendLog[] = mock
-    ? mockFu.sends.filter((s) => s.contactId === contact.id)
-    : (await prisma.fridaySend.findMany({ where: { contactId: contact.id } })).map((s) => ({
-        contactId: s.contactId,
-        resourceSlug: s.resourceSlug,
-        friday: s.friday,
-        status: s.status,
-        sentAt: s.sentAt?.toISOString() ?? null,
-      }));
-  const date = fridayFor(now());
-  const [item] = selectFriday(
-    [{ contactId: contact.id, username: contact.username, fullName: null, avatarUrl: null, conversationId: contact.conversationId, tags, state: rec?.state ?? null, record: rec ? { ...rec, their_last_at: theirLast } : null, theirLastAt: theirLast }],
-    [{ id: resource.id, slug: resource.slug, name: resource.name, link: resource.link, status: resource.status }],
-    sends,
-    now(),
-    { friday: date, cfg }
-  );
-  const problem = fridaySendProblem(item, resource.slug);
-  if (problem) return fail(problem);
-  const [win] = windowState(theirLast, now(), cfg);
-  if (win === "closed") return fail("No DM window: they last wrote over 7 days ago.");
-  const humanAgent = win === "human_agent";
-
-  const note = (input.note ?? "").trim().slice(0, 1000);
-  const bubbles = [...(note ? [note] : []), resourceText(resource)];
-
-  // Claim (contact, resource) first: the unique index stops a double send.
-  let claimId: string;
-  if (mock) {
-    if (mockFu.sends.some((s) => s.contactId === contact.id && s.resourceSlug === resource.slug)) return fail("They already had that one.");
-    claimId = `mock-friday-${mockFu.sends.length + 1}`;
-    mockFu.sends.push({ id: claimId, contactId: contact.id, resourceSlug: resource.slug, friday: date, status: "sending", sentAt: null });
-  } else {
-    try {
-      const row = await prisma.fridaySend.create({
-        data: { workspaceId, contactId: contact.id, resourceId: resource.id, resourceSlug: resource.slug, friday: date, bubbles, humanAgent },
-      });
-      claimId = row.id;
-    } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return fail("They already had that one.");
-      throw err;
-    }
-  }
-  const setClaim = async (status: "sent" | "partial" | null, error?: string) => {
-    if (mock) {
-      const i = mockFu.sends.findIndex((s) => s.id === claimId);
-      if (status === null) mockFu.sends.splice(i, 1);
-      else Object.assign(mockFu.sends[i], { status, sentAt: now().toISOString() });
-      return;
-    }
-    if (status === null) await prisma.fridaySend.delete({ where: { id: claimId } });
-    else await prisma.fridaySend.update({ where: { id: claimId }, data: { status, sentAt: now(), error: error?.slice(0, 500) ?? null } });
-  };
-
-  let sent = 0;
-  try {
-    for (const [i, b] of bubbles.entries()) {
-      if (i) await sleep(mock ? 200 : 1200 + Math.random() * 800);
-      await store.send(contact, b, humanAgent);
-      sent++;
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "The message didn't send.";
-    if (!sent) {
-      await setClaim(null);
-      return fail(message);
-    }
-    await setClaim("partial", message);
-    return fail(`Sent ${sent} of ${bubbles.length} messages, then: ${message}`);
-  }
-  await setClaim("sent");
-
-  // Tag sent:<slug> (what Zernio and J read) and fold the send into J's record.
-  const tag = `sent:${resource.slug}`;
-  if (mock) {
-    if (!tags.includes(tag)) updateMockContactExtras(contact.id, { tags: [...tags, tag] });
-  } else if (!contact.tags.includes(tag)) {
-    await prisma.contact.updateMany({ where: { id: contact.id, workspaceId }, data: { tags: { push: tag } } });
-    await fireContactEvent({ workspaceId, contactId: contact.id, event: "tags_changed" });
-  }
-  const ts = iso(now())!;
-  const next = rec ? (JSON.parse(JSON.stringify(rec)) as SetterRecord) : newRecord(contact.conversationId ?? contact.id, contact.username ?? "", contact.id);
-  next.resources_sent = [...new Set([...(next.resources_sent ?? []), resource.slug])].sort();
-  next.tags = [...new Set([...(next.tags ?? []), tag])].sort();
-  next.friday_last_at = ts;
-  next.our_last_at = ts;
-  next.sends = [...(next.sends ?? []), { at: ts, kind: "friday", edited: false, human_agent: humanAgent, bubbles, first: false }].slice(-50);
-  logEvent(next, ts, `sent:friday:${resource.slug}${humanAgent ? " human_agent" : ""}`);
-  await store.saveState(contact, next);
-  return { contactId: contact.id, humanAgent };
-}
-
 /** Add to / take off the Friday list. */
 export async function setFriday(workspaceId: string, contactIds: string[], on: boolean): Promise<{ count: number }> {
   if (osMockEnabled()) {
@@ -448,5 +278,8 @@ export async function setFriday(workspaceId: string, contactIds: string[], on: b
     where: { id: { in: contactIds }, workspaceId },
     data: { onFriday: on, fridayAddedAt: on ? new Date() : null },
   });
+  // Broadcasts read the follow-up-friday tag; keep it in step with the flag.
+  const rows = await prisma.contact.findMany({ where: { id: { in: contactIds }, workspaceId }, select: { id: true, tags: true } });
+  for (const row of rows) await prisma.contact.update({ where: { id: row.id }, data: { tags: fridayTags(row.tags, on) } });
   return { count: r.count };
 }

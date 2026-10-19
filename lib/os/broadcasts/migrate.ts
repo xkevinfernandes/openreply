@@ -1,7 +1,7 @@
 // The old Friday list (Contact.onFriday) is now the follow-up-friday tag the
 // broadcast audience reads. The SQL migration (20261020020000_os_ui_data)
 // moved existing rows once; this keeps the two in step for writes that still
-// come through the old "Add to Friday" control.
+// come through the old "Add to Friday" control (setFriday, editContacts "friday").
 
 import { FOLLOW_UP_FRIDAY } from "@/lib/os/broadcasts/types";
 

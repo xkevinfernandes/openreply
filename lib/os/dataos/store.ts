@@ -4,9 +4,9 @@
 
 import { prisma } from "@/lib/db/client";
 import { decryptToken, encryptToken } from "@/lib/meta/oauth";
-import { createHttpDataOs, normaliseBase } from "@/lib/os/dataos/http";
+import { createHttpDataOs } from "@/lib/os/dataos/http";
 import { mockDataOs } from "@/lib/os/dataos/mock";
-import type { DataOs, DataOsStatus } from "@/lib/os/dataos/types";
+import type { DataOs } from "@/lib/os/dataos/types";
 import { osMockEnabled } from "@/lib/os/mock";
 
 export const DATAOS_PROVIDER = "dataos";
@@ -72,41 +72,6 @@ export async function writeDataOsConnection(workspaceId: string, input: { baseUr
     create: { workspaceId, provider: DATAOS_PROVIDER, ...data },
     update: data,
   });
-}
-
-/** Save URL + token, test it, record the result. The token is kept when blank. */
-export async function saveDataOsConnection(workspaceId: string, input: { baseUrl: string; token?: string | null }): Promise<DataOsStatus> {
-  const baseUrl = normaliseBase(input.baseUrl);
-  const existing = await prisma.osIntegration.findUnique({ where: { workspaceId_provider: { workspaceId, provider: DATAOS_PROVIDER } } });
-  const token = input.token?.trim() || tokenOf(existing?.credentials ?? null);
-  if (!token) throw new Error("Paste the Data OS token.");
-  const status = await createHttpDataOs({ baseUrl, token }).status();
-  const data = {
-    credentials: encryptToken(JSON.stringify({ token })),
-    settings: { baseUrl },
-    enabled: true,
-    lastTestedAt: new Date(),
-    lastError: status.connected ? null : status.error ?? "not reachable",
-  };
-  await prisma.osIntegration.upsert({
-    where: { workspaceId_provider: { workspaceId, provider: DATAOS_PROVIDER } },
-    create: { workspaceId, provider: DATAOS_PROVIDER, ...data },
-    update: data,
-  });
-  return status;
-}
-
-export async function testDataOsConnection(workspaceId: string): Promise<DataOsStatus> {
-  const os = await dataOsFor(workspaceId);
-  if (!os) return { connected: false, mode: "none", error: "Not connected" };
-  const status = await os.status();
-  if (!osMockEnabled()) {
-    await prisma.osIntegration.updateMany({
-      where: { workspaceId, provider: DATAOS_PROVIDER },
-      data: { lastTestedAt: new Date(), lastError: status.connected ? null : status.error ?? "not reachable" },
-    });
-  }
-  return status;
 }
 
 export async function disconnectDataOs(workspaceId: string): Promise<void> {

@@ -7,6 +7,7 @@
 // with the same events (stage_changed, kind_changed, tags_changed). One
 // updateMany per bulk action instead of one setContactStage call per row.
 
+import { fridayTags } from "@/lib/os/broadcasts/migrate";
 import { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { prisma } from "@/lib/db/client";
 import { normalizeTag, OUTCOME_STAGES, parseEmail } from "@/lib/os/contacts-filter";
@@ -146,6 +147,12 @@ export async function editContacts(
     const r = await db.contact.updateMany({ where: { id: { in: mine }, workspaceId }, data: plan.data });
     if (change.type === "setterStage") {
       await db.contact.updateMany({ where: { id: { in: mine }, workspaceId, stage: { in: OUTCOME_STAGES } }, data: { stage: "IN_CONVERSATION" } });
+    }
+    if (change.type === "friday") {
+      // Broadcasts read the follow-up-friday tag, not the legacy flag.
+      for (const row of await db.contact.findMany({ where: { id: { in: mine }, workspaceId }, select: { id: true, tags: true } })) {
+        await db.contact.updateMany({ where: { id: row.id, workspaceId }, data: { tags: fridayTags(row.tags, change.on) } });
+      }
     }
     changed.push(...mine);
     return done(r.count);

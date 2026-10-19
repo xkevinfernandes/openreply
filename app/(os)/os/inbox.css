@@ -1,36 +1,7 @@
 /* DM OS Inbox: list, thread, composer, J's drafts, J's triage.
    Tokens and controls live in os.css. */
 
-.os-main:has(.os-inbox) {
-  padding: 0;
-}
-
-.os-inbox {
-  display: grid;
-  grid-template-columns: 340px minmax(0, 1fr);
-  height: calc(100dvh - var(--bar-h) - env(safe-area-inset-top));
-}
-
 /* --- List --------------------------------------------------------------------- */
-
-.os-inbox-list {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  border-right: 1px solid var(--line);
-}
-
-.os-inbox-list .os-tabs {
-  display: flex;
-  margin: 12px 12px 0;
-}
-
-.os-inbox-list .os-tab {
-  flex: 1 1 0;
-  min-width: 0;
-  padding: 0 8px;
-}
 
 .os-tab .count {
   font-size: var(--fs-xs);
@@ -44,285 +15,16 @@
 }
 
 /* A warn dot on Personal: someone there may be asking to buy. */
-.os-tab-flag {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--warn);
-  flex: none;
-}
-
-.os-queue-bar {
-  padding: 10px 12px 0;
-}
-
-.os-queue-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: var(--card);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
-  color: var(--ink);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  text-decoration: none;
-  transition:
-    background-color 120ms ease,
-    box-shadow 120ms ease,
-    color 120ms ease,
-    transform 100ms ease;
-}
-
-.os-queue-chip:hover {
-  background: var(--tint);
-}
-
-.os-queue-chip:active {
-  transform: scale(0.97);
-}
-
-.os-queue-chip .dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--mark);
-}
-
-.os-queue-chip[data-empty="true"] {
-  color: var(--muted);
-}
-
-.os-queue-chip[data-empty="true"] .dot {
-  background: transparent;
-  box-shadow: inset 0 0 0 1.5px var(--ghost);
-}
-
-.os-queue-chip .count {
-  color: var(--faint);
-  font-variant-numeric: tabular-nums;
-}
-
-.os-queue-chip[aria-pressed="true"] {
-  background: var(--ink);
-  box-shadow: none;
-  color: var(--on-ink);
-}
-
-.os-queue-chip[aria-pressed="true"] .count {
-  color: inherit;
-  opacity: 0.7;
-}
-
-.os-search {
-  position: relative;
-  display: block;
-  padding: 10px 12px 12px;
-  border-bottom: 1px solid var(--line);
-}
-
-.os-search svg {
-  position: absolute;
-  left: 22px;
-  top: 50%;
-  margin-top: -8px;
-  width: 14px;
-  height: 14px;
-  color: var(--ghost);
-  pointer-events: none;
-}
-
-.os-search input {
-  height: var(--control-h);
-  padding: 0 10px 0 30px;
-  background: var(--paper-2);
-  border-color: var(--line);
-}
-
-.os-search input:focus {
-  background: var(--card);
-}
-
-.os-threads {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.os-threads-empty {
-  padding: 28px 16px;
-  color: var(--muted);
-  font-size: var(--fs-sm);
-  text-align: center;
-}
 
 /* Each row is a one-column grid so it can collapse in place (height and
    opacity together) once sorted. minmax(0, 1fr) keeps a long preview from
    widening the row past the column. */
-.os-thread-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 1fr;
-  border-bottom: 1px solid var(--line);
-  transition:
-    grid-template-rows 280ms var(--ease-sheet),
-    opacity 200ms ease,
-    background-color 120ms ease;
-}
-
-.os-thread-inner {
-  min-width: 0;
-  min-height: 0;
-}
 
 /* Clip only while collapsing, so focus rings show the rest of the time. */
-.os-thread-item[data-leaving="true"] .os-thread-inner {
-  overflow: hidden;
-}
-
-.os-thread-item[data-leaving="true"] {
-  grid-template-rows: 0fr;
-  opacity: 0;
-  pointer-events: none;
-  border-bottom-color: transparent;
-}
-
-.os-thread {
-  display: flex;
-  gap: 12px;
-  min-width: 0;
-  padding: 12px 14px 12px 12px;
-  color: inherit;
-  text-decoration: none;
-  transition: background-color 100ms ease;
-}
-
-.os-thread:hover {
-  background: var(--tint);
-}
-
-.os-thread:focus-visible {
-  outline-offset: -2px;
-}
 
 /* Selected: the row and its suggestion share one background and an ink edge. */
-.os-thread-item:has(.os-thread[aria-current="true"]) {
-  background: var(--tint-2);
-  box-shadow: inset 2px 0 0 var(--ink);
-}
-
-.os-thread-item:has(.os-thread[aria-current="true"]) .os-thread {
-  background: none;
-}
-
-.os-thread .avatar {
-  margin-top: 1px;
-}
-
-.os-thread .body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-
-.os-thread .row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-}
-
-.os-thread .name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
-  letter-spacing: -0.005em;
-}
-
-.os-thread .when {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  font-size: var(--fs-xs);
-  color: var(--faint);
-  font-variant-numeric: tabular-nums;
-}
-
-.os-thread .preview {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--muted);
-  font-size: var(--fs-sm);
-}
-
-.os-thread .chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 5px;
-  min-width: 0;
-}
-
-.os-unread {
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: var(--ink);
-  color: var(--on-ink);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 18px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.os-thread:has(.os-unread) .name {
-  font-weight: 700;
-}
-
-.os-thread:has(.os-unread) .preview {
-  color: var(--ink);
-}
 
 /* The group header above the rows J isn't sure about (Unsorted). */
-.os-threads-group {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 18px 14px 6px;
-  border-bottom: 1px solid var(--line);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--faint);
-  transition: opacity 200ms ease;
-}
-
-.os-threads-group .count {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-}
-
-.os-threads-group[data-empty="true"] {
-  opacity: 0;
-}
 
 /* Avatars: the IG picture, or the initial on a warm grey disc. */
 .os-avatar {
@@ -347,106 +49,6 @@
 }
 
 /* --- Thread ------------------------------------------------------------------- */
-
-.os-inbox-thread {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  background: var(--paper);
-}
-
-.os-thread-placeholder {
-  margin: auto;
-  display: grid;
-  gap: 2px;
-  text-align: center;
-  list-style: none;
-  color: var(--faint);
-  font-size: var(--fs-sm);
-}
-
-.os-thread-placeholder strong {
-  color: var(--ink);
-  font-weight: 600;
-  font-size: var(--fs-body);
-}
-
-.os-thread-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px 16px;
-  flex-wrap: wrap;
-  min-height: 60px;
-  padding: 10px 20px;
-  border-bottom: 1px solid var(--line);
-}
-
-.os-thread-head .who {
-  display: flex;
-  align-items: center;
-  gap: 8px 10px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-.os-thread-head .who-text {
-  display: grid;
-  min-width: 0;
-  margin-right: 2px;
-}
-
-.os-thread-head .name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--ink);
-  font-size: var(--fs-h2);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.25;
-  text-decoration: none;
-}
-
-.os-thread-head a.name:hover {
-  text-decoration: underline;
-  text-decoration-color: var(--line-strong);
-  text-underline-offset: 3px;
-}
-
-.os-thread-head .sub {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--faint);
-  font-size: var(--fs-xs);
-}
-
-.os-follows {
-  font-size: var(--fs-xs);
-  color: var(--faint);
-}
-
-.os-back {
-  display: none;
-}
-
-.os-contact-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  transition: opacity 120ms ease;
-}
-
-.os-contact-controls[aria-busy="true"] {
-  opacity: 0.6;
-}
-
-.os-contact-controls .os-select select {
-  height: 30px;
-}
 
 .os-messages {
   flex: 1;
@@ -503,11 +105,6 @@
 /* --- Composer ----------------------------------------------------------------
    Review Room's compose box: one card, the field borderless inside it, the
    keyboard hint and buttons on its bottom edge. */
-
-.os-composer-wrap {
-  display: flex;
-  flex-direction: column;
-}
 
 .os-composer {
   display: flex;
@@ -575,9 +172,7 @@
   margin-left: auto;
 }
 
-.os-composer-error,
-.os-composer-notice,
-.os-composer-editing {
+.os-composer-error {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 8px;
@@ -589,42 +184,10 @@
   color: var(--bad);
 }
 
-.os-composer-notice,
-.os-composer-editing {
-  color: var(--muted);
-}
-
 /* --- J's draft ----------------------------------------------------------------
    A card that rises out of the composer, where it was asked for. Approved
    bubbles leave upward into the thread; discarded ones drop back. Bubbles are
    a sent bubble's shape, outlined: written, not sent yet. */
-
-.os-draft {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin: 0 20px 10px;
-  padding: 12px 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  background: var(--card);
-  box-shadow: var(--shadow);
-  transform-origin: bottom center;
-  animation: os-draft-in 260ms var(--ease) both;
-  transition: opacity 160ms ease;
-}
-
-.os-draft[aria-busy="true"] {
-  opacity: 0.7;
-}
-
-.os-draft[data-leaving="approve"] {
-  animation: os-draft-out-up 260ms cubic-bezier(0.4, 0, 1, 1) both;
-}
-
-.os-draft[data-leaving="discard"] {
-  animation: os-draft-out-down 220ms cubic-bezier(0.4, 0, 1, 1) both;
-}
 
 @keyframes os-draft-in {
   from {
@@ -647,24 +210,6 @@
   }
 }
 
-.os-draft-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.os-draft-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-
-.os-draft-mark,
 .os-triage-mark {
   display: inline-grid;
   place-items: center;
@@ -674,119 +219,6 @@
   color: var(--on-ink);
   font-weight: 700;
   line-height: 1;
-}
-
-.os-draft-mark {
-  width: 22px;
-  height: 22px;
-  font-size: 11px;
-}
-
-.os-draft-who {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  color: var(--muted);
-  font-weight: 500;
-}
-
-.os-draft-chips {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.os-draft-bubbles {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.os-draft-bubbles li {
-  max-width: min(80%, 520px);
-}
-
-.os-draft-bubbles .bubble {
-  display: block;
-  padding: 8px 12px;
-  border: 1px dashed var(--ink);
-  border-radius: 16px;
-  background: var(--card);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  line-height: 1.4;
-}
-
-.os-draft-why {
-  font-size: var(--fs-sm);
-  color: var(--muted);
-}
-
-.os-draft-why summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  width: fit-content;
-  color: var(--faint);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  cursor: pointer;
-  list-style: none;
-  transition: color 120ms ease;
-}
-
-.os-draft-why summary::-webkit-details-marker {
-  display: none;
-}
-
-.os-draft-why summary::after {
-  content: "";
-  width: 6px;
-  height: 6px;
-  margin-top: -2px;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: rotate(45deg);
-  transition: transform 160ms var(--ease);
-}
-
-.os-draft-why[open] summary::after {
-  margin-top: 2px;
-  transform: rotate(-135deg);
-}
-
-.os-draft-why summary:hover {
-  color: var(--ink);
-}
-
-.os-draft-why p {
-  margin-top: 6px;
-  padding-left: 10px;
-  border-left: 2px solid var(--line-strong);
-  white-space: pre-wrap;
-}
-
-.os-draft-actions {
-  display: flex;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-}
-
-.os-draft-writing {
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-  color: var(--muted);
-  font-size: var(--fs-sm);
-  box-shadow: none;
 }
 
 .os-draft-dot {
@@ -934,95 +366,6 @@
    One pane at a time: the list, or the open thread with a back chevron. */
 
 @media (max-width: 860px) {
-  .os-inbox {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .os-inbox[data-thread-open="true"] .os-inbox-list,
-  .os-inbox[data-thread-open="false"] .os-inbox-thread {
-    display: none;
-  }
-
-  .os-inbox-list {
-    border-right: 0;
-  }
-
-  .os-inbox-list .os-tab {
-    height: 34px;
-  }
-
-  .os-queue-chip {
-    height: 32px;
-    padding: 0 12px;
-  }
-
-  .os-thread {
-    padding: 12px 16px 12px 14px;
-  }
-
-  .os-thread-head {
-    gap: 8px;
-    min-height: 0;
-    padding: 6px 12px 10px 4px;
-  }
-
-  .os-thread-head .who {
-    flex: 1 1 0;
-    flex-wrap: nowrap;
-    overflow: hidden;
-  }
-
-  .os-thread-head .who .chip,
-  .os-follows {
-    display: none;
-  }
-
-  .os-back {
-    display: inline-grid;
-    place-items: center;
-    width: 44px;
-    height: 44px;
-    margin-right: -6px;
-    border-radius: var(--radius);
-    color: var(--ink);
-    transition: background-color 120ms ease, transform 100ms ease;
-  }
-
-  .os-back:active {
-    background: var(--tint-2);
-    transform: scale(0.94);
-  }
-
-  .os-back svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  .os-contact-controls {
-    flex: 1 0 100%;
-    padding-left: 12px;
-    flex-wrap: nowrap;
-  }
-
-  .os-contact-controls .os-segmented {
-    flex: 1 1 auto;
-  }
-
-  .os-contact-controls .os-segmented button {
-    flex: 1 1 0;
-    height: 32px;
-    padding: 0 6px;
-  }
-
-  .os-contact-controls .os-select {
-    flex: 0 1 46%;
-    min-width: 0;
-  }
-
-  .os-contact-controls .os-select select {
-    height: 36px;
-    font-size: 16px;
-  }
 
   .os-messages {
     padding: 16px 12px;
@@ -1040,19 +383,7 @@
     display: none;
   }
 
-  .os-draft {
-    margin: 0 12px 8px;
-  }
-
-  .os-draft-bubbles li {
-    max-width: 90%;
-  }
-
   /* Thumb reach: the primary action spans the row. */
-  .os-draft-actions .os-button.primary {
-    flex: 1 1 100%;
-    height: 44px;
-  }
 
   .os-triage[data-variant="row"] {
     padding-left: 14px;
@@ -1072,48 +403,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .os-thread-item {
-    transition:
-      opacity 150ms ease,
-      background-color 120ms ease;
-  }
-
-  .os-draft,
-  .os-draft[data-leaving] {
-    animation: none;
-  }
 
   .os-draft-dot {
     animation: none;
   }
-
-  .os-queue-chip:active,
-  .os-back:active {
-    transform: none;
-  }
 }
 
 /* --- Booking (J books the call in the DM) ---------------------------------- */
-.os-draft-booking {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: var(--radius);
-  background: var(--mark-bg);
-  color: var(--ink);
-}
-.os-draft-booking-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--card);
-  color: var(--mark);
-}
-.os-draft-booking-icon svg,
 .os-booked svg {
   width: 18px;
   height: 18px;
@@ -1122,40 +418,6 @@
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-.os-draft-booking-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.os-draft-booking-main strong {
-  font-size: var(--fs-body);
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-}
-.os-draft-booking-main span {
-  font-size: var(--fs-sm);
-  color: var(--muted);
-  overflow-wrap: anywhere;
-}
-.os-draft-booking-via {
-  font-size: 12px;
-  color: var(--mark);
-  white-space: nowrap;
-}
-.os-draft-senderr {
-  font-size: var(--fs-sm);
-  color: var(--bad);
-}
-@media (max-width: 560px) {
-  .os-draft-booking {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-  .os-draft-booking-via {
-    grid-column: 2;
-    white-space: normal;
-  }
 }
 
 /* The booked call in the thread header */

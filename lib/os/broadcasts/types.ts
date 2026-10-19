@@ -87,5 +87,3 @@ export interface BroadcastMessageRow extends BroadcastMessageView {
   broadcastName: string;
 }
 
-/** Statuses a message can still be changed in (not out of the door yet). */
-export const OPEN_STATUSES: BroadcastMessageStatus[] = ["drafted", "approved", "scheduled"];

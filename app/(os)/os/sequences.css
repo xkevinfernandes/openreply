@@ -2,151 +2,17 @@
    The queue (Follow-ups, Home, the thread strip) and the sequence editor in a
    knowledge base. Built from the Follow-ups row and the Knowledge toggles. */
 
-.os-seq-row {
-  display: grid;
-  gap: 10px;
-}
-
-.os-seq-row[data-compact] {
-  padding: 10px 0 0;
-  border-top: 1px solid var(--line);
-}
-
-.os-seq-row[data-compact]:first-of-type {
-  border-top: 0;
-  padding-top: 0;
-}
-
-.os-fu-row:has(> .os-seq-row[data-status="DRAFTED"]) {
-  border-color: var(--line-strong);
-  box-shadow: var(--shadow);
-}
-
-.os-seq-row[aria-busy="true"] {
-  opacity: 0.65;
-  transition: opacity 160ms ease;
-}
-
-.os-seq-title {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  line-height: 1.25;
-}
-
-.os-seq-title strong {
-  font-size: var(--fs-body);
-  font-weight: 600;
-}
-
-.os-seq-title .muted,
-.os-fu-strip .muted {
-  font-size: var(--fs-xs);
-  color: var(--faint);
-}
-
 /* A fixed line reads like the draft bubble: written, not sent. */
-.os-seq-preview {
-  margin: 0;
-}
-
-.os-seq-preview .bubble {
-  display: inline-block;
-  max-width: 70ch;
-  padding: 7px 11px;
-  border: 1px dashed var(--line-strong);
-  border-radius: 14px;
-  font-size: var(--fs-sm);
-}
 
 .os-seq-group + .os-seq-group {
   margin-top: 18px;
 }
 
-.os-seq-group-title {
-  margin: 0 0 8px;
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--faint);
-}
-
 /* Voice-note task: what to talk about. */
-.os-task-context {
-  display: grid;
-  gap: 6px;
-  margin: 0;
-  font-size: var(--fs-sm);
-}
-
-.os-task-context > div {
-  display: grid;
-  grid-template-columns: 140px minmax(0, 1fr);
-  gap: 12px;
-}
-
-.os-task-context dt {
-  color: var(--faint);
-}
-
-.os-task-context dd {
-  margin: 0;
-  text-wrap: pretty;
-}
 
 /* --- The strip on a thread */
-.os-fu-strip {
-  display: grid;
-  gap: 10px;
-  margin: 0 16px 8px;
-  padding: 10px 14px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--card);
-}
-
-.os-fu-strip[aria-busy="true"] .os-switch {
-  opacity: 0.7;
-}
-
-.os-fu-strip-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.os-fu-strip-title {
-  min-width: 0;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-
-.os-fu-strip-title .muted {
-  font-weight: 400;
-}
-
-.os-fu-strip-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.os-fu-strip-later {
-  margin: 0;
-}
 
 /* --- Home */
-.os-home-yours {
-  margin-bottom: 16px;
-}
-
-.os-home-yours .os-fu-list {
-  max-width: 860px;
-}
 
 /* --- Knowledge base → Follow-ups */
 .os-seq-list {
@@ -284,27 +150,10 @@
   user-select: all;
 }
 
-@media (max-width: 640px) {
-  .os-task-context > div {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2px;
-  }
-
-  .os-fu-strip {
-    margin: 0 12px 8px;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .os-seq-row,
   .os-seq .os-kb-toggle-text {
     transition: none;
   }
 }
 
 /* --- Contacts panel: Showed / No-show */
-.os-ct-attendance {
-  display: grid;
-  gap: 6px;
-  margin-top: 8px;
-}
