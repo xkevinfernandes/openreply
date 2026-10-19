@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { KbIcon } from "@/components/os/knowledge/icons";
 import { NewSetter } from "@/components/os/knowledge/setter-list-actions";
+import { SetterChatToggle } from "@/components/os/knowledge/setter-chat";
 
 /** Setters · Resources, under the header. */
 export function KbTabs({ active, settersHref = "/os/knowledge" }: { active: "setters" | "resources"; settersHref?: string }) {
@@ -63,6 +64,7 @@ export function SetterBar({ id, name, setters, query = "", active = "knowledge" 
           <KbIcon name="download" />
           Download .md
         </a>
+        <SetterChatToggle />
         {active === "knowledge" && (
           <Link href={`/os/knowledge/${id}/sandbox`} className="kb-btn kb-btn-p">
             <KbIcon name="play" />

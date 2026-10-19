@@ -1,11 +1,11 @@
 "use client";
 
-// Setup › Booking, Fields J fills and Follow-ups, one page (SetterBooking board).
+// Setup › Booking (how J books calls) and Setup › Fields J fills, two pages.
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { saveBooking, setSetterField } from "@/app/(os)/os/knowledge/actions";
-import FollowupsEditor from "@/components/os/knowledge/followups-editor";
+import { testBookingTimes, type TestTimes } from "@/app/(os)/os/knowledge/setup-actions";
 import { useSaver } from "@/components/os/knowledge/fields";
 import { InfoTip, SetterMark } from "@/components/os/ui";
 import type { BookingMode } from "@/lib/os/integrations/calendar/setter-booking";
@@ -23,11 +23,42 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export default function BookingSetup({ view }: { view: SetterEditorView }) {
+  return <BookingSection setterId={view.id} name={view.name} initial={view.booking} />;
+}
+
+/** "Test: show me 2 times": the times J would offer now. Reads the calendar, sends nothing. */
+function TestTimesButton({ setterId, n, disabled }: { setterId: string; n: number; disabled: boolean }) {
+  const [res, setRes] = useState<TestTimes | null>(null);
+  const [pending, start] = useTransition();
   return (
     <>
-      <BookingSection setterId={view.id} name={view.name} initial={view.booking} />
-      <FieldsSection setterId={view.id} name={view.name} fields={view.fields} />
-      <FollowupsEditor setterId={view.id} sequences={view.sequences} />
+      <button
+        type="button"
+        className="kb-btn"
+        disabled={disabled || pending}
+        title={disabled ? "Save first" : undefined}
+        onClick={() => start(async () => setRes(await testBookingTimes(setterId)))}
+      >
+        {pending ? "Checking…" : `Test: show me ${n} ${n === 1 ? "time" : "times"}`}
+      </button>
+      {res && (
+        <div className="kb-test" role="status">
+          {res.error ? (
+            <span className="kb-err">{res.error}</span>
+          ) : res.times?.length ? (
+            <>
+              {res.times.map((t) => (
+                <span key={t} className="kb-test-slot">
+                  {t}
+                </span>
+              ))}
+              <span className="kb-quiet">{res.timezone} time · nothing sent</span>
+            </>
+          ) : (
+            <span className="kb-quiet">No free times: J would send the link.</span>
+          )}
+        </div>
+      )}
     </>
   );
 }
@@ -60,8 +91,15 @@ function BookingSection({ setterId, name, initial }: { setterId: string; name: s
         <h2 id="kb-booking">Booking</h2>
         <span className="kb-status">
           <span className="kb-live" data-off={cal ? undefined : "true"} aria-hidden="true" />
-          {cal ? `${cal.provider} connected` : "No calendar"}
+          {cal ? `${cal.provider} connected · ${cal.eventName ?? "no event type"}` : "No calendar"}
         </span>
+        {cal ? (
+          b.mode === "calendar" && <TestTimesButton setterId={setterId} n={b.propose} disabled={dirty} />
+        ) : (
+          <Link href="/os/settings?tab=integrations" className="kb-btn">
+            Connect
+          </Link>
+        )}
         <div className="kb-grow" />
         <span className="kb-note" role="status" data-kind={saver.note?.kind}>
           {saver.pending ? "Saving…" : dirty ? "Unsaved" : saver.note?.text}
@@ -199,7 +237,7 @@ function BookingSection({ setterId, name, initial }: { setterId: string; name: s
   );
 }
 
-function FieldsSection({ setterId, name, fields }: { setterId: string; name: string; fields: FieldPick[] }) {
+export function FieldsSection({ setterId, name, fields }: { setterId: string; name: string; fields: FieldPick[] }) {
   const [on, setOn] = useState(() => new Set(fields.filter((f) => f.on).map((f) => f.id)));
   const [error, setError] = useState<string | null>(null);
   const [, start] = useTransition();

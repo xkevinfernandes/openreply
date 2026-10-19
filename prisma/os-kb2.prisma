@@ -1,0 +1,21 @@
+// Setter chat (Knowledge bases › a setter › Chat). Our fork only. setterId is
+// a plain column, no relation, so no existing model changes; rows go with the
+// setter in app code (deleteSetter).
+
+/// One message in a setter's chat. The assistant's proposed doc edits live on
+/// its message with their status (proposed / applied / discarded / stale).
+model SetterChatMessage {
+  id        String   @id @default(cuid())
+  setterId  String
+  /// "user" | "assistant"
+  role      String
+  text      String
+  /// ChatEdit[]: {id, doc, before, after, why, status}
+  edits     Json     @default("[]")
+  /// A sandbox run on request: {lead, bubbles, hold, stage, error}
+  test      Json?
+  author    String?
+  createdAt DateTime @default(now())
+
+  @@index([setterId, createdAt])
+}

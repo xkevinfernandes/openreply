@@ -21,6 +21,9 @@ const PATHS = {
   grip: "M6 4h.01M10 4h.01M6 8h.01M10 8h.01M6 12h.01M10 12h.01",
   more: "M3.5 8h.01M8 8h.01M12.5 8h.01",
   video: "M2.5 4h8v8h-8V4ZM10.5 7l3-2v6l-3-2",
+  chat: "M2.5 3h11v7.5H7L4 13v-2.5H2.5V3Z",
+  x: "M4 4l8 8M12 4l-8 8",
+  send: "M2.5 8h9M8 4l4 4-4 4",
 } as const;
 
 export type KbIconName = keyof typeof PATHS;

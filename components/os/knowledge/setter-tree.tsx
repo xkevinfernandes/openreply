@@ -6,22 +6,23 @@ import { DOC_FILES, DOC_KEYS, type DocKey } from "@/lib/os/setter/knowledge/docs
 export const SETUP_KEYS = ["funnel", "lead-magnets", "voice-notes", "booking", "fields", "follow-ups", "tests", "corrections", "autopilot", "profile"] as const;
 export type SetupKey = (typeof SETUP_KEYS)[number];
 
-/** What the right pane shows: a file or a Setup page. Fields and Follow-ups live on the Booking page. */
+/** What the right pane shows: a file or a Setup page. */
 export type TreeSel = { file: DocKey } | { setup: SetupKey };
+
+/** The pages the pane can show. "tests" and "autopilot" are old links: both live on Funnel now. */
+export type SetupPage = Exclude<SetupKey, "tests" | "autopilot">;
 
 export function isSetupKey(k: unknown): k is SetupKey {
   return typeof k === "string" && (SETUP_KEYS as readonly string[]).includes(k);
 }
 
-export function pageOf(setup: SetupKey): SetupKey {
-  return setup === "fields" || setup === "follow-ups" ? "booking" : setup;
+export function pageOf(setup: SetupKey): SetupPage {
+  return setup === "tests" || setup === "autopilot" ? "funnel" : setup;
 }
 
 export function hrefFor(sel: TreeSel): string {
   if ("file" in sel) return `?f=${sel.file}`;
-  if (sel.setup === "fields") return "?s=booking#fields";
-  if (sel.setup === "follow-ups") return "?s=booking#followups";
-  return `?s=${sel.setup}`;
+  return `?s=${pageOf(sel.setup)}`;
 }
 
 export interface BookingState {
@@ -35,8 +36,16 @@ export function bookingState(view: Pick<SetterEditorView, "booking">): BookingSt
   return { label: b.link || b.inheritedLink ? "Link" : "Off", live: false };
 }
 
-const SETUP: { key: SetupKey; label: string; icon: KbIconName; meta: (v: SetterEditorView) => React.ReactNode }[] = [
-  { key: "funnel", label: "Funnel", icon: "funnel", meta: (v) => `${v.funnel.length} stages` },
+const SETUP: { key: SetupPage; label: string; icon: KbIconName; meta: (v: SetterEditorView) => React.ReactNode }[] = [
+  {
+    key: "funnel",
+    label: "Funnel",
+    icon: "funnel",
+    meta: (v) => {
+      const auto = v.funnel.filter((s) => s.autopilot === "auto").length;
+      return auto ? `${v.funnel.length} · ${auto} auto` : `${v.funnel.length} stages`;
+    },
+  },
   {
     key: "lead-magnets",
     label: "Lead magnets",
@@ -60,9 +69,7 @@ const SETUP: { key: SetupKey; label: string; icon: KbIconName; meta: (v: SetterE
   },
   { key: "fields", label: "Fields J fills", icon: "table", meta: (v) => v.fields.filter((f) => f.on).length },
   { key: "follow-ups", label: "Follow-ups", icon: "clock", meta: (v) => Object.values(v.sequences).filter((s) => s.enabled).length },
-  { key: "tests", label: "Tests", icon: "flask", meta: (v) => (v.testsRunning ? `${v.testsRunning} running` : "none") },
   { key: "corrections", label: "Voice corrections", icon: "pencil", meta: (v) => v.voiceCorrections.length },
-  { key: "autopilot", label: "Autopilot", icon: "bolt", meta: (v) => `${v.autonomy === "auto" ? v.funnel.length : 0}/${v.funnel.length}` },
   { key: "profile", label: "Profile", icon: "user", meta: (v) => (v.settings.ig_username ? `@${v.settings.ig_username}` : null) },
 ];
 

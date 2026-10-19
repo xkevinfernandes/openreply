@@ -29,7 +29,17 @@ export const OfferSchema = z.object({
   notes: str,
 });
 
-export const FunnelStageSchema = z.object({ key: str, label: str, guidance: str });
+export const FunnelStageSchema = z.object({
+  key: str,
+  label: str,
+  guidance: str,
+  variations: z.array(z.unknown()).optional().catch(undefined),
+  ab: z.boolean().optional().catch(undefined),
+  autopilot: z.enum(["approve", "auto"]).optional().catch(undefined),
+});
+
+/** At most this many variations per stage (the prompt stays short). */
+export const MAX_VARIATIONS = 8;
 export const CorrectionSchema = z.object({ title: str, body: str });
 export const ObjectionSchema = z.object({ objection: str, response: str });
 export const BusinessSchema = z.object({
@@ -65,7 +75,19 @@ export function asFunnel(v: unknown): FunnelStage[] {
     .parse(v)
     .map((x) => FunnelStageSchema.parse(x && typeof x === "object" ? x : {}))
     .filter((s) => s.label.trim() && s.guidance.trim())
-    .map((s) => ({ key: s.key || slugify(s.label), label: s.label.trim(), guidance: s.guidance.trim() }));
+    .map((s) => {
+      const out: FunnelStage = { key: s.key || slugify(s.label), label: s.label.trim(), guidance: s.guidance.trim() };
+      // Optional parts only when set, so an old funnel reads (and renders) exactly as before.
+      const vars = (s.variations ?? [])
+        .filter((v): v is string => typeof v === "string")
+        .map((v) => v.trim())
+        .filter(Boolean)
+        .slice(0, MAX_VARIATIONS);
+      if (vars.length) out.variations = vars;
+      if (s.ab) out.ab = true;
+      if (s.autopilot === "auto") out.autopilot = "auto";
+      return out;
+    });
 }
 
 export function asCorrections(v: unknown): VoiceCorrection[] {

@@ -1,24 +1,39 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { createSetter, importKnowledge } from "@/app/(os)/os/knowledge/actions";
 import { useSaver } from "@/components/os/knowledge/fields";
 import { KbIcon } from "@/components/os/knowledge/icons";
 
-export function NewSetter({ setters, compact = false }: { setters: { id: string; name: string }[]; compact?: boolean }) {
+/** "New setter" opens the interview (/os/knowledge/new). */
+export function NewSetter({ compact = false }: { setters?: { id: string; name: string }[]; compact?: boolean }) {
+  return compact ? (
+    <Link href="/os/knowledge/new" className="kb-switch-tab kb-switch-new">
+      <KbIcon name="plus" size={12} />
+      New setter
+    </Link>
+  ) : (
+    <Link href="/os/knowledge/new" className="os-button primary">
+      New setter
+    </Link>
+  );
+}
+
+/** The quick way: an empty setter or a copy of one (no interview). */
+export function CopySetter({ setters, compact = false }: { setters: { id: string; name: string }[]; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [copy, setCopy] = useState(setters[0]?.id ?? "");
   const saver = useSaver();
   if (!open) {
     return compact ? (
-      <button type="button" className="kb-switch-tab kb-switch-new" onClick={() => setOpen(true)}>
-        <KbIcon name="plus" size={12} />
-        New setter
+      <button type="button" className="kb-quiet kb-linkbtn" onClick={() => setOpen(true)}>
+        Or copy a setter
       </button>
     ) : (
-      <button type="button" className="os-button primary" onClick={() => setOpen(true)}>
-        New setter
+      <button type="button" className="os-button ghost" onClick={() => setOpen(true)}>
+        Copy a setter
       </button>
     );
   }

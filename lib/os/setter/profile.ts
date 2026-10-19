@@ -91,10 +91,28 @@ function stripCommentLines(text: string): string {
   return text.replace(/<!--[\s\S]*?-->/g, "");
 }
 
+export type StageAutopilot = "approve" | "auto";
+/** Clean approvals at a stage before Auto is the recommendation (lib/os/setter/autopilot.ts). */
+export const CLEAN_TARGET = 20;
+
 export interface FunnelStage {
   key: string;
   label: string;
   guidance: string;
+  /** Other ways to say this stage's line, so J doesn't always say the same thing. */
+  variations?: string[];
+  /** Rotate the variations (A/B). Off: J only reads the guidance. */
+  ab?: boolean;
+  /** "auto": J's drafts at this stage send without Approve (lib/os/setter/autopilot.ts). Default approve. */
+  autopilot?: StageAutopilot;
+}
+
+/** One stage line for the brand block. Without A/B variations it is exactly the old line. */
+export function stageLine(s: FunnelStage): string {
+  const head = `**${s.label}** — ${s.guidance}`;
+  const vars = s.ab ? (s.variations ?? []).map((v) => v.trim()).filter(Boolean) : [];
+  if (!vars.length) return head;
+  return `${head}\n  Say it in one of these ways (rotate between them, never copy one word for word):\n${vars.map((v) => `  - ${v.replace(/\n/g, " ")}`).join("\n")}`;
 }
 
 export function parseFunnel(text: string): FunnelStage[] {
@@ -457,7 +475,7 @@ export function renderBrandBlock(p: SetterProfile, catalogRows: CatalogRow[], to
   if (stages.length) {
     out.push(
       "### CLIENT JOURNEY (what to ask at each stage — overrides the examples in the method)\n" +
-        stages.map((s) => `**${s.label}** — ${s.guidance}`).join("\n") +
+        stages.map(stageLine).join("\n") +
         "\n"
     );
   }

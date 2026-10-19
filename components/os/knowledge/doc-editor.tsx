@@ -1,23 +1,44 @@
 "use client";
 
-// A setter file (System prompt.md, Offers.md…) edited like a doc. The page is
-// rendered Markdown; click a block to edit its Markdown in place. Raw shows the
-// whole file. Saves itself a moment after you stop typing; History keeps one
-// entry per editing session. No editor dependency.
+// A setter file (System prompt.md, Offers.md…) edited like a doc: a TipTap
+// rich editor (loaded on demand) over Markdown storage. Raw shows the whole
+// file. Saves itself a moment after you stop typing; History keeps one entry
+// per editing session.
 
+import type { Editor } from "@tiptap/core";
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { restoreRevision, saveDoc } from "@/app/(os)/os/knowledge/actions";
 import { KbIcon } from "@/components/os/knowledge/icons";
 import { InfoTip } from "@/components/os/ui";
 import type { DocRevisionView } from "@/lib/os/setter/knowledge/doc-store";
 import type { CorrectionPair } from "@/lib/os/setter/knowledge/corrections";
 import { DOC_FILES, type DocKey } from "@/lib/os/setter/knowledge/docs";
-import { applyFormat, joinBlocks, renderBlock, splitBlocks, type MdBlock } from "@/lib/os/setter/knowledge/markdown";
+import { applyFormat, renderMarkdown } from "@/lib/os/setter/knowledge/markdown";
+
+const RichDoc = dynamic(() => import("@/components/os/knowledge/rich-doc"), { ssr: false });
 
 const AUTOSAVE_MS = 900;
 
 type SaveState = { kind: "saved"; at: string | null } | { kind: "saving" } | { kind: "dirty" } | { kind: "error"; text: string };
+type FormatKind = "heading" | "bold" | "list" | "link";
+
+/** The toolbar on the rich editor. */
+function formatRich(ed: Editor, kind: FormatKind) {
+  const c = ed.chain().focus();
+  if (kind === "heading") c.toggleHeading({ level: 2 }).run();
+  else if (kind === "bold") c.toggleBold().run();
+  else if (kind === "list") c.toggleBulletList().run();
+  else if (ed.isActive("link")) c.extendMarkRange("link").unsetLink().run();
+  else {
+    const url = window.prompt("Link", "https://")?.trim();
+    if (!url || url === "https://") return;
+    const href = /^(https?:\/\/|mailto:)/i.test(url) ? url : `https://${url}`;
+    if (ed.state.selection.empty) c.insertContent({ type: "text", text: href, marks: [{ type: "link", attrs: { href } }] }).run();
+    else c.extendMarkRange("link").setLink({ href }).run();
+  }
+}
 
 export function ago(iso: string | null, now: number): string {
   if (!iso) return "";
@@ -34,6 +55,8 @@ function authorLabel(a: string | null): string {
   if (!a) return "Edited";
   if (a === "import") return "Imported";
   if (a === "seed") return "Sample";
+  if (a === "Setter chat") return "Setter chat";
+  if (a === "New setter") return "Created";
   if (a === "copy" || a.startsWith("copied from")) return a === "copy" ? "Copied" : a.replace(/^copied/, "Copied");
   if (a.endsWith("(restored)")) return "Restored";
   return "You edited";
@@ -55,55 +78,81 @@ export default function DocEditor(props: DocEditorProps) {
   const meta = DOC_FILES[docKey];
   const [body, setBody] = useState(props.initialBody);
   const [raw, setRaw] = useState(false);
-  const [editing, setEditing] = useState<number | null>(null);
+  const [editor, setEditor] = useState<Editor | null>(null);
   const [state, setState] = useState<SaveState>({ kind: "saved", at: props.updatedAt });
   const [revisions, setRevisions] = useState(props.revisions);
   const [now, setNow] = useState(() => Date.now());
+  const [initial, setInitial] = useState(props.initialBody);
   const saved = useRef(props.initialBody);
   const active = useRef<HTMLTextAreaElement | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // A new body from the server (saved elsewhere): show it, unless we have
+  // unsaved edits or it's just our own save coming back.
+  if (props.initialBody !== initial) {
+    setInitial(props.initialBody);
+    if (props.initialBody !== body && state.kind === "saved") setBody(props.initialBody);
+  }
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(t);
   }, []);
 
+  const bodyRef = useRef(body);
+  const inFlight = useRef(false);
+  const lastAt = useRef(props.updatedAt);
+
   const flush = useCallback(
-    async (next: string) => {
+    async (first: string) => {
       if (timer.current) clearTimeout(timer.current);
       timer.current = null;
-      if (next === saved.current) return;
-      setState({ kind: "saving" });
-      const r = await saveDoc(setterId, docKey, next);
-      if (r.error) {
-        setState({ kind: "error", text: r.error });
-        return;
+      // One save at a time; whatever changed meanwhile goes right after.
+      if (inFlight.current) return;
+      let next = first;
+      while (next !== saved.current) {
+        inFlight.current = true;
+        setState({ kind: "saving" });
+        const r = await saveDoc(setterId, docKey, next).catch(() => ({ error: "Couldn't save. Check your connection.", savedAt: undefined }));
+        inFlight.current = false;
+        if (r.error) {
+          setState({ kind: "error", text: r.error });
+          return;
+        }
+        saved.current = next;
+        const at = r.savedAt ?? new Date().toISOString();
+        lastAt.current = at;
+        setNow(Date.now());
+        setRevisions((list) => {
+          const head = list[0];
+          const fresh = head && authorLabel(head.author) === "You edited" && Date.now() - new Date(head.at).getTime() < 10 * 60_000;
+          return fresh ? [{ ...head, at }, ...list.slice(1)] : [{ id: `local-${at}`, author: "you", at }, ...list];
+        });
+        next = bodyRef.current;
       }
-      saved.current = next;
-      const at = r.savedAt ?? new Date().toISOString();
-      setNow(Date.now());
-      setState({ kind: "saved", at });
-      setRevisions((list) => {
-        const head = list[0];
-        const fresh = head && authorLabel(head.author) === "You edited" && Date.now() - new Date(head.at).getTime() < 10 * 60_000;
-        return fresh ? [{ ...head, at }, ...list.slice(1)] : [{ id: `local-${at}`, author: "you", at }, ...list];
-      });
+      setState((s) => (s.kind === "dirty" || s.kind === "saving" ? { kind: "saved", at: lastAt.current } : s));
     },
     [setterId, docKey]
   );
 
-  const change = (next: string) => {
-    setBody(next);
-    setState({ kind: "dirty" });
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void flush(next), AUTOSAVE_MS);
-  };
+  const change = useCallback(
+    (next: string) => {
+      setBody(next);
+      setState({ kind: "dirty" });
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => void flush(next), AUTOSAVE_MS);
+    },
+    [flush]
+  );
 
   // Leaving with unsaved text: save it, and warn if the save can't finish.
-  const bodyRef = useRef(body);
   useEffect(() => {
     bodyRef.current = body;
   }, [body]);
+  const initialBody = props.initialBody;
+  useEffect(() => {
+    if (bodyRef.current === initialBody) saved.current = initialBody;
+  }, [initialBody]);
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
       if (bodyRef.current !== saved.current) {
@@ -118,29 +167,15 @@ export default function DocEditor(props: DocEditorProps) {
     };
   }, [flush]);
 
-  const blocks = useMemo(() => splitBlocks(body), [body]);
-
-  const setBlock = (i: number, raw: string) => {
-    const text = raw.replace(/\u200b/g, "") || raw;
-    const next: MdBlock[] = blocks.map((b, j) => (j === i ? { ...b, text } : b));
-    change(joinBlocks(next));
-  };
-
-  const addBlock = () => {
-    if (timer.current) void flush(body);
-    const trimmed = body.replace(/\s+$/, "");
-    // A placeholder char so the new block exists; it goes again on blur.
-    const next = (trimmed ? `${trimmed}\n\n` : "") + "​";
-    setBody(next);
-    setEditing(splitBlocks(next).length - 1);
-  };
-
-  const format = (kind: "heading" | "bold" | "list" | "link") => {
+  const format = (kind: FormatKind) => {
+    if (!raw) {
+      if (editor) formatRich(editor, kind);
+      return;
+    }
     const el = active.current;
     if (!el) return;
     const out = applyFormat(kind, { text: el.value, selStart: el.selectionStart, selEnd: el.selectionEnd });
-    if (raw) change(out.text);
-    else if (editing !== null) setBlock(editing, out.text);
+    change(out.text);
     requestAnimationFrame(() => {
       el.focus();
       el.setSelectionRange(out.selStart, out.selEnd);
@@ -158,6 +193,13 @@ export default function DocEditor(props: DocEditorProps) {
             ? `Saved · ${ago(state.at, now)}`
             : "Not saved yet";
 
+  const off = !raw && !editor;
+  const fmtBtn = (kind: FormatKind, label: string, icon: React.ReactNode) => (
+    <button type="button" aria-label={label} onMouseDown={(e) => e.preventDefault()} onClick={() => format(kind)} disabled={off}>
+      {icon}
+    </button>
+  );
+
   return (
     <div className="kb-docwrap">
       <section aria-label={meta.file} className="kb-doc-pane">
@@ -169,23 +211,12 @@ export default function DocEditor(props: DocEditorProps) {
           </span>
           <div className="kb-grow" />
           <div role="group" aria-label="Formatting" className="kb-fmt">
-            <button type="button" aria-label="Heading" onMouseDown={(e) => e.preventDefault()} onClick={() => format("heading")} disabled={!raw && editing === null}>
-              H
-            </button>
-            <button type="button" aria-label="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => format("bold")} disabled={!raw && editing === null}>
-              B
-            </button>
-            <button type="button" aria-label="Bulleted list" onMouseDown={(e) => e.preventDefault()} onClick={() => format("list")} disabled={!raw && editing === null}>
-              <KbIcon name="list" />
-            </button>
-            <button type="button" aria-label="Link" onMouseDown={(e) => e.preventDefault()} onClick={() => format("link")} disabled={!raw && editing === null}>
-              <KbIcon name="link" />
-            </button>
+            {fmtBtn("heading", "Heading", "H")}
+            {fmtBtn("bold", "Bold", "B")}
+            {fmtBtn("list", "Bulleted list", <KbIcon name="list" />)}
+            {fmtBtn("link", "Link", <KbIcon name="link" />)}
           </div>
-          <button type="button" className="kb-raw" aria-pressed={raw} onClick={() => {
-            setEditing(null);
-            setRaw(!raw);
-          }}>
+          <button type="button" className="kb-raw" aria-pressed={raw} onClick={() => setRaw(!raw)}>
             Raw
           </button>
         </div>
@@ -201,53 +232,10 @@ export default function DocEditor(props: DocEditorProps) {
             onBlur={() => void flush(body)}
           />
         ) : (
-          <article className="kb-doc" aria-label={`${meta.file} editor`}>
-            {blocks.map((b, i) =>
-              !b.text ? null : editing === i ? (
-                <BlockInput
-                  key={i}
-                  value={b.text}
-                  onFocus={(el) => (active.current = el)}
-                  onChange={(t) => setBlock(i, t)}
-                  onDone={(t) => {
-                    setEditing(null);
-                    const clean = t.replace(/​/g, "");
-                    let next = clean.trim()
-                      ? joinBlocks(blocks.map((x, j) => (j === i ? { ...x, text: clean } : x)))
-                      : joinBlocks(blocks.filter((_, j) => j !== i)).trimEnd() + "\n";
-                    // Only whitespace changed (an empty "Write here"): keep what was saved.
-                    if (next.trim() === saved.current.trim()) next = saved.current;
-                    setBody(next);
-                    void flush(next);
-                    if (next === saved.current) setState((s) => (s.kind === "dirty" ? { kind: "saved", at: props.updatedAt } : s));
-                  }}
-                />
-              ) : (
-                <div
-                  key={i}
-                  className="kb-block"
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Edit this part"
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest("a")) return;
-                    setEditing(i);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      setEditing(i);
-                    }
-                  }}
-                  dangerouslySetInnerHTML={{ __html: renderBlock(b.text) || "&nbsp;" }}
-                />
-              )
-            )}
-            <button type="button" className="kb-addblock" onClick={addBlock}>
-              <KbIcon name="plus" size={12} />
-              Write here
-            </button>
-          </article>
+          <>
+            <RichDoc markdown={body} label={`${meta.file} editor`} onChange={change} onBlur={() => void flush(bodyRef.current)} onEditor={setEditor} />
+            {!editor && <article className="kb-doc kb-rich" aria-busy="true" dangerouslySetInnerHTML={{ __html: renderMarkdown(body) }} />}
+          </>
         )}
       </section>
 
@@ -280,43 +268,13 @@ export default function DocEditor(props: DocEditorProps) {
         <History setterId={setterId} revisions={revisions} now={now} onRestore={(b) => {
           saved.current = b;
           setBody(b);
-          setEditing(null);
+          if (timer.current) clearTimeout(timer.current);
+          timer.current = null;
           setState({ kind: "saved", at: new Date().toISOString() });
           setRevisions((list) => [{ id: `local-r-${Date.now()}`, author: "(restored)", at: new Date().toISOString() }, ...list]);
         }} />
       </aside>
     </div>
-  );
-}
-
-function BlockInput({ value, onChange, onDone, onFocus }: { value: string; onChange: (t: string) => void; onDone: (t: string) => void; onFocus: (el: HTMLTextAreaElement) => void }) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.focus();
-    const end = el.value.replace(/​/g, "").length;
-    el.setSelectionRange(end, end);
-  }, []);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [value]);
-  return (
-    <textarea
-      ref={ref}
-      className="kb-blockinput"
-      aria-label="Markdown"
-      value={value}
-      onFocus={(e) => onFocus(e.currentTarget)}
-      onChange={(e) => onChange(e.target.value)}
-      onBlur={(e) => onDone(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") e.currentTarget.blur();
-      }}
-    />
   );
 }
 

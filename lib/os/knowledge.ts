@@ -11,6 +11,7 @@ import { docCount, type DocKey } from "@/lib/os/setter/knowledge/docs";
 import { ensureDocs, loadDocViews, type DocRevisionView } from "@/lib/os/setter/knowledge/doc-store";
 import { resolveSequenceSet, type SequenceSet } from "@/lib/os/sequences/types";
 import { VOICE_SLOTS } from "@/lib/os/voice/slots";
+import { autoSends, cleanApprovals } from "@/lib/os/setter/autopilot";
 
 export type ResourceKind = "resource" | "setter" | "episode";
 
@@ -164,7 +165,8 @@ export interface SetterEditorView {
   sequences: SequenceSet;
   fields: FieldPick[];
   booking: BookingView;
-  testsRunning: number;
+  /** Per funnel stage key: clean approvals (sent unedited after Approve) and auto-sends. */
+  stageStats: Record<string, { clean: number; auto: number }>;
   voice: { recorded: number; total: number };
 }
 
@@ -179,12 +181,18 @@ export function daysLabel(days: number[]): string {
   return contiguous && d.length > 2 ? `${DAY[d[0]]}–${DAY[d[d.length - 1]]}` : d.map((x) => DAY[x]).join(", ");
 }
 
+export function stageStatsOf(funnel: FunnelStage[], rows: { setterStage: string | null; edited: boolean; flags: string[] }[]): SetterEditorView["stageStats"] {
+  const clean = cleanApprovals(rows, funnel);
+  const auto = autoSends(rows, funnel);
+  return Object.fromEntries(funnel.map((st) => [st.key, { clean: clean[st.key] ?? 0, auto: auto[st.key] ?? 0 }]));
+}
+
 export async function loadSetterEditor(workspaceId: string, setterId: string): Promise<SetterEditorView | null> {
   const s = await prisma.setter.findFirst({ where: { id: setterId, workspaceId }, include: { resources: { select: { resourceId: true } } } });
   if (!s) return null;
   // The one-time JSON → docs import, lazily on first open.
   await ensureDocs(s).catch((err) => console.error("[OS Knowledge] docs import failed:", err));
-  const [docs, resources, accounts, setters, sequenceRows, fieldRows, cal, testsRunning, clips] = await Promise.all([
+  const [docs, resources, accounts, setters, sequenceRows, fieldRows, cal, sentRows, clips] = await Promise.all([
     loadDocViews(s.id),
     listResources(workspaceId),
     prisma.instagramAccount.findMany({ where: { workspaceId }, select: { id: true, username: true }, orderBy: { connectedAt: "asc" } }),
@@ -192,7 +200,14 @@ export async function loadSetterEditor(workspaceId: string, setterId: string): P
     prisma.followupSequence.findMany({ where: { setterId, workspaceId } }),
     prisma.customField.findMany({ where: { workspaceId }, orderBy: { sortOrder: "asc" }, include: { setters: { select: { setterId: true } } } }).catch(() => []),
     connectedCalendar(workspaceId, s.id).catch(() => null),
-    prisma.experiment.count({ where: { workspaceId, status: "RUNNING", OR: [{ setterId: s.id }, { setterId: null }] } }).catch(() => 0),
+    prisma.draft
+      .findMany({
+        where: { workspaceId, setterId: s.id, status: "SENT" },
+        select: { setterStage: true, edited: true, flags: true },
+        orderBy: { createdAt: "desc" },
+        take: 5000,
+      })
+      .catch(() => [] as { setterStage: string | null; edited: boolean; flags: string[] }[]),
     prisma.voiceClip.findMany({ where: { setterId: s.id, slot: { not: null } }, select: { slot: true, audioId: true } }).catch(() => [] as { slot: string | null; audioId: string | null }[]),
   ]);
   const nameOf = new Map(setters.map((x) => [x.id, x.name]));
@@ -238,7 +253,7 @@ export async function loadSetterEditor(workspaceId: string, setterId: string): P
           }
         : null,
     },
-    testsRunning,
+    stageStats: stageStatsOf(profile.funnel, sentRows),
     voice: { recorded: new Set(clips.filter((c) => c.audioId).map((c) => c.slot)).size, total: VOICE_SLOTS.length },
   };
 }

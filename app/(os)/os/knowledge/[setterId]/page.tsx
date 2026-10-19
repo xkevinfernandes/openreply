@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import DocEditor from "@/components/os/knowledge/doc-editor";
 import { SetterBar } from "@/components/os/knowledge/kb-tabs";
+import { SetterChatPanel, SetterChatProvider } from "@/components/os/knowledge/setter-chat";
 import SetupPane from "@/components/os/knowledge/setter-editor";
 import { isSetupKey, pageOf, SetterTree, type TreeSel } from "@/components/os/knowledge/setter-tree";
 import { getCurrentWorkspaceId } from "@/lib/auth";
@@ -32,7 +33,8 @@ export default async function SetterPage({ params, searchParams }: { params: Pro
     const doc = view.docs.find((d) => d.key === sel.file)!;
     pane = (
       <DocEditor
-        key={`${view.id}:${sel.file}`}
+        // A save from elsewhere (Setter chat, restore) remounts it with the new body.
+        key={`${view.id}:${sel.file}:${doc.updatedAt ?? ""}`}
         setterId={view.id}
         setterName={view.name}
         docKey={sel.file}
@@ -52,16 +54,21 @@ export default async function SetterPage({ params, searchParams }: { params: Pro
             return [];
           })
         : [];
-    pane = <SetupPane key={`${view.id}:${page}`} view={view} page={page as Exclude<typeof page, "fields" | "follow-ups">} voiceClips={voiceClips} sampleData={osMockEnabled()} />;
+    pane = <SetupPane key={`${view.id}:${page}`} view={view} page={page} voiceClips={voiceClips} sampleData={osMockEnabled()} />;
   }
 
   return (
-    <div className="kb-ws">
-      <SetterBar id={view.id} name={view.name} setters={view.setters} query={query} />
-      <div className="kb-body">
-        <SetterTree view={view} sel={sel} />
-        {pane}
+    <SetterChatProvider setterId={view.id} setterName={view.name}>
+      <div className="kb-ws kb-ws-split">
+        <div className="kb-main">
+          <SetterBar id={view.id} name={view.name} setters={view.setters} query={query} />
+          <div className="kb-body">
+            <SetterTree view={view} sel={sel} />
+            {pane}
+          </div>
+        </div>
+        <SetterChatPanel />
       </div>
-    </div>
+    </SetterChatProvider>
   );
 }

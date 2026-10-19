@@ -117,6 +117,8 @@ export async function deleteSetter(setterId: string): Promise<ActionResult> {
     await ownSetter(workspaceId, setterId);
     // Contact.setterId goes back to null (= default) via ON DELETE SET NULL.
     await prisma.setter.delete({ where: { id: setterId } });
+    // Setter chat rows have no relation (prisma/os-kb2.prisma): delete them here.
+    await prisma.setterChatMessage.deleteMany({ where: { setterId } });
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Couldn't delete it." };
   }
