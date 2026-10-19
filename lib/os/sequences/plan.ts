@@ -75,6 +75,9 @@ export interface PlanContact {
   tags: string[];
   /** J's setting stage on the contact (the record's wins). */
   setterStage?: string | null;
+  /** In a live workflow run: its Setter step's timeout replaces the
+   *  "gone quiet" sequences (O1). Before/after-call ones still run (O2). */
+  inWorkflow?: boolean;
 }
 
 export interface PlanInput {
@@ -325,5 +328,6 @@ export function planFollowup(input: PlanInput): PlanResult {
     const theirLast = parseIso(input.rec?.their_last_at);
     if (cancelled && (!theirLast || cancelled > theirLast)) return none("The call was cancelled. J waits for them to write.");
   }
+  if (input.contact.inWorkflow) return none("In a workflow: its Setter step follows up.");
   return planNoReply(input);
 }

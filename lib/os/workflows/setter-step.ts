@@ -233,6 +233,10 @@ export interface WorkflowStepView {
   notes: string[];
   /** Link bubbles the server adds when J's draft carries the directive. */
   directiveLinks: { slug: string; url: string }[];
+  /** Still held (not released): send_resource refuses these until a rule fires. */
+  held: string[];
+  /** The step's resources J may send (send_resource), with their links. */
+  sendable: { slug: string; title: string; url: string }[];
 }
 
 const RULE_TEXT: Record<ReleaseRule, string> = {

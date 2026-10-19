@@ -5,7 +5,7 @@
 // treats both paths alike: Inbox, Approve, Auto and field capture are unchanged.
 
 import { slotId } from "@/lib/os/integrations/calendar/slots";
-import { sendableResources, usableCalendar, type AgentEnv, type TurnState } from "@/lib/os/setter/agent/context";
+import { sendableFor, usableCalendar, type AgentEnv, type TurnState } from "@/lib/os/setter/agent/context";
 import { EXITS, STAGES, type ActionTool } from "@/lib/os/setter/agent/tools";
 import type { TraceAction } from "@/lib/os/setter/agent/trace";
 import type { BookingReply } from "@/lib/os/setter/booking";
@@ -46,8 +46,11 @@ export function checkAction(env: AgentEnv, state: TurnState, name: ActionTool, i
   switch (name) {
     case "send_resource": {
       const slug = s(input.slug, 200);
-      const all = sendableResources(env.setter, usableCalendar(env.calendar));
+      const all = sendableFor(env);
       if (!all.has(slug)) return { ok: false, reason: `"${slug}" isn't a resource this setter may send. Allowed: ${[...all.keys()].join(", ") || "none"}.` };
+      // Workflows: a held lead magnet goes out only when a release rule fires.
+      const releasing = env.step?.directive?.kind === "release" && env.step.directive.slugs.includes(slug);
+      if (env.step?.held?.includes(slug) && !releasing) return { ok: false, reason: `You're holding "${slug}": the server releases it by rule (booked, quiet, not ready, asked twice, not a fit). Keep it light instead.` };
       return once(`send_resource:${slug}`);
     }
     case "book_call": {
@@ -155,7 +158,7 @@ export function mapTurn(env: AgentEnv, state: TurnState, queued: QueuedAction[],
   obj.fields = {};
   const resourceBubbles: string[] = [];
   const flags: string[] = [];
-  const sendable = sendableResources(env.setter, usableCalendar(env.calendar));
+  const sendable = sendableFor(env);
 
   for (const q of live) {
     const i = q.input;

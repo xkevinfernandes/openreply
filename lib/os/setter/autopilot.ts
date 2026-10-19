@@ -45,21 +45,27 @@ export interface AutoInput {
   funnel: FunnelStage[];
   /** The draft was put on hold (H in the composer). */
   held?: boolean;
+  /** The workflow J is running in: Draft = always Approve, Auto = sends
+   *  whatever the stage says (delay, cap and Pause all still apply). */
+  workflowMode?: "draft" | "auto" | null;
 }
 
 export type AutoDecision = { send: true; stage: string } | { send: false; reason: string };
 
 /** Pure: may this draft go out without Approve? */
-export function decideAutoSend({ draft, contact, funnel, held }: AutoInput): AutoDecision {
+export function decideAutoSend({ draft, contact, funnel, held, workflowMode }: AutoInput): AutoDecision {
   if (draft.status !== "PENDING") return { send: false, reason: "already handled" };
   if (held) return { send: false, reason: "on hold" };
   // Pitches and Personal: J never sends there on its own (nor Unsorted).
   if (contact.kind !== "SALES") return { send: false, reason: `contact is ${String(contact.kind).toLowerCase()}` };
   if (contact.paused) return { send: false, reason: "contact paused" };
-  // Booking books a real call: only Kevin's Approve does that.
-  if (draft.kind === "booking") return { send: false, reason: "booking needs Approve" };
+  if (workflowMode === "draft") return { send: false, reason: "workflow is in Draft" };
+  // Booking books a real call: only Kevin's Approve does that (a workflow on
+  // Auto books in order: book, then confirm, then release).
+  if (draft.kind === "booking" && workflowMode !== "auto") return { send: false, reason: "booking needs Approve" };
   const flag = draft.flags.find((f) => (NEEDS_A_PERSON as readonly string[]).includes(f));
   if (flag) return { send: false, reason: `flagged ${flag}` };
+  if (workflowMode === "auto") return { send: true, stage: "workflow" };
   const stage = stageFor(draft.setterStage, funnel);
   if (!stage) return { send: false, reason: "no funnel stage" };
   if (stage.autopilot !== "auto") return { send: false, reason: `${stage.label} is on Approve` };
@@ -108,6 +114,8 @@ export interface AutopilotDeps {
   funnelOf(setterId: string, workspaceId: string): Promise<FunnelStage[]>;
   /** approveDraft with no edits: cap, Pause all, voice, A/B, state. */
   approve(draftId: string, workspaceId: string): Promise<{ error?: string }>;
+  /** Draft / Auto of the workflow this contact is in (null = none). */
+  workflowMode?(contactId: string): Promise<"draft" | "auto" | null>;
   /** Mark the draft and log the auto-send. */
   logSent(e: { workspaceId: string; contactId: string; setterId: string | null; draftId: string; stage: string; at: Date }): Promise<void>;
   sleep(ms: number): Promise<void>;
@@ -124,7 +132,8 @@ async function check(contactId: string, draftId: string, deps: AutopilotDeps): P
   if (!cur) return { decision: { send: false, reason: "draft gone" }, contact, draft: null };
   if (!cur.draft.setterId) return { decision: { send: false, reason: "no knowledge base" }, contact, draft: cur.draft };
   const funnel = await deps.funnelOf(cur.draft.setterId, contact.workspaceId);
-  return { decision: decideAutoSend({ draft: cur.draft, contact, funnel, held: cur.held }), contact, draft: cur.draft };
+  const workflowMode = deps.workflowMode ? await deps.workflowMode(contactId) : null;
+  return { decision: decideAutoSend({ draft: cur.draft, contact, funnel, held: cur.held, workflowMode }), contact, draft: cur.draft };
 }
 
 /** After J drafts: if its stage is on Auto, wait a short random pause, check
@@ -175,6 +184,10 @@ function defaultDeps(): AutopilotDeps {
       const { asFunnel } = await import("@/lib/os/setter/kb");
       const s = await prisma.setter.findFirst({ where: { id: setterId, workspaceId }, select: { funnel: true } });
       return s ? asFunnel(s.funnel) : [];
+    },
+    async workflowMode(contactId) {
+      const { workflowModeFor } = await import("@/lib/os/workflows/hooks");
+      return workflowModeFor(contactId);
     },
     async approve(draftId, workspaceId) {
       const { approveDraft } = await import("@/lib/os/setter/service");

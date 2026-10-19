@@ -307,6 +307,8 @@ export async function sendReply(workspaceId: string, igUserId: string, text: str
   await assertCanSend(workspaceId);
   await sendReplyUnguarded(workspaceId, igUserId, text, options);
   await recordSend(workspaceId, { contactId: options.contactId, key: options.sendKey, source: "reply" });
+  // Its Instagram echo must not read as Kevin typing in the IG app (workflows pause on that).
+  await (await import("@/lib/os/workflows/hooks")).noteOsSend(workspaceId, igUserId, text);
 }
 
 async function sendReplyUnguarded(workspaceId: string, igUserId: string, text: string, options: SendReplyOptions) {

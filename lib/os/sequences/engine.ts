@@ -37,6 +37,8 @@ export interface EngineDeps {
   schedule?: (step: StepRow) => Promise<void>;
   now?: Date;
   workspaceId?: string;
+  /** In a live workflow run (O1). Default: Postgres, or false with a test store. */
+  inWorkflow?: (contactId: string) => Promise<boolean>;
 }
 
 async function defaultSchedule(step: StepRow) {
@@ -55,16 +57,18 @@ export interface SyncResult {
 export async function planFor(contact: SetterContact, deps: EngineDeps = {}): Promise<{ result: PlanResult; history: StepRow[]; setterId: string | null }> {
   const steps = deps.steps ?? sequenceStore();
   const setter = deps.setter ?? setterStore();
-  const [history, rec, followupsOff, booking, loaded] = await Promise.all([
+  const inWorkflow = deps.inWorkflow ?? (deps.steps ? async () => false : async (id: string) => (await import("@/lib/os/workflows/hooks")).inLiveWorkflow(id));
+  const [history, rec, followupsOff, booking, loaded, wf] = await Promise.all([
     steps.history(contact.id),
     setter.loadState(contact.id),
     steps.followupsOff(contact.id),
     steps.latestBooking(contact.workspaceId, contact.id),
     steps.loadSet(contact.workspaceId, contact.setterId ?? null, contact.instagramAccountId),
+    inWorkflow(contact.id),
   ]);
   const result = planFollowup({
     now: deps.now ?? new Date(),
-    contact: { kind: contact.kind, paused: contact.paused, followupsOff, tags: contact.tags, setterStage: contact.setterStage },
+    contact: { kind: contact.kind, paused: contact.paused, followupsOff, tags: contact.tags, setterStage: contact.setterStage, inWorkflow: wf },
     rec,
     booking,
     sequences: loaded.set,

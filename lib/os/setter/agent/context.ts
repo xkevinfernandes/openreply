@@ -55,10 +55,20 @@ export interface AgentEnv {
   step?: StepOverride | null;
 }
 
-/** A plain override of get_step's goal and lead magnet (sandbox, tests). */
+/** get_step's goal and lead magnet: forced in the sandbox and tests, or the
+ *  live workflow Setter step (lib/os/workflows/hooks.ts workflowStepFor). */
 export interface StepOverride {
   goal?: "book_call" | "start_conversation";
   leadMagnet?: StepView["leadMagnet"];
+  /** Workflows: the step's release rules, the release / nudge J must write now, notes. */
+  releaseRules?: StepView["releaseRules"];
+  directive?: StepView["directive"];
+  notes?: string[];
+  workflowId?: string | null;
+  /** Still held: send_resource refuses these until a rule fires. */
+  held?: string[];
+  /** The step's resources J may send, with their links (besides the setter's own). */
+  sendable?: SendableResource[];
 }
 
 /** What the turn has learned so far (the server's memory, not J's). */
@@ -151,11 +161,24 @@ export interface StepView {
   releaseRules: { id: string; when: string }[];
   exits: string[];
   lines: TraceLine[];
+  /** Workflows: write this now (a release by rule, or the one second-resource nudge). */
+  directive?: { kind: "release" | "nudge"; rule: string | null; slugs: string[] } | null;
+  notes?: string[];
 }
 
 export function stepView(env: AgentEnv): StepView {
   const o = env.step ?? {};
-  return { goal: o.goal ?? "book_call", leadMagnet: o.leadMagnet ?? { mode: "none", resources: [] }, releaseRules: [], exits: [...EXITS], lines: env.lines };
+  const out: StepView = { goal: o.goal ?? "book_call", leadMagnet: o.leadMagnet ?? { mode: "none", resources: [] }, releaseRules: o.releaseRules ?? [], exits: [...EXITS], lines: env.lines };
+  if (o.directive) out.directive = { kind: o.directive.kind, rule: o.directive.rule ?? null, slugs: o.directive.slugs };
+  if (o.notes?.length) out.notes = o.notes;
+  return out;
+}
+
+/** Every link J may send this turn: the setter's, plus the workflow step's own. */
+export function sendableFor(env: AgentEnv): Map<string, SendableResource> {
+  const out = sendableResources(env.setter, usableCalendar(env.calendar));
+  for (const r of env.step?.sendable ?? []) if (!out.has(r.slug)) out.set(r.slug, r);
+  return out;
 }
 
 export async function getStep(env: AgentEnv): Promise<ReadResult> {
@@ -231,9 +254,9 @@ export function bookingContextFrom(env: AgentEnv, state: TurnState): BookingCont
 
 export async function getResource(env: AgentEnv, input: { slug?: unknown }): Promise<ReadResult> {
   const slug = typeof input.slug === "string" ? input.slug.trim() : "";
-  const r = sendableResources(env.setter, usableCalendar(env.calendar)).get(slug);
+  const r = sendableFor(env).get(slug);
   if (!r) {
-    const all = [...sendableResources(env.setter, usableCalendar(env.calendar)).keys()];
+    const all = [...sendableFor(env).keys()];
     return { ok: false, error: `No resource "${slug}" for this setter. Ones you may send: ${all.join(", ") || "none"}.` };
   }
   const output = { slug: r.slug, title: r.title, kind: r.kind, summary: r.summary, has_link: true, already_sent: (env.rec.resources_sent ?? []).includes(r.slug) };

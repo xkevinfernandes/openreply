@@ -1,5 +1,6 @@
 "use server";
 
+import { workflowKevinSent } from "@/lib/os/workflows/hooks";
 import { revalidatePath } from "next/cache";
 import { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { getCurrentWorkspaceId } from "@/lib/auth";
@@ -81,6 +82,8 @@ export async function sendInboxMessage(
     for (const message of bubbles) {
       await sendReply(workspaceId, igUserId, message, { conversationId: where.conversationId ?? null, contactId: where.contactId ?? null });
     }
+    // Kevin wrote by hand: a workflow run (and J) pause for this person (K1).
+    await workflowKevinSent(workspaceId, where.contactId, bubbles.join("\n"));
   } catch (err) {
     // The common failure is Meta's 24-hour window closing; show its message.
     return { error: err instanceof Error ? err.message : "The message didn't send. Try again." };

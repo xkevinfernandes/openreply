@@ -34,6 +34,14 @@ export function excludedReason(c: Pick<BroadcastContact, "kind" | "paused">): st
   return null;
 }
 
+/** O3: someone mid-workflow who heard from us (or wrote) in the last 48h isn't sent Friday's message. */
+export const WORKFLOW_QUIET_MS = 48 * 3600_000;
+export function workflowBusy(c: Pick<BroadcastContact, "inWorkflow" | "theirLastAt" | "ourLastAt">, at: Date): boolean {
+  if (!c.inWorkflow) return false;
+  const last = Math.max(c.theirLastAt ? Date.parse(c.theirLastAt) : 0, c.ourLastAt ? Date.parse(c.ourLastAt) : 0);
+  return at.getTime() - last < WORKFLOW_QUIET_MS;
+}
+
 /**
  * Split the tagged contacts. The window is read at `from` (the window start,
  * or now when the run is already under way): eligible means their free 24h
@@ -48,7 +56,7 @@ export function selectAudience(
   const tag = opts.tag.toLowerCase();
   for (const c of contacts) {
     if (!c.tags.some((t) => t.toLowerCase() === tag)) continue;
-    const ex = opts.pausedAll ? "Pause all is on" : excludedReason(c);
+    const ex = opts.pausedAll ? "Pause all is on" : (excludedReason(c) ?? (workflowBusy(c, opts.from) ? "In a workflow" : null));
     if (ex) {
       out.excluded.push({ contact: c, verdict: "excluded", reason: ex, deadline: null });
       continue;

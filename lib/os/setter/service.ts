@@ -24,7 +24,8 @@ import {
 import { bookingStore, calendarSource, type BookingRecord, type BookingStore, type CalendarSource } from "@/lib/os/setter/booking-store";
 import { agentBackend, dbFieldValues, runAgentTurn, type AgentBackend, type AgentEnv, type AgentTurn } from "@/lib/os/setter/agent";
 import { bookingStateBlock, toolLinesBlock, toolsBrief, traceLines } from "@/lib/os/setter/agent/brief";
-import { usableCalendar, type FieldValueView } from "@/lib/os/setter/agent/context";
+import { usableCalendar, type FieldValueView, type StepOverride } from "@/lib/os/setter/agent/context";
+import { stepBlock, type WorkflowStepView } from "@/lib/os/workflows/setter-step";
 import type { ActiveCalendar } from "@/lib/os/integrations/calendar/store";
 import { getSetterConfig, type SetterConfig } from "@/lib/os/setter/config";
 import { draft as runDrafter, DraftError } from "@/lib/os/setter/drafter";
@@ -104,6 +105,30 @@ export interface DraftOptions {
   agent?: AgentBackend | null;
   /** Fields filled so far (get_contact). Default: Postgres unless a test store. */
   fieldValues?: ((contactId: string) => Promise<FieldValueView[]>) | null;
+  /** The workflow Setter step J is in (get_step, release rules). Default:
+   *  read from the live run unless a test store; null = no workflow. */
+  workflowStep?: WorkflowStepView | null;
+}
+
+/** The workflow step for this draft: Postgres, except for test stores and OS_MOCK. */
+async function workflowStepOf(opts: DraftOptions, contactId: string): Promise<WorkflowStepView | null> {
+  if (opts.workflowStep !== undefined) return opts.workflowStep;
+  if (opts.store || osMockEnabled()) return null;
+  return (await import("@/lib/os/workflows/hooks")).workflowStepFor(contactId);
+}
+
+/** get_step's view of a workflow Setter step. */
+function stepOverrideOf(w: WorkflowStepView): StepOverride {
+  return {
+    goal: w.goal,
+    leadMagnet: w.leadMagnet,
+    releaseRules: w.releaseRules,
+    directive: w.directive,
+    notes: w.notes,
+    workflowId: w.workflowId,
+    held: w.held,
+    sendable: w.sendable.map((r) => ({ slug: r.slug, title: r.title, kind: "resource", summary: "", url: r.url })),
+  };
 }
 
 /** The state config J runs on: without the old nudge when sequences own follow-ups. */
@@ -241,9 +266,14 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
     }
   }
 
+  // Inside a workflow Setter step: the goal, the hold, a release J must write now.
+  const wfStep = await workflowStepOf(opts, contact.id);
+  if (wfStep) extras.push(stepBlock(wfStep));
+
   // A/B: the assigned variant is the line to use for each slot this draft
   // might fill (J's opener, the permission ask, the invite, follow-up 1…).
   const abLines = await linesForDraft({
+    workflowId: wfStep?.workflowId ?? null,
     workspaceId: contact.workspaceId,
     setterId: setter.setterId,
     person: abPerson(contact),
@@ -292,6 +322,7 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
         lines: traceLines(abLines),
         dry: false,
         fieldValues: fieldValuesFor(opts, contact.id),
+        step: wfStep ? stepOverrideOf(wfStep) : null,
         bookings: async () => {
           const b = await (opts.bookings ?? bookingStore()).latest(contact.workspaceId, contact.id);
           return b ? [{ start: b.start, status: b.status, email: b.email }] : [];
@@ -310,7 +341,14 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
   const obj = (result.obj && typeof result.obj === "object" ? result.obj : {}) as DraftObject;
   const bubbles = bubblesOf(obj);
   // send_resource links: their own bubbles, after the reply.
-  const linkBubbles = turn?.resourceBubbles ?? [];
+  const linkBubbles = [...(turn?.resourceBubbles ?? [])];
+  // A workflow release: the held link always goes, in its own bubble, even if
+  // J forgot it (or wrote no words: then the link alone).
+  if (wfStep?.directive?.kind === "release") {
+    const said = [...bubbles, ...linkBubbles].join("\n");
+    for (const l of wfStep.directiveLinks) if (!said.includes(l.url)) linkBubbles.push(l.url);
+    if (linkBubbles.length) obj.hold = false;
+  }
 
   if (obj.hold || (!bubbles.length && !linkBubbles.length)) {
     // J chose silence (low-signal message, we wrote twice…). Remember the
@@ -592,6 +630,16 @@ export async function approveDraft(draftId: string, workspaceId: string, opts: A
   await store.markSent(d.id, { bubbles, editedText: edited ? opts.editedText! : null, edited });
   await recordSent({ person: abPerson(contact), draftId: d.id, abVariants: d.abVariants, bubbles, edited, at: now(), store: opts.experiments });
   await hooksFor(opts)?.onDraftSent({ workspaceId: contact.workspaceId, contactId: contact.id, setterId: d.setterId ?? null, draftId: d.id, kind: d.kind, bubbles, at: now() });
+  // Workflows + J's actions on send: tags, exit_step, stop, booking email, releases. Never throws.
+  if (hooksFor(opts))
+    await (await import("@/lib/os/workflows/hooks")).workflowAfterJSent({
+      workspaceId: contact.workspaceId,
+      contactId: contact.id,
+      draftId: d.id,
+      bubbles,
+      bookingId: booked && booked.status !== "LINK_SENT" ? booked.id : null,
+      bookingEmail: booked?.email ?? null,
+    });
 
   let rec = prev ?? newRecord(contact.conversationId ?? contact.id, contact.username ?? "", contact.id);
   // The booking step this draft moved to (proposed, awaiting email…) only

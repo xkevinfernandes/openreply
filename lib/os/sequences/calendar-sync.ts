@@ -95,6 +95,8 @@ export async function applyCalendarEvent(workspaceId: string, provider: Calendar
       logEvent(rec, now, `booking:${moved ? "moved" : "seen"}:${provider}`);
     });
     await syncFollowupsQuietly(b.contactId, { workspaceId });
+    // A workflow Setter step: R1 release if held, then exit Booked (J7). No-op otherwise.
+    await (await import("@/lib/os/workflows/hooks")).workflowBooked(b.contactId);
     return { status: "updated", bookingId: b.id };
   }
 
@@ -122,6 +124,7 @@ export async function applyCalendarEvent(workspaceId: string, provider: Calendar
     await fireContactEvent({ workspaceId, contactId: contact.id, event: "stage_changed" });
   }
   await syncFollowupsQuietly(contact.id, { workspaceId });
+  await (await import("@/lib/os/workflows/hooks")).workflowBooked(contact.id);
   return { status: "created", bookingId: created.id };
 }
 

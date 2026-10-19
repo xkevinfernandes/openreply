@@ -156,6 +156,7 @@ async function loadContacts(where: { workspaceId: string; id?: string; tags?: { 
     const values = rows.length
       ? await prisma.contactFieldValue.findMany({ where: { contactId: { in: rows.map((r) => r.id) } }, select: { contactId: true, value: true, field: { select: { label: true, key: true } } } })
       : [];
+    const inRun = await (await import("@/lib/os/workflows/hooks")).liveRunContacts(rows.map((r) => r.id));
     return rows.map((c) => {
       const rec = (c.setterState?.record ?? null) as { their_last_at?: string | null; our_last_at?: string | null } | null;
       return {
@@ -173,6 +174,7 @@ async function loadContacts(where: { workspaceId: string; id?: string; tags?: { 
         stage: c.stage,
         notes: c.notes,
         fields: values.filter((v) => v.contactId === c.id && v.value.trim()).map((v) => ({ label: v.field.label, value: v.value })),
+        inWorkflow: inRun.has(c.id),
       };
     });
 }

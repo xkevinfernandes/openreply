@@ -952,6 +952,8 @@ export class WorkflowEngine {
     const v = await this.version(run.versionId);
     const node = v ? nodeById(v.graph, run.currentNodeId) : null;
     if (!node || node.type !== "setter") return;
+    // Already booked, waiting for the R1 release to go out.
+    if (run.setter.pendingExit === "booked") return;
     const d = data(node, "setter");
     await this.event(run, node.id, "booked");
     const o = onSignal(run.setter, d, { kind: "booked" });

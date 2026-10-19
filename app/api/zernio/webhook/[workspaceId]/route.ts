@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/client';
 import { decryptToken } from '@/lib/meta/oauth';
 import { normalizeZernioEvent, verifyZernioSignature } from '@/lib/zernio/normalize-event';
 import { processInstagramWebhook } from '@/lib/queue/process-webhook';
+import { workflowsFromZernio } from '@/lib/os/workflows/hooks';
 
 const eventEnvelopeSchema = z.object({ account: z.object({ id: z.string().min(1), platform: z.literal('instagram') }) });
 
@@ -22,6 +23,7 @@ export async function POST(request: Request, segmentData: { params: Promise<{ wo
   // Zernio subscriptions are account-wide. Drop other profiles before persisting any payload.
   const account = await prisma.instagramAccount.findFirst({ where: { workspaceId, provider: 'ZERNIO', zernioAccountId: parsed.data.account.id } });
   if (!account) return NextResponse.json({ success: true, ignored: true });
+  await workflowsFromZernio(workspaceId, account.id, payload); // DM OS: Kevin typing in the IG app pauses a workflow run. Never throws.
   const normalized = normalizeZernioEvent({ payload, account });
   if (!normalized) return NextResponse.json({ success: true, ignored: true });
   try {

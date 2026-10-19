@@ -4,6 +4,7 @@ import { parseCommentEvents, parseMessageEvents, parsePostbackEvents, parseReadE
 import { Prisma, type InstagramProvider } from '@/app/generated/prisma/client';
 // DM OS (our fork): hand inbound DMs and taps to J. Never throws.
 import { queueSetterForInbound } from '@/lib/os/setter/queue';
+import { workflowsFromWebhook } from '@/lib/os/workflows/hooks';
 
 const OPENING_DM_READ_FALLBACK_DELAY_MS = 5 * 60 * 1000;
 type InstagramPayload = Parameters<typeof parseCommentEvents>[0];
@@ -33,6 +34,7 @@ export async function processInstagramWebhook({ payload: incoming, provider, wor
   });
 
   try {
+    await workflowsFromWebhook(payload, accountMap); // DM OS workflows: comments, story replies, IG app echoes. Never throws.
     const commentEvents = parseCommentEvents(
       payload as Parameters<typeof parseCommentEvents>[0]
     );

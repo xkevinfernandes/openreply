@@ -35,8 +35,16 @@ export const TRIAGE_PER_MINUTE = 10;
 
 export interface SetterDraftJob {
   contactId: string;
-  reason: "inbound" | "timer" | "manual";
+  /** workflow: a Setter step asked (release, nudge, resume): J drafts even with no timer due. */
+  reason: "inbound" | "timer" | "manual" | "workflow";
 }
+
+/** One workflow run's timer (lib/os/workflows). */
+export interface WorkflowTickJob {
+  runId: string;
+}
+/** Wakes one workflow run at its time (lib/os/workflows/ports.ts schedules it). */
+export const WORKFLOW_TICK_JOB = "os-workflow-tick";
 
 export interface SetterTriageJob {
   contactId: string;
@@ -55,7 +63,7 @@ export interface MediaEnrichJob {
   messageId?: string;
 }
 
-type SetterJob = SetterDraftJob | SetterTriageJob | SetterFollowupJob | MediaEnrichJob | BroadcastSendJob;
+type SetterJob = SetterDraftJob | SetterTriageJob | SetterFollowupJob | MediaEnrichJob | BroadcastSendJob | WorkflowTickJob;
 
 let queue: Queue<SetterJob> | null = null;
 
@@ -173,6 +181,8 @@ export async function queueSetterForInbound(event: {
         console.error("[OS Media] could not queue enrich:", err instanceof Error ? err.message : err)
       );
     }
+    // Workflows (lib/os/workflows) first: a run on a step that isn't the Setter step answers it itself.
+    if ((await (await import("@/lib/os/workflows/hooks")).workflowInbound(event)).consumed) return;
     if (await campaignHoldsSetter(event)) return; // Setter Off: OpenReply's flow, not J's.
     // Pitches: J never drafts or re-sorts on its own (Re-sort pitches does).
     if (contact.kind === "PITCHES") return;
@@ -253,6 +263,7 @@ export async function processSetterJob(job: Job<SetterJob>, token?: string) {
   if (job.name === SETTER_TRIAGE_JOB) return processTriageJob(job as Job<SetterTriageJob>, token);
   if (job.name === SETTER_MEDIA_ENRICH_JOB) return processMediaEnrichJob(job as Job<MediaEnrichJob>);
   if (job.name === SETTER_BROADCAST_SEND_JOB) return processBroadcastSendJob(job as Job<BroadcastSendJob>);
+  if (job.name === WORKFLOW_TICK_JOB) return (await import("@/lib/os/workflows/hooks")).processWorkflowTick((job.data as WorkflowTickJob).runId);
   if (job.name === SETTER_FOLLOWUP_JOB) {
     const step = await prisma.followupStep.findUnique({ where: { id: (job.data as SetterFollowupJob).stepId }, select: { workspaceId: true } });
     if (step && (await isPausedAll(step.workspaceId))) return holdWhilePaused(job, token);
@@ -260,7 +271,7 @@ export async function processSetterJob(job: Job<SetterJob>, token?: string) {
   }
   const { contactId } = job.data as SetterDraftJob;
   if (await pausedFor(contactId)) return holdWhilePaused(job, token);
-  const result = await draftForContact(contactId, { onState: (rec) => scheduleNextAction(contactId, rec) });
+  const result = await draftForContact(contactId, { onState: (rec) => scheduleNextAction(contactId, rec), force: (job.data as SetterDraftJob).reason === "workflow" });
   console.log(`[OS Setter] ${contactId} (${(job.data as SetterDraftJob).reason}): ${result.status}${"reason" in result ? ` — ${result.reason}` : ""}`);
   // Stages switched to Auto send the draft after a short human delay; Approve stages do nothing here.
   if (result.status === "drafted") await (await import("@/lib/os/setter/autopilot")).autopilotAfterDraft(contactId, result.draft);

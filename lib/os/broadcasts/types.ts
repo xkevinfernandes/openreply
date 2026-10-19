@@ -77,6 +77,8 @@ export interface BroadcastContact {
   notes: string | null;
   /** Known custom field values ("Niche: fitness coaching"). */
   fields: { label: string; value: string }[];
+  /** In a live workflow run (lib/os/workflows): Friday skips them if they had a message in the last 48h (O3). */
+  inWorkflow?: boolean;
 }
 
 /** A message with the bits the timeline and the panel show. */
