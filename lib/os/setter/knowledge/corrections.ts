@@ -30,8 +30,8 @@ function after(body: string, labels: RegExp, stop: RegExp): string {
 export function correctionPair(c: VoiceCorrection): CorrectionPair {
   const b = c.body ?? "";
   const stop = /\n\s*(\*\*[^*]+:\*\*|[-*]?\s*(my version|note|kevin sent|sent instead|rules extracted|why)\b)/i;
-  const wrote = after(b, /(\*\*J drafted:\*\*|you wrote:)/i, stop);
-  const sent = after(b, /(\*\*(Kevin sent|Sent instead):\*\*|my version:)/i, /\n\s*(\*\*[^*]+:\*\*|[-*]?\s*(note|rules extracted|why)\b)/i);
+  const wrote = after(b, /(\*\*(J drafted|Rejected)[^*]*:\*\*|you wrote:)/i, stop);
+  const sent = after(b, /(\*\*(Kevin sent|Sent instead|Chosen)[^*]*:\*\*|my version:)/i, /\n\s*(\*\*[^*]+:\*\*|[-*]?\s*(note|rules extracted|why)\b)/i);
   const handle = /@[\w.]+/.exec(c.title)?.[0];
   const date = /\d{4}-\d{2}-\d{2}/.exec(c.title)?.[0];
   return { wrote, sent: sent || (wrote ? "" : c.title), who: handle ?? date ?? "" };

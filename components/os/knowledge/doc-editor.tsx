@@ -101,7 +101,9 @@ export default function DocEditor(props: DocEditorProps) {
 
   // Leaving with unsaved text: save it, and warn if the save can't finish.
   const bodyRef = useRef(body);
-  bodyRef.current = body;
+  useEffect(() => {
+    bodyRef.current = body;
+  }, [body]);
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
       if (bodyRef.current !== saved.current) {

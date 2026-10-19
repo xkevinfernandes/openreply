@@ -368,7 +368,8 @@ export async function saveBooking(setterId: string, raw: unknown): Promise<Actio
   const m = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const link = typeof m.link === "string" ? m.link.trim() : "";
   if (link && !/^https?:\/\/\S+$/i.test(link)) return { error: "The booking link starts with https://" };
-  const { configured: _c, ...booking } = normalizeSetterBooking({ ...m, link });
+  const { mode, propose, withinDays, fallbackAfterHours, link: bookingLink } = normalizeSetterBooking({ ...m, link });
+  const booking = { mode, propose, withinDays, fallbackAfterHours, link: bookingLink };
   if (booking.mode === "link" && !booking.link) return { error: "Add the booking link J sends." };
   const result = await attempt(async () => {
     const current = await ownSetter(workspaceId, setterId);

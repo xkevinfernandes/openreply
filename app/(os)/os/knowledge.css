@@ -2112,3 +2112,21 @@ a.kb-kw:hover {
     display: none;
   }
 }
+
+.kb-corr s,
+.kb-corr li > span:not(.kb-corr-who) {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.kb-ep-when {
+  flex: 0 0 220px;
+}
+
+.kb-ep .kb-link {
+  flex: 0 0 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

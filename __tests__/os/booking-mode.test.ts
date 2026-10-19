@@ -38,8 +38,8 @@ describe("Setup › Booking: calendar or link", () => {
     const cal = { ...defaultCalendarSettings(), options: 3, daysAhead: 7 };
     expect(calendarForSetter(cal, normalizeSetterBooking({ mode: "calendar" }))).toMatchObject({ options: 2, daysAhead: 3 });
     expect(calendarForSetter(cal, normalizeSetterBooking({ mode: "link", link: LINK }))).toBeNull();
-    // never configured: the integration's own numbers (how J booked before)
-    expect(calendarForSetter(cal, bookingOf({}))).toBe(cal);
+    // never configured: the spec's rule, 2 times within 3 days
+    expect(calendarForSetter(cal, bookingOf({}))).toMatchObject({ options: 2, daysAhead: 3 });
   });
 
   it("no free time → J sends the fallback link instead of 'this week is packed'", () => {

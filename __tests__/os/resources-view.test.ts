@@ -51,3 +51,12 @@ describe("helper panel: voice corrections as two lines", () => {
     expect(logged.who).toBe("@newlead_test");
   });
 });
+
+describe("helper panel: rejected / chosen corrections", () => {
+  it("reads the Rejected / Chosen format", () => {
+    const list = parseCorrections(loadKnowledge().voiceCorrections);
+    const c = correctionPair(list.find((x) => x.title.startsWith("Correction 4"))!);
+    expect(c.wrote).toMatch(/^ha love the honesty dude/);
+    expect(c.sent).toMatch(/^ha all good, I'm not here to sell you anything/);
+  });
+});

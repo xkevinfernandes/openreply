@@ -6,8 +6,7 @@
 //             `fallbackAfterHours`) J sends `link` instead.
 //   link:     J sends `link` and they pick a time themselves.
 //
-// No settings.booking = calendar mode with the integration's own numbers, which
-// is how J booked before this screen existed.
+// No settings.booking = calendar mode with the defaults (2 times, 3 days, 24h).
 
 import type { CalendarSettings } from "@/lib/os/integrations/calendar/settings";
 
@@ -64,7 +63,6 @@ export function bookingOf(settings: unknown): SetterBooking & { configured: bool
 /** The calendar settings J books with for this setter, or null in link mode. */
 export function calendarForSetter(cal: CalendarSettings, booking: SetterBooking & { configured?: boolean }): CalendarSettings | null {
   if (booking.mode === "link") return null;
-  if (booking.configured === false) return cal;
   return { ...cal, options: booking.propose, daysAhead: booking.withinDays };
 }
 
