@@ -27,6 +27,7 @@ import "./thread.css";
 import "./fields.css";
 import "./broadcasts.css";
 import "./home.css";
+import "./jbrain.css";
 import "./palette.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });

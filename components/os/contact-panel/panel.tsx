@@ -13,6 +13,7 @@ import ActivityTab from "@/components/os/contact-panel/activity-tab";
 import ChatTab from "@/components/os/contact-panel/chat-tab";
 import DetailsTab from "@/components/os/contact-panel/details-tab";
 import FollowupsTab from "@/components/os/contact-panel/followups-tab";
+import InspectSlot from "@/components/os/inspect/inspect-slot";
 import { emitOs } from "@/components/os/keys";
 import { Avatar, SetterMark, Tabs } from "@/components/os/ui";
 import { PANEL_TABS, type ContactPanelData, type PanelTab } from "@/lib/os/contact-panel/types";
@@ -31,7 +32,16 @@ export interface ContactPanelProps {
   hideTabs?: PanelTab[];
 }
 
-export default function ContactPanel({ data, tab = "details", tabHref, slots = {}, hideTabs = [] }: ContactPanelProps) {
+/** The panel, or J's brain (Inspect) in its place while a draft is inspected. */
+export default function ContactPanel(props: ContactPanelProps) {
+  return (
+    <InspectSlot>
+      <PanelBody {...props} />
+    </InspectSlot>
+  );
+}
+
+function PanelBody({ data, tab = "details", tabHref, slots = {}, hideTabs = [] }: ContactPanelProps) {
   const [local, setLocal] = useState<PanelTab>(tab);
   const current = tabHref ? tab : local;
   const tabs = PANEL_TABS.filter((t) => !hideTabs.includes(t.key));

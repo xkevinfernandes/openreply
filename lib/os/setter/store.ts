@@ -257,6 +257,14 @@ function mayaMockDraft(): DraftView {
   };
 }
 
+// Draft.raw for mock drafts (the Inspect drawer reads the trace from it).
+const mockRaws = ((globalThis as { __osSetterMockRaw?: Map<string, unknown> }).__osSetterMockRaw ??= new Map());
+
+/** OS_MOCK: what a mock draft would have stored as Draft.raw. */
+export function mockDraftRaw(draftId: string): unknown {
+  return mockRaws.get(draftId) ?? null;
+}
+
 const mockStore: SetterStore = {
   async getContact(contactId, workspaceId) {
     const m = mockContact(contactId);
@@ -320,6 +328,7 @@ const mockStore: SetterStore = {
       setterId: input.setterId ?? null,
     };
     mem.drafts.set(d.id, d);
+    mockRaws.set(d.id, input.raw);
     return d;
   },
   async getDraft(draftId) {

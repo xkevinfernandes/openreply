@@ -5,8 +5,10 @@
 
 import { calendarSource, type CalendarSource } from "@/lib/os/setter/booking-store";
 import { agentBackend, runAgentTurn, type AgentBackend, type DraftTrace } from "@/lib/os/setter/agent";
-import { bookingStateBlock, toolsBrief } from "@/lib/os/setter/agent/brief";
-import { usableCalendar } from "@/lib/os/setter/agent/context";
+import { bookingStateBlock, toolLinesBlock, toolsBrief, traceLines } from "@/lib/os/setter/agent/brief";
+import { sendableResources, usableCalendar, type StepOverride } from "@/lib/os/setter/agent/context";
+import { linesBlock, type OfferedLine } from "@/lib/os/experiments";
+import { fakeFieldValues, reallyBookAllowed, stepBlock, stepOverrideFrom, type Situation } from "@/lib/os/setter/sandbox-options";
 import type { ActiveCalendar } from "@/lib/os/integrations/calendar/store";
 import { getSetterConfig } from "@/lib/os/setter/config";
 import { draft as runDrafter, type DraftUsage } from "@/lib/os/setter/drafter";
@@ -32,6 +34,14 @@ export interface SandboxOptions {
   calendar?: CalendarSource;
   /** Override the tool-loop model backend (tests). */
   agent?: AgentBackend | null;
+  /** Sandbox v2: the forced test lines (one variant each, see sandbox-options). */
+  lines?: OfferedLine[];
+  /** Sandbox v2: goal, lead magnet and fake fields (get_step's override). */
+  situation?: Situation | null;
+  /** "Really book": runs a queued book_call on the real calendar. Needs the
+   *  confirmation token too (reallyBookAllowed); otherwise everything is dry. */
+  reallyBook?: boolean;
+  confirm?: string | null;
 }
 
 export interface SandboxReply {
@@ -44,6 +54,10 @@ export interface SandboxReply {
   usage: DraftUsage;
   /** J with tools: what he saw and did. Actions are recorded here, never run. */
   trace?: DraftTrace;
+  /** Without tools: the prompt as sent (the Inspect drawer shows it). */
+  prompt?: { system: string; user: string };
+  /** "Really book" only: what the real booking did. */
+  booked?: { ok: boolean; start?: string; error?: string } | null;
 }
 
 /** The opener OpenReply/Zernio would have sent for an entry row. */
@@ -79,9 +93,13 @@ export async function sandboxReply(setter: ResolvedSetter, turns: SandboxTurn[],
 
   const today = now.toISOString().slice(0, 10);
   const system = systemPrompt(loadMethod(), setter.profile, setter.offered, today);
+  const lines = opts.lines ?? [];
+  const sit = opts.situation ?? null;
+  const step = sit ? stepOverrideFrom(sit, titlesOf(setter)) : null;
   const tools = agentBackend(cfg.drafter.backend, opts.agent);
-  if (tools) return sandboxToolTurn(setter, tools, { rec, msgs, action, now, system, workspaceId: opts.workspaceId ?? null, calendar: opts.calendar });
-  const prompt = buildPrompt(rec, msgs, action, setter.catalog, now);
+  if (tools) return sandboxToolTurn(setter, tools, { rec, msgs, action, now, system, workspaceId: opts.workspaceId ?? null, calendar: opts.calendar, lines, situation: sit, step, opts });
+  const extras = [linesBlock(lines), step ? stepBlock(step) : "", fieldsBlock(sit)].filter(Boolean);
+  const prompt = buildPrompt(rec, msgs, action, setter.catalog, now, extras);
   const result = await runDrafter({ system, prompt, job: "draft", settings: cfg.drafter });
   const obj = (result.obj && typeof result.obj === "object" ? result.obj : {}) as DraftObject;
   const bubbles = bubblesOf(obj);
@@ -98,7 +116,18 @@ export async function sandboxReply(setter: ResolvedSetter, turns: SandboxTurn[],
     reasoning: obj.stage_reasoning || obj.reasoning || null,
     flags,
     usage: result.usage,
+    prompt: { system, user: prompt },
   };
+}
+
+function titlesOf(setter: ResolvedSetter): Map<string, string> {
+  return new Map([...sendableResources(setter, null).values()].map((r) => [r.slug, r.title]));
+}
+
+/** Without tools there's no get_contact: the fake fields go in the prompt. */
+function fieldsBlock(sit: Situation | null): string {
+  const f = sit ? fakeFieldValues(sit) : [];
+  return f.length ? `KNOWN ABOUT THEM:\n${f.map((x) => `- ${x.label}: ${x.value}`).join("\n")}` : "";
 }
 
 /** The sandbox turn with tools: reads are real (or fake), actions are only
@@ -106,7 +135,19 @@ export async function sandboxReply(setter: ResolvedSetter, turns: SandboxTurn[],
 async function sandboxToolTurn(
   setter: ResolvedSetter,
   backend: AgentBackend,
-  o: { rec: SetterRecord; msgs: ThreadMessage[]; action: SetterAction; now: Date; system: string; workspaceId: string | null; calendar?: CalendarSource }
+  o: {
+    rec: SetterRecord;
+    msgs: ThreadMessage[];
+    action: SetterAction;
+    now: Date;
+    system: string;
+    workspaceId: string | null;
+    calendar?: CalendarSource;
+    lines: OfferedLine[];
+    situation: Situation | null;
+    step: StepOverride | null;
+    opts: SandboxOptions;
+  }
 ): Promise<SandboxReply> {
   const cfg = getSetterConfig();
   let cal: ActiveCalendar | null = null;
@@ -117,7 +158,9 @@ async function sandboxToolTurn(
       console.error("[OS Sandbox] calendar read failed:", err instanceof Error ? err.message : err);
     }
   }
-  const extras = [bookingStateBlock(cal, o.rec)].filter(Boolean);
+  const extras = [bookingStateBlock(cal, o.rec), toolLinesBlock(o.lines), o.step ? stepBlock(o.step) : ""].filter(Boolean);
+  const fields = o.situation ? fakeFieldValues(o.situation) : [];
+  const name = fields.find((f) => f.key === "first_name" || f.key === "name")?.value ?? null;
   const prompt = buildPrompt(o.rec, o.msgs, o.action, setter.catalog, o.now, extras, toolsBrief({ calendar: Boolean(cal), fields: Boolean(setter.profile.fields?.length) }));
   const turn = await runAgentTurn({
     system: o.system,
@@ -126,14 +169,17 @@ async function sandboxToolTurn(
     settings: cfg.drafter,
     env: {
       now: o.now,
-      contact: { id: null, username: o.rec.handle, fullName: null, email: null, tags: [], stage: null, setterStage: null, paused: false },
+      contact: { id: null, username: o.rec.handle, fullName: name, email: fields.find((f) => f.key === "email")?.value ?? null, tags: [], stage: null, setterStage: null, paused: false },
       rec: o.rec,
       msgs: o.msgs,
       setter,
       windowClosed: false,
       calendar: cal,
-      lines: [],
+      lines: traceLines(o.lines),
       dry: true,
+      step: o.step,
+      fieldValues: async () => fields,
+      bookings: async () => [],
     },
   });
   const obj = turn.obj;
@@ -152,5 +198,28 @@ async function sandboxToolTurn(
     flags,
     usage: turn.usage,
     trace: turn.trace,
+    booked: reallyBookAllowed(o.opts) ? await reallyBook(turn) : null,
   };
+}
+
+/** "Really book (test event)": the one sandbox action that runs for real,
+ *  only behind the switch plus its confirmation. Never sends, saves or syncs. */
+async function reallyBook(turn: Awaited<ReturnType<typeof runAgentTurn>>): Promise<SandboxReply["booked"]> {
+  const b = turn.obj.booking as { action?: string; slot?: string | null; email?: string | null; name?: string | null; timezone?: string | null } | undefined;
+  const ctx = turn.bookingCtx;
+  if (!b || b.action !== "confirm" || !b.slot || !ctx?.calendar.eventTypeId) return null;
+  const slot = ctx.slots.find((x) => x.start === b.slot);
+  if (!slot) return { ok: false, error: "That time isn't from this turn's check_calendar." };
+  if (!b.email) return { ok: false, error: "No email to book with." };
+  try {
+    const out = await ctx.calendar.client.createBooking(ctx.calendar.eventTypeId, slot, {
+      name: b.name || "Sandbox test",
+      email: b.email,
+      timezone: b.timezone || ctx.leadTz || ctx.calendar.settings.hostTimezone,
+      notes: "DM OS sandbox test booking",
+    });
+    return { ok: true, start: out.kind === "booked" ? out.start : slot.start };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
 }

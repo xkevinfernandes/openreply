@@ -13,6 +13,8 @@ import { auth, getCurrentWorkspaceId } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
 import { asBusiness, asCorrections, asFunnel, asOffers, asSettings, slugify } from "@/lib/os/setter/kb";
 import { sandboxReply, type SandboxReply, type SandboxTurn } from "@/lib/os/setter/sandbox";
+import { forceLines, testLinesFrom } from "@/lib/os/setter/sandbox-options";
+import { experimentStore } from "@/lib/os/experiments/store";
 import { dbKnowledge, importFromFiles } from "@/lib/os/setter/setters";
 import { saveSetterSequence } from "@/lib/os/sequences/engine";
 import { cleanSequence, isSequenceKey } from "@/lib/os/sequences/types";
@@ -279,18 +281,51 @@ const TurnsSchema = z
   .array(z.object({ from: z.enum(["lead", "setter"]), text: z.string().max(4000) }))
   .max(200);
 
-/** One J turn in the sandbox. Never touches Instagram, contacts or drafts. */
+const SandboxOptsSchema = z
+  .object({
+    /** Force per running line test: experimentId → A | B | random. */
+    picks: z.record(z.string().max(100), z.enum(["A", "B", "random"])).optional(),
+    situation: z
+      .object({
+        goal: z.enum(["book_call", "start_conversation"]).optional(),
+        leadMagnet: z.enum(["hold", "send_first", "none"]).optional(),
+        resource: z.string().max(200).nullable().optional(),
+        fields: z.array(z.object({ key: z.string().max(80), value: z.string().max(500) })).max(30).optional(),
+      })
+      .optional(),
+    reallyBook: z.boolean().optional(),
+    confirm: z.string().max(100).nullable().optional(),
+  })
+  .optional();
+
+export type SandboxRunOptions = z.infer<typeof SandboxOptsSchema>;
+
+/** One J turn in the sandbox. Never touches Instagram, contacts or drafts,
+ *  never counts in test results, never syncs. Tools are dry unless "Really
+ *  book" is on and confirmed. */
 export async function runSandbox(
   setterId: string,
   turns: SandboxTurn[],
-  entrySlug: string | null
-): Promise<{ error?: string; reply?: SandboxReply }> {
+  entrySlug: string | null,
+  options?: SandboxRunOptions
+): Promise<{ error?: string; reply?: SandboxReply; lines?: { key: string; variantId: string }[] }> {
   const workspaceId = await requireWorkspace();
   try {
     const setter = await dbKnowledge.forSetter(workspaceId, setterId);
     if (!setter) return { error: "That knowledge base is gone. Refresh the page." };
-    const reply = await sandboxReply(setter, TurnsSchema.parse(turns), { entrySlug, workspaceId });
-    return { reply };
+    const opts = SandboxOptsSchema.parse(options) ?? {};
+    // Read only: the running tests, never an assignment.
+    const tests = testLinesFrom(await experimentStore().list(workspaceId).catch(() => []), setterId);
+    const lines = forceLines(tests, opts.picks ?? {});
+    const reply = await sandboxReply(setter, TurnsSchema.parse(turns), {
+      entrySlug,
+      workspaceId,
+      lines,
+      situation: opts.situation ?? null,
+      reallyBook: opts.reallyBook,
+      confirm: opts.confirm ?? null,
+    });
+    return { reply, lines: lines.map((l) => ({ key: l.key, variantId: l.variantId })) };
   } catch (err) {
     console.error("[OS Sandbox]", err);
     return { error: err instanceof Error ? `J couldn't answer: ${err.message}` : "J couldn't answer. Try again." };

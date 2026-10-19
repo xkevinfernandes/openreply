@@ -51,6 +51,14 @@ export interface AgentEnv {
   fieldValues?: () => Promise<FieldValueView[]>;
   /** Past bookings, newest first. */
   bookings?: () => Promise<unknown[]>;
+  /** The sandbox's forced goal / lead magnet (until workflows give a real step). */
+  step?: StepOverride | null;
+}
+
+/** A plain override of get_step's goal and lead magnet (sandbox, tests). */
+export interface StepOverride {
+  goal?: "book_call" | "start_conversation";
+  leadMagnet?: StepView["leadMagnet"];
 }
 
 /** What the turn has learned so far (the server's memory, not J's). */
@@ -146,7 +154,8 @@ export interface StepView {
 }
 
 export function stepView(env: AgentEnv): StepView {
-  return { goal: "book_call", leadMagnet: { mode: "none", resources: [] }, releaseRules: [], exits: [...EXITS], lines: env.lines };
+  const o = env.step ?? {};
+  return { goal: o.goal ?? "book_call", leadMagnet: o.leadMagnet ?? { mode: "none", resources: [] }, releaseRules: [], exits: [...EXITS], lines: env.lines };
 }
 
 export async function getStep(env: AgentEnv): Promise<ReadResult> {

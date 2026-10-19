@@ -10,7 +10,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { approveJDraft, draftWithJ, holdJDraft, sendInboxMessage } from "@/app/(os)/os/inbox/actions";
 import VoicePanel from "@/components/os/inbox/voice-panel";
-import { useOsCommand } from "@/components/os/keys";
+import { closeInspect, currentInspect, toggleInspect, useInspect } from "@/components/os/inspect/bus";
+import { isTypingTarget, useOsCommand } from "@/components/os/keys";
 import {
   appendLink,
   bubbleKey,
@@ -78,6 +79,7 @@ const I_INFO = "M8 13.8A5.8 5.8 0 1 0 8 2.2a5.8 5.8 0 0 0 0 11.6ZM8 7.2v3.6M8 5.
 const I_PEN = "M10.5 2.5 13.5 5.5 6 13H3v-3l7.5-7.5Z";
 const I_REGEN = "M13 8a5 5 0 1 1-1.5-3.6M13 2.5v2.5h-2.5";
 const I_CLIP = "M12.5 7.5 8 12a3 3 0 0 1-4.2-4.2l4.6-4.6a2 2 0 0 1 2.8 2.8L6.6 10.6a1 1 0 0 1-1.4-1.4L9.5 5";
+const I_CODE = "M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5";
 const I_MIC = "M6 3.8a2 2 0 0 1 4 0v4a2 2 0 0 1-4 0v-4ZM3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2.2";
 
 export default function Composer({
@@ -122,6 +124,27 @@ export default function Composer({
 
   const isDraft = state.mode === "draft" && Boolean(draft);
   const out = outgoing(state);
+  const inspecting = useInspect()?.draftId === draft?.id && Boolean(draft);
+
+  // I opens J's brain for this draft; the drawer closes with the draft.
+  const draftId = draft?.id ?? null;
+  useEffect(() => {
+    if (!draftId || !listen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "i" && e.key !== "I") return;
+      if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented || isTypingTarget(e.target)) return;
+      if (document.querySelector("[role=dialog][aria-modal=true]")) return;
+      e.preventDefault();
+      toggleInspect(draftId);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [draftId, listen]);
+  // Another thread or a new draft: a drawer for some other draft closes.
+  useEffect(() => {
+    const open = currentInspect();
+    if (listen && open && open.draftId !== draftId) closeInspect();
+  }, [draftId, listen]);
   const canSend = out.length > 0 && !busy;
 
   function run(kind: "send" | "hold" | "regen", act: () => Promise<{ error?: string; notice?: string }>, after?: () => void) {
@@ -234,6 +257,10 @@ export default function Composer({
                   {FLAGS[f].label}
                 </span>
               ))}
+              <button type="button" className="os-cmp-inspect" aria-label="Inspect" title="Inspect (I)" aria-pressed={inspecting} onClick={() => toggleInspect(draft.id)}>
+                {icon(I_CODE, 11)}
+                Inspect
+              </button>
               <span className="os-cmp-sp" />
               <button type="button" className="os-cmp-text-btn" onClick={() => setState(writeOwn())}>
                 {icon(I_PEN, 12)}
