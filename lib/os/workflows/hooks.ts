@@ -103,14 +103,37 @@ export async function workflowsFromWebhook(payload: unknown, accounts: Map<strin
   });
 }
 
-/** Zernio drops outgoing messages before normalising: one line in its route. */
+/** Pure: what the workflows need from a raw Zernio event that normalising drops. */
+export function readZernio(payload: unknown): { outgoing: { igUserId: string; text: string } | null; story: { igUserId: string; mid: string; text: string } | null } {
+  const p = (payload ?? {}) as {
+    event?: string;
+    message?: { platformMessageId?: string; direction?: string; text?: string | null; sender?: { id?: string }; storyReply?: unknown; replyTo?: { story?: unknown } | null };
+    conversation?: { participantId?: string | null };
+    metadata?: { storyReply?: unknown };
+  };
+  const m = p.message;
+  const text = m?.text?.trim() ?? "";
+  if (!m || !text) return { outgoing: null, story: null };
+  if ((p.event === "message.received" || p.event === "message.sent") && m.direction === "outgoing" && p.conversation?.participantId)
+    return { outgoing: { igUserId: p.conversation.participantId, text }, story: null };
+  const isStory = Boolean(m.storyReply || m.replyTo?.story || p.metadata?.storyReply);
+  if (p.event === "message.received" && m.direction === "incoming" && isStory && m.sender?.id && m.platformMessageId)
+    return { outgoing: null, story: { igUserId: m.sender.id, mid: m.platformMessageId, text } };
+  return { outgoing: null, story: null };
+}
+
+/**
+ * Zernio's normaliser drops outgoing messages and the story-reply marker:
+ * one line in its route hands us the raw event first. Outgoing = Kevin in the
+ * IG app (K1); a story reply can start a story workflow (E11). The normalised
+ * DM that follows carries the same message id, so it isn't handled twice.
+ */
 export async function workflowsFromZernio(workspaceId: string, instagramAccountId: string, payload: unknown): Promise<void> {
   if (!enabled()) return;
-  await quiet("zernio outgoing", undefined, async () => {
-    const p = (payload ?? {}) as { event?: string; message?: { direction?: string; text?: string | null }; conversation?: { participantId?: string | null } };
-    if (p.event !== "message.received" && p.event !== "message.sent") return;
-    if (p.message?.direction !== "outgoing" || !p.message.text?.trim() || !p.conversation?.participantId) return;
-    await workflowOutgoing({ workspaceId, instagramAccountId, igUserId: p.conversation.participantId, text: p.message.text.trim() });
+  await quiet("zernio raw", undefined, async () => {
+    const { outgoing, story } = readZernio(payload);
+    if (outgoing) await workflowOutgoing({ workspaceId, instagramAccountId, igUserId: outgoing.igUserId, text: outgoing.text });
+    if (story) await workflowEngine().handleInbound({ workspaceId, instagramAccountId, igUserId: story.igUserId, mid: story.mid, text: story.text, storyReply: true });
   });
 }
 
@@ -244,6 +267,7 @@ export async function processWorkflowTick(runId: string): Promise<void> {
 
 /** Runs whose timer is due (a sweep, if a delayed job was lost). */
 export async function sweepDueRuns(now = new Date()): Promise<number> {
+  if (!enabled()) return 0;
   const due = await dbWorkflowStore.dueRuns(now, 200);
   const engine = workflowEngine();
   for (const r of due) await quiet("sweep", undefined, () => engine.tick(r.id));

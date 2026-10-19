@@ -12,7 +12,7 @@ import { decideAutoSend } from "@/lib/os/setter/autopilot";
 import { newRecord } from "@/lib/os/setter/state";
 import { moveProblems, waitingOnRemoved } from "@/lib/os/workflows/api-impl";
 import { validateGraph, type WorkflowGraph } from "@/lib/os/workflows/graph";
-import { readWebhook } from "@/lib/os/workflows/hooks";
+import { readWebhook, readZernio } from "@/lib/os/workflows/hooks";
 import { heuristicClassify, nextSetterTimer, onSignal, quietReleaseAt, releaseRulesView, stepBlock } from "@/lib/os/workflows/setter-step";
 import { computeStats } from "@/lib/os/workflows/stats";
 import { templateGraph, TEMPLATES } from "@/lib/os/workflows/templates";
@@ -282,5 +282,14 @@ describe("webhook reader", () => {
     expect(r.comments).toMatchObject([{ commentId: "c1", fromId: "u1", postId: "p1" }]);
     expect(r.stories).toMatchObject([{ fromId: "u2", mid: "m1" }]);
     expect(r.echoes).toEqual([{ instagramId: "me", toId: "u3", text: "hey it's kevin" }]);
+  });
+});
+
+describe("E11 story replies through Zernio", () => {
+  it("reads the story marker and Kevin's outgoing messages from the raw event", () => {
+    const story = readZernio({ event: "message.received", message: { platformMessageId: "mid1", direction: "incoming", text: "GUIDE", sender: { id: "u1" }, storyReply: { storyId: "s1" } } });
+    expect(story).toEqual({ outgoing: null, story: { igUserId: "u1", mid: "mid1", text: "GUIDE" } });
+    expect(readZernio({ event: "message.received", message: { platformMessageId: "mid2", direction: "incoming", text: "GUIDE", sender: { id: "u1" } } }).story).toBeNull();
+    expect(readZernio({ event: "message.received", message: { direction: "outgoing", text: "hey" }, conversation: { participantId: "u2" } }).outgoing).toEqual({ igUserId: "u2", text: "hey" });
   });
 });

@@ -45,6 +45,15 @@ export interface WorkflowTickJob {
 }
 /** Wakes one workflow run at its time (lib/os/workflows/ports.ts schedules it). */
 export const WORKFLOW_TICK_JOB = "os-workflow-tick";
+/** Every minute: wake runs whose delayed job was lost (Redis flush, deploy). */
+export const WORKFLOW_SWEEP_JOB = "os-workflow-sweep";
+export const WORKFLOW_SWEEP_EVERY_MS = 60_000;
+
+/** The repeating sweep, registered once per worker start (idempotent: one scheduler id). */
+export async function scheduleWorkflowSweep() {
+  if (!redisConfigured()) return;
+  await getSetterQueue().upsertJobScheduler("os-workflow-sweep", { every: WORKFLOW_SWEEP_EVERY_MS }, { name: WORKFLOW_SWEEP_JOB, data: { runId: "" } });
+}
 
 export interface SetterTriageJob {
   contactId: string;
@@ -160,6 +169,8 @@ export async function queueSetterForInbound(event: {
   /** Button tap payload / DM text: lets a Setter-Off campaign keep its own flow (lib/os/automations-handoff.ts). */
   tapPayload?: string | null;
   text?: string | null;
+  /** Instagram's message id: a workflow handles each message once (story replies come in first). */
+  mid?: string | null;
 }) {
   try {
     const commented = await prisma.dmLog.findFirst({
@@ -263,6 +274,11 @@ export async function processSetterJob(job: Job<SetterJob>, token?: string) {
   if (job.name === SETTER_TRIAGE_JOB) return processTriageJob(job as Job<SetterTriageJob>, token);
   if (job.name === SETTER_MEDIA_ENRICH_JOB) return processMediaEnrichJob(job as Job<MediaEnrichJob>);
   if (job.name === SETTER_BROADCAST_SEND_JOB) return processBroadcastSendJob(job as Job<BroadcastSendJob>);
+  if (job.name === WORKFLOW_SWEEP_JOB) {
+    const n = await (await import("@/lib/os/workflows/hooks")).sweepDueRuns();
+    if (n) console.log(`[OS Workflows] sweep woke ${n} run${n === 1 ? "" : "s"}`);
+    return;
+  }
   if (job.name === WORKFLOW_TICK_JOB) return (await import("@/lib/os/workflows/hooks")).processWorkflowTick((job.data as WorkflowTickJob).runId);
   if (job.name === SETTER_FOLLOWUP_JOB) {
     const step = await prisma.followupStep.findUnique({ where: { id: (job.data as SetterFollowupJob).stepId }, select: { workspaceId: true } });
@@ -287,5 +303,7 @@ export function createSetterWorker(): Worker<SetterJob> {
     concurrency: 2,
   });
   worker.on("failed", (job, err) => console.error(`[OS Setter] job ${job?.id} failed:`, err.message));
+  // Workflows: the every-minute safety sweep (lib/os/workflows/hooks.ts sweepDueRuns).
+  void scheduleWorkflowSweep().catch((err) => console.error("[OS Workflows] could not schedule the sweep:", err instanceof Error ? err.message : err));
   return worker;
 }

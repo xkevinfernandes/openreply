@@ -189,6 +189,16 @@ describe("5.1 Entering", () => {
     expect((await h.run("sam"))!.currentNodeId).toBe("setter");
   });
 
+  it("E11 the same message seen again as a plain DM (same id) isn't handled twice", async () => {
+    const h = harness();
+    h.publish(dmTrigger("GUIDE", [n("m", "message", { bubbles: [{ kind: "buttons", text: "want it?", buttons: [{ id: "y", label: "Yes" }] }] }), n("end", "end", {})], [e("trigger", "next", "m"), e("m", "button:y", "end")], "story_reply"));
+    await h.dm("sam", "GUIDE", { storyReply: true, mid: "s1" });
+    const again = await h.dm("sam", "GUIDE", { mid: "s1" });
+    expect(again.consumed).toBe(true);
+    expect((await h.run("sam"))!).toMatchObject({ status: "waiting", currentNodeId: "m" });
+    expect(h.sentTo("sam")).toHaveLength(1);
+  });
+
   it("E13 bot comments: one run per person per keyword per 24h, repeat public replies capped, Pitches get none", async () => {
     const h = harness();
     h.publish(hold());
