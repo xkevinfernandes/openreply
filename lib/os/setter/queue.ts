@@ -262,6 +262,8 @@ export async function processSetterJob(job: Job<SetterJob>, token?: string) {
   if (await pausedFor(contactId)) return holdWhilePaused(job, token);
   const result = await draftForContact(contactId, { onState: (rec) => scheduleNextAction(contactId, rec) });
   console.log(`[OS Setter] ${contactId} (${(job.data as SetterDraftJob).reason}): ${result.status}${"reason" in result ? ` — ${result.reason}` : ""}`);
+  // Stages switched to Auto send the draft after a short human delay; Approve stages do nothing here.
+  if (result.status === "drafted") await (await import("@/lib/os/setter/autopilot")).autopilotAfterDraft(contactId, result.draft);
   // Every look at the thread re-plans its follow-up: a reply stops a sequence at once.
   const { syncFollowupsQuietly } = await import("@/lib/os/sequences/engine");
   await syncFollowupsQuietly(contactId);
