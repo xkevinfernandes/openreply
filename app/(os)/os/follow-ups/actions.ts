@@ -6,6 +6,9 @@ import { getCurrentWorkspaceId } from "@/lib/auth";
 import { cancelSequence, markAttendance, sendStepNow, setTaskDone, setThreadFollowups, skipStep, type EngineResult } from "@/lib/os/sequences/engine";
 import { setterStore } from "@/lib/os/setter/store";
 import { sendFridayResource, setFriday, skipTimer, snoozeContact, type FridaySendInput, type FridaySendResult } from "@/lib/os/followups-data";
+import { broadcastStore } from "@/lib/os/broadcasts/store";
+import { FOLLOW_UP_FRIDAY } from "@/lib/os/broadcasts/types";
+import { loadContactFollowups, type ContactFollowupsData } from "@/lib/os/contact-panel/followups";
 
 async function requireWorkspace() {
   const workspaceId = await getCurrentWorkspaceId();
@@ -53,10 +56,12 @@ export async function draftNudge(contactId: string): Promise<DraftActionResult> 
 
 // --- Follow-up Friday --------------------------------------------------------
 
+/** On / off the Follow-up Friday list: the follow-up-friday tag the broadcast reads (and the legacy flag). */
 export async function setOnFriday(contactId: string, on: boolean): Promise<{ error?: string }> {
   const workspaceId = await requireWorkspace();
   if (typeof on !== "boolean") return { error: "Friday needs on or off." };
   await setFriday(workspaceId, [contactId], on);
+  await broadcastStore().setTag(workspaceId, String(contactId), FOLLOW_UP_FRIDAY.tag, on);
   refresh();
   revalidatePath("/os/inbox");
   revalidatePath("/os/contacts");
@@ -160,4 +165,16 @@ export async function markCall(contactId: string, attendance: "SHOWED" | "NO_SHO
 
 export async function completeTask(taskId: string, done = true): Promise<DraftActionResult> {
   return guarded((w) => setTaskDone(w, String(taskId), done));
+}
+
+// --- Contact panel: Follow-ups tab ---------------------------------------------
+
+export async function loadPanelFollowups(contactId: string): Promise<ContactFollowupsData | { error: string }> {
+  try {
+    const workspaceId = await requireWorkspace();
+    return await loadContactFollowups(workspaceId, String(contactId));
+  } catch (err) {
+    console.error("[OS Follow-ups] panel load failed:", err);
+    return { error: "Follow-ups didn't load." };
+  }
 }

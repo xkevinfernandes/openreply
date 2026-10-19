@@ -258,13 +258,16 @@ export async function loadFollowups(workspaceId: string, now: Date = new Date())
   };
 }
 
-/** The sidebar number. */
+/** The sidebar number: J's nudges ready or due, follow-up steps waiting,
+ *  calls to mark and tasks, and broadcasts that need a link or a review.
+ *  (The old per-person Friday list is now the Follow-up Friday broadcast.) */
 export async function followupsDue(workspaceId: string, now: Date = new Date()): Promise<number> {
   const data = await loadFollowups(workspaceId, now);
   // Lazy: the sequences view seeds its samples from this module.
   const { followupAttentionCount } = await import("@/lib/os/sequences/view");
-  const sequences = await followupAttentionCount(workspaceId, now).catch(() => 0);
-  return dueCount(data.nudges, data.friday.items, data.friday.isToday) + sequences;
+  const { broadcastNeeds } = await import("@/lib/os/broadcasts/engine");
+  const [sequences, needs] = await Promise.all([followupAttentionCount(workspaceId, now).catch(() => 0), broadcastNeeds(workspaceId, { now }).catch(() => [])]);
+  return dueCount(data.nudges, [], false) + sequences + needs.length;
 }
 
 // ---------------------------------------------------------------- nudge writes

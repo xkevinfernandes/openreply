@@ -30,6 +30,9 @@ export interface QueuedFollowup extends Person {
   label: string;
   /** "Step 2 of 4". */
   position: string;
+  stepNo: number;
+  stepCount: number;
+  setterId: string | null;
   timing: string;
   dueAt: string;
   status: "QUEUED" | "DRAFTED";
@@ -127,6 +130,7 @@ async function stepView(
   const d = s.draftId ? (drafts.get(s.draftId) ?? null) : null;
   const call = s.bookingId ? (bookings.get(s.bookingId) ?? null) : null;
   const [win] = windowState(who.theirLastAt, new Date(Math.max(Date.now(), new Date(s.dueAt).getTime())), getSetterConfig());
+  const count = await stepCount(s);
   return {
     contactId: who.contactId,
     username: who.username,
@@ -138,7 +142,10 @@ async function stepView(
     sequenceTitle: meta?.title ?? s.sequence,
     group: meta?.group ?? "no_reply",
     label: s.step.label,
-    position: `Step ${s.stepIndex + 1} of ${await stepCount(s)}`,
+    position: `Step ${s.stepIndex + 1} of ${count}`,
+    stepNo: s.stepIndex + 1,
+    stepCount: count,
+    setterId: s.setterId,
     timing: timingLabel(s.step.timing),
     dueAt: s.dueAt,
     status: s.status === "DRAFTED" ? "DRAFTED" : "QUEUED",
