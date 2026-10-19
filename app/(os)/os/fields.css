@@ -1,1 +1,306 @@
-/* fields.css: owned by S3 after wave 0. Scoped under .os. */
+/* fields.css: Settings › Custom fields (SettingsFields board). Owner: S3. */
+
+.os-cf {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.os-cf-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.os-cf-head h2 {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.os-cf-sub {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.os-cf-grow {
+  flex: 1;
+}
+
+.os-cf-error {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--bad);
+}
+
+.os-cf svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.os-cf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  min-width: 72px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.os-cf-btn:hover {
+  border-color: var(--ink);
+}
+
+.os-cf-btn.primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
+}
+
+.os-cf-btn.danger {
+  color: var(--bad);
+}
+
+.os-cf-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.os-cf-wrap {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
+.os-cf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.os-cf-table th {
+  padding: 0 12px;
+  height: 36px;
+  text-align: left;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.os-cf-table td {
+  padding: 0 12px;
+  height: 48px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.os-cf-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.os-cf-prov {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.os-cf-logo {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  background: var(--tint);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.os-cf-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.os-cf-name strong {
+  font-weight: 500;
+}
+
+.os-cf-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--radius);
+  background: var(--tint);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.os-cf-muted {
+  color: var(--muted);
+}
+
+.os-cf-map {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 200px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.os-cf-map span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.os-cf-map svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+
+.os-cf-map[data-off="true"] {
+  color: var(--ghost);
+  border-style: dashed;
+}
+
+.os-cf-map:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+
+.os-cf-map:disabled {
+  cursor: default;
+}
+
+.os-cf-setters {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.os-cf-setter {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px 0 3px;
+  border-radius: 11px;
+  background: var(--tint);
+  font-size: var(--fs-xs);
+}
+
+.os-cf-setter .os-setter-mark {
+  border-radius: 50%;
+}
+
+.os-cf-end {
+  text-align: right;
+}
+
+.os-cf-more {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.os-cf-more:hover {
+  background: var(--tint);
+  color: var(--ink);
+}
+
+.os-cf-more svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
+
+.os-cf-editing td {
+  height: auto;
+  padding: 12px;
+  background: #f7f7f5;
+  white-space: normal;
+}
+
+.os-cf-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.os-cf-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.os-cf-form .os-cf-wide {
+  grid-column: span 2;
+}
+
+.os-cf-form input,
+.os-cf-form select {
+  height: var(--control-h);
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+}
+
+.os-cf-form input:focus,
+.os-cf-form select:focus {
+  border-color: var(--ink);
+  outline: 0;
+}
+
+.os-cf-form input:disabled,
+.os-cf-form select:disabled {
+  color: var(--muted);
+  background: var(--tint);
+}
+
+.os-cf-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

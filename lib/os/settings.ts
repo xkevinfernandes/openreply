@@ -3,13 +3,19 @@
 // /api/admin/diagnostics for the data.
 
 export const SETTINGS_TABS = [
-  { tab: "instagram", label: "Instagram" },
+  { tab: "instagram", label: "Instagram account" },
+  { tab: "integrations", label: "Integrations" },
+  { tab: "fields", label: "Custom fields" },
   { tab: "logs", label: "DM logs" },
   { tab: "diagnostics", label: "Diagnostics" },
   { tab: "workspace", label: "Workspace" },
 ] as const;
 
 export type SettingsTab = (typeof SETTINGS_TABS)[number]["tab"];
+
+export function settingsHref(tab: SettingsTab): string {
+  return tab === "instagram" ? "/os/settings" : `/os/settings?tab=${tab}`;
+}
 
 export function parseSettingsTab(value: string | null | undefined): SettingsTab {
   return SETTINGS_TABS.some((t) => t.tab === value) ? (value as SettingsTab) : "instagram";

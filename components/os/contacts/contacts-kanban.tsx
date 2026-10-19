@@ -1,151 +1,120 @@
 "use client";
 
-// The board. Three ways to move a card, all ending in onMove: drag it to a
-// column (dragging a selected card takes the whole selection), pick a stage
-// in its menu, or focus it and press Shift+← / Shift+→.
+// The board (ContactsA/D): the setter's funnel columns, then Booked,
+// Showed / No-show, Won, Lost. Drag a card to another column, or focus it and
+// press Shift+← / Shift+→. A funnel column sets J's stage hint; an outcome
+// column sets the stage (lib/os/funnel.ts dropOnColumn).
 
 import { useEffect, useRef, useState } from "react";
-import type { ContactStage } from "@/app/generated/prisma/enums";
-import Avatar from "@/components/os/inbox/avatar";
-import { initialSource, threadName } from "@/components/os/inbox/names";
+import { threadName } from "@/components/os/inbox/names";
 import type { ContactRow } from "@/lib/os/contacts-board";
-import { groupByStage, stepStage } from "@/lib/os/contacts-filter";
-import { entryLabels, shortAgo, stageLabels, stageOrder } from "@/lib/os/labels";
+import { boardColumns, groupByColumn, sourceOf, type BoardColumn } from "@/lib/os/contacts-filter";
+import type { FunnelColumn } from "@/lib/os/funnel";
+import { shortAgo } from "@/lib/os/labels";
 
 interface Props {
   rows: ContactRow[];
+  columns: FunnelColumn[];
   now: number;
-  selected: Set<string>;
   openId: string | null;
-  collapsed: Set<ContactStage>;
-  onToggleColumn: (stage: ContactStage) => void;
-  onToggle: (id: string, on?: boolean) => void;
   onOpen: (id: string) => void;
-  onMove: (ids: string[], stage: ContactStage) => void;
+  /** A column key from `columns`. */
+  onMove: (id: string, column: string) => void;
 }
 
 const DRAG_TYPE = "application/x-os-contact";
 
 export default function ContactsKanban(p: Props) {
-  const columns = groupByStage(p.rows);
-  const [dragging, setDragging] = useState<string[] | null>(null);
-  const [over, setOver] = useState<ContactStage | null>(null);
+  const grouped = groupByColumn(p.rows, p.columns);
+  const cols = boardColumns(p.columns);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [over, setOver] = useState<string | null>(null);
   const board = useRef<HTMLDivElement>(null);
-  // A card moved by keyboard lands in another column (a new element): keep focus on it.
   const refocus = useRef<string | null>(null);
 
   useEffect(() => {
     const id = refocus.current;
     if (!id) return;
     refocus.current = null;
-    const el = board.current?.querySelector<HTMLElement>(`[data-card="${CSS.escape(id)}"] .os-ct-card-main`);
-    if (el) {
-      el.focus();
-      el.scrollIntoView({ block: "nearest", inline: "nearest" });
-    }
+    const el = board.current?.querySelector<HTMLElement>(`[data-card="${CSS.escape(id)}"]`);
+    el?.focus();
+    el?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [p.rows]);
 
-  function idsFor(id: string): string[] {
-    if (!p.selected.has(id)) return [id];
-    return p.rows.filter((c) => p.selected.has(c.id)).map((c) => c.id);
-  }
+  const columnOf = (id: string) => cols.find((c) => c.keys.some((k) => grouped.get(k)?.some((r) => r.id === id)));
 
-  function drop(stage: ContactStage, e: React.DragEvent) {
+  function drop(col: BoardColumn, e: React.DragEvent) {
     e.preventDefault();
     setOver(null);
-    const raw = e.dataTransfer.getData(DRAG_TYPE);
-    const ids = (dragging ?? (raw ? raw.split(",") : [])).filter((id) => p.rows.find((c) => c.id === id)?.stage !== stage);
+    const id = dragging ?? e.dataTransfer.getData(DRAG_TYPE);
     setDragging(null);
-    if (ids.length) p.onMove(ids, stage);
+    if (id && columnOf(id)?.key !== col.key) p.onMove(id, col.key);
   }
 
   function keyMove(c: ContactRow, e: React.KeyboardEvent) {
     if (!e.shiftKey || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
     e.preventDefault();
-    const next = stepStage(c.stage, e.key === "ArrowLeft" ? -1 : 1);
+    const i = cols.findIndex((x) => x.key === columnOf(c.id)?.key) + (e.key === "ArrowLeft" ? -1 : 1);
+    const next = cols[i];
     if (!next) return;
     refocus.current = c.id;
-    p.onMove([c.id], next);
+    p.onMove(c.id, next.key);
   }
 
   return (
-    <div className="os-ct-board" ref={board} data-dragging={dragging ? "true" : undefined}>
-      <p id="os-ct-kb-hint" className="sr-only">
-        Press Enter to open. Shift plus Left or Right arrow moves the card to the previous or next stage.
-      </p>
-      {stageOrder.map((stage) => {
-        const cards = columns[stage];
-        const isCollapsed = p.collapsed.has(stage);
-        const label = stageLabels[stage];
-        return (
-          <section
-            key={stage}
-            className="os-ct-col"
-            data-stage={stage}
-            data-collapsed={isCollapsed ? "true" : undefined}
-            data-over={over === stage ? "true" : undefined}
-            aria-label={`${label}, ${cards.length} ${cards.length === 1 ? "contact" : "contacts"}`}
-            onDragOver={(e) => {
-              if (!dragging && !e.dataTransfer.types.includes(DRAG_TYPE)) return;
-              e.preventDefault();
-              e.dataTransfer.dropEffect = "move";
-              if (over !== stage) setOver(stage);
-            }}
-            onDragLeave={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver((s) => (s === stage ? null : s));
-            }}
-            onDrop={(e) => drop(stage, e)}
-          >
-            <header className="os-ct-col-head">
-              <h2>{label}</h2>
-              <span className="count">{cards.length}</span>
-              <button
-                type="button"
-                className="os-ct-col-toggle"
-                aria-expanded={!isCollapsed}
-                aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${label}`}
-                onClick={() => p.onToggleColumn(stage)}
-              >
-                <svg viewBox="0 0 16 16" aria-hidden="true">
-                  {isCollapsed ? <path d="m6 4 4 4-4 4" /> : <path d="M9.5 4 5.5 8l4 4M13 4 9 8l4 4" />}
-                </svg>
-              </button>
-            </header>
-            {!isCollapsed &&
-              (cards.length ? (
-                <ol className="os-ct-cards">
-                  {cards.map((c) => (
-                    <Card
-                      key={c.id}
-                      c={c}
-                      now={p.now}
-                      picked={p.selected.has(c.id)}
-                      open={p.openId === c.id}
-                      dragging={Boolean(dragging?.includes(c.id))}
-                      onToggle={p.onToggle}
-                      onOpen={p.onOpen}
-                      onStage={(s) => p.onMove([c.id], s)}
-                      onKeyDown={(e) => keyMove(c, e)}
-                      onDragStart={(e) => {
-                        const ids = idsFor(c.id);
-                        e.dataTransfer.setData(DRAG_TYPE, ids.join(","));
-                        e.dataTransfer.setData("text/plain", threadName(c.username, c.fullName));
-                        e.dataTransfer.effectAllowed = "move";
-                        setDragging(ids);
-                      }}
-                      onDragEnd={() => {
-                        setDragging(null);
-                        setOver(null);
-                      }}
-                    />
-                  ))}
-                </ol>
-              ) : (
-                <p className="os-ct-col-empty">No contacts</p>
+    <div className="os-cx-scroll">
+      <div className="os-cx-board" ref={board} data-dragging={dragging ? "true" : undefined}>
+        <p id="os-cx-kb-hint" className="sr-only">
+          Press Enter to open. Shift plus Left or Right arrow moves the card to the previous or next column.
+        </p>
+        {cols.map((col) => {
+          const cards = col.keys.flatMap((k) => grouped.get(k) ?? []);
+          return (
+            <section
+              key={col.key}
+              className="os-cx-col"
+              data-over={over === col.key ? "true" : undefined}
+              aria-label={`${col.label}, ${cards.length}`}
+              onDragOver={(e) => {
+                if (!dragging && !e.dataTransfer.types.includes(DRAG_TYPE)) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (over !== col.key) setOver(col.key);
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver((s) => (s === col.key ? null : s));
+              }}
+              onDrop={(e) => drop(col, e)}
+            >
+              <h2>
+                {col.label}
+                <span>{cards.length}</span>
+              </h2>
+              {cards.map((c) => (
+                <Card
+                  key={c.id}
+                  c={c}
+                  now={p.now}
+                  open={p.openId === c.id}
+                  noShow={c.attendance === "NO_SHOW"}
+                  onOpen={() => p.onOpen(c.id)}
+                  onKeyDown={(e) => keyMove(c, e)}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(DRAG_TYPE, c.id);
+                    e.dataTransfer.setData("text/plain", threadName(c.username, c.fullName));
+                    e.dataTransfer.effectAllowed = "move";
+                    setDragging(c.id);
+                  }}
+                  onDragEnd={() => {
+                    setDragging(null);
+                    setOver(null);
+                  }}
+                />
               ))}
-          </section>
-        );
-      })}
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -153,72 +122,49 @@ export default function ContactsKanban(p: Props) {
 interface CardProps {
   c: ContactRow;
   now: number;
-  picked: boolean;
   open: boolean;
-  dragging: boolean;
-  onToggle: (id: string, on?: boolean) => void;
-  onOpen: (id: string) => void;
-  onStage: (stage: ContactStage) => void;
+  noShow: boolean;
+  onOpen: () => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
 }
 
-function Card({ c, now, picked, open, dragging, onToggle, onOpen, onStage, onKeyDown, onDragStart, onDragEnd }: CardProps) {
-  const name = threadName(c.username, c.fullName);
+function Card({ c, now, open, noShow, onOpen, onKeyDown, onDragStart, onDragEnd }: CardProps) {
+  const name = c.username ?? threadName(c.username, c.fullName);
+  const initial = (c.username ?? c.fullName ?? "?").replace(/^@/, "").charAt(0).toUpperCase();
   const when = shortAgo(c.lastMessageAt, now);
+  const note = c.note ?? (noShow ? "no-show" : null);
   return (
-    <li
-      className="os-ct-card"
+    <button
+      type="button"
+      className="os-cx-card"
       data-card={c.id}
-      data-picked={picked ? "true" : undefined}
-      data-open={open ? "true" : undefined}
-      data-dragging={dragging ? "true" : undefined}
+      aria-current={open ? "true" : undefined}
+      aria-describedby="os-cx-kb-hint"
       draggable
+      onClick={onOpen}
+      onKeyDown={onKeyDown}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >
-      <input
-        type="checkbox"
-        className="os-ct-pick"
-        aria-label={`Select ${name}`}
-        checked={picked}
-        onChange={(e) => onToggle(c.id, e.target.checked)}
-      />
-      <button type="button" className="os-ct-card-main" aria-describedby="os-ct-kb-hint" onClick={() => onOpen(c.id)} onKeyDown={onKeyDown}>
-        <span className="top">
-          <Avatar src={c.avatarUrl} username={initialSource(c.username, c.fullName)} size={32} />
-          <span className="who-text">
-            <span className="name">{c.fullName?.trim() || name}</span>
-            {c.username && c.fullName?.trim() && <span className="sub">@{c.username}</span>}
-          </span>
-          {c.draftWaiting && (
-            <span className="os-ct-dot" title="Draft from J waiting">
-              <span className="sr-only">Draft from J waiting</span>
-            </span>
-          )}
+      <span className="os-cx-card-top">
+        <span className="os-cx-av" aria-hidden="true">
+          {initial}
         </span>
-        <span className="chips">
-          {c.entryPath && <span className="chip">{entryLabels[c.entryPath] ?? c.entryPath}</span>}
-          {c.paused ? <span className="chip flag">J paused</span> : c.setterStage && <span className="chip quiet">J · {c.setterStage}</span>}
-        </span>
-      </button>
-      <span className="foot">
-        {when ? (
-          <time dateTime={c.lastMessageAt ?? undefined}>{when}</time>
-        ) : (
-          <span />
-        )}
-        <span className="os-select os-ct-card-stage">
-          <select aria-label={`Move ${name} to stage`} value={c.stage} onChange={(e) => onStage(e.target.value as ContactStage)}>
-            {stageOrder.map((s) => (
-              <option key={s} value={s}>
-                {stageLabels[s]}
-              </option>
-            ))}
-          </select>
-        </span>
+        <span className="os-cx-user">{name}</span>
+        {c.draftWaiting ? <span className="os-cx-draft" title="Draft waiting" aria-label="Draft waiting" role="img" /> : null}
+        {c.followup ? (
+          <svg className="os-cx-follow" viewBox="0 0 16 16" role="img" aria-label="Follow-up scheduled">
+            <path d="M8 13.8A5.8 5.8 0 1 0 8 2.2a5.8 5.8 0 0 0 0 11.6ZM8 4.8V8l2.2 1.4" />
+          </svg>
+        ) : null}
       </span>
-    </li>
+      {note ? <span className="os-cx-note">{note}</span> : null}
+      <span className="os-cx-meta">
+        <span>{sourceOf(c)}</span>
+        {when ? <time dateTime={c.lastMessageAt ?? undefined}>{when}</time> : null}
+      </span>
+    </button>
   );
 }

@@ -14,7 +14,7 @@ export default function SyncStatus({ lines, now }: { lines: ContactSyncLine[]; n
           <span className="what">
             {l.state === "synced" && `synced ${shortAgo(l.at, now)} ago`}
             {l.state === "error" && (
-              <Link href="/os/integrations" className="os-link">
+              <Link href="/os/settings?tab=integrations" className="os-link">
                 {l.detail ?? "sync failed"}
               </Link>
             )}

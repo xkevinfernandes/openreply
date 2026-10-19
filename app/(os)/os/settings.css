@@ -526,3 +526,127 @@
     grid-column: 1 / -1;
   }
 }
+
+/* --- Settings shell (UI redesign, S3): title + left sub-nav ---------------- */
+
+.os-sx {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.os-sx-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.os-sx-layout {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.os-sx-nav {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.os-sx-nav a {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.os-sx-nav a:hover {
+  background: var(--tint);
+}
+
+.os-sx-nav a[aria-current="page"] {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.os-sx-body {
+  flex: 1 1 560px;
+  min-width: 0;
+  max-width: 860px;
+}
+
+.os-sx-body[data-tab="fields"] {
+  max-width: 980px;
+}
+
+.os-set-section-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.os-send-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.os-send-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.os-send-form input {
+  height: var(--control-h);
+  width: 180px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+}
+
+.os-send-form input[type="number"] {
+  width: 96px;
+}
+
+.os-send-err {
+  font-size: var(--fs-xs);
+  color: var(--bad);
+  align-self: center;
+}
+
+.os-send-ok {
+  font-size: var(--fs-xs);
+  color: var(--mark);
+  align-self: center;
+}
+
+@media (max-width: 860px) {
+  .os-sx-layout {
+    gap: 16px;
+  }
+
+  .os-sx-nav {
+    flex: 1 1 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 4px;
+  }
+
+  .os-sx-nav a {
+    flex: none;
+  }
+}

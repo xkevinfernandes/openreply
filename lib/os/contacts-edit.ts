@@ -9,14 +9,17 @@
 
 import { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { prisma } from "@/lib/db/client";
-import { normalizeTag, parseEmail } from "@/lib/os/contacts-filter";
+import { normalizeTag, OUTCOME_STAGES, parseEmail } from "@/lib/os/contacts-filter";
 import { osEventHooks, type OsEventHooks } from "@/lib/os/events-hooks";
 import { fireContactEvent } from "@/lib/os/integrations/events";
 import type { SyncEvent } from "@/lib/os/integrations/mapping";
-import { mockContactExtras, osMockEnabled, updateMockContact, updateMockContactExtras } from "@/lib/os/mock";
+import { mockContact, mockContactExtras, osMockEnabled, updateMockContact, updateMockContactExtras } from "@/lib/os/mock";
 
 export type ContactChange =
   | { type: "stage"; stage: ContactStage }
+  /** Dropped into a funnel column: J's stage hint. A contact sitting in an
+   *  outcome (booked, won, lost…) goes back to In conversation. */
+  | { type: "setterStage"; setterStage: string }
   | { type: "kind"; kind: ContactKind }
   | { type: "paused"; paused: boolean }
   /** On / off the Follow-up Friday list (Follow-ups screen). */
@@ -43,6 +46,7 @@ export type FireEvent = (event: { workspaceId: string; contactId: string; event:
 export function syncEventFor(change: ContactChange): SyncEvent | null {
   switch (change.type) {
     case "stage":
+    case "setterStage":
       return "stage_changed";
     case "kind":
       return "kind_changed";
@@ -72,6 +76,10 @@ export function planChange(change: ContactChange): { data: Data } | { tag: strin
   switch (change?.type) {
     case "stage":
       return Object.values(ContactStage).includes(change.stage) ? { data: { stage: change.stage } } : { error: "Unknown stage." };
+    case "setterStage": {
+      const hint = typeof change.setterStage === "string" ? change.setterStage.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_").slice(0, 40) : "";
+      return hint ? { data: { setterStage: hint } } : { error: "Unknown column." };
+    }
     case "kind":
       if (!Object.values(ContactKind).includes(change.kind)) return { error: "Unknown kind." };
       // The user decided, so J's suggestion is done (same as the Inbox).
@@ -136,6 +144,9 @@ export async function editContacts(
     const mine = event ? (await db.contact.findMany({ where: { id: { in: list }, workspaceId }, select: { id: true, tags: true } })).map((r) => r.id) : list;
     if (!mine.length) return { count: 0 };
     const r = await db.contact.updateMany({ where: { id: { in: mine }, workspaceId }, data: plan.data });
+    if (change.type === "setterStage") {
+      await db.contact.updateMany({ where: { id: { in: mine }, workspaceId, stage: { in: OUTCOME_STAGES } }, data: { stage: "IN_CONVERSATION" } });
+    }
     changed.push(...mine);
     return done(r.count);
   }
@@ -165,6 +176,10 @@ function editMock(ids: string[], plan: { data: Data } | { tag: string; op: "add"
     const { notes, email, fridayAddedAt: _added, ...rest } = plan.data as { notes?: string | null; email?: string | null } & Data;
     void _added;
     if (notes !== undefined || email !== undefined) updateMockContactExtras(id, { notes, email });
+    if ("setterStage" in rest) {
+      const stage = mockContact(id)?.contact.stage;
+      if (stage && OUTCOME_STAGES.includes(stage)) rest.stage = "IN_CONVERSATION";
+    }
     if (Object.keys(rest).length) updateMockContact(id, rest);
   }
   return ids.length;

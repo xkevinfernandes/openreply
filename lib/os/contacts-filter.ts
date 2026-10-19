@@ -4,7 +4,8 @@
 import type { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import type { ContactRow } from "@/lib/os/contacts-board";
 import type { ContactChange } from "@/lib/os/contacts-edit";
-import { stageOrder } from "@/lib/os/labels";
+import { columnFor, type FunnelColumn } from "@/lib/os/funnel";
+import { entryLabels, stageOrder } from "@/lib/os/labels";
 
 export interface ContactFilters {
   /** "sales" (the default) shows only Sales contacts; "all" adds the rest. */
@@ -17,10 +18,78 @@ export interface ContactFilters {
   /** A setter id, or "default" for contacts on the account's default setter. */
   setter: string;
   tag: string;
+  /** The keyword or surface they came in on (row.source). Empty = any. */
+  source: string;
   query: string;
 }
 
-export const emptyFilters: ContactFilters = { scope: "sales", kind: "", stage: "", entry: "", setter: "", tag: "", query: "" };
+export const emptyFilters: ContactFilters = { scope: "sales", kind: "", stage: "", entry: "", setter: "", tag: "", source: "", query: "" };
+
+/** ContactStages that pin a card to an outcome column (lib/os/funnel.ts columnFor). */
+export const OUTCOME_STAGES: ContactStage[] = ["CALL_BOOKED", "SHOWED", "WON", "LOST", "NOT_QUALIFIED"];
+
+/** The card's source line: the keyword they triggered, else how they came in. */
+export function sourceOf(c: Pick<ContactRow, "source" | "entryPath">): string {
+  if (c.source) return c.source;
+  if (c.entryPath === "comment" || c.entryPath === "setter_comment") return "Reel comment";
+  return c.entryPath ? (entryLabels[c.entryPath] ?? c.entryPath) : "Direct";
+}
+
+/** Every source on the board, keywords first. */
+export function allSources(rows: ContactRow[]): string[] {
+  const all = [...new Set(rows.map(sourceOf))];
+  const kw = (s: string) => /^[A-Z0-9_]+$/.test(s);
+  return all.sort((a, b) => Number(kw(b)) - Number(kw(a)) || a.localeCompare(b));
+}
+
+/** Category chip ↔ scope + kind. */
+export function categoryOf(f: Pick<ContactFilters, "scope" | "kind">): ContactKind | "" {
+  return f.scope === "sales" ? "SALES" : f.kind;
+}
+
+export function withCategory(f: ContactFilters, kind: ContactKind | ""): ContactFilters {
+  return kind === "SALES" ? { ...f, scope: "sales", kind: "" } : { ...f, scope: "all", kind };
+}
+
+/** One list per funnel column (lib/os/funnel.ts), in column order. */
+export function groupByColumn(rows: ContactRow[], columns: FunnelColumn[]): Map<string, ContactRow[]> {
+  const out = new Map(columns.map((c) => [c.key, [] as ContactRow[]]));
+  for (const c of rows) {
+    const key = columnFor({ stage: c.stage, setterStage: c.setterStage, attendance: c.attendance ?? null }, columns);
+    (out.get(key) ?? out.get(columns[0]?.key ?? "")!)?.push(c);
+  }
+  return out;
+}
+
+/** Showed and No-show share one column on the board. */
+export interface BoardColumn {
+  key: string;
+  label: string;
+  keys: string[];
+}
+
+export function boardColumns(columns: FunnelColumn[]): BoardColumn[] {
+  const out: BoardColumn[] = [];
+  for (const c of columns) {
+    if (c.key === "no_show") {
+      const showed = out.find((x) => x.key === "showed");
+      if (showed) {
+        showed.keys.push("no_show");
+        showed.label = "Showed / No-show";
+        continue;
+      }
+    }
+    out.push({ key: c.key, label: c.label, keys: [c.key] });
+  }
+  return out;
+}
+
+/** Does this setter's board show the contact? "" = every setter. */
+export function onSetter(c: Pick<ContactRow, "setterId">, setter: string, defaultId: string | null): boolean {
+  if (!setter) return true;
+  const id = c.setterId ?? defaultId;
+  return setter === "default" ? c.setterId == null : id === setter;
+}
 
 /** setter_comment reads as Comment everywhere, so it filters as one too. */
 export function entryKey(entryPath: string | null | undefined): string {
@@ -42,13 +111,14 @@ export function filterContacts(rows: ContactRow[], f: ContactFilters): ContactRo
       (!f.entry || entryKey(c.entryPath) === f.entry) &&
       (!f.setter || (f.setter === "default" ? c.setterId == null : c.setterId === f.setter)) &&
       (!f.tag || c.tags.includes(f.tag)) &&
+      (!f.source || sourceOf(c) === f.source) &&
       matchesQuery(c, f.query)
   );
 }
 
 /** How many of the filter-panel filters are on (not scope or search). */
 export function activeFilterCount(f: ContactFilters): number {
-  return [f.scope === "all" && f.kind, f.stage, f.entry, f.setter, f.tag].filter(Boolean).length;
+  return [f.scope === "all" && f.kind, f.stage, f.entry, f.setter, f.tag, f.source].filter(Boolean).length;
 }
 
 /** One list per Kanban column, in stageOrder, each newest message first. */
@@ -90,6 +160,8 @@ export function applyChangeLocally(rows: ContactRow[], ids: string[], change: Co
     switch (change.type) {
       case "stage":
         return { ...c, stage: change.stage };
+      case "setterStage":
+        return { ...c, setterStage: change.setterStage, stage: OUTCOME_STAGES.includes(c.stage) ? "IN_CONVERSATION" : c.stage, attendance: null };
       case "kind":
         return { ...c, kind: change.kind };
       case "paused":

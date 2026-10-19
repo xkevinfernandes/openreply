@@ -1,14 +1,22 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { InstagramConnectNotice } from "@/components/instagram-connect-notice";
-import { PageHead } from "@/components/os/page-head";
+import SettingsIntegrations from "@/components/os/integrations/settings-board";
 import DiagnosticsPanel from "@/components/os/settings/diagnostics-panel";
+import FieldsPanel from "@/components/os/settings/fields-panel";
 import { DisconnectButton, ZernioPanel } from "@/components/os/settings/instagram-panel";
 import LogsPanel from "@/components/os/settings/logs-panel";
+import SendingPanel from "@/components/os/settings/sending-panel";
 import WorkspacePanel from "@/components/os/settings/workspace-panel";
 import { prisma } from "@/lib/db/client";
 import { accountProblems } from "@/lib/os/automations";
-import { parseSettingsTab, SETTINGS_TABS } from "@/lib/os/settings";
+import { listCustomFields } from "@/lib/os/fields/store";
+import { calendarBoard } from "@/lib/os/integrations/calendar/view";
+import { dataOsView } from "@/lib/os/integrations/dataos";
+import { integrationsView } from "@/lib/os/integrations/view";
+import { osMockEnabled } from "@/lib/os/mock";
+import { parseSettingsTab, SETTINGS_TABS, settingsHref } from "@/lib/os/settings";
+import { getWorkspaceSettings } from "@/lib/os/workspace-settings";
 import { canManageWorkspace, getCurrentWorkspaceContext } from "@/lib/workspace-access";
 
 export const dynamic = "force-dynamic";
@@ -87,27 +95,90 @@ async function InstagramTab({ workspaceId, canManage }: { workspaceId: string; c
   );
 }
 
+/** The most used tags we pushed to Kit (the Kit row's sub line). */
+async function kitTags(workspaceId: string): Promise<string[]> {
+  const rows = await prisma.contactSync.findMany({ where: { workspaceId, provider: "kit", lastSyncedAt: { not: null } }, select: { pushedTags: true }, take: 500 });
+  const counts = new Map<string, number>();
+  for (const r of rows) for (const t of r.pushedTags) counts.set(t, (counts.get(t) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([t]) => t);
+}
+
+async function IntegrationsTab({ workspaceId, canManage }: { workspaceId: string; canManage: boolean }) {
+  const [views, calendars, dataos, account, ws, fields, tags, zernio] = await Promise.all([
+    integrationsView(workspaceId),
+    calendarBoard(workspaceId),
+    dataOsView(workspaceId),
+    prisma.instagramAccount.findFirst({
+      where: { workspaceId },
+      orderBy: { connectedAt: "desc" },
+      select: { username: true, provider: true, tokenExpiresAt: true, webhookSubscribed: true, zernioAccountId: true, _count: { select: { automations: true } } },
+    }),
+    getWorkspaceSettings(workspaceId),
+    listCustomFields(workspaceId),
+    kitTags(workspaceId).catch(() => []),
+    prisma.zernioConnection.findUnique({ where: { workspaceId }, select: { webhookId: true } }),
+  ]);
+  const problem = account ? (accountProblems(account, { zernioReady: Boolean(zernio?.webhookId), kitConnected: true }, new Date())[0] ?? null) : null;
+  const mock = !account && osMockEnabled();
+  return (
+    <SettingsIntegrations
+      instagram={{ username: account?.username ?? (mock ? "claudepreneur" : null), provider: account?.provider ?? (mock ? "ZERNIO" : null), problem, sendCap: ws.sendCapPerDay }}
+      dataos={dataos}
+      views={views}
+      calendars={calendars}
+      mapped={{ ghl: fields.filter((f) => f.ghlField).length, kit: fields.filter((f) => f.kitField).length }}
+      kitTags={tags}
+      canManage={canManage}
+      now={Date.now()}
+    />
+  );
+}
+
+async function FieldsTab({ workspaceId, canManage }: { workspaceId: string; canManage: boolean }) {
+  const [fields, setters] = await Promise.all([
+    listCustomFields(workspaceId),
+    prisma.setter.findMany({ where: { workspaceId }, select: { id: true, name: true }, orderBy: [{ isDefault: "desc" }, { name: "asc" }] }),
+  ]);
+  return <FieldsPanel fields={fields} setters={setters} canManage={canManage} />;
+}
+
+async function WorkspaceTab({ workspaceId, workspaceName, canManage }: { workspaceId: string; workspaceName: string; canManage: boolean }) {
+  const ws = await getWorkspaceSettings(workspaceId);
+  return (
+    <div className="os-set-stack">
+      <SendingPanel sendCap={ws.sendCapPerDay} timezone={ws.timezone} canManage={canManage} />
+      <WorkspacePanel workspaceName={workspaceName} />
+    </div>
+  );
+}
+
 export default async function SettingsPage({ searchParams }: PageProps) {
   const context = await getCurrentWorkspaceContext();
   if (!context) return null;
   const tab = parseSettingsTab((await searchParams).tab);
   const canManage = canManageWorkspace(context.role);
+  const ws = context.workspaceId;
 
   return (
-    <>
-      <PageHead title="Settings" description="Your Instagram connection, every DM the automations sent, and whether the sending pipeline is healthy." />
-      <nav className="os-kb-tabs os-set-tabs" aria-label="Settings sections">
-        {SETTINGS_TABS.map((t) => (
-          <Link key={t.tab} href={t.tab === "instagram" ? "/os/settings" : `/os/settings?tab=${t.tab}`} aria-current={tab === t.tab ? "page" : undefined}>
-            {t.label}
-          </Link>
-        ))}
-      </nav>
-
-      {tab === "instagram" && <InstagramTab workspaceId={context.workspaceId} canManage={canManage} />}
-      {tab === "logs" && <LogsPanel />}
-      {tab === "diagnostics" && <DiagnosticsPanel />}
-      {tab === "workspace" && <WorkspacePanel workspaceName={context.workspace.name} />}
-    </>
+    <div className="os-sx">
+      <h1 className="os-sx-title">Settings</h1>
+      <div className="os-sx-layout">
+        <nav className="os-sx-nav" aria-label="Settings sections">
+          {SETTINGS_TABS.map((t) => (
+            <Link key={t.tab} href={settingsHref(t.tab)} aria-current={tab === t.tab ? "page" : undefined}>
+              {t.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="os-sx-body" data-tab={tab}>
+          {tab === "instagram" && <InstagramTab workspaceId={ws} canManage={canManage} />}
+          {tab === "integrations" && <IntegrationsTab workspaceId={ws} canManage={canManage} />}
+          {tab === "fields" && <FieldsTab workspaceId={ws} canManage={canManage} />}
+          {tab === "logs" && <LogsPanel />}
+          {tab === "diagnostics" && <DiagnosticsPanel />}
+          {tab === "workspace" && <WorkspaceTab workspaceId={ws} workspaceName={context.workspace.name} canManage={canManage} />}
+        </div>
+      </div>
+    </div>
   );
 }

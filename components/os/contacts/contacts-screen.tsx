@@ -1,32 +1,46 @@
 "use client";
 
-// The Contacts screen (build step 5, BooSend's contacts page in the Review
-// Room look): Table / Kanban, search, filters, selection with bulk actions,
-// and a side panel per contact. Every change shows at once and saves in the
-// background; a failed save puts the old value back and says so.
+// Contacts (ContactsA/D): Kanban by default (Table still there), filter
+// chips, and a panel that pushes in from the right; the board narrows
+// instead of being covered. The panel is F's ContactPanel with the shared
+// tabs. Every change shows at once and saves in the background; a failed
+// save puts the old value back and says so.
 
-import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
-import { updateContacts } from "@/app/(os)/os/contacts/actions";
-import type { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
+import { loadPanel, updateContacts } from "@/app/(os)/os/contacts/actions";
+import type { ContactKind } from "@/app/generated/prisma/enums";
+import ActivityTab from "@/components/os/contact-panel/activity-tab";
+import DetailsTab from "@/components/os/contact-panel/details-tab";
+import ContactPanel from "@/components/os/contact-panel/panel";
 import BulkBar from "@/components/os/contacts/bulk-bar";
-import ContactPanel from "@/components/os/contacts/contact-panel";
 import ContactsKanban from "@/components/os/contacts/contacts-kanban";
 import ContactsTable from "@/components/os/contacts/contacts-table";
 import { threadName } from "@/components/os/inbox/names";
+import { useOsCommand } from "@/components/os/keys";
+import type { ContactDetailsData } from "@/lib/os/contact-panel/details";
+import type { ContactPanelData, PanelTab } from "@/lib/os/contact-panel/types";
 import type { ContactRow, SetterOption } from "@/lib/os/contacts-board";
 import type { ContactChange } from "@/lib/os/contacts-edit";
 import {
-  activeFilterCount,
+  allSources,
   allTags,
   applyChangeLocally,
+  categoryOf,
   emptyFilters,
   filterContacts,
+  onSetter,
+  withCategory,
   type ContactFilters,
 } from "@/lib/os/contacts-filter";
-import { entryLabels, kindTabs, stageLabels, stageOrder } from "@/lib/os/labels";
+import { dropOnColumn, funnelColumns } from "@/lib/os/funnel";
+import { kindTabs, stageLabels } from "@/lib/os/labels";
 
 type View = "table" | "kanban";
+
+export interface OpenPanel {
+  panel: ContactPanelData;
+  details: ContactDetailsData;
+}
 
 interface Props {
   contacts: ContactRow[];
@@ -34,53 +48,126 @@ interface Props {
   truncated: boolean;
   initialView: View;
   now: number;
+  initialOpen?: OpenPanel | null;
+  initialTab?: PanelTab;
 }
 
-const ENTRY_OPTIONS = [
-  { value: "comment", label: entryLabels.comment },
-  { value: "keyword_dm", label: entryLabels.keyword_dm },
-  { value: "story_reply", label: entryLabels.story_reply },
-  { value: "none", label: "Direct (no entry)" },
-];
+const CATEGORY_OPTIONS: { value: ContactKind | ""; label: string }[] = [...kindTabs.map((k) => ({ value: k.kind, label: k.label })), { value: "", label: "Everyone" }];
 
-export default function ContactsScreen({ contacts, setters, truncated, initialView, now }: Props) {
-  const router = useRouter();
+export default function ContactsScreen({ contacts, setters, truncated, initialView, now, initialOpen = null, initialTab = "chat" }: Props) {
   const [, startTransition] = useTransition();
   const [rows, setRows] = useState(contacts);
   const [seen, setSeen] = useState(contacts);
-  // A fresh server read replaces the local copy (after router.refresh()).
   if (contacts !== seen) {
     setSeen(contacts);
     setRows(contacts);
   }
 
+  const defaultSetter = setters.find((s) => s.isDefault) ?? setters[0] ?? null;
   const [view, setView] = useState<View>(initialView);
   const [filters, setFilters] = useState<ContactFilters>(emptyFilters);
-  const [showFilters, setShowFilters] = useState(false);
+  const [setterId, setSetterId] = useState<string>(defaultSetter?.id ?? "");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState<Set<ContactStage>>(() => new Set());
+  const [open, setOpen] = useState<OpenPanel | null>(initialOpen);
+  const [tab, setTab] = useState<PanelTab>(initialTab);
   const [status, setStatus] = useState<{ text: string; error?: boolean } | null>(null);
 
-  const visible = useMemo(() => filterContacts(rows, filters), [rows, filters]);
+  const setter = setters.find((s) => s.id === setterId) ?? null;
+  const columns = useMemo(() => funnelColumns(setter?.funnel ?? null), [setter]);
+  const visible = useMemo(
+    () => filterContacts(rows, filters).filter((c) => !setterId || onSetter(c, setterId, defaultSetter?.id ?? null)),
+    [rows, filters, setterId, defaultSetter]
+  );
+  const sources = useMemo(() => allSources(rows), [rows]);
   const tags = useMemo(() => allTags(rows), [rows]);
   const selectedVisible = useMemo(() => visible.filter((c) => selected.has(c.id)), [visible, selected]);
-  const open = openId ? (rows.find((c) => c.id === openId) ?? null) : null;
-  const nFilters = activeFilterCount(filters);
-  const setterName = useCallback(
-    (id: string | null) => (id ? (setters.find((s) => s.id === id)?.name ?? "Setter") : "Default"),
-    [setters]
-  );
+  const category = categoryOf(filters);
+  const categoryLabel = CATEGORY_OPTIONS.find((o) => o.value === category)?.label ?? "Everyone";
+  const filtered = filters.source !== "" || category !== "SALES" || setterId !== (defaultSetter?.id ?? "") || filters.query !== "";
+  const setterName = useCallback((id: string | null) => (id ? (setters.find((s) => s.id === id)?.name ?? "Setter") : (defaultSetter?.name ?? "Default")), [setters, defaultSetter]);
 
-  function chooseView(next: View) {
-    setView(next);
+  function syncUrl(next: { view?: View; c?: string | null; tab?: PanelTab | null }) {
     const url = new URL(window.location.href);
-    if (next === "kanban") url.searchParams.delete("view");
-    else url.searchParams.set("view", next);
+    if (next.view !== undefined) {
+      if (next.view === "kanban") url.searchParams.delete("view");
+      else url.searchParams.set("view", next.view);
+    }
+    if (next.c !== undefined) {
+      if (next.c) url.searchParams.set("c", next.c);
+      else url.searchParams.delete("c");
+    }
+    if (next.tab !== undefined) {
+      if (next.tab && next.tab !== "chat") url.searchParams.set("tab", next.tab);
+      else url.searchParams.delete("tab");
+    }
     window.history.replaceState(null, "", url);
   }
 
-  const setFilter = <K extends keyof ContactFilters>(key: K, value: ContactFilters[K]) => setFilters((f) => ({ ...f, [key]: value }));
+  function chooseView(next: View) {
+    setView(next);
+    syncUrl({ view: next });
+  }
+
+  function openContact(id: string) {
+    if (open?.panel.contactId === id) return;
+    syncUrl({ c: id });
+    startTransition(async () => {
+      const r = await loadPanel(id);
+      if ("error" in r) setStatus({ text: r.error, error: true });
+      else setOpen(r);
+    });
+  }
+
+  function closePanel() {
+    setOpen(null);
+    syncUrl({ c: null, tab: null });
+  }
+
+  /** Show the change now, save it, and undo it on the screen if the save fails. */
+  const apply = useCallback((ids: string[], change: ContactChange, done?: string) => {
+    if (!ids.length) return;
+    let before: ContactRow[] = [];
+    setRows((r) => {
+      before = r;
+      return applyChangeLocally(r, ids, change);
+    });
+    setStatus(done ? { text: done } : null);
+    startTransition(async () => {
+      let error: string | undefined;
+      try {
+        error = (await updateContacts(ids, change)).error;
+      } catch {
+        error = "That didn't save. Try again.";
+      }
+      if (error) {
+        setRows(before);
+        setStatus({ text: error, error: true });
+      }
+    });
+  }, []);
+
+  const moveTo = useCallback(
+    (id: string, columnKey: string, cols = columns) => {
+      const plan = dropOnColumn(columnKey, cols);
+      if ("error" in plan) {
+        setStatus({ text: plan.error, error: true });
+        return;
+      }
+      const c = rows.find((r) => r.id === id);
+      const who = c ? threadName(c.username, c.fullName) : "contact";
+      const label = cols.find((x) => x.key === columnKey)?.label ?? columnKey;
+      apply([id], "setterStage" in plan ? { type: "setterStage", setterStage: plan.setterStage } : { type: "stage", stage: plan.stage }, `Moved ${who} to ${label}.`);
+      setOpen((o) => (o && o.panel.contactId === id ? { ...o, panel: { ...o.panel, stage: { ...o.panel.stage, column: columnKey } } } : o));
+    },
+    [apply, columns, rows]
+  );
+
+  // The panel's stage pill speaks on the event bus (components/os/keys.ts).
+  useOsCommand("move-stage", (d) => {
+    if (!d.contactId || !d.stage) return;
+    const cols = open?.panel.contactId === d.contactId ? open.panel.stage.columns : columns;
+    moveTo(d.contactId, d.stage, cols);
+  });
 
   function toggle(id: string, on?: boolean) {
     setSelected((prev) => {
@@ -91,43 +178,6 @@ export default function ContactsScreen({ contacts, setters, truncated, initialVi
     });
   }
 
-  function selectAll(on: boolean) {
-    setSelected(on ? new Set(visible.map((c) => c.id)) : new Set());
-  }
-
-  /** Show the change now, save it, and undo it on the screen if the save fails. */
-  const apply = useCallback(
-    (ids: string[], change: ContactChange, done?: string) => {
-      if (!ids.length) return;
-      const before = rows;
-      setRows(applyChangeLocally(rows, ids, change));
-      setStatus(done ? { text: done } : null);
-      startTransition(async () => {
-        let error: string | undefined;
-        try {
-          error = (await updateContacts(ids, change)).error;
-        } catch {
-          error = "That didn't save. Try again.";
-        }
-        if (error) {
-          setRows(before);
-          setStatus({ text: error, error: true });
-        }
-        router.refresh();
-      });
-    },
-    [router, rows]
-  );
-
-  const moveTo = useCallback(
-    (ids: string[], stage: ContactStage) => {
-      const first = rows.find((c) => c.id === ids[0]);
-      const who = ids.length === 1 && first ? threadName(first.username, first.fullName) : `${ids.length} contacts`;
-      apply(ids, { type: "stage", stage }, `Moved ${who} to ${stageLabels[stage]}.`);
-    },
-    [apply, rows]
-  );
-
   function bulk(change: ContactChange, done: string) {
     apply(
       selectedVisible.map((c) => c.id),
@@ -136,230 +186,196 @@ export default function ContactsScreen({ contacts, setters, truncated, initialVi
     );
   }
 
-  const toggleColumn = (stage: ContactStage) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(stage)) next.delete(stage);
-      else next.add(stage);
-      return next;
-    });
-
   const kindLabel = (k: ContactKind) => kindTabs.find((t) => t.kind === k)?.label ?? k;
+  const openId = open?.panel.contactId ?? null;
 
   return (
-    <div className="os-ct" data-panel-open={open ? "true" : undefined}>
-      <div className="os-ct-toolbar">
-        <label className="os-search os-ct-search">
-          <span className="sr-only">Search contacts</span>
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <circle cx="7" cy="7" r="4.5" />
-            <path d="m10.5 10.5 3 3" />
-          </svg>
-          <input
-            type="search"
-            placeholder="Search name, handle, email, tag"
-            value={filters.query}
-            onChange={(e) => setFilter("query", e.target.value)}
-          />
-        </label>
-
-        <div className="os-segmented" role="group" aria-label="View">
-          <button type="button" aria-pressed={view === "table"} onClick={() => chooseView("table")}>
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <rect x="2.5" y="3" width="11" height="10" rx="1" />
-              <path d="M2.5 6.5h11M6 6.5V13" />
-            </svg>
-            Table
-          </button>
-          <button type="button" aria-pressed={view === "kanban"} onClick={() => chooseView("kanban")}>
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M4 3v10M8 3v6M12 3v8" />
-            </svg>
-            Kanban
-          </button>
-        </div>
-
-        <div className="os-segmented" role="group" aria-label="Who to show">
-          <button type="button" aria-pressed={filters.scope === "sales"} onClick={() => setFilters((f) => ({ ...f, scope: "sales", kind: "" }))}>
-            Sales
-          </button>
-          <button type="button" aria-pressed={filters.scope === "all"} onClick={() => setFilter("scope", "all")}>
-            Everyone
-          </button>
-        </div>
-
-        <button
-          type="button"
-          className="os-button ghost os-ct-filter-toggle"
-          aria-expanded={showFilters}
-          aria-controls="os-ct-filters"
-          onClick={() => setShowFilters((v) => !v)}
-        >
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M2.5 4h11M4.5 8h7M6.5 12h3" />
-          </svg>
-          Filter
-          {nFilters > 0 && <span className="os-ct-badge">{nFilters}</span>}
-        </button>
-
-        {view === "kanban" && (
-          <div className="os-ct-collapse">
-            <button type="button" className="os-button ghost" onClick={() => setCollapsed(new Set(stageOrder))}>
-              Collapse all
+    <div className="os-cx" data-panel={open ? "open" : undefined}>
+      <section className="os-cx-main" aria-labelledby="os-cx-h">
+        <header className="os-cx-head">
+          <h1 id="os-cx-h">Contacts</h1>
+          <span className="os-cx-count">
+            {visible.length} {category ? `in ${categoryLabel}` : visible.length === 1 ? "contact" : "contacts"}
+          </span>
+          <div role="tablist" aria-label="View" className="os-cx-views">
+            <button type="button" role="tab" aria-selected={view === "kanban"} onClick={() => chooseView("kanban")}>
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <rect x="2" y="2.5" width="3.5" height="11" rx="1" />
+                <rect x="6.5" y="2.5" width="3.5" height="7" rx="1" />
+                <rect x="11" y="2.5" width="3" height="9" rx="1" />
+              </svg>
+              Kanban
             </button>
-            <button type="button" className="os-button ghost" disabled={!collapsed.size} onClick={() => setCollapsed(new Set())}>
-              Expand all
+            <button type="button" role="tab" aria-selected={view === "table"} onClick={() => chooseView("table")}>
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M2 4h12M2 8h12M2 12h12" />
+              </svg>
+              Table
             </button>
           </div>
-        )}
-      </div>
+          <span className="os-cx-grow" />
+          <label className="os-cx-search">
+            <span className="sr-only">Search contacts</span>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="7" cy="7" r="4.5" />
+              <path d="m10.5 10.5 3 3" />
+            </svg>
+            <input type="search" placeholder="Search contacts" value={filters.query} onChange={(e) => setFilters((f) => ({ ...f, query: e.target.value }))} />
+          </label>
+        </header>
 
-      {showFilters && (
-        <div className="os-ct-filters" id="os-ct-filters" role="group" aria-label="Filters">
-          {filters.scope === "all" && (
-            <FilterSelect label="Kind" value={filters.kind} onChange={(v) => setFilter("kind", v as ContactKind | "")}>
-              {kindTabs.map((k) => (
-                <option key={k.kind} value={k.kind}>
-                  {k.label}
+        <div className="os-cx-chips" role="group" aria-label="Filters">
+          {setters.length ? (
+            <Chip label="Setter" value={setterId} onChange={setSetterId} mark={setter?.name ?? null}>
+              {setters.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
                 </option>
               ))}
-            </FilterSelect>
-          )}
-          <FilterSelect label="Stage" value={filters.stage} onChange={(v) => setFilter("stage", v as ContactStage | "")}>
-            {stageOrder.map((s) => (
+            </Chip>
+          ) : null}
+          <Chip label="Source" value={filters.source} onChange={(v) => setFilters((f) => ({ ...f, source: v }))}>
+            <option value="">Any</option>
+            {sources.map((s) => (
               <option key={s} value={s}>
-                {stageLabels[s]}
+                {s}
               </option>
             ))}
-          </FilterSelect>
-          <FilterSelect label="Entry path" value={filters.entry} onChange={(v) => setFilter("entry", v)}>
-            {ENTRY_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
+          </Chip>
+          <Chip label="Category" value={category} onChange={(v) => setFilters((f) => withCategory(f, v as ContactKind | ""))}>
+            {CATEGORY_OPTIONS.map((o) => (
+              <option key={o.label} value={o.value}>
                 {o.label}
               </option>
             ))}
-          </FilterSelect>
-          <FilterSelect label="Setter" value={filters.setter} onChange={(v) => setFilter("setter", v)}>
-            <option value="default">Default setter</option>
-            {setters.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </FilterSelect>
-          <FilterSelect label="Tag" value={filters.tag} onChange={(v) => setFilter("tag", v)} disabled={!tags.length}>
-            {tags.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </FilterSelect>
-          {nFilters > 0 && (
+          </Chip>
+          {filtered ? (
             <button
               type="button"
-              className="os-link quiet"
-              onClick={() => setFilters((f) => ({ ...emptyFilters, scope: f.scope, query: f.query }))}
+              className="os-cx-clear"
+              onClick={() => {
+                setFilters(emptyFilters);
+                setSetterId(defaultSetter?.id ?? "");
+              }}
             >
-              Clear filters
+              Clear
             </button>
-          )}
+          ) : null}
+          <span className="os-cx-grow" />
+          <span className="os-cx-legend">
+            <span className="os-cx-draft" aria-hidden="true" />
+            Draft waiting
+          </span>
+          <span className="os-cx-legend">
+            <svg className="os-cx-follow" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 13.8A5.8 5.8 0 1 0 8 2.2a5.8 5.8 0 0 0 0 11.6ZM8 4.8V8l2.2 1.4" />
+            </svg>
+            Follow-up scheduled
+          </span>
         </div>
-      )}
 
-      <BulkBar
-        selectedCount={selectedVisible.length}
-        visibleCount={visible.length}
-        selectedTags={allTags(selectedVisible)}
-        tags={tags}
-        onStage={(stage) => bulk({ type: "stage", stage }, `Moved ${selectedVisible.length} to ${stageLabels[stage]}.`)}
-        onKind={(kind) => bulk({ type: "kind", kind }, `Marked ${selectedVisible.length} as ${kindLabel(kind)}.`)}
-        onAddTag={(tag) => bulk({ type: "addTag", tag }, `Tagged ${selectedVisible.length} “${tag}”.`)}
-        onRemoveTag={(tag) => bulk({ type: "removeTag", tag }, `Removed “${tag}” from ${selectedVisible.length}.`)}
-        onPause={(paused) => bulk({ type: "paused", paused }, paused ? `Paused J for ${selectedVisible.length}.` : `J is back on for ${selectedVisible.length}.`)}
-        onClear={() => setSelected(new Set())}
-      />
+        {view === "table" ? (
+          <BulkBar
+            selectedCount={selectedVisible.length}
+            visibleCount={visible.length}
+            selectedTags={allTags(selectedVisible)}
+            tags={tags}
+            onStage={(stage) => bulk({ type: "stage", stage }, `Moved ${selectedVisible.length} to ${stageLabels[stage]}.`)}
+            onKind={(kind) => bulk({ type: "kind", kind }, `Marked ${selectedVisible.length} as ${kindLabel(kind)}.`)}
+            onAddTag={(tag) => bulk({ type: "addTag", tag }, `Tagged ${selectedVisible.length} “${tag}”.`)}
+            onRemoveTag={(tag) => bulk({ type: "removeTag", tag }, `Removed “${tag}” from ${selectedVisible.length}.`)}
+            onPause={(paused) => bulk({ type: "paused", paused }, paused ? `Paused J for ${selectedVisible.length}.` : `J is back on for ${selectedVisible.length}.`)}
+            onClear={() => setSelected(new Set())}
+          />
+        ) : null}
 
-      <p className="os-ct-status" role="status" aria-live="polite" data-error={status?.error ? "true" : undefined}>
-        {status?.text ?? ""}
-      </p>
+        <p className="os-cx-status" role="status" aria-live="polite" data-error={status?.error ? "true" : undefined}>
+          {status?.text ?? ""}
+        </p>
+        {truncated ? <p className="os-cx-status">Showing the 2,000 most recent.</p> : null}
 
-      {truncated && <p className="os-ct-note">Showing the 2,000 most recent contacts.</p>}
+        {rows.length === 0 ? (
+          <div className="os-empty">
+            <strong>No contacts yet</strong>
+          </div>
+        ) : visible.length === 0 ? (
+          <div className="os-cx-none">
+            No contacts match.{" "}
+            <button type="button" className="os-link" onClick={() => setFilters(emptyFilters)}>
+              Clear
+            </button>
+          </div>
+        ) : view === "table" ? (
+          <div className="os-cx-table">
+            <ContactsTable
+              rows={visible}
+              now={now}
+              selected={selected}
+              openId={openId}
+              showKind={filters.scope === "all"}
+              setterName={setterName}
+              hasSetters={setters.length > 0}
+              onToggle={toggle}
+              onSelectAll={(on) => setSelected(on ? new Set(visible.map((c) => c.id)) : new Set())}
+              onOpen={openContact}
+              onStage={(id, stage) => apply([id], { type: "stage", stage }, `Moved to ${stageLabels[stage]}.`)}
+            />
+          </div>
+        ) : (
+          <ContactsKanban rows={visible} columns={columns} now={now} openId={openId} onOpen={openContact} onMove={(id, col) => moveTo(id, col)} />
+        )}
+      </section>
 
-      {rows.length === 0 ? (
-        <div className="os-empty">
-          <strong>No contacts yet</strong>
-          Everyone who comments on a campaign or writes to you in the Inbox shows up here.
-        </div>
-      ) : view === "table" ? (
-        <ContactsTable
-          rows={visible}
-          now={now}
-          selected={selected}
-          openId={openId}
-          showKind={filters.scope === "all"}
-          setterName={setterName}
-          hasSetters={setters.length > 0}
-          onToggle={toggle}
-          onSelectAll={selectAll}
-          onOpen={setOpenId}
-          onStage={(id, stage) => moveTo([id], stage)}
-        />
-      ) : (
-        <ContactsKanban
-          rows={visible}
-          now={now}
-          selected={selected}
-          openId={openId}
-          collapsed={collapsed}
-          onToggleColumn={toggleColumn}
-          onToggle={toggle}
-          onOpen={setOpenId}
-          onMove={moveTo}
-        />
-      )}
-
-      {visible.length === 0 && rows.length > 0 && (
-        <div className="os-ct-none">
-          No contacts match.{" "}
-          <button type="button" className="os-link" onClick={() => setFilters(emptyFilters)}>
-            Show everyone in Sales
+      {open ? (
+        <div
+          className="os-cx-panel"
+          onClickCapture={(e) => {
+            // The panel keeps its tab in local state: remember the last pick so
+            // the next contact opens on it, and put it in the URL.
+            const el = (e.target as HTMLElement).closest<HTMLElement>(".os-panel [role=tab]");
+            const label = el?.textContent?.trim().toLowerCase().replace(/[^a-z]/g, "") ?? "";
+            const key = (["chat", "details", "followups", "activity"] as const).find((k) => label.startsWith(k));
+            if (key) {
+              setTab(key);
+              syncUrl({ tab: key });
+            }
+          }}
+        >
+          <button type="button" className="os-cx-close" aria-label="Close panel" title="Close panel" onClick={closePanel}>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="m4 4 8 8M12 4l-8 8" />
+            </svg>
           </button>
+          <ContactPanel
+            key={open.panel.contactId}
+            data={open.panel}
+            tab={tab}
+            slots={{
+              details: <DetailsTab data={open.panel} details={open.details} />,
+              activity: <ActivityTab data={open.panel} />,
+            }}
+          />
         </div>
-      )}
-
-      <ContactPanel
-        contact={open}
-        now={now}
-        setterName={setterName}
-        onClose={() => setOpenId(null)}
-        onChange={(change, done) => open && apply([open.id], change, done)}
-      />
+      ) : null}
     </div>
   );
 }
 
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  disabled,
-  children,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
+function Chip({ label, value, onChange, mark, children }: { label: string; value: string; onChange: (v: string) => void; mark?: string | null; children: React.ReactNode }) {
   return (
-    <label className="os-ct-filter" data-active={value ? "true" : undefined}>
-      <span>{label}</span>
-      <span className="os-select">
-        <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
-          <option value="">Any</option>
-          {children}
-        </select>
-      </span>
+    <label className="os-cx-chip" data-active={value ? "true" : undefined}>
+      {mark ? (
+        <span className="os-cx-chip-mark" aria-hidden="true">
+          {mark.charAt(0).toUpperCase()}
+        </span>
+      ) : null}
+      <span className="os-cx-chip-k">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        {children}
+      </select>
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <path d="m4.5 6.5 3.5 3.5 3.5-3.5" />
+      </svg>
     </label>
   );
 }

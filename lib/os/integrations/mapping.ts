@@ -95,6 +95,16 @@ export interface ContactSnapshot {
   email: string | null;
   tags: string[];
   qualification: QualificationAnswers;
+  /** Global custom fields with a value (CustomField + ContactFieldValue).
+   *  Each field carries its own GoHighLevel / Kit target. */
+  fields?: SnapshotField[];
+}
+
+export interface SnapshotField {
+  key: string;
+  value: string;
+  ghlField: string | null;
+  kitField: string | null;
 }
 
 /** Provider-neutral push. custom maps the provider's field reference to a value. */
@@ -116,20 +126,36 @@ export function firstNameOf(fullName: string | null | undefined): string | null 
 
 const KIND_LABELS: Record<ContactKind, string> = { SALES: "Sales", PERSONAL: "Personal", UNSORTED: "Unsorted", PITCHES: "Pitches" };
 
-export function buildPayload(c: ContactSnapshot, m: FieldMapping): SyncPayload {
+/**
+ * The push for one provider. Custom fields come from the global field list
+ * (each field's ghlField / kitField); the old per-provider qualification
+ * mapping only fills keys that no custom field covers for this provider.
+ */
+export function buildPayload(c: ContactSnapshot, m: FieldMapping, provider?: SyncProviderId): SyncPayload {
   const custom: Record<string, string> = {};
   const put = (target: string | null | undefined, value: string | null | undefined) => {
-    if (target && value != null && String(value).trim()) custom[target] = String(value).trim().slice(0, 500);
+    if (target && value != null && String(value).trim() && custom[target] == null) custom[target] = String(value).trim().slice(0, 500);
   };
   put(m.igHandle, c.username ? `@${c.username}` : null);
   put(m.stage, stageLabels[c.stage]);
   put(m.kind, KIND_LABELS[c.kind]);
-  for (const f of QUALIFICATION_FIELDS) put(m.qualification[f.key], c.qualification[f.key]);
+  const covered = new Set<string>();
+  if (provider) {
+    for (const f of c.fields ?? []) {
+      const target = provider === "ghl" ? f.ghlField : f.kitField;
+      // first_name / email have their own slots in the payload.
+      if (!target || f.key === "first_name" || f.key === "email") continue;
+      put(target, f.value);
+      covered.add(f.key);
+    }
+  }
+  for (const f of QUALIFICATION_FIELDS) if (!covered.has(f.key)) put(m.qualification[f.key], c.fields?.find((x) => x.key === f.key)?.value ?? c.qualification[f.key]);
 
   const tags = m.tags ? [...new Set(c.tags.map((t) => t.trim()).filter(Boolean).map((t) => `${m.tagPrefix}${t}`))].sort() : [];
+  const own = (key: string) => c.fields?.find((f) => f.key === key)?.value?.trim() || null;
   return {
-    email: m.email ? (c.email?.trim().toLowerCase() || null) : null,
-    firstName: m.firstName ? firstNameOf(c.fullName) : null,
+    email: m.email ? (c.email?.trim().toLowerCase() || own("email")?.toLowerCase() || null) : null,
+    firstName: m.firstName ? (own("first_name")?.slice(0, 80) ?? firstNameOf(c.fullName)) : null,
     tags,
     custom,
     stage: c.stage,

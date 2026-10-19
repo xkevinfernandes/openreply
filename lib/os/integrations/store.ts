@@ -60,13 +60,15 @@ export async function contactSnapshot(contactId: string, workspaceId: string): P
     select: { id: true, kind: true, stage: true, username: true, fullName: true, email: true, tags: true },
   });
   if (!c) return null;
-  const drafts = await prisma.draft.findMany({
-    where: { contactId },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-    select: { raw: true },
-  });
-  return { ...c, qualification: qualificationFromDrafts(drafts.map((d) => d.raw)) };
+  const [drafts, values] = await Promise.all([
+    prisma.draft.findMany({ where: { contactId }, orderBy: { createdAt: "desc" }, take: 20, select: { raw: true } }),
+    prisma.contactFieldValue.findMany({ where: { contactId }, select: { value: true, field: { select: { key: true, ghlField: true, kitField: true } } } }),
+  ]);
+  return {
+    ...c,
+    qualification: qualificationFromDrafts(drafts.map((d) => d.raw)),
+    fields: values.map((v) => ({ key: v.field.key, value: v.value, ghlField: v.field.ghlField, kitField: v.field.kitField })),
+  };
 }
 
 export interface SyncLogRow extends PushedState {

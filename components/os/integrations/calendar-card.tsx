@@ -49,15 +49,18 @@ export default function CalendarCard({
   setters,
   canManage,
   now,
+  embedded = false,
 }: {
   view: CalendarView;
   setters: { id: string; name: string }[];
   canManage: boolean;
   now: number;
+  /** Inside a Settings row: only the managed part shows, open. */
+  embedded?: boolean;
 }) {
   const info = CALENDAR_INFO[view.provider];
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(embedded);
   const [explainOpen, setExplainOpen] = useState(false);
   const [message, setMessage] = useState<Message>(null);
   const [pending, startTransition] = useTransition();
@@ -76,7 +79,7 @@ export default function CalendarCard({
   }
 
   return (
-    <article className="os-int-card" data-open={open} aria-labelledby={`${panelId}-name`}>
+    <article className="os-int-card" data-open={open} data-embedded={embedded || undefined} aria-labelledby={`${panelId}-name`}>
       <div className="os-int-card-top">
         <Logo provider={view.provider} />
         <h2 id={`${panelId}-name`}>{info.name}</h2>

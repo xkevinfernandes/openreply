@@ -33,7 +33,7 @@ function friendly(error: unknown): string {
 async function run(fn: () => Promise<CalendarActionResult>): Promise<CalendarActionResult> {
   try {
     const r = await fn();
-    revalidatePath("/os/integrations");
+    revalidatePath("/os/settings");
     return r;
   } catch (error) {
     return { error: friendly(error) };
@@ -194,7 +194,7 @@ export async function setupCalendarWebhooks(provider: CalendarProviderId): Promi
     const workspaceId = await requireManager();
     const p = providerSchema.parse(provider);
     const r = await setupCalendarWebhook(workspaceId, p);
-    revalidatePath("/os/integrations");
+    revalidatePath("/os/settings");
     return { ...(r.registered ? { notice: r.message } : { error: r.message }), webhook: { url: r.url, secret: r.secret, registered: r.registered } };
   } catch (error) {
     return { error: friendly(error) };

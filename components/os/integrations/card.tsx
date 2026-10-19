@@ -41,11 +41,12 @@ function status(v: IntegrationView): { tone: "good" | "warn" | "bad" | "off"; la
 
 type Message = { kind: "error" | "notice"; text: string } | null;
 
-export default function IntegrationCard({ view, canManage, now }: { view: IntegrationView; canManage: boolean; now: number }) {
+/** embedded: inside a Settings row (the row has the name, status and Manage), so only the managed part shows, open. */
+export default function IntegrationCard({ view, canManage, now, embedded = false }: { view: IntegrationView; canManage: boolean; now: number; embedded?: boolean }) {
   const info = PROVIDER_INFO[view.provider];
   const router = useRouter();
   const [explainOpen, setExplainOpen] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(embedded);
   const [message, setMessage] = useState<Message>(null);
   const [pending, startTransition] = useTransition();
   const explainId = useId();
@@ -78,7 +79,7 @@ export default function IntegrationCard({ view, canManage, now }: { view: Integr
   }
 
   return (
-    <article className="os-int-card" data-open={open} aria-labelledby={`${panelId}-name`}>
+    <article className="os-int-card" data-open={open} data-embedded={embedded || undefined} aria-labelledby={`${panelId}-name`}>
       <div className="os-int-card-top">
         <Logo provider={view.provider} />
         <h2 id={`${panelId}-name`}>{info.name}</h2>

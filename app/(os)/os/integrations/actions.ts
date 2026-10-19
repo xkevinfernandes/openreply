@@ -7,6 +7,7 @@ import { createGhlSync } from "@/lib/os/integrations/ghl";
 import { normalizeMapping, type SyncProviderId } from "@/lib/os/integrations/mapping";
 import { friendlyError, type ProviderFields } from "@/lib/os/integrations/provider";
 import { enqueueBackfill } from "@/lib/os/integrations/queue";
+import { disconnectDataOs, saveDataOs } from "@/lib/os/integrations/dataos";
 import { encryptGhl, loadProvider } from "@/lib/os/integrations/store";
 import { canManageWorkspace, getCurrentWorkspaceContext } from "@/lib/workspace-access";
 
@@ -25,7 +26,7 @@ async function requireManager() {
 const providerSchema = z.enum(["kit", "ghl"]);
 
 function done(notice?: string): IntegrationActionResult {
-  revalidatePath("/os/integrations");
+  revalidatePath("/os/settings");
   return notice ? { notice } : {};
 }
 
@@ -86,7 +87,7 @@ export async function testConnection(provider: SyncProviderId): Promise<Integrat
       create: { workspaceId, provider: p, ...data },
       update: data,
     });
-    revalidatePath("/os/integrations");
+    revalidatePath("/os/settings");
     return lastError ? { error: lastError } : { notice: "Connection works." };
   });
 }
@@ -151,5 +152,21 @@ export async function syncExisting(provider: SyncProviderId): Promise<Integratio
     if (!contacts.length) return { notice: config.client.requiresEmail ? "No contacts with an email yet." : "No contacts to send yet." };
     const n = await enqueueBackfill(workspaceId, p, contacts.map((c) => c.id));
     return done(`Sending ${n} ${n === 1 ? "contact" : "contacts"}. Unchanged ones are skipped.`);
+  });
+}
+
+/** Data OS (Settings › Integrations › Content): save the address and token. */
+export async function connectDataOs(input: { baseUrl: string; token?: string }): Promise<IntegrationActionResult> {
+  return run(async () => {
+    const workspaceId = await requireManager();
+    const r = await saveDataOs(workspaceId, input);
+    return "error" in r ? { error: r.error } : done("Data OS connected.");
+  });
+}
+
+export async function removeDataOs(): Promise<IntegrationActionResult> {
+  return run(async () => {
+    await disconnectDataOs(await requireManager());
+    return done("Data OS disconnected.");
   });
 }

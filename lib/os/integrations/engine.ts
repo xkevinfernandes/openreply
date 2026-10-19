@@ -40,7 +40,7 @@ export async function syncContact(input: SyncJobInput, deps: SyncDeps = dbDeps):
   if (!contact) return { status: "skipped", reason: "no such contact" };
   if (!inScope(contact, config.mapping)) return { status: "skipped", reason: "not a sales contact" };
 
-  const payload = buildPayload(contact, config.mapping);
+  const payload = buildPayload(contact, config.mapping, provider);
   if (config.client.requiresEmail && !payload.email) return { status: "skipped", reason: "waits for an email" };
 
   const hash = payloadHash(provider, payload);
