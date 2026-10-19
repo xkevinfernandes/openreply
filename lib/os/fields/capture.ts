@@ -1,11 +1,11 @@
-// J's draft output -> ContactFieldValue (source "j"). Called after a draft is
-// sent (lib/os/events-hooks.ts onDraftSent). The hook passes raw undefined,
-// so Draft.raw is loaded by draftId. Never overwrites a value Kevin typed
-// (source "user"), then pushes the contact to the CRMs.
+// J's draft output -> contact fields through writeField (source "j", ref =
+// the draft). Called after a draft is sent (lib/os/events-hooks.ts
+// onDraftSent). The hook passes raw undefined, so Draft.raw is loaded by
+// draftId. writeField keeps Kevin's values, the history and the batched push.
 import { prisma } from "@/lib/db/client";
-import { cleanFieldValue, type CustomFieldType } from "@/lib/os/fields/types";
-import { fireContactEvent } from "@/lib/os/integrations/events";
-import type { SyncEvent } from "@/lib/os/integrations/mapping";
+import { coerceFieldValue, isLocked } from "@/lib/os/fields/merge";
+import type { CustomFieldType } from "@/lib/os/fields/types";
+import { writeField } from "@/lib/os/fields/write";
 
 export interface CaptureInput {
   workspaceId: string;
@@ -29,8 +29,8 @@ export interface CaptureDeps {
   /** Field ids the setter fills; empty = the setter has no list (take every field). */
   setterFieldIds(setterId: string): Promise<string[]>;
   existing(contactId: string): Promise<{ fieldId: string; value: string; source: string }[]>;
-  write(row: { contactId: string; fieldId: string; value: string; draftId: string }): Promise<void>;
-  fire(event: { workspaceId: string; contactId: string; event: SyncEvent }): Promise<void>;
+  /** writeField for one answer; true when it was stored. */
+  write(row: { workspaceId: string; contactId: string; key: string; value: string; draftId: string }): Promise<boolean>;
 }
 
 const scalar = (v: unknown): string | null => {
@@ -65,24 +65,30 @@ export function answersFromRaw(raw: unknown): Map<string, string> {
   return out;
 }
 
-/** Pure: which values to write. Skips user values, unchanged values and fields the setter doesn't fill. */
+/**
+ * Pure: which answers to write. Skips Kevin's values, unchanged values and
+ * fields the setter doesn't fill. A value that doesn't fit the type is still
+ * written as said (writeField stores it, unpushed); `raw` is what J said.
+ */
 export function planCapture(
   answers: Map<string, string>,
   fields: CaptureField[],
   setterFieldIds: string[],
   existing: { fieldId: string; value: string; source: string }[]
-): { fieldId: string; value: string }[] {
+): { fieldId: string; key: string; value: string; raw: string }[] {
   const allowed = setterFieldIds.length ? new Set(setterFieldIds) : null;
   const byField = new Map(existing.map((e) => [e.fieldId, e]));
-  const out: { fieldId: string; value: string }[] = [];
+  const out: { fieldId: string; key: string; value: string; raw: string }[] = [];
   for (const f of fields) {
     const raw = answers.get(f.key);
     if (raw == null || (allowed && !allowed.has(f.id))) continue;
-    const clean = cleanFieldValue(f.type, raw, f.options);
+    const clean = coerceFieldValue(f, raw);
     if ("error" in clean || clean.value == null) continue;
+    // An unparseable email would never be the email: leave the field alone.
+    if (f.type === "EMAIL" && !clean.pushable) continue;
     const prev = byField.get(f.id);
-    if (prev?.source === "user" || prev?.value === clean.value) continue;
-    out.push({ fieldId: f.id, value: clean.value });
+    if (isLocked(prev?.source) || prev?.value === clean.value) continue;
+    out.push({ fieldId: f.id, key: f.key, value: clean.value, raw });
   }
   return out;
 }
@@ -101,13 +107,10 @@ const dbDeps: CaptureDeps = {
   existing(contactId) {
     return prisma.contactFieldValue.findMany({ where: { contactId }, select: { fieldId: true, value: true, source: true } });
   },
-  async write({ contactId, fieldId, value, draftId }) {
-    // updateMany guards the race with an edit Kevin made since the read.
-    const updated = await prisma.contactFieldValue.updateMany({ where: { contactId, fieldId, source: { not: "user" } }, data: { value, source: "j", draftId } });
-    if (updated.count) return;
-    await prisma.contactFieldValue.createMany({ data: [{ contactId, fieldId, value, source: "j", draftId }], skipDuplicates: true });
+  async write({ workspaceId, contactId, key, value, draftId }) {
+    const r = await writeField({ workspaceId, contactId, key, value, source: "j", ref: draftId });
+    return "applied" in r && r.applied;
   },
-  fire: fireContactEvent,
 };
 
 /** Returns how many values were written. */
@@ -121,7 +124,8 @@ export async function captureFields(input: CaptureInput, deps: CaptureDeps = dbD
     deps.existing(input.contactId),
   ]);
   const plan = planCapture(answers, fields, setterIds, existing);
-  for (const row of plan) await deps.write({ contactId: input.contactId, fieldId: row.fieldId, value: row.value, draftId: input.draftId });
-  if (plan.length) await deps.fire({ workspaceId: input.workspaceId, contactId: input.contactId, event: "manual" });
-  return plan.length;
+  let written = 0;
+  // writeField marks the contact dirty: one push 30s after the last answer.
+  for (const row of plan) if (await deps.write({ workspaceId: input.workspaceId, contactId: input.contactId, key: row.key, value: row.raw, draftId: input.draftId })) written++;
+  return written;
 }

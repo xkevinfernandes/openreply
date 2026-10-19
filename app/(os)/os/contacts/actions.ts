@@ -9,6 +9,7 @@ import { loadContactActivity, type ActivityItem } from "@/lib/os/contacts-activi
 import { editContacts, type ContactChange, type EditResult } from "@/lib/os/contacts-edit";
 import { setContactFieldValue } from "@/lib/os/fields/store";
 import { fireContactEvent } from "@/lib/os/integrations/events";
+import { syncNow } from "@/lib/os/integrations/queue";
 import { osMockEnabled } from "@/lib/os/mock";
 import { markAttendance, syncFollowupsQuietly } from "@/lib/os/sequences/engine";
 
@@ -91,11 +92,11 @@ export async function saveFieldValue(contactId: string, fieldKey: string, value:
   }
 }
 
-/** "Sync now" on the Details tab: push the contact to every connected CRM. */
+/** "Sync now" / "Retry" on the Details tab: push to every connected CRM now (no 30s wait). */
 export async function syncContactNow(contactId: string): Promise<{ ok: true } | { error: string }> {
   const workspaceId = await getCurrentWorkspaceId();
   if (!workspaceId) return { error: "Sign in again." };
   if (osMockEnabled()) return { ok: true };
-  await fireContactEvent({ workspaceId, contactId, event: "manual" });
+  await syncNow({ workspaceId, contactId, event: "manual" });
   return { ok: true };
 }

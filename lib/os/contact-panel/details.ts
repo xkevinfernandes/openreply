@@ -2,6 +2,7 @@
 // state, Kit tags and lead magnets sent. Keywords come from the panel head
 // (load.ts). Owner: S3.
 import { prisma } from "@/lib/db/client";
+import { isPushable, type FieldHistoryItem } from "@/lib/os/fields/merge";
 import { listCustomFields } from "@/lib/os/fields/store";
 import type { CustomFieldView, DetailsField, FieldValueSource } from "@/lib/os/fields/types";
 import { contactSyncLines } from "@/lib/os/integrations/view";
@@ -49,7 +50,8 @@ export function detailsFields(
   fields: CustomFieldView[],
   setterId: string | null,
   values: Map<string, { value: string; source: FieldValueSource | "instagram"; at: string | null }>,
-  builtins: { first_name?: string | null; email?: string | null }
+  builtins: { first_name?: string | null; email?: string | null },
+  history: Map<string, FieldHistoryItem[]> = new Map()
 ): DetailsField[] {
   const mine = setterId ? fields.filter((f) => f.usedBy.includes(setterId)) : [];
   const shown = (mine.length ? mine : fields).slice().sort((a, b) => a.sortOrder - b.sortOrder);
@@ -66,6 +68,8 @@ export function detailsFields(
       source: v?.source ?? (builtin ? (f.key === "first_name" ? "instagram" : "import") : null),
       at: v?.at ?? null,
       bySetter: setterId ? f.usedBy.includes(setterId) : false,
+      pushed: v ? isPushable(f, v.value) : true,
+      history: history.get(f.id) ?? [],
     };
   });
 }
@@ -141,14 +145,26 @@ export async function loadContactDetails(workspaceId: string, contactId: string)
   if (!contact) return { contactId, setterName: null, fields: [], filled: 0, sync: [], tags: [], kitSubscribed: false, leadMagnets: [] };
 
   const setterId = contact.setterId ?? (await defaultSetterId(workspaceId, contact.instagramAccountId));
-  const [setter, fields, values, kitConn, ghlRow, leadMagnets] = await Promise.all([
+  const [setter, fields, values, kitConn, ghlRow, leadMagnets, writes] = await Promise.all([
     setterId ? prisma.setter.findFirst({ where: { id: setterId, workspaceId }, select: { name: true } }) : null,
     listCustomFields(workspaceId),
     prisma.contactFieldValue.findMany({ where: { contactId }, select: { value: true, source: true, updatedAt: true, field: { select: { key: true } } } }),
     prisma.crmConnection.findUnique({ where: { workspaceId_provider: { workspaceId, provider: "KIT" } }, select: { id: true } }),
     prisma.osIntegration.findUnique({ where: { workspaceId_provider: { workspaceId, provider: "ghl" } }, select: { credentials: true, locationId: true } }),
     leadMagnetsFor(workspaceId, contact),
+    prisma.contactFieldValueHistory.findMany({
+      where: { contactId, workspaceId },
+      orderBy: { at: "desc" },
+      take: 200,
+      select: { fieldId: true, value: true, raw: true, source: true, at: true, applied: true, reason: true },
+    }),
   ]);
+  const history = new Map<string, FieldHistoryItem[]>();
+  for (const w of writes) {
+    const list = history.get(w.fieldId) ?? [];
+    if (list.length < 6) list.push({ value: w.value, raw: w.raw, source: w.source, at: w.at.toISOString(), applied: w.applied, reason: w.reason });
+    history.set(w.fieldId, list);
+  }
 
   const connected: SyncProviderId[] = [...(kitConn ? (["kit"] as const) : []), ...(ghlRow?.credentials && ghlRow.locationId ? (["ghl"] as const) : [])];
   const lines = await contactSyncLines(workspaceId, contactId, connected);
@@ -161,7 +177,8 @@ export async function loadContactDetails(workspaceId: string, contactId: string)
     fields,
     setterId,
     new Map(values.map((v) => [v.field.key, { value: v.value, source: v.source as FieldValueSource, at: v.updatedAt.toISOString() }])),
-    { first_name: contact.fullName?.split(/\s+/)[0] ?? null, email: contact.email }
+    { first_name: contact.fullName?.split(/\s+/)[0] ?? null, email: contact.email },
+    history
   );
   return {
     contactId,

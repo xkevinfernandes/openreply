@@ -2,14 +2,14 @@
 // each contact. Owner: S3. Fields always come from the DB (also under OS_MOCK);
 // sample contacts keep their values in lib/os/mock-contacts.ts.
 import { prisma } from "@/lib/db/client";
+import { coerceFieldValue } from "@/lib/os/fields/merge";
 import {
   cleanFieldInput,
-  cleanFieldValue,
   fieldKeyFrom,
   type CustomFieldView,
   type FieldInput,
 } from "@/lib/os/fields/types";
-import { fireContactEvent } from "@/lib/os/integrations/events";
+import { writeField } from "@/lib/os/fields/write";
 import { osMockEnabled } from "@/lib/os/mock";
 import { setMockFieldValue } from "@/lib/os/mock-contacts";
 
@@ -81,9 +81,10 @@ export async function deleteCustomField(workspaceId: string, id: string): Promis
 }
 
 /**
- * Kevin edits a value in the Details tab: stored as source "user" (J never
- * overwrites it). first_name / email also live on the Contact row; email is
- * written there too so the email gate and Kit keep working.
+ * Kevin edits a value in the Details tab: written as Kevin's (locked: J and
+ * steps never overwrite it), with history and the batched CRM push. An email
+ * also lands on the Contact row so the email gate and Kit keep working.
+ * Clearing a value clears it here only; the CRMs keep theirs.
  */
 export async function setContactFieldValue(
   workspaceId: string,
@@ -91,28 +92,14 @@ export async function setContactFieldValue(
   fieldKey: string,
   raw: string | null
 ): Promise<{ value: string | null } | { error: string }> {
-  const field = await prisma.customField.findUnique({ where: { workspaceId_key: { workspaceId, key: fieldKey } } });
-  if (!field) return { error: "That field is gone. Refresh." };
-  const clean = cleanFieldValue(field.type, raw, Array.isArray(field.options) ? (field.options as unknown[]).map(String) : []);
-  if ("error" in clean) return clean;
-
   if (osMockEnabled()) {
+    const field = await prisma.customField.findUnique({ where: { workspaceId_key: { workspaceId, key: fieldKey } } });
+    if (!field) return { error: "That field is gone. Refresh." };
+    const clean = coerceFieldValue({ type: field.type, options: Array.isArray(field.options) ? (field.options as unknown[]).map(String) : [] }, raw, { strict: true });
+    if ("error" in clean) return clean;
     setMockFieldValue(contactId, field.key, clean.value, "user");
-    return clean;
+    return { value: clean.value };
   }
-
-  const contact = await prisma.contact.findFirst({ where: { id: contactId, workspaceId }, select: { id: true } });
-  if (!contact) return { error: "That contact is gone. Refresh." };
-  if (clean.value == null) {
-    await prisma.contactFieldValue.deleteMany({ where: { contactId, fieldId: field.id } });
-  } else {
-    await prisma.contactFieldValue.upsert({
-      where: { contactId_fieldId: { contactId, fieldId: field.id } },
-      create: { contactId, fieldId: field.id, value: clean.value, source: "user" },
-      update: { value: clean.value, source: "user", draftId: null },
-    });
-  }
-  if (field.key === "email") await prisma.contact.updateMany({ where: { id: contactId, workspaceId }, data: { email: clean.value } });
-  await fireContactEvent({ workspaceId, contactId, event: "manual" });
-  return clean;
+  const r = await writeField({ workspaceId, contactId, key: fieldKey, value: raw, source: "kevin" });
+  return "error" in r ? r : { value: r.value };
 }

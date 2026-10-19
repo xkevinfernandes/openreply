@@ -35,15 +35,17 @@ describe("J's field capture", () => {
       { fieldId: "f-goal", value: "Automate DMs", source: "j" },
     ];
     expect(planCapture(answers, FIELDS, [], existing)).toEqual([
-      { fieldId: "f-rev", value: "~$4k" },
-      { fieldId: "f-email", value: "maya@x.co" },
+      { fieldId: "f-rev", key: "monthly_revenue", value: "~$4k", raw: "~$4k" },
+      // "plumber" isn't a choice: written as said (not pushed), not dropped.
+      { fieldId: "f-niche", key: "niche", value: "plumber", raw: "plumber" },
+      { fieldId: "f-email", key: "email", value: "maya@x.co", raw: "maya@x.co" },
     ]);
-    expect(planCapture(answers, FIELDS, ["f-rev"], existing)).toEqual([{ fieldId: "f-rev", value: "~$4k" }]);
+    expect(planCapture(answers, FIELDS, ["f-rev"], existing)).toEqual([{ fieldId: "f-rev", key: "monthly_revenue", value: "~$4k", raw: "~$4k" }]);
+    expect(planCapture(new Map([["email", "not an email"]]), FIELDS, [], [])).toEqual([]);
   });
 
-  it("loads Draft.raw by draftId when the hook passes none, writes, then syncs once", async () => {
+  it("loads Draft.raw by draftId when the hook passes none and writes through writeField", async () => {
     const writes: unknown[] = [];
-    const fired: unknown[] = [];
     const asked: string[] = [];
     const deps: CaptureDeps = {
       draftRaw: async (id) => {
@@ -53,30 +55,33 @@ describe("J's field capture", () => {
       fields: async () => FIELDS,
       setterFieldIds: async () => [],
       existing: async () => [],
-      write: async (row) => void writes.push(row),
-      fire: async (e) => void fired.push(e),
+      write: async (row) => {
+        writes.push(row);
+        return true;
+      },
     };
     const n = await captureFields({ workspaceId: "w", contactId: "c", setterId: "s", draftId: "d1", raw: undefined }, deps);
     expect(n).toBe(2);
     expect(asked).toEqual(["d1"]);
     expect(writes).toEqual([
-      { contactId: "c", fieldId: "f-rev", value: "$10k", draftId: "d1" },
-      { contactId: "c", fieldId: "f-niche", value: "Coach", draftId: "d1" },
+      { workspaceId: "w", contactId: "c", key: "monthly_revenue", value: "$10k", draftId: "d1" },
+      { workspaceId: "w", contactId: "c", key: "niche", value: "Coach", draftId: "d1" },
     ]);
-    expect(fired).toEqual([{ workspaceId: "w", contactId: "c", event: "manual" }]);
   });
 
-  it("does nothing (and no sync) when there's nothing new", async () => {
-    const fired: unknown[] = [];
+  it("does nothing when there's nothing new", async () => {
+    const writes: unknown[] = [];
     const deps: CaptureDeps = {
       draftRaw: async () => ({}),
       fields: async () => FIELDS,
       setterFieldIds: async () => [],
       existing: async () => [],
-      write: async () => {},
-      fire: async (e) => void fired.push(e),
+      write: async (row) => {
+        writes.push(row);
+        return true;
+      },
     };
     expect(await captureFields({ workspaceId: "w", contactId: "c", setterId: null, draftId: "d" }, deps)).toBe(0);
-    expect(fired).toEqual([]);
+    expect(writes).toEqual([]);
   });
 });

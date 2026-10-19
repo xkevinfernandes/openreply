@@ -771,6 +771,10 @@
   background: var(--line-strong);
 }
 
+.os-cd-dot[data-state="unpushed"] {
+  background: var(--warn);
+}
+
 .os-cd-sync {
   display: flex;
   gap: 16px;
@@ -828,6 +832,16 @@
 .os-cd-chip button:hover {
   background: var(--tint);
   color: var(--ink);
+}
+
+.os-cd-chip .os-cd-retry {
+  width: auto;
+  height: auto;
+  padding: 1px 6px;
+  font: inherit;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .os-cd-chip button svg {

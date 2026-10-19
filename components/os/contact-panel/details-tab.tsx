@@ -11,6 +11,7 @@ import { SetterMark } from "@/components/os/ui";
 import type { ContactDetailsData, DetailsSync } from "@/lib/os/contact-panel/details";
 import type { ContactPanelData } from "@/lib/os/contact-panel/types";
 import { normalizeTag } from "@/lib/os/contacts-filter";
+import { historyTitle } from "@/lib/os/fields/merge";
 import type { DetailsField } from "@/lib/os/fields/types";
 import { shortAgo } from "@/lib/os/labels";
 
@@ -32,9 +33,21 @@ function sourceTitle(f: DetailsField, setter: string): string {
       return `From Kit opt-in${at ? ` · ${at}` : ""}`;
     case "user":
       return `Set by you${at ? ` · ${at}` : ""}`;
+    case "step":
+      return `Set by a workflow${at ? ` · ${at}` : ""}`;
+    case "booking":
+      return `From the booking${at ? ` · ${at}` : ""}`;
+    case "system":
+      return `Set automatically${at ? ` · ${at}` : ""}`;
     default:
       return "";
   }
+}
+
+/** Hover: every write, newest first; "Not pushed" first when it isn't. */
+function fieldTitle(f: DetailsField, setter: string): string {
+  const lines = f.history?.length ? historyTitle(f.history, setter) : sourceTitle(f, setter);
+  return f.value && f.pushed === false ? `Not pushed: doesn't fit the type\n${lines}` : lines;
 }
 
 export default function DetailsTab({ data, details: initial }: { data: ContactPanelData; details?: ContactDetailsData | null }) {
@@ -91,7 +104,18 @@ function DetailsBody({ data, details, onChange }: { data: ContactPanelData; deta
               onSaved={(value) =>
                 onChange({
                   ...details,
-                  fields: details.fields.map((x) => (x.fieldId === f.fieldId ? { ...x, value, source: value ? "user" : null, at: new Date().toISOString() } : x)),
+                  fields: details.fields.map((x) =>
+                    x.fieldId === f.fieldId
+                      ? {
+                          ...x,
+                          value,
+                          source: value ? "user" : null,
+                          at: new Date().toISOString(),
+                          pushed: true,
+                          history: [{ value, raw: null, source: "kevin", at: new Date().toISOString(), applied: true, reason: null }, ...(x.history ?? [])].slice(0, 6),
+                        }
+                      : x
+                  ),
                   filled: details.fields.filter((x) => (x.fieldId === f.fieldId ? value : x.value)).length,
                 })
               }
@@ -101,7 +125,7 @@ function DetailsBody({ data, details, onChange }: { data: ContactPanelData; deta
         </div>
         <div className="os-cd-sync">
           {details.sync.map((s) => (
-            <SyncChip key={s.provider} s={s} contactId={data.contactId} />
+            <SyncChip key={s.provider} s={s} contactId={data.contactId} onSync={(sync) => onChange({ ...details, sync })} />
           ))}
         </div>
         {status ? (
@@ -175,7 +199,8 @@ function FieldRow({ f, contactId, setter, onSaved, onError }: { f: DetailsField;
   const [value, setValue] = useState(f.value ?? "");
   const [pending, start] = useTransition();
   const id = `cf-${contactId}-${f.key}`;
-  const title = sourceTitle(f, setter);
+  const title = fieldTitle(f, setter);
+  const amber = Boolean(f.value) && f.pushed === false;
 
   function save() {
     const next = value.trim();
@@ -218,7 +243,9 @@ function FieldRow({ f, contactId, setter, onSaved, onError }: { f: DetailsField;
         />
       )}
       <span className="os-cd-src">
-        {f.value && f.source === "j" ? (
+        {amber ? (
+          <span className="os-cd-dot" data-state="unpushed" title={title} aria-label={title} role="img" />
+        ) : f.value && f.source === "j" ? (
           <SetterMark name={setter} title={title} />
         ) : f.value && title ? (
           <span className="os-cd-dot" title={title} aria-label={title} role="img" />
@@ -228,7 +255,13 @@ function FieldRow({ f, contactId, setter, onSaved, onError }: { f: DetailsField;
   );
 }
 
-function SyncChip({ s, contactId }: { s: DetailsSync; contactId: string }) {
+/** "synced 2m ago", or "synced 12 Oct" for older ones. */
+function syncedAgo(at: string | null, now: number): string {
+  const ago = shortAgo(at, now);
+  return /^\d+[mhd]$/.test(ago) ? `synced ${ago} ago` : `synced ${ago}`;
+}
+
+function SyncChip({ s, contactId, onSync }: { s: DetailsSync; contactId: string; onSync: (sync: DetailsSync[]) => void }) {
   const [pending, start] = useTransition();
   const [now] = useState(() => Date.now());
   if (s.state === "off") {
@@ -240,12 +273,30 @@ function SyncChip({ s, contactId }: { s: DetailsSync; contactId: string }) {
       </span>
     );
   }
+  const sync = () =>
+    start(async () => {
+      await syncContactNow(contactId);
+      const fresh = await loadDetails(contactId);
+      if (!("error" in fresh)) onSync(fresh.sync);
+    });
+  if (s.state === "error") {
+    return (
+      <span className="os-cd-chip" data-state="error" title={s.detail ?? undefined}>
+        <i />
+        <span>{s.name}</span>
+        <span className="os-cd-date">Sync failed</span>
+        <button type="button" className="os-cd-retry" disabled={pending} onClick={sync}>
+          {pending ? "Retrying" : "Retry"}
+        </button>
+      </span>
+    );
+  }
   return (
     <span className="os-cd-chip" data-state={s.state} title={s.detail ?? undefined}>
       <i />
       <span>{s.name}</span>
-      <span className="os-cd-date">{s.state === "synced" ? shortAgo(s.at, now) : s.state === "error" ? "Failed" : "Waiting"}</span>
-      <button type="button" aria-label={`Sync ${s.name} now`} title="Sync now" disabled={pending} onClick={() => start(async () => void (await syncContactNow(contactId)))}>
+      <span className="os-cd-date">{s.state === "synced" ? syncedAgo(s.at, now) : "Waiting"}</span>
+      <button type="button" aria-label={`Sync ${s.name} now`} title="Sync now" disabled={pending} onClick={sync}>
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <path d="M13 8a5 5 0 0 1-8.6 3.5M3 8a5 5 0 0 1 8.6-3.5M11.5 2v2.7H8.8M4.5 14v-2.7h2.7" />
         </svg>

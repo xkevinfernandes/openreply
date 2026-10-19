@@ -1,25 +1,44 @@
 // The sync on the BullMQ worker: its own "os-sync" queue, registered next to
-// os-setter in worker/dm-worker.ts. Without Redis (local dev) the push runs
-// inline instead.
+// os-setter in worker/dm-worker.ts. Two jobs share it:
+//  - os-sync-flush: one per contact, debounced. Every write marks the contact
+//    dirty and pushes the flush back, so it runs 30s after the last write
+//    (five answers make one CRM call).
+//  - os-sync-contact: one push to one provider, retried with backoff.
+// Without Redis (local dev) the push runs inline instead. Tests and the
+// sandbox never sync.
 import { Queue, Worker, type Job } from "bullmq";
 import { getRedisConnection } from "@/lib/queue/client";
 import { syncContact, type SyncJobInput } from "./engine";
-import type { SyncEvent } from "./mapping";
+import type { SyncEvent, SyncProviderId } from "./mapping";
 import { activeProviders } from "./store";
 
 export const SYNC_QUEUE = "os-sync";
 export const SYNC_JOB = "os-sync-contact";
-/** Events on one contact inside this window become one push. */
-const COALESCE_MS = 5_000;
+export const FLUSH_JOB = "os-sync-flush";
+/** Quiet time after the last write before a contact is pushed. */
+export const QUIET_MS = 30_000;
 
-let queue: Queue<SyncJobInput> | null = null;
+export interface DirtyEvent {
+  workspaceId: string;
+  contactId: string;
+  event: SyncEvent;
+}
+
+type SyncQueueData = SyncJobInput | DirtyEvent;
+
+let queue: Queue<SyncQueueData> | null = null;
 
 function redisConfigured() {
   return Boolean(process.env.REDIS_URL);
 }
 
-export function getSyncQueue(): Queue<SyncJobInput> {
-  queue ??= new Queue<SyncJobInput>(SYNC_QUEUE, {
+/** Tests never reach a real CRM, whatever they call. */
+export function syncDisabled() {
+  return process.env.NODE_ENV === "test" || Boolean(process.env.VITEST) || process.env.OS_SYNC_OFF === "1";
+}
+
+export function getSyncQueue(): Queue<SyncQueueData> {
+  queue ??= new Queue<SyncQueueData>(SYNC_QUEUE, {
     connection: getRedisConnection(),
     defaultJobOptions: {
       removeOnComplete: true,
@@ -32,39 +51,69 @@ export function getSyncQueue(): Queue<SyncJobInput> {
   return queue;
 }
 
+/** The debounced flush: same id per contact, each write restarts the 30s. */
+export function flushJobOptions(contactId: string) {
+  return {
+    delay: QUIET_MS,
+    attempts: 1,
+    deduplication: { id: `flush_${contactId}`, ttl: QUIET_MS, extend: true, replace: true },
+  };
+}
+
+async function pushInline(e: DirtyEvent, providers: SyncProviderId[]) {
+  for (const provider of providers) {
+    await syncContact({ ...e, provider }).catch((err) => console.error(`[OS Sync] ${provider} ${e.contactId}:`, err instanceof Error ? err.message : err));
+  }
+}
+
 /**
- * Something changed on a contact: push it to every connected provider.
- * Never throws (a CRM must not break the inbox or the webhook).
+ * Something changed on a contact: push it to every connected provider once
+ * it's been quiet for 30s. Never throws (a CRM must not break the inbox or
+ * the webhook).
  */
-export async function fireContactEvent(event: { workspaceId: string; contactId: string; event: SyncEvent }) {
+export async function markDirty(e: DirtyEvent) {
+  if (syncDisabled()) return;
   try {
-    const providers = await activeProviders(event.workspaceId);
+    const providers = await activeProviders(e.workspaceId);
     if (!providers.length) return;
-    if (!redisConfigured()) {
-      for (const provider of providers) {
-        await syncContact({ ...event, provider }).catch((err) =>
-          console.error(`[OS Sync] ${provider} ${event.contactId}:`, err instanceof Error ? err.message : err)
-        );
-      }
-      return;
-    }
-    const bucket = Math.floor(Date.now() / COALESCE_MS);
-    await getSyncQueue().addBulk(
-      providers.map((provider) => ({
-        name: SYNC_JOB,
-        data: { ...event, provider },
-        // The job reads the contact fresh, so one job per window is enough.
-        opts: { jobId: `sync_${provider}_${event.contactId}_${bucket}`, delay: COALESCE_MS },
-      }))
-    );
+    if (!redisConfigured()) return pushInline(e, providers);
+    await getSyncQueue().add(FLUSH_JOB, e, flushJobOptions(e.contactId));
   } catch (error) {
     console.error("[OS Sync] could not queue:", error instanceof Error ? error.message : error);
   }
 }
 
+/** The older name every caller uses; same batched push. */
+export const fireContactEvent = markDirty;
+
+/** Retry / "Sync now" on Details: push now, no quiet time. */
+export async function syncNow(e: DirtyEvent) {
+  if (syncDisabled()) return;
+  try {
+    const providers = await activeProviders(e.workspaceId);
+    if (!providers.length) return;
+    if (!redisConfigured()) return pushInline(e, providers);
+    await enqueuePushes(e, providers);
+  } catch (error) {
+    console.error("[OS Sync] could not queue:", error instanceof Error ? error.message : error);
+  }
+}
+
+async function enqueuePushes(e: DirtyEvent, providers: SyncProviderId[]) {
+  const at = Date.now();
+  await getSyncQueue().addBulk(
+    providers.map((provider) => ({
+      name: SYNC_JOB,
+      data: { ...e, provider },
+      // The job reads the contact fresh; its own id so retries back off on their own.
+      opts: { jobId: `sync_${provider}_${e.contactId}_${at}` },
+    }))
+  );
+}
+
 /** "Sync existing contacts": queue every contact for one provider, spaced out. */
-export async function enqueueBackfill(workspaceId: string, provider: SyncJobInput["provider"], contactIds: string[]) {
-  if (!contactIds.length) return 0;
+export async function enqueueBackfill(workspaceId: string, provider: SyncProviderId, contactIds: string[]) {
+  if (!contactIds.length || syncDisabled()) return 0;
   if (!redisConfigured()) {
     for (const contactId of contactIds.slice(0, 25)) {
       await syncContact({ workspaceId, contactId, provider, event: "backfill" }).catch(() => {});
@@ -83,15 +132,22 @@ export async function enqueueBackfill(workspaceId: string, provider: SyncJobInpu
   return contactIds.length;
 }
 
-async function processSyncJob(job: Job<SyncJobInput>) {
-  const result = await syncContact(job.data);
+async function processSyncJob(job: Job<SyncQueueData>) {
+  if (job.name === FLUSH_JOB) {
+    const e = job.data as DirtyEvent;
+    const providers = await activeProviders(e.workspaceId);
+    if (providers.length) await enqueuePushes(e, providers);
+    return;
+  }
+  const data = job.data as SyncJobInput;
+  const result = await syncContact(data);
   if (result.status !== "unchanged") {
-    console.log(`[OS Sync] ${job.data.provider} ${job.data.contactId} (${job.data.event}): ${result.status}${"reason" in result ? ` — ${result.reason}` : ""}`);
+    console.log(`[OS Sync] ${data.provider} ${data.contactId} (${data.event}): ${result.status}${"reason" in result ? ` — ${result.reason}` : ""}`);
   }
 }
 
-export function createSyncWorker(): Worker<SyncJobInput> {
-  const worker = new Worker<SyncJobInput>(SYNC_QUEUE, processSyncJob, { connection: getRedisConnection(), concurrency: 2 });
+export function createSyncWorker(): Worker<SyncQueueData> {
+  const worker = new Worker<SyncQueueData>(SYNC_QUEUE, processSyncJob, { connection: getRedisConnection(), concurrency: 2 });
   worker.on("failed", (job, err) => console.error(`[OS Sync] job ${job?.id} failed (attempt ${job?.attemptsMade}):`, err.message));
   return worker;
 }

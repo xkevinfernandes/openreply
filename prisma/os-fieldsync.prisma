@@ -1,0 +1,46 @@
+// Field sync (stream A2): every field write kept with its history, and what
+// each CRM last got from us. Our fork only. Plain id columns, no relations,
+// so no existing model changes; rows go with the contact in app code.
+
+/// One write to a contact's field, kept even when it lost (Kevin's value is
+/// locked, an empty value, an older write). Details shows it on hover.
+model ContactFieldValueHistory {
+  id          String   @id @default(cuid())
+  workspaceId String
+  contactId   String
+  fieldId     String
+  /// The value as stored (a number field holds "5000"). Null = cleared.
+  value       String?
+  /// As said, when it differs from value ("about 5k a month").
+  raw         String?
+  /// system | step | j | kevin | booking
+  source      String
+  /// What wrote it: a draft id, a workflow step id, a booking id.
+  ref         String?
+  /// False when the merge rules kept the old value.
+  applied     Boolean  @default(true)
+  /// Why it wasn't applied: locked | empty | stale | same.
+  reason      String?
+  at          DateTime @default(now())
+
+  @@index([contactId, fieldId, at])
+  @@index([workspaceId, at])
+}
+
+/// What one CRM last got from us for one contact, beyond ContactSync: the
+/// field values we pushed (so a merge only overwrites our own values) and the
+/// email (so a corrected email updates the same subscriber).
+model ContactSyncState {
+  contactId    String
+  provider     String
+  workspaceId  String
+  /// Provider field ref -> value we pushed. "$first_name" for the first name.
+  pushedFields Json     @default("{}")
+  pushedEmail  String?
+  /// Tags removed on purpose (removeTag) and not yet removed there.
+  removeTags   String[]
+  updatedAt    DateTime @updatedAt
+
+  @@id([contactId, provider])
+  @@index([workspaceId])
+}

@@ -7,7 +7,7 @@ export function payloadHash(provider: SyncProviderId, p: SyncPayload): string {
     .sort()
     .map((k) => [k, p.custom[k]]);
   return createHash("sha256")
-    .update(JSON.stringify([provider, p.email, p.firstName, p.tags, custom, p.pipeline, p.name]))
+    .update(JSON.stringify([provider, p.email, p.phone ?? null, p.firstName, p.tags, p.removeTags ?? [], custom, p.pipeline, p.name]))
     .digest("hex")
     .slice(0, 32);
 }

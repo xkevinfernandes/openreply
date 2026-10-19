@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/client";
 import { decryptToken, encryptToken } from "@/lib/meta/oauth";
 import { createGhlSync, type GhlCredentials } from "./ghl";
 import { createKitSync } from "./kit";
+import { isPushable } from "@/lib/os/fields/merge";
 import { normalizeMapping, qualificationFromDrafts, type ContactSnapshot, type FieldMapping, type SyncProviderId } from "./mapping";
 import type { PushedState, SyncProvider } from "./provider";
 
@@ -62,12 +63,21 @@ export async function contactSnapshot(contactId: string, workspaceId: string): P
   if (!c) return null;
   const [drafts, values] = await Promise.all([
     prisma.draft.findMany({ where: { contactId }, orderBy: { createdAt: "desc" }, take: 20, select: { raw: true } }),
-    prisma.contactFieldValue.findMany({ where: { contactId }, select: { value: true, field: { select: { key: true, ghlField: true, kitField: true } } } }),
+    prisma.contactFieldValue.findMany({
+      where: { contactId },
+      select: { value: true, field: { select: { key: true, type: true, options: true, ghlField: true, kitField: true } } },
+    }),
   ]);
   return {
     ...c,
     qualification: qualificationFromDrafts(drafts.map((d) => d.raw)),
-    fields: values.map((v) => ({ key: v.field.key, value: v.value, ghlField: v.field.ghlField, kitField: v.field.kitField })),
+    fields: values.map((v) => ({
+      key: v.field.key,
+      value: v.value,
+      ghlField: v.field.ghlField,
+      kitField: v.field.kitField,
+      pushable: isPushable({ type: v.field.type, options: Array.isArray(v.field.options) ? (v.field.options as unknown[]).map(String) : [] }, v.value),
+    })),
   };
 }
 
@@ -83,16 +93,35 @@ export async function getSyncLog(contactId: string, provider: SyncProviderId): P
   });
 }
 
+export interface SyncStateRow {
+  pushedFields: Record<string, string>;
+  pushedEmail: string | null;
+  removeTags: string[];
+}
+
+export async function getSyncState(contactId: string, provider: SyncProviderId): Promise<SyncStateRow | null> {
+  const row = await prisma.contactSyncState.findUnique({ where: { contactId_provider: { contactId, provider } } });
+  if (!row) return null;
+  const f = row.pushedFields && typeof row.pushedFields === "object" && !Array.isArray(row.pushedFields) ? (row.pushedFields as Record<string, unknown>) : {};
+  return { pushedFields: Object.fromEntries(Object.entries(f).map(([k, v]) => [k, String(v)])), pushedEmail: row.pushedEmail, removeTags: row.removeTags };
+}
+
 export async function recordSuccess(
   key: { workspaceId: string; contactId: string; provider: SyncProviderId },
-  data: PushedState & { hash: string; event: string }
+  data: PushedState & { hash: string; event: string; removedTags?: string[] }
 ) {
   const row = { externalId: data.externalId, pushedTags: data.pushedTags, lastHash: data.hash, lastEvent: data.event, lastSyncedAt: new Date(), lastError: null, lastErrorAt: null };
-  await prisma.contactSync.upsert({
-    where: { contactId_provider: { contactId: key.contactId, provider: key.provider } },
-    create: { ...key, ...row },
-    update: row,
-  });
+  const where = { contactId_provider: { contactId: key.contactId, provider: key.provider } };
+  await prisma.contactSync.upsert({ where, create: { ...key, ...row }, update: row });
+  // Removals carried out are done; one made during the push stays for next time.
+  const current = await prisma.contactSyncState.findUnique({ where, select: { removeTags: true } });
+  const done = new Set(data.removedTags ?? []);
+  const state = {
+    pushedFields: data.pushedFields ?? {},
+    pushedEmail: data.pushedEmail ?? null,
+    removeTags: (current?.removeTags ?? []).filter((t) => !done.has(t)),
+  };
+  await prisma.contactSyncState.upsert({ where, create: { ...key, ...state }, update: state });
 }
 
 export async function recordFailure(key: { workspaceId: string; contactId: string; provider: SyncProviderId }, error: string, event: string) {

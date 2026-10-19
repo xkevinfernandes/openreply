@@ -16,6 +16,8 @@ export interface SyncDeps {
   contactSnapshot(contactId: string, workspaceId: string): Promise<ContactSnapshot | null>;
   loadProvider(workspaceId: string, provider: SyncProviderId): Promise<db.ProviderConfig | null>;
   getSyncLog(contactId: string, provider: SyncProviderId): Promise<db.SyncLogRow | null>;
+  /** What we pushed there before (fields, email) and removals waiting. */
+  getSyncState(contactId: string, provider: SyncProviderId): Promise<db.SyncStateRow | null>;
   recordSuccess: typeof db.recordSuccess;
   recordFailure: typeof db.recordFailure;
 }
@@ -40,17 +42,24 @@ export async function syncContact(input: SyncJobInput, deps: SyncDeps = dbDeps):
   if (!contact) return { status: "skipped", reason: "no such contact" };
   if (!inScope(contact, config.mapping)) return { status: "skipped", reason: "not a sales contact" };
 
+  const [log, state] = await Promise.all([deps.getSyncLog(contactId, provider), deps.getSyncState(contactId, provider)]);
   const payload = buildPayload(contact, config.mapping, provider);
-  if (config.client.requiresEmail && !payload.email) return { status: "skipped", reason: "waits for an email" };
+  const prefix = config.mapping.tags ? config.mapping.tagPrefix : null;
+  const removals = prefix == null ? [] : (state?.removeTags ?? []).map((t) => `${prefix}${t}`).filter((t) => !payload.tags.includes(t));
+  if (removals.length) payload.removeTags = removals;
+  const prev = { externalId: log?.externalId ?? null, pushedTags: log?.pushedTags ?? [], pushedFields: state?.pushedFields ?? {}, pushedEmail: state?.pushedEmail ?? null };
+  // Kit waits for an email (then everything collected so far goes at once);
+  // GoHighLevel for an email, a phone or an Instagram handle.
+  const waits = config.client.waitsFor ? config.client.waitsFor(payload, prev) : config.client.requiresEmail && !payload.email ? "waits for an email" : null;
+  if (waits) return { status: "skipped", reason: waits };
 
   const hash = payloadHash(provider, payload);
-  const log = await deps.getSyncLog(contactId, provider);
   if (log?.lastHash === hash && !log.lastError) return { status: "unchanged" };
 
   const key = { workspaceId, contactId, provider };
   try {
-    const pushed = await config.client.push(payload, { externalId: log?.externalId ?? null, pushedTags: log?.pushedTags ?? [] });
-    await deps.recordSuccess(key, { ...pushed, hash, event });
+    const pushed = await config.client.push(payload, prev);
+    await deps.recordSuccess(key, { ...pushed, hash, event, removedTags: state?.removeTags ?? [] });
     return { status: "synced", externalId: pushed.externalId };
   } catch (error) {
     await deps.recordFailure(key, friendlyError(error), event).catch(() => {});

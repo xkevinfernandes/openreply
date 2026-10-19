@@ -12,6 +12,7 @@ import { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { prisma } from "@/lib/db/client";
 import { normalizeTag, OUTCOME_STAGES, parseEmail } from "@/lib/os/contacts-filter";
 import { osEventHooks, type OsEventHooks } from "@/lib/os/events-hooks";
+import { dbTagDeps } from "@/lib/os/fields/write";
 import { fireContactEvent } from "@/lib/os/integrations/events";
 import type { SyncEvent } from "@/lib/os/integrations/mapping";
 import { mockContact, mockContactExtras, osMockEnabled, updateMockContact, updateMockContactExtras } from "@/lib/os/mock";
@@ -170,6 +171,9 @@ export async function editContacts(
     count += r.count;
     if (r.count) changed.push(row.id);
   }
+  // A removal made here is on purpose: the CRMs remove it too (they're add-only otherwise).
+  if (plan.op === "remove" && db === (prisma as unknown)) for (const id of changed) await dbTagDeps.pendingRemoval(workspaceId, id, plan.tag, true);
+  if (plan.op === "add" && db === (prisma as unknown)) for (const id of changed) await dbTagDeps.pendingRemoval(workspaceId, id, plan.tag, false);
   return done(count);
 }
 

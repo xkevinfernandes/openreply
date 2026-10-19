@@ -104,13 +104,22 @@ export interface SnapshotField {
   value: string;
   ghlField: string | null;
   kitField: string | null;
+  /** False when the value doesn't fit the field's type ("about 5k" in a
+   *  number field that didn't parse): kept in DM OS, never pushed. */
+  pushable?: boolean;
 }
 
 /** Provider-neutral push. custom maps the provider's field reference to a value. */
 export interface SyncPayload {
   email: string | null;
+  /** From a "phone" field. GoHighLevel can create a contact on it. */
+  phone: string | null;
+  /** Instagram handle without the @. */
+  handle: string | null;
   firstName: string | null;
   tags: string[];
+  /** Tags removed on purpose (removeTag) to remove there too. Tags are add-only otherwise. */
+  removeTags?: string[];
   custom: Record<string, string>;
   stage: ContactStage;
   /** Set when the mapping has a pipeline (GoHighLevel). */
@@ -143,17 +152,26 @@ export function buildPayload(c: ContactSnapshot, m: FieldMapping, provider?: Syn
     for (const f of c.fields ?? []) {
       const target = provider === "ghl" ? f.ghlField : f.kitField;
       // first_name / email have their own slots in the payload.
-      if (!target || f.key === "first_name" || f.key === "email") continue;
+      if (!target || f.key === "first_name" || f.key === "email" || f.pushable === false) continue;
       put(target, f.value);
       covered.add(f.key);
     }
   }
-  for (const f of QUALIFICATION_FIELDS) if (!covered.has(f.key)) put(m.qualification[f.key], c.fields?.find((x) => x.key === f.key)?.value ?? c.qualification[f.key]);
+  for (const f of QUALIFICATION_FIELDS) {
+    if (covered.has(f.key)) continue;
+    const field = c.fields?.find((x) => x.key === f.key);
+    put(m.qualification[f.key], field ? (field.pushable === false ? null : field.value) : c.qualification[f.key]);
+  }
 
   const tags = m.tags ? [...new Set(c.tags.map((t) => t.trim()).filter(Boolean).map((t) => `${m.tagPrefix}${t}`))].sort() : [];
-  const own = (key: string) => c.fields?.find((f) => f.key === key)?.value?.trim() || null;
+  const own = (key: string) => {
+    const f = c.fields?.find((x) => x.key === key);
+    return f && f.pushable !== false ? f.value?.trim() || null : null;
+  };
   return {
     email: m.email ? (c.email?.trim().toLowerCase() || own("email")?.toLowerCase() || null) : null,
+    phone: own("phone"),
+    handle: c.username?.trim() || null,
     firstName: m.firstName ? (own("first_name")?.slice(0, 80) ?? firstNameOf(c.fullName)) : null,
     tags,
     custom,

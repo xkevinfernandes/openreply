@@ -1,6 +1,7 @@
 // Hooks the rest of the app calls when something a CRM cares about happens.
 import { prisma } from "@/lib/db/client";
 import { upsertContact } from "@/lib/os/contacts";
+import { writeField } from "@/lib/os/fields/write";
 import { fireContactEvent } from "./queue";
 
 export { fireContactEvent };
@@ -30,8 +31,12 @@ export async function recordCapturedEmail(input: {
       username: input.username,
       entryPath: commented ? "comment" : "keyword_dm",
     });
-    await prisma.contact.update({ where: { id: contact.id }, data: { email: input.email.toLowerCase() } });
-    await fireContactEvent({ workspaceId: input.workspaceId, contactId: contact.id, event: "email_captured" });
+    // Through writeField: history, the merge rules, Contact.email and the push.
+    const r = await writeField({ workspaceId: input.workspaceId, contactId: contact.id, key: "email", value: input.email, source: "system", ref: "email_gate" });
+    if ("error" in r) {
+      await prisma.contact.update({ where: { id: contact.id }, data: { email: input.email.toLowerCase() } });
+      await fireContactEvent({ workspaceId: input.workspaceId, contactId: contact.id, event: "email_captured" });
+    }
   } catch (error) {
     console.error("[OS Sync] could not record the captured email:", error instanceof Error ? error.message : error);
   }

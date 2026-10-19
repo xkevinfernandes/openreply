@@ -18,7 +18,8 @@ export interface CustomFieldView {
   usedBy: string[];
 }
 
-export type FieldValueSource = "j" | "user" | "import";
+/** Stored ContactFieldValue.source. "user" = Kevin (locked). */
+export type FieldValueSource = "j" | "user" | "import" | "system" | "step" | "booking";
 
 /** Built-in fields every workspace has (seeded by the 20261020020000 migration). */
 export const BUILT_IN_FIELDS = [
@@ -100,7 +101,7 @@ export function cleanFieldValue(type: CustomFieldType, raw: unknown, options: st
     case "EMAIL":
       return EMAIL.test(v) ? { value: v.toLowerCase() } : { error: "That doesn't look like an email address." };
     case "NUMBER": {
-      const n = Number(v.replace(/[,\s]/g, ""));
+      const n = Number(v.replace(/[,\s$€£]/g, ""));
       return Number.isFinite(n) ? { value: String(n) } : { error: "That isn't a number." };
     }
     case "URL":
@@ -132,4 +133,15 @@ export interface DetailsField {
   at: string | null;
   /** The contact's setter fills it. */
   bySetter: boolean;
+  /** False when the value doesn't fit the type and isn't pushed (amber dot). */
+  pushed?: boolean;
+  /** Writes to it, newest first (shown on hover). */
+  history?: {
+    value: string | null;
+    raw: string | null;
+    source: string;
+    at: string;
+    applied: boolean;
+    reason: string | null;
+  }[];
 }

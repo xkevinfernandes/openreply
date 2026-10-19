@@ -22,12 +22,19 @@ export interface ProviderFields {
 export interface PushedState {
   externalId: string | null;
   pushedTags: string[];
+  /** Field ref -> the value we pushed ("$first_name" for the first name). A
+   *  merge only overwrites a value there when it's empty or ours. */
+  pushedFields?: Record<string, string>;
+  /** The email we last pushed: a different one now is a correction. */
+  pushedEmail?: string | null;
 }
 
 export interface SyncProvider {
   id: SyncProviderId;
   /** Kit identifies subscribers by email, so nothing goes before we have one. */
   requiresEmail: boolean;
+  /** Why this payload can't be pushed yet (e.g. no way to identify them), or null. */
+  waitsFor?(payload: SyncPayload, prev: PushedState): string | null;
   verify(): Promise<void>;
   listFields(): Promise<ProviderFields>;
   push(payload: SyncPayload, prev: PushedState): Promise<PushedState>;
@@ -61,13 +68,47 @@ export function friendlyError(error: unknown): string {
   return error instanceof Error ? error.message.slice(0, 200) : "Sync failed";
 }
 
-/** Tags to add and remove, given what we pushed last time. A first push (no
- *  external id yet) adds every tag. */
-export function tagDiff(next: string[], prev: PushedState) {
+/**
+ * Tags to add and remove. Tags are add-only: a tag that's simply gone from
+ * the contact stays in the CRM. Only a removal made on purpose (removeTag)
+ * is removed there. A first push (no external id yet) adds every tag.
+ */
+export function tagDiff(next: string[], prev: PushedState, removals: string[] = []) {
   const before = new Set(prev.externalId ? prev.pushedTags : []);
-  const after = new Set(next);
-  return {
-    add: next.filter((t) => !before.has(t)),
-    remove: (prev.externalId ? prev.pushedTags : []).filter((t) => !after.has(t)),
-  };
+  const remove = [...new Set(removals)].filter((t) => !next.includes(t));
+  return { add: next.filter((t) => !before.has(t)), remove };
+}
+
+/** Tags as pushed after this push: what was there, plus added, minus removed. */
+export function tagsAfter(next: string[], prev: PushedState, removed: string[]): string[] {
+  const out = new Set([...(prev.externalId ? prev.pushedTags : []), ...next]);
+  for (const t of removed) out.delete(t);
+  return [...out].sort();
+}
+
+const blank = (v: unknown) => v == null || String(v).trim() === "";
+
+/**
+ * Merge into a record the CRM already has: a value is sent only when theirs
+ * is empty or is the one we pushed before. Never overwrites their own data.
+ * Returns what to send and the new "pushed" memory.
+ */
+export function fillOnly(
+  ours: Record<string, string | null | undefined>,
+  theirs: Record<string, unknown>,
+  pushed: Record<string, string>
+): { send: Record<string, string>; pushed: Record<string, string> } {
+  const send: Record<string, string> = {};
+  const next = { ...pushed };
+  for (const [k, v] of Object.entries(ours)) {
+    if (blank(v)) continue;
+    const t = theirs[k];
+    if (!blank(t) && String(t) !== pushed[k]) {
+      if (String(t) === v) next[k] = v as string;
+      continue;
+    }
+    if (String(t ?? "") !== v) send[k] = v as string;
+    next[k] = v as string;
+  }
+  return { send, pushed: next };
 }

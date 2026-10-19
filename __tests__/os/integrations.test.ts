@@ -12,6 +12,7 @@ import {
   type FieldMapping,
 } from "../../lib/os/integrations/mapping";
 import { SyncApiError, tagDiff, type SyncProvider } from "../../lib/os/integrations/provider";
+import { stubCrms } from "./fixtures/mock-crm";
 
 type Call = { url: string; method: string; body: unknown; headers: Record<string, string> };
 
@@ -100,50 +101,41 @@ describe("mapping", () => {
     expect(payloadHash("kit", a)).not.toBe(payloadHash("kit", buildPayload(contact({ stage: "WON" }), mapping())));
   });
 
-  it("diffs tags against the last push", () => {
+  it("diffs tags against the last push; removes only what was removed on purpose", () => {
     expect(tagDiff(["a", "b"], { externalId: null, pushedTags: ["x"] })).toEqual({ add: ["a", "b"], remove: [] });
-    expect(tagDiff(["a", "b"], { externalId: "1", pushedTags: ["a", "x"] })).toEqual({ add: ["b"], remove: ["x"] });
+    expect(tagDiff(["a", "b"], { externalId: "1", pushedTags: ["a", "x"] })).toEqual({ add: ["b"], remove: [] });
+    expect(tagDiff(["a", "b"], { externalId: "1", pushedTags: ["a", "x"] }, ["x", "b"])).toEqual({ add: ["b"], remove: ["x"] });
   });
 });
 
 describe("Kit", () => {
-  it("upserts the subscriber with fields, creates and applies tags", async () => {
-    const calls = mockFetch({
-      "POST /v4/subscribers": { subscriber: { id: 77 } },
-      "GET /v4/tags*": { tags: [{ id: 1, name: "qualified" }] },
-      "POST /v4/tags": { tag: { id: 2, name: "friday" } },
-      "POST /v4/tags/1/subscribers": {},
-      "POST /v4/tags/2/subscribers": {},
-    });
+  it("creates a new subscriber with fields, creates and applies tags", async () => {
+    const { kit: mock, calls } = stubCrms();
     const kit = createKitSync("kit_key_123");
     const result = await kit.push(buildPayload(contact(), mapping()), { externalId: null, pushedTags: [] });
-    expect(result).toEqual({ externalId: "77", pushedTags: ["friday", "qualified"] });
-    expect(calls[0].headers["X-Kit-Api-Key"]).toBe("kit_key_123");
-    expect(calls[0].body).toEqual({
+    const sub = mock.byEmail("maya@example.com")!;
+    expect(result).toMatchObject({ externalId: String(sub.id), pushedTags: ["friday", "qualified"], pushedEmail: "maya@example.com" });
+    expect(calls.find((c) => c.method === "POST" && c.path === "/v4/subscribers")?.body).toEqual({
       email_address: "maya@example.com",
       first_name: "Maya",
       fields: { ig_handle: "@maya.builds", dm_stage: "Qualified", goal: "10k/month" },
     });
-    expect(calls.find((c) => c.method === "POST" && c.url.endsWith("/v4/tags"))?.body).toEqual({ name: "friday" });
-    expect(calls.filter((c) => /\/tags\/\d+\/subscribers$/.test(c.url)).map((c) => c.body)).toEqual([
-      { email_address: "maya@example.com" },
-      { email_address: "maya@example.com" },
-    ]);
+    expect(mock.tagsOf(sub.id)).toEqual(["friday", "qualified"]);
   });
 
-  it("untags what was removed and skips tag calls when nothing changed", async () => {
-    let calls = mockFetch({
-      "POST /v4/subscribers": { subscriber: { id: 77 } },
-      "GET /v4/tags*": { tags: [{ id: 1, name: "qualified" }, { id: 2, name: "friday" }] },
-      "DELETE /v4/tags/2/subscribers/77": new Response(null, { status: 204 }),
-    });
+  it("removes only tags removed on purpose, and skips tag calls when nothing changed", async () => {
+    const { kit: mock, calls } = stubCrms();
     const kit = createKitSync("kit_key_123");
-    await kit.push(buildPayload(contact({ tags: ["qualified"] }), mapping()), { externalId: "77", pushedTags: ["friday", "qualified"] });
-    expect(calls.map((c) => `${c.method} ${new URL(c.url).pathname}`)).toEqual(["POST /v4/subscribers", "GET /v4/tags", "DELETE /v4/tags/2/subscribers/77"]);
-
-    calls = mockFetch({ "POST /v4/subscribers": { subscriber: { id: 77 } } });
-    await kit.push(buildPayload(contact({ tags: ["qualified"] }), mapping()), { externalId: "77", pushedTags: ["qualified"] });
-    expect(calls).toHaveLength(1);
+    const first = await kit.push(buildPayload(contact(), mapping()), { externalId: null, pushedTags: [] });
+    const id = Number(first.externalId);
+    calls.length = 0;
+    const p = { ...buildPayload(contact({ tags: ["qualified"] }), mapping()), removeTags: ["friday"] };
+    const second = await kit.push(p, first);
+    expect(mock.tagsOf(id)).toEqual(["qualified"]);
+    expect(second.pushedTags).toEqual(["qualified"]);
+    calls.length = 0;
+    await kit.push(buildPayload(contact({ tags: ["qualified"] }), mapping()), second);
+    expect(calls.map((c) => `${c.method} ${c.path.split("?")[0]}`)).toEqual([`GET /v4/subscribers/${id}`]);
   });
 
   it("lists custom fields by key and maps HTTP errors", async () => {
@@ -159,18 +151,13 @@ describe("GoHighLevel", () => {
   const ghlMapping = () =>
     mapping({ igHandle: "fieldIg", stage: "contact.dm_stage", pipelineId: "pipe1", stageMap: { QUALIFIED: "stQual" } });
 
-  it("upserts a new contact, adds tags and moves the opportunity", async () => {
-    const calls = mockFetch({
-      "POST /contacts/upsert": { new: true, contact: { id: "gc1" } },
-      "POST /contacts/gc1/tags": { tags: [] },
-      "POST /opportunities/upsert": { new: true },
-    });
+  it("creates a new contact, adds tags and moves the opportunity", async () => {
+    const { ghl: mock, calls } = stubCrms();
     const result = await createGhlSync(creds).push(buildPayload(contact(), ghlMapping()), { externalId: null, pushedTags: [] });
-    expect(result).toEqual({ externalId: "gc1", pushedTags: ["friday", "qualified"] });
-    const [upsert, tags, opp] = calls;
-    expect(upsert.headers.Authorization).toBe("Bearer pit-abc123456");
-    expect(upsert.headers.Version).toBe(GHL_VERSION);
-    expect(upsert.body).toEqual({
+    const c = mock.contacts.get(result.externalId!)!;
+    expect(result.pushedTags).toEqual(["friday", "qualified"]);
+    const create = calls.find((x) => x.method === "POST" && x.path === "/contacts/")!;
+    expect(create.body).toEqual({
       locationId: "loc123",
       source: "Instagram DM",
       name: "Maya Lopez",
@@ -182,34 +169,25 @@ describe("GoHighLevel", () => {
         { id: "goal", field_value: "10k/month" },
       ],
     });
-    expect(tags.body).toEqual({ tags: ["friday", "qualified"] });
-    expect(opp.body).toEqual({ locationId: "loc123", pipelineId: "pipe1", pipelineStageId: "stQual", contactId: "gc1", name: "Maya Lopez", status: "open" });
+    expect([...c.tags].sort()).toEqual(["friday", "qualified"]);
+    expect(mock.opportunities).toEqual([{ locationId: "loc123", pipelineId: "pipe1", pipelineStageId: "stQual", contactId: c.id, name: "Maya Lopez", status: "open" }]);
   });
 
-  it("updates a known contact in place and removes dropped tags", async () => {
-    const calls = mockFetch({
-      "PUT /contacts/gc1": { contact: { id: "gc1" } },
-      "DELETE /contacts/gc1/tags": { tags: [] },
-    });
-    await createGhlSync(creds).push(buildPayload(contact({ tags: ["qualified"], stage: "NEW" }), ghlMapping()), {
-      externalId: "gc1",
-      pushedTags: ["friday", "qualified"],
-    });
-    expect(calls.map((c) => `${c.method} ${new URL(c.url).pathname}`)).toEqual(["PUT /contacts/gc1", "DELETE /contacts/gc1/tags"]);
-    expect(calls[0].body).not.toHaveProperty("locationId");
-    expect(calls[1].body).toEqual({ tags: ["friday"] });
+  it("updates a known contact in place (our values only)", async () => {
+    const { ghl: mock } = stubCrms();
+    const first = await createGhlSync(creds).push(buildPayload(contact(), ghlMapping()), { externalId: null, pushedTags: [] });
+    const c = mock.contacts.get(first.externalId!)!;
+    await createGhlSync(creds).push(buildPayload(contact({ stage: "NEW" }), ghlMapping()), first);
+    expect(c.customFields.fStage).toBe("New");
+    expect(mock.contacts.size).toBe(1);
   });
 
   it("creates the contact again when it was deleted in GoHighLevel", async () => {
-    const calls = mockFetch({
-      "PUT /contacts/gone": new Response("{}", { status: 404 }),
-      "POST /contacts/upsert": { contact: { id: "gc2" } },
-      "POST /contacts/gc2/tags": {},
-    });
+    const { ghl: mock } = stubCrms();
     const result = await createGhlSync(creds).push(buildPayload(contact({ stage: "NEW" }), ghlMapping()), { externalId: "gone", pushedTags: ["friday", "qualified"] });
-    expect(result.externalId).toBe("gc2");
+    expect(result.externalId).not.toBe("gone");
     // A fresh contact gets every tag, not just the diff.
-    expect(calls.at(-1)?.body).toEqual({ tags: ["friday", "qualified"] });
+    expect([...mock.contacts.get(result.externalId!)!.tags].sort()).toEqual(["friday", "qualified"]);
   });
 
   it("verifies against the location's custom fields and lists pipelines", async () => {
@@ -248,6 +226,7 @@ describe("syncContact", () => {
       loadProvider: async () => ({ provider: "ghl", client: provider, mapping: m, enabled: true }),
       contactSnapshot: async () => snap,
       getSyncLog: async () => log,
+      getSyncState: async () => null,
       recordSuccess: async (_key, data) => {
         log = { externalId: data.externalId, pushedTags: data.pushedTags, lastHash: data.hash, lastError: null };
       },
