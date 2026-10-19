@@ -205,3 +205,14 @@ describe("approve / discard", () => {
     expect(splitBubbles("a\n\n b \n\n\nc\nd")).toEqual(["a", "b", "c\nd"]);
   });
 });
+
+import { waitingDrafts } from "../../lib/os/setter/service";
+
+describe("waitingDrafts", () => {
+  it("keeps the newest per contact, Sales only (Pitches never count)", () => {
+    const d = (id: string, contactId: string, createdAt: string) => ({ id, contactId, createdAt }) as never;
+    const kinds = new Map([["a", "SALES"], ["b", "PITCHES"], ["c", "SALES"]]);
+    const out = waitingDrafts([d("1", "a", "2026-10-19T09:00:00Z"), d("2", "a", "2026-10-19T10:00:00Z"), d("3", "b", "2026-10-19T11:00:00Z"), d("4", "c", "2026-10-19T08:00:00Z")], kinds);
+    expect(out.map((x: { id: string }) => x.id)).toEqual(["2", "4"]);
+  });
+});

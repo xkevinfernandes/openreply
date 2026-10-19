@@ -504,8 +504,8 @@ export default function BroadcastBuilder({ data }: { data: BuilderData }) {
       </div>
 
       <footer className="os-bc-foot">
-        <span className="os-bc-sub os-bc-num-sm">
-          {data.audience.count} contacts{approved ? ` · ${approved} approved` : ""}
+        <span className="os-bc-sub os-bc-num-sm" aria-live="polite">
+          {pending ? "Working…" : `${data.audience.count} contacts${approved ? ` · ${approved} approved` : ""}`}
         </span>
         <div className="os-bc-row">
           <button type="button" className="os-button" disabled={pending} onClick={() => act(() => saveBroadcastAction(b.key, input()))}>

@@ -6,51 +6,6 @@ import { mockThreads, osMockEnabled } from "@/lib/os/mock";
 import { localDate } from "@/lib/os/sending/cap";
 import { asFunnel } from "@/lib/os/setter/kb";
 import { pendingDrafts } from "@/lib/os/setter/service";
-import { windowState, type StateConfig } from "@/lib/os/setter/state";
-
-// --- Setter funnel (V1-1) ------------------------------------------------------
-
-/** J's six setting stages, in order. */
-export const J_STAGES = [
-  { key: "opener", label: "Opener" },
-  { key: "value", label: "Value" },
-  { key: "permission", label: "Permission" },
-  { key: "qualify", label: "Qualify" },
-  { key: "bridge", label: "Bridge" },
-  { key: "booked", label: "Booked" },
-] as const;
-
-export interface Bar {
-  key: string;
-  label: string;
-  count: number;
-}
-
-export interface AwaitingRow {
-  theirLastAt: string | null;
-  ourLastAt: string | null;
-}
-
-/** Pure: how many "you owe a reply" threads still have the free window, and the soonest close. */
-export function closingWindows(rows: AwaitingRow[], now: Date, cfg?: StateConfig): { count: number; nextClose: string | null } {
-  let count = 0;
-  let next: string | null = null;
-  for (const r of rows) {
-    if (!r.theirLastAt || (r.ourLastAt && r.ourLastAt >= r.theirLastAt)) continue;
-    const [win, until] = windowState(r.theirLastAt, now, cfg);
-    if (win !== "free") continue;
-    count++;
-    if (until && (!next || until < next)) next = until;
-  }
-  return { count, nextClose: next };
-}
-
-/** Pure: counts in a fixed key order (unknown keys dropped). */
-export function countBars(keys: readonly { key: string; label: string }[], values: (string | null)[]): Bar[] {
-  const n = new Map<string, number>();
-  for (const v of values) if (v) n.set(v, (n.get(v) ?? 0) + 1);
-  return keys.map((k) => ({ key: k.key, label: k.label, count: n.get(k.key) ?? 0 }));
-}
 
 // --- Home (Main board) ---------------------------------------------------------
 // Greeting, the pipeline per setter (funnel.ts columns), Setters cards and the

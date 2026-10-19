@@ -8,7 +8,7 @@ import { getInboxAccount, sendReply } from "@/lib/os/inbox";
 import { readAbTags, type AbTag } from "@/lib/os/experiments/types";
 import { isBookingPayload, type BookingPayload } from "@/lib/os/integrations/calendar/types";
 import { MAYA, MAYA_DRAFT, mockContact, mockContactExtras, mockMessages, osMockEnabled } from "@/lib/os/mock";
-import type { SetterRecord, ThreadMessage } from "@/lib/os/setter/state";
+import { newRecord, type SetterRecord, type ThreadMessage } from "@/lib/os/setter/state";
 import { readSetterThread } from "@/lib/os/setter/thread";
 import { voiceTranscripts } from "@/lib/os/voice/store";
 
@@ -287,7 +287,12 @@ const mockStore: SetterStore = {
     }));
   },
   async loadState(contactId) {
-    return mem.states.get(contactId) ?? null;
+    const saved = mem.states.get(contactId);
+    if (saved) return saved;
+    // Seeded mock drafts (Maya) have no record yet: their last message decides the window.
+    const m = mockContact(contactId);
+    const last = m ? mockMessages(m.conversationId ?? "").filter((x) => !x.fromMe).at(-1)?.createdTime : null;
+    return last ? { ...newRecord(m!.conversationId ?? contactId, m!.username ?? "", contactId), their_last_at: last } : null;
   },
   async saveState(contact, rec) {
     mem.states.set(contact.id, rec);

@@ -20,15 +20,6 @@ export interface CustomFieldView {
 
 export type FieldValueSource = "j" | "user" | "import";
 
-export interface ContactFieldValueView {
-  fieldId: string;
-  key: string;
-  label: string;
-  value: string;
-  source: FieldValueSource;
-  updatedAt: string;
-}
-
 /** Built-in fields every workspace has (seeded by the 20261020020000 migration). */
 export const BUILT_IN_FIELDS = [
   { key: "first_name", label: "First name", type: "TEXT" },

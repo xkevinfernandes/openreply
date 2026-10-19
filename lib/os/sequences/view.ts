@@ -287,8 +287,3 @@ export async function loadThreadFollowups(workspaceId: string, contactId: string
   return { live: live ?? null, why, off, upcoming, attendance: attendance[0] ?? null, tasks: await taskViews(workspaceId, tasks) };
 }
 
-/** The sidebar badge adds drafted follow-ups and calls to mark. */
-export async function followupAttentionCount(workspaceId: string, now = new Date()): Promise<number> {
-  const screen = await loadFollowupScreen(workspaceId, now);
-  return screen.queue.filter((q) => q.status === "DRAFTED" || new Date(q.dueAt).getTime() <= now.getTime()).length + screen.attendance.length + screen.tasks.length;
-}

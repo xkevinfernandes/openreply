@@ -600,6 +600,34 @@ export async function discardDraft(draftId: string, workspaceId: string, store: 
   return {};
 }
 
-export async function pendingDrafts(workspaceId: string, store: SetterStore = setterStore()): Promise<DraftView[]> {
-  return store.listPending(workspaceId);
+/** Drafts waiting on Kevin: the newest per contact, Sales contacts only, so
+ *  the sidebar, Home, ⌘K and the Inbox all count the same. */
+export async function pendingDrafts(
+  workspaceId: string,
+  store: SetterStore = setterStore(),
+  kindsOf: (ids: string[]) => Promise<Map<string, string>> = contactKinds
+): Promise<DraftView[]> {
+  const all = await store.listPending(workspaceId);
+  return waitingDrafts(all, await kindsOf([...new Set(all.map((d) => d.contactId))]));
+}
+
+/** Pure: newest pending draft per contact, for Sales contacts. */
+export function waitingDrafts(drafts: DraftView[], kinds: Map<string, string>): DraftView[] {
+  const newest = new Map<string, DraftView>();
+  for (const d of drafts) {
+    const prev = newest.get(d.contactId);
+    if (!prev || d.createdAt > prev.createdAt) newest.set(d.contactId, d);
+  }
+  return [...newest.values()].filter((d) => kinds.get(d.contactId) === "SALES").sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+async function contactKinds(ids: string[]): Promise<Map<string, string>> {
+  if (!ids.length) return new Map();
+  if (osMockEnabled()) {
+    const { mockThreads } = await import("@/lib/os/mock");
+    return new Map(mockThreads().flatMap((t) => (t.contact ? [[t.contact.id, t.contact.kind] as [string, string]] : [])));
+  }
+  const { prisma } = await import("@/lib/db/client");
+  const rows = await prisma.contact.findMany({ where: { id: { in: ids } }, select: { id: true, kind: true } });
+  return new Map(rows.map((r) => [r.id, r.kind]));
 }

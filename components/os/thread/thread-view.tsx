@@ -5,7 +5,7 @@
 // composer. Older messages sit above, clipped under "Earlier messages", which
 // scrolls up and then fetches the next older page. Owner: S1.
 
-import { useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { loadEarlierMessages } from "@/app/(os)/os/inbox/actions";
 import { MessageParts, Reactions } from "@/components/os/thread/parts";
 import { Avatar, SetterMark } from "@/components/os/ui";
@@ -63,6 +63,20 @@ export default function ThreadView({ data, contactId, who, avatarUrl = null, now
     setAbove(el.scrollTop > 4);
   }, [newest, rows.length]);
 
+  // Late layout (panel tabs, composer, images, fonts) must not leave the
+  // newest message under the composer: while at the bottom, stay there.
+  const pinned = useRef(true);
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      if (pinned.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => ro.disconnect();
+  }, []);
+
   function earlier() {
     const el = scroller.current;
     if (!el) return;
@@ -107,7 +121,11 @@ export default function ThreadView({ data, contactId, who, avatarUrl = null, now
           {loading ? "Loading…" : "Earlier messages"}
         </button>
       ) : null}
-      <div className="os-th-scroll" ref={scroller} onScroll={(e) => setAbove(e.currentTarget.scrollTop > 4)}>
+      <div className="os-th-scroll" ref={scroller} onScroll={(e) => {
+          const el = e.currentTarget;
+          setAbove(el.scrollTop > 4);
+          pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+        }}>
         <div className="os-th-list">
           {error ? (
             <p className="os-th-error" role="alert">
