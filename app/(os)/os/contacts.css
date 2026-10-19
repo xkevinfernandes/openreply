@@ -1149,6 +1149,10 @@
   box-shadow: inset 0 0 0 1.5px var(--ink);
 }
 
+.os-cx-col[data-focus="true"] {
+  box-shadow: inset 0 0 0 1px var(--line-strong, #c9c9c4);
+}
+
 .os-cx-col h2 {
   margin: 0 2px 2px;
   display: flex;

@@ -188,24 +188,17 @@ export interface HomeTodo {
   href: string;
 }
 
-/** Broadcasts whose next run has no link yet ("Add link for Follow-up Friday"). */
+/** Broadcasts that need Kevin: a link for the next run, or drafts to review. */
 export async function broadcastTodos(workspaceId: string, now = new Date()): Promise<HomeTodo[]> {
-  const list = await prisma.broadcast.findMany({
-    where: { workspaceId },
-    select: { id: true, key: true, name: true, windowDay: true, windowEnd: true, timezone: true, runs: { select: { runDate: true }, orderBy: { runDate: "desc" }, take: 4 } },
-  });
-  const out: HomeTodo[] = [];
-  for (const b of list) {
-    const next = nextRunDate(b.windowDay, b.windowEnd, b.timezone, now);
-    if (b.runs.some((r) => r.runDate === next.date)) continue;
-    out.push({
-      id: `broadcast:${b.id}`,
-      label: "Add link for",
-      strong: b.name,
-      due: next.today ? "Today" : DOW[b.windowDay],
-      tone: next.today ? "warn" : "muted",
-      href: `/os/automations/broadcasts/${b.key}`,
-    });
-  }
-  return out;
+  // One source with Follow-ups: lib/os/broadcasts/engine.ts broadcastNeeds.
+  const { broadcastNeeds } = await import("@/lib/os/broadcasts/engine");
+  const needs = await broadcastNeeds(workspaceId, { now });
+  return needs.map((n) => ({
+    id: `broadcast:${n.key}:${n.kind}`,
+    label: n.kind === "link" ? "Add link for" : `Review ${n.count} ${n.count === 1 ? "draft" : "drafts"} for`,
+    strong: n.name,
+    due: n.today ? "Today" : n.day,
+    tone: n.today ? "warn" : "muted",
+    href: n.href,
+  }));
 }

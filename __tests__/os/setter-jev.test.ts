@@ -244,6 +244,7 @@ describe("triage copy", () => {
   it("shows a quiet percentage for Jev, the LLM reason as-is, and J isn't sure", () => {
     expect(triageCopy({ flag: false, suggested: "SALES", confidence: 0.86, reason: "Jev 0.86 · sales" })).toEqual({ label: "Looks like sales", pct: "86%", detail: null });
     expect(triageCopy({ flag: true, suggested: "SALES", confidence: 0.9, reason: 'Jev 0.90 · sales · mentions "price"' })).toEqual({ label: "Move to Sales?", pct: "90%", detail: 'mentions "price"' });
+    expect(triageCopy({ flag: false, suggested: "PITCHES", confidence: null, reason: "Pitch · they wrote first with a pitch" })).toEqual({ label: "Looks like a pitch", pct: null, detail: "they wrote first with a pitch" });
     expect(triageCopy({ flag: false, suggested: "PERSONAL", confidence: null, reason: "Friends making plans" })).toEqual({ label: "Looks like personal", pct: null, detail: "Friends making plans" });
     expect(triageCopy({ flag: false, suggested: null, confidence: 0.58, reason: "Jev 0.58 · leans sales" })).toEqual({ label: "J isn't sure", pct: null, detail: "leans sales 58%" });
     expect(isUnsure({ kind: "UNSORTED", suggestedKind: null, suggestedConfidence: 0.58 })).toBe(true);

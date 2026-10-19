@@ -20,6 +20,8 @@ interface Props {
   onOpen: (id: string) => void;
   /** A column key from `columns`. */
   onMove: (id: string, column: string) => void;
+  /** ?stage= deep link (Home pipeline, ⌘K): scroll to and mark that column. */
+  focusKey?: string | null;
 }
 
 const DRAG_TYPE = "application/x-os-contact";
@@ -40,6 +42,13 @@ export default function ContactsKanban(p: Props) {
     el?.focus();
     el?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [p.rows]);
+
+  useEffect(() => {
+    if (!p.focusKey) return;
+    board.current?.querySelector<HTMLElement>("[data-focus]")?.scrollIntoView({ block: "nearest", inline: "start" });
+    // Only on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const columnOf = (id: string) => cols.find((c) => c.keys.some((k) => grouped.get(k)?.some((r) => r.id === id)));
 
@@ -74,6 +83,7 @@ export default function ContactsKanban(p: Props) {
               key={col.key}
               className="os-cx-col"
               data-over={over === col.key ? "true" : undefined}
+              data-focus={p.focusKey && (col.key === p.focusKey || col.keys.includes(p.focusKey)) ? "true" : undefined}
               aria-label={`${col.label}, ${cards.length}`}
               onDragOver={(e) => {
                 if (!dragging && !e.dataTransfer.types.includes(DRAG_TYPE)) return;

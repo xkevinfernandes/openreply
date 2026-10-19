@@ -63,7 +63,7 @@ const EPISODES = [
 async function ensureUser() {
   await prisma.user.upsert({ where: { id: USER.id }, create: USER, update: {} });
   const expires = new Date(Date.now() + 365 * 86400_000);
-  await prisma.session.upsert({ where: { sessionToken: SESSION }, create: { sessionToken: SESSION, userId: USER.id, expires }, update: { expires } });
+  await prisma.session.upsert({ where: { sessionToken: SESSION }, create: { sessionToken: SESSION, userId: USER.id, expires }, update: { expires, userId: USER.id } });
   return ensureWorkspaceForUser(USER.id, USER.email);
 }
 
@@ -146,11 +146,22 @@ async function ensureResources(workspaceId: string, setterIds: string[]) {
     skipDuplicates: true,
   });
 
-  // Keyword → resource. Real automations when they exist, else stand-in ids.
+  // Keyword → resource, on real Automation rows (a dev Instagram account
+  // holds them when none is connected), so Resources shows every keyword.
+  await prisma.campaignResource.deleteMany({ where: { workspaceId, automationId: { startsWith: "seed-automation-" } } });
+  let account = await prisma.instagramAccount.findFirst({ where: { workspaceId }, select: { id: true } });
+  account ??= await prisma.instagramAccount.create({
+    data: { workspaceId, instagramId: `dev-${workspaceId}`, username: "claudepreneur", accessToken: "dev-only" },
+    select: { id: true },
+  });
   for (const [keyword, resourceId] of [["SETTER", starter.id], ["STARTER", starter.id], ["SCRIPT", vault.id]] as const) {
-    const auto = await prisma.automation.findFirst({ where: { workspaceId, keywords: { has: keyword } }, select: { id: true } });
-    const automationId = auto?.id ?? `seed-automation-${keyword.toLowerCase()}`;
-    await prisma.campaignResource.upsert({ where: { automationId }, create: { workspaceId, automationId, resourceId }, update: {} });
+    const auto =
+      (await prisma.automation.findFirst({ where: { workspaceId, keywords: { has: keyword } }, select: { id: true } })) ??
+      (await prisma.automation.create({
+        data: { workspaceId, instagramAccountId: account.id, name: `Comment ${keyword}`, keywords: [keyword], dmMessage: `Here you go: {link}`, isActive: true },
+        select: { id: true },
+      }));
+    await prisma.campaignResource.upsert({ where: { automationId: auto.id }, create: { workspaceId, automationId: auto.id, resourceId }, update: {} });
   }
 }
 

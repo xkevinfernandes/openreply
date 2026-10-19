@@ -191,3 +191,18 @@ describe("refreshPath", () => {
     expect(refreshPath(null, "c 1", "m:1")).toBe("/inbox/conversations/c%201/messages/m%3A1");
   });
 });
+
+import { missingStoryRefs } from "../../lib/os/media";
+
+describe("story cards at read time", () => {
+  it("lists story replies without a card, skips mentions and filled ones", () => {
+    const msgs = [
+      { id: "a", at: "2026-10-19T10:00:00Z", parts: [{ type: "story_reply", storyId: "s1", assetId: null, mention: false }] },
+      { id: "b", at: null, parts: [{ type: "story_reply", storyId: "s2", assetId: null, mention: true }] },
+      { id: "c", at: null, parts: [{ type: "story_reply", storyId: "s3", assetId: null, mention: false }] },
+      { id: "d", at: null, parts: [{ type: "text" }] },
+    ];
+    const media = new Map([["c", { story: { id: "s3" } } as never]]);
+    expect(missingStoryRefs(msgs, media)).toEqual([{ messageId: "a", storyId: "s1", assetId: null, at: "2026-10-19T10:00:00Z" }]);
+  });
+});

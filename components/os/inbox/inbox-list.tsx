@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { INBOX_LIST_COOKIE, inboxListView, neighbourHref } from "@/components/os/inbox/categories";
-import { TriageBar, TriageSuggestion } from "@/components/os/inbox/triage";
+import { ResortPitches, TriageBar, TriageSuggestion } from "@/components/os/inbox/triage";
 import { useOsCommand } from "@/components/os/keys";
 import { Avatar, AvatarRail } from "@/components/os/ui";
 import type { InboxThread } from "@/lib/os/inbox";
@@ -115,6 +115,7 @@ export default function InboxList({ threads, tab, selected, now, draftContactIds
       {kind === "UNSORTED" && unsorted.length ? (
         <TriageBar unsortedCount={unsorted.length} suggestedCount={unsorted.filter((t) => t.contact?.suggestedKind).length} disabled={triageDisabled} />
       ) : null}
+      {kind === "PITCHES" && !triageDisabled ? <ResortPitches /> : null}
       <ul className="os-ix-rows">
         {view.rows.length === 0 ? <li className="os-ix-empty">{query ? "No threads match." : kind === "PITCHES" ? "No pitches. J never drafts here." : "Nothing here yet."}</li> : null}
         {view.rows.map((r) => {

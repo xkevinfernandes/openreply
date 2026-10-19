@@ -38,27 +38,7 @@
   stroke-linecap: round;
 }
 
-/* Tabs: Campaigns · Broadcasts · Tests (counts muted, not the green badge). */
-.os .os-auto-tabs {
-  display: flex;
-  gap: 20px;
-  padding: 0;
-  border-radius: 0;
-  background: none;
-}
-
-.os .os-auto-tabs .os-tab {
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-}
-
-.os .os-auto-tabs .os-tab[aria-current="page"] {
-  font-weight: 600;
-  color: var(--ink);
-  border-bottom-color: var(--ink);
-}
-
+/* Tabs: Campaigns · Broadcasts · Tests (os.css .os-tabs; counts muted, not the green badge). */
 .os .os-auto-tab-n {
   font-weight: 400;
   color: var(--ghost);

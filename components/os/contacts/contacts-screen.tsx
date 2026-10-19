@@ -50,11 +50,15 @@ interface Props {
   now: number;
   initialOpen?: OpenPanel | null;
   initialTab?: PanelTab;
+  /** ?setter= deep link. */
+  initialSetter?: string | null;
+  /** ?stage= deep link: the Kanban column to show first. */
+  focusColumn?: string | null;
 }
 
 const CATEGORY_OPTIONS: { value: ContactKind | ""; label: string }[] = [...kindTabs.map((k) => ({ value: k.kind, label: k.label })), { value: "", label: "Everyone" }];
 
-export default function ContactsScreen({ contacts, setters, truncated, initialView, now, initialOpen = null, initialTab = "chat" }: Props) {
+export default function ContactsScreen({ contacts, setters, truncated, initialView, now, initialOpen = null, initialTab = "chat", initialSetter = null, focusColumn = null }: Props) {
   const [, startTransition] = useTransition();
   const [rows, setRows] = useState(contacts);
   const [seen, setSeen] = useState(contacts);
@@ -66,7 +70,7 @@ export default function ContactsScreen({ contacts, setters, truncated, initialVi
   const defaultSetter = setters.find((s) => s.isDefault) ?? setters[0] ?? null;
   const [view, setView] = useState<View>(initialView);
   const [filters, setFilters] = useState<ContactFilters>(emptyFilters);
-  const [setterId, setSetterId] = useState<string>(defaultSetter?.id ?? "");
+  const [setterId, setSetterId] = useState<string>((initialSetter && setters.some((x) => x.id === initialSetter) ? initialSetter : null) ?? defaultSetter?.id ?? "");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [open, setOpen] = useState<OpenPanel | null>(initialOpen);
   const [tab, setTab] = useState<PanelTab>(initialTab);
@@ -322,7 +326,7 @@ export default function ContactsScreen({ contacts, setters, truncated, initialVi
             />
           </div>
         ) : (
-          <ContactsKanban rows={visible} columns={columns} now={now} openId={openId} onOpen={openContact} onMove={(id, col) => moveTo(id, col)} />
+          <ContactsKanban rows={visible} columns={columns} now={now} openId={openId} onOpen={openContact} onMove={(id, col) => moveTo(id, col)} focusKey={focusColumn} />
         )}
       </section>
 

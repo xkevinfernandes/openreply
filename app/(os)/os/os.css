@@ -350,7 +350,6 @@
 /* Segmented control (Review Room .seg): a tinted track, the choice lifts. */
 .os-seg,
 .os-segmented,
-.os-tabs,
 .os-kb-tabs {
   display: inline-flex;
   gap: 2px;
@@ -362,7 +361,6 @@
 
 .os-seg > *,
 .os-segmented button,
-.os-tab,
 .os-kb-tabs a {
   display: inline-flex;
   align-items: center;
@@ -385,13 +383,11 @@
 }
 
 .os-segmented button:hover:not(:disabled),
-.os-tab:hover,
 .os-kb-tabs a:hover {
   color: var(--ink);
 }
 
 .os-segmented button[aria-pressed="true"],
-.os-tab[aria-selected="true"],
 .os-kb-tabs a[aria-current="page"] {
   background: var(--card);
   color: var(--ink);
@@ -1140,6 +1136,7 @@
 
 /* --- UI parts (components/os/ui) ------------------------------------------ */
 
+/* Tabs: underlined text (segmented controls are .os-seg). */
 .os-tabs {
   display: flex;
   gap: 16px;
@@ -1175,7 +1172,8 @@
   color: var(--ink);
 }
 
-.os-tab[aria-selected="true"] {
+.os-tab[aria-selected="true"],
+.os-tab[aria-current="page"] {
   color: var(--ink);
   border-bottom-color: var(--ink);
 }

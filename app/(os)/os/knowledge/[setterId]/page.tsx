@@ -12,7 +12,7 @@ import { listVoiceClips, type VoiceClipView } from "@/lib/os/voice/clips";
 
 export const dynamic = "force-dynamic";
 
-type Search = { f?: string | string[]; s?: string | string[] };
+type Search = { f?: string | string[]; s?: string | string[]; doc?: string | string[] };
 
 export default async function SetterPage({ params, searchParams }: { params: Promise<{ setterId: string }>; searchParams: Promise<Search> }) {
   const [{ setterId }, q] = await Promise.all([params, searchParams]);
@@ -21,7 +21,8 @@ export default async function SetterPage({ params, searchParams }: { params: Pro
   const view = await loadSetterEditor(workspaceId, setterId);
   if (!view) notFound();
 
-  const f = Array.isArray(q.f) ? q.f[0] : q.f;
+  // ?doc= is the ⌘K deep link; ?f= the tree's own.
+  const f = [q.f, q.doc].map((v) => (Array.isArray(v) ? v[0] : v)).find(Boolean);
   const s = Array.isArray(q.s) ? q.s[0] : q.s;
   const sel: TreeSel = isSetupKey(s) ? { setup: s } : { file: isDocKey(f) ? f : "system_prompt" };
   const query = "file" in sel ? `?f=${sel.file}` : `?s=${pageOf(sel.setup)}`;

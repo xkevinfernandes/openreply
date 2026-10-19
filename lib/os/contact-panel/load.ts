@@ -13,10 +13,10 @@ import { defaultSetterId } from "@/lib/os/setter/setters";
 /** How many fields the panel head shows before "Details" takes over. */
 export const KEY_FIELD_LIMIT = 8;
 
-function funnelOf(json: unknown): FunnelStageLike[] {
+export function funnelOf(json: unknown): FunnelStageLike[] {
   return Array.isArray(json)
     ? json
-        .map((s) => s as { key?: unknown; label?: unknown })
+        .filter((s): s is { key?: unknown; label?: unknown } => Boolean(s) && typeof s === "object")
         .filter((s) => typeof s.key === "string" || typeof s.label === "string")
         .map((s) => ({ key: String(s.key ?? s.label), label: String(s.label ?? s.key) }))
     : [];

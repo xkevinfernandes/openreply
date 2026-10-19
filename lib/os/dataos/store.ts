@@ -1,6 +1,6 @@
-// The Data OS connection: OsIntegration(provider "dataos") with the base URL
-// in settings and the token encrypted in credentials. S3's Integrations card
-// reads and writes it through these functions.
+// The one Data OS connection store: OsIntegration(provider "dataos") with the
+// base URL in settings and the token encrypted in credentials. Settings ›
+// Integrations (lib/os/integrations/dataos.ts) and the media worker both use it.
 
 import { prisma } from "@/lib/db/client";
 import { decryptToken, encryptToken } from "@/lib/meta/oauth";
@@ -59,6 +59,19 @@ export async function getDataOsConnection(workspaceId: string): Promise<DataOsCo
     lastError: row?.lastError ?? null,
     mode: connected ? "http" : "none",
   };
+}
+
+/** Write URL + token without a network test. A blank token keeps the old one. */
+export async function writeDataOsConnection(workspaceId: string, input: { baseUrl: string; token?: string | null }): Promise<void> {
+  const existing = await prisma.osIntegration.findUnique({ where: { workspaceId_provider: { workspaceId, provider: DATAOS_PROVIDER } }, select: { credentials: true } });
+  const token = input.token?.trim();
+  const credentials = token ? encryptToken(JSON.stringify({ token })) : (existing?.credentials ?? null);
+  const data = { credentials, settings: { baseUrl: input.baseUrl }, enabled: true, lastError: null };
+  await prisma.osIntegration.upsert({
+    where: { workspaceId_provider: { workspaceId, provider: DATAOS_PROVIDER } },
+    create: { workspaceId, provider: DATAOS_PROVIDER, ...data },
+    update: data,
+  });
 }
 
 /** Save URL + token, test it, record the result. The token is kept when blank. */

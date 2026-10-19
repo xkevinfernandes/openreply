@@ -26,7 +26,7 @@ export const percent = (p: number) => `${Math.round(p * 100)}%`;
  *  the hint. `suggested` null with a confidence = J isn't sure. */
 export function triageCopy(input: {
   flag: boolean;
-  suggested: "SALES" | "PERSONAL" | null;
+  suggested: "SALES" | "PERSONAL" | "PITCHES" | null;
   confidence: number | null;
   reason: string | null;
 }): { label: string; pct: string | null; detail: string | null } {
@@ -36,6 +36,7 @@ export function triageCopy(input: {
     const leans = parsed ? `leans ${parsed.lean}` : null;
     return { label: "J isn't sure", pct: null, detail: [leans && pct ? `${leans} ${pct}` : leans, parsed?.hint].filter(Boolean).join(" · ") || null };
   }
+  if (input.suggested === "PITCHES") return { label: "Looks like a pitch", pct, detail: (input.reason ?? "").replace(/^Pitch · /, "") || null };
   const label = input.flag ? "Move to Sales?" : `Looks like ${input.suggested === "SALES" ? "sales" : "personal"}`;
   return { label, pct, detail: parsed ? parsed.hint : input.reason };
 }

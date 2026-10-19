@@ -13,7 +13,7 @@ import { triageDisabled } from "@/lib/os/setter/triage";
 import { voiceByMessage } from "@/lib/os/voice/store";
 import { appendMockMessage, mockMessages, mockThreads, osMockEnabled } from "@/lib/os/mock";
 import { assertCanSend, recordSend } from "@/lib/os/sending/cap";
-import { mediaForMessages, type MediaView } from "@/lib/os/media";
+import { fillStoryCards, mediaForMessages, type MediaView } from "@/lib/os/media";
 import { parseZernioMessages, splitLinks } from "@/lib/os/messages/parse";
 import type { RichMessage } from "@/lib/os/messages/types";
 import { leadMagnetsByMessage, markSetterMessages, sentBubbleSet, type ThreadExtras } from "@/lib/os/messages/view";
@@ -372,7 +372,9 @@ export async function threadExtras(
 
   const automationIds = [...new Set(messages.map((m) => m.automationId).filter((x): x is string => Boolean(x)))];
   const [media, drafts, resources, automations, setterName] = await Promise.all([
-    mediaForMessages(workspaceId, ids).catch(() => new Map<string, MediaView>()),
+    mediaForMessages(workspaceId, ids)
+      .catch(() => new Map<string, MediaView>())
+      .then((m) => fillStoryCards(workspaceId, messages, m)),
     contactId
       ? prisma.draft.findMany({ where: { workspaceId, contactId, status: "SENT" }, select: { bubbles: true, editedText: true }, orderBy: { createdAt: "desc" }, take: 200 }).catch(() => [])
       : Promise.resolve([]),

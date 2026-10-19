@@ -15,6 +15,7 @@ import {
   type TriageActionResult,
 } from "@/app/(os)/os/inbox/actions";
 import type { ContactKind } from "@/app/generated/prisma/enums";
+import { resortPitchesAction } from "@/lib/os/setter/triage-actions";
 import { TRIAGE_DISABLED_NOTICE, triageCopy } from "@/lib/os/triage-copy";
 
 interface SuggestionProps {
@@ -40,7 +41,7 @@ export function TriageSuggestion({ contactId, kind, suggestedKind, confidence = 
   const flag = kind === "PERSONAL";
   const unsure = !suggestedKind;
   const other: ContactKind = suggestedKind === "SALES" ? "PERSONAL" : "SALES";
-  const copy = triageCopy({ flag, suggested: suggestedKind === "UNSORTED" || suggestedKind === "PITCHES" ? null : suggestedKind, confidence, reason });
+  const copy = triageCopy({ flag, suggested: suggestedKind === "UNSORTED" ? null : suggestedKind, confidence, reason });
 
   function run(act: () => Promise<TriageActionResult | void>) {
     setError(null);
@@ -88,7 +89,7 @@ export function TriageSuggestion({ contactId, kind, suggestedKind, confidence = 
       ) : (
         <div className="os-triage-actions" role="group" aria-label={flag ? "Move to Sales?" : "J's suggestion"}>
           <button type="button" className="os-button primary" disabled={pending} onClick={() => run(() => confirmSuggestion(contactId))}>
-            {flag ? "Move to Sales" : `Confirm ${suggestedKind === "SALES" ? "Sales" : "Personal"}`}
+            {flag ? "Move to Sales" : `Confirm ${suggestedKind === "SALES" ? "Sales" : suggestedKind === "PITCHES" ? "Pitches" : "Personal"}`}
           </button>
           <button
             type="button"
@@ -166,6 +167,43 @@ export function TriageBar({ unsortedCount, suggestedCount, onConfirmAll, disable
       <p className="os-triage-bar-note" aria-live="polite" data-error={message?.error ? "true" : undefined}>
         {message?.text ?? (disabled ? TRIAGE_DISABLED_NOTICE : suggestedCount ? "Check J's guesses, then confirm in one go." : "J reads each thread and guesses sales or personal.")}
       </p>
+    </div>
+  );
+}
+
+/** Pitches tab: re-run the pitch check over Unsorted and Sales (scripts/os-resort-pitches.ts). */
+export function ResortPitches() {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  return (
+    <div className="os-triage-bar" aria-busy={pending}>
+      <div className="os-triage-bar-actions">
+        <button
+          type="button"
+          className="os-button"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              setMessage(null);
+              try {
+                const r = await resortPitchesAction();
+                setMessage(r.error ? { text: r.error, error: true } : r.notice ? { text: r.notice } : null);
+              } catch {
+                setMessage({ text: "Re-sort failed. Try again.", error: true });
+              }
+              router.refresh();
+            })
+          }
+        >
+          {pending ? "Re-sorting…" : "Re-sort pitches"}
+        </button>
+      </div>
+      {message ? (
+        <p className="os-triage-bar-note" aria-live="polite" data-error={message.error ? "true" : undefined}>
+          {message.text}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { loadContactPanel } from "@/lib/os/contact-panel/load";
 import { panelTab } from "@/lib/os/contact-panel/types";
 import { listContacts, type ContactsData } from "@/lib/os/contacts-board";
 
-type PageProps = { searchParams: Promise<{ view?: string; c?: string; tab?: string }> };
+type PageProps = { searchParams: Promise<{ view?: string; c?: string; contact?: string; tab?: string; stage?: string; setter?: string }> };
 
 async function load(workspaceId: string): Promise<{ data: ContactsData; error: string | null; now: number }> {
   try {
@@ -34,7 +34,7 @@ export default async function ContactsPage({ searchParams }: PageProps) {
 
   const params = await searchParams;
   const view = params.view === "table" ? "table" : "kanban";
-  const [{ data, error, now }, open] = await Promise.all([load(workspaceId), openPanel(workspaceId, params.c)]);
+  const [{ data, error, now }, open] = await Promise.all([load(workspaceId), openPanel(workspaceId, params.c ?? params.contact)]);
 
   if (error) return <div className="os-banner">{error}</div>;
   return (
@@ -46,6 +46,8 @@ export default async function ContactsPage({ searchParams }: PageProps) {
       now={now}
       initialOpen={open}
       initialTab={panelTab(params.tab, "chat")}
+      initialSetter={params.setter ?? null}
+      focusColumn={params.stage ?? null}
     />
   );
 }

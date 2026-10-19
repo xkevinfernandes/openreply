@@ -53,3 +53,15 @@ describe("Details tab fields", () => {
     expect(sortActivity([a("b", "2026-10-17T00:00:00Z"), a("c", "2026-10-18T00:00:00Z"), a("a", "2026-10-17T00:00:00Z")]).map((x) => x.id)).toEqual(["c", "a", "b"]);
   });
 });
+
+import { funnelOf } from "../../lib/os/contact-panel/load";
+
+describe("funnelOf", () => {
+  it("skips null and non-object entries", () => {
+    expect(funnelOf([null, 3, "x", { key: "open" }, { label: "Qualify" }])).toEqual([
+      { key: "open", label: "open" },
+      { key: "Qualify", label: "Qualify" },
+    ]);
+    expect(funnelOf(null)).toEqual([]);
+  });
+});

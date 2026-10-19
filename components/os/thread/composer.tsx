@@ -178,12 +178,14 @@ export default function Composer({
     setState((s) => appendLink(s, r.link));
   }
 
-  useOsCommand("approve", () => listen && approve());
-  useOsCommand("hold", () => listen && hold());
-  useOsCommand("regenerate", () => listen && regenerate());
-  useOsCommand("focus-draft", () => listen && focusDraft());
+  // ⌘K sends {contactId}: only the composer for that contact acts on it.
+  const mine = (d: { contactId?: string }) => listen && (!d.contactId || !contactId || d.contactId === contactId);
+  useOsCommand("approve", (d) => mine(d) && approve());
+  useOsCommand("hold", (d) => mine(d) && hold());
+  useOsCommand("regenerate", (d) => mine(d) && regenerate());
+  useOsCommand("focus-draft", (d) => mine(d) && focusDraft());
   useOsCommand("send-resource", (d) => {
-    if (!listen) return;
+    if (!mine(d)) return;
     const r = resources.find((x) => x.id === d.resourceId);
     if (r) addResource(r);
   });
