@@ -224,9 +224,10 @@ async function processMediaEnrichJob(job: Job<MediaEnrichJob>) {
   console.log(`[OS Media] ${job.data.conversationId}: ${r.enriched} enriched${r.skipped ? ` (${r.skipped})` : ""}`);
 }
 
-/** Wave-0 slot: S5 replaces this with lib/os/broadcasts send (through the cap guard). */
+/** One approved broadcast message (lib/os/broadcasts/send.ts: cap, pause and window checks). */
 async function processBroadcastSendJob(job: Job<BroadcastSendJob>) {
-  console.log(`[OS Broadcasts] send ${job.data.messageId} (${job.data.part}): not built yet`);
+  const { sendBroadcastJob } = await import("@/lib/os/broadcasts/send");
+  await sendBroadcastJob(job.data);
 }
 
 /** Pause all (OsWorkspace.pausedAll) stops every draft job. */
@@ -243,7 +244,7 @@ async function holdWhilePaused(job: Job<SetterJob>, token?: string): Promise<nev
   throw new DelayedError();
 }
 
-async function processSetterJob(job: Job<SetterJob>, token?: string) {
+export async function processSetterJob(job: Job<SetterJob>, token?: string) {
   if (job.name === SETTER_TRIAGE_JOB) return processTriageJob(job as Job<SetterTriageJob>, token);
   if (job.name === SETTER_MEDIA_ENRICH_JOB) return processMediaEnrichJob(job as Job<MediaEnrichJob>);
   if (job.name === SETTER_BROADCAST_SEND_JOB) return processBroadcastSendJob(job as Job<BroadcastSendJob>);
