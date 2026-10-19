@@ -1,0 +1,163 @@
+// Workflows (stream C1): a trigger plus a graph of steps, run per person.
+// lib/os/workflows. Our fork only. Workspace, account and contact ids are
+// plain columns (no relations into other files), so no existing model changes.
+
+enum WorkflowRunStatus {
+  /// Executing steps (or about to).
+  ACTIVE
+  /// Waiting on them (a reply, a tap, a field) or on a timer.
+  WAITING
+  /// Kevin took over (he replied by hand): nothing automated until Resume.
+  PAUSED
+  /// Reached an End step (or ran out of steps).
+  COMPLETED
+  /// Left by a Setter exit (booked, quiet, not a fit, stopped) with no next step.
+  EXITED
+  /// They entered another workflow (Go to).
+  REPLACED
+  /// A send kept failing (3 tries).
+  FAILED
+}
+
+model Workflow {
+  id                 String    @id @default(cuid())
+  workspaceId        String
+  /// The IG account it runs on; null = the workspace's account.
+  instagramAccountId String?
+  name               String
+  /// draft | auto: how J's words go out (Kevin's own Message steps always send).
+  mode               String    @default("draft")
+  /// On = new runs can start. Needs a published version.
+  active             Boolean   @default(false)
+  currentVersionId   String?
+  /// What the canvas edits (WorkflowGraph JSON).
+  draftGraph         Json
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  versions WorkflowVersion[]
+  runs     WorkflowRun[]
+
+  @@index([workspaceId])
+}
+
+/// A published graph. Runs keep the version they started on.
+model WorkflowVersion {
+  id          String   @id @default(cuid())
+  workflowId  String
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  number      Int
+  graph       Json
+  /// Lower-cased trigger keywords, for the uniqueness check and matching.
+  keywords    String[]
+  publishedAt DateTime @default(now())
+
+  runs WorkflowRun[]
+
+  @@unique([workflowId, number])
+}
+
+/// One person going through one workflow.
+model WorkflowRun {
+  id                 String            @id @default(cuid())
+  workspaceId        String
+  workflowId         String
+  workflow           Workflow          @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  versionId          String
+  version            WorkflowVersion   @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  instagramAccountId String
+  igUserId           String
+  contactId          String?
+  status             WorkflowRunStatus @default(ACTIVE)
+  currentNodeId      String?
+  /// Next timer (wait, timeout, quiet release, closed window). Null = none.
+  waitUntil          DateTime?
+  /// What the run waits for at currentNodeId: reply | field | delay | setter | gate.
+  waitingFor         String?
+  /// The keyword that started it (lower case), for re-entry and the 24h rate limit.
+  keyword            String?
+  /// {kind, commentId, postId, mid, text}: what started it.
+  trigger            Json              @default("{}")
+  /// Setter step: {held[], released[], asks, lowEffort, nudged, goal, releaseRule, notes[], exits…}.
+  setterState        Json              @default("{}")
+  /// Step state: {askRetried, followChecks, pending[], gate, resent…}.
+  state              Json              @default("{}")
+  /// = "<instagramAccountId>:<igUserId>" while ACTIVE / WAITING / PAUSED,
+  /// else null: one live run per person.
+  liveKey            String?           @unique
+  pausedAt           DateTime?
+  pausedReason       String?
+  /// booked | quiet | not_a_fit | stopped | goal_met | completed | replaced | stopped_by_kevin | off
+  exit               String?
+  failReason         String?
+  /// Failed sends in a row on the current step.
+  attempts           Int               @default(0)
+  startedAt          DateTime          @default(now())
+  endedAt            DateTime?
+  updatedAt          DateTime          @updatedAt
+
+  events WorkflowRunEvent[]
+
+  @@index([workspaceId, status])
+  @@index([workflowId, status])
+  @@index([instagramAccountId, igUserId, keyword, startedAt])
+  @@index([contactId])
+  @@index([status, waitUntil])
+}
+
+/// Per-node enter / leave (stats on the canvas), plus release / reply marks.
+model WorkflowRunEvent {
+  id          String      @id @default(cuid())
+  workspaceId String
+  workflowId  String
+  versionId   String
+  runId       String
+  run         WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  nodeId      String
+  /// enter | leave | replied | released | booked | showed | sent | failed | note
+  kind        String
+  /// The port it left by ("next", "exit:booked", "button:yes"…).
+  port        String?
+  data        Json        @default("{}")
+  at          DateTime    @default(now())
+
+  @@index([workflowId, at])
+  @@index([runId])
+}
+
+/// A Randomizer's branch for one person, kept for good (re-entry included).
+model WorkflowRandomizerAssignment {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  workflowId         String
+  nodeId             String
+  instagramAccountId String
+  igUserId           String
+  branchId           String
+  assignedAt         DateTime @default(now())
+
+  @@unique([workflowId, nodeId, instagramAccountId, igUserId])
+}
+
+/// Inbound events already handled (comment id / message id): duplicate
+/// webhooks do nothing (O7).
+model WorkflowInbound {
+  key         String   @id
+  workspaceId String
+  at          DateTime @default(now())
+
+  @@index([at])
+}
+
+/// What the engine sent, so an outgoing echo from Instagram can be told apart
+/// from Kevin replying in the IG app (that pauses the run).
+model WorkflowOutbound {
+  id          String   @id @default(cuid())
+  workspaceId String
+  igUserId    String
+  /// Normalised text hash.
+  hash        String
+  at          DateTime @default(now())
+
+  @@index([igUserId, at])
+}
