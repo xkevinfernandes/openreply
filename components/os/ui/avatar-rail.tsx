@@ -1,21 +1,7 @@
 import Link from "next/link";
+import { Avatar } from "@/components/os/ui/avatar";
 
-export interface AvatarProps {
-  name: string | null;
-  src?: string | null;
-  size?: 24 | 32 | 40;
-}
-
-/** Profile picture, or the first letter on a tint. */
-export function Avatar({ name, src, size = 32 }: AvatarProps) {
-  const initial = (name ?? "?").replace(/^@/, "").charAt(0).toUpperCase() || "?";
-  return (
-    <span className="os-avatar" data-size={size} aria-hidden="true">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {src ? <img src={src} alt="" referrerPolicy="no-referrer" /> : initial}
-    </span>
-  );
-}
+export { Avatar, type AvatarProps } from "@/components/os/ui/avatar";
 
 export interface RailItem {
   id: string;

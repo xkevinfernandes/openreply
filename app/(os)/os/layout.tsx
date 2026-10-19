@@ -4,11 +4,12 @@ import { redirect } from "next/navigation";
 import OsShell from "@/components/os/os-shell";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
+import { PANEL_WIDTH_COOKIE, parsePanelWidth } from "@/lib/os/contact-panel/width";
 import { followupsDue } from "@/lib/os/followups-data";
 import { osMockEnabled } from "@/lib/os/mock";
 import { parseSidebarCookie, SIDEBAR_COOKIE, type NavItem } from "@/lib/os/nav";
 import { capState } from "@/lib/os/sending/cap";
-import { pendingDrafts } from "@/lib/os/setter/service";
+import { requestPendingDrafts } from "@/lib/os/inbox";
 import { ensureWorkspaceForUser } from "@/lib/workspace";
 import "./os.css";
 import "./inbox.css";
@@ -36,7 +37,7 @@ export const metadata = { title: "DM OS" };
 /** Sidebar counts. Cheap reads only; a failure just hides the number. */
 async function navCounts(workspaceId: string): Promise<Partial<Record<NavItem["key"], number>>> {
   const [drafts, followups] = await Promise.all([
-    pendingDrafts(workspaceId).then((d) => d.length).catch(() => 0),
+    requestPendingDrafts(workspaceId).then((d) => d.length).catch(() => 0),
     followupsDue(workspaceId).catch(() => 0),
   ]);
   return { inbox: drafts, followups };
@@ -68,9 +69,10 @@ export default async function OsLayout({ children }: { children: React.ReactNode
     cookies(),
   ]);
   const sidebar = parseSidebarCookie(cookieStore.get(SIDEBAR_COOKIE)?.value);
+  const panelWidth = parsePanelWidth(cookieStore.get(PANEL_WIDTH_COOKIE)?.value);
 
   return (
-    <div className={`os ${inter.variable}`}>
+    <div className={`os ${inter.variable}`} style={{ "--os-panel-w": `${panelWidth}px` } as React.CSSProperties}>
       <OsShell workspaceName={workspace.name} instagramUsername={account?.username ?? (osMockEnabled() ? "claudepreneur" : null)} counts={counts} sends={sends} sidebar={sidebar}>
         {children}
       </OsShell>

@@ -284,8 +284,8 @@
 /* --- Conversation ------------------------------------------------------------ */
 
 .os-ix-conv {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 1 1 0;
+  min-width: 360px;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -607,17 +607,30 @@ a.os-th-name:hover {
 }
 
 /* Button template */
-.os-th-template {
-  width: 264px;
+/* A message with buttons (IG): the text bubble with the buttons stacked full
+   width inside it. A card (image or subtitle) is the same shape with the
+   image on top. */
+.os-th-buttons {
+  width: 280px;
   max-width: 100%;
   overflow: hidden;
-  border: 1px solid #dbdbdb;
+  display: flex;
+  flex-direction: column;
   border-radius: 18px;
-  background: var(--paper);
+  background: #efefef;
   color: var(--ink);
+  --btn-bg: var(--paper);
+  --btn-bg-hover: rgb(255 255 255 / 0.6);
 }
 
-.os-th-template-img {
+.os-th-buttons[data-mine] {
+  background: var(--ink);
+  color: var(--on-ink);
+  --btn-bg: rgb(255 255 255 / 0.12);
+  --btn-bg-hover: rgb(255 255 255 / 0.2);
+}
+
+.os-th-buttons-img {
   height: 138px;
   display: flex;
   align-items: center;
@@ -626,42 +639,54 @@ a.os-th-name:hover {
   color: var(--ghost);
 }
 
-.os-th-template-img img {
+.os-th-buttons-img img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.os-th-template-body {
+.os-th-buttons-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 10px 12px 12px;
+  padding: 10px 14px 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-.os-th-template-title {
-  font-size: 14px;
+.os-th-buttons[data-card] .os-th-buttons-title {
   font-weight: 600;
 }
 
-.os-th-template-sub {
+.os-th-buttons-sub {
   font-size: var(--fs-xs);
-  color: var(--muted);
+  opacity: 0.7;
 }
 
-.os-th-template-btn {
-  height: 40px;
+.os-th-buttons-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px 10px;
+}
+
+.os-th-buttons-btn {
+  min-height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-top: 1px solid #dbdbdb;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: var(--btn-bg);
+  color: inherit;
   font-weight: 600;
-  color: var(--ink);
+  text-align: center;
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
-a.os-th-template-btn:hover {
-  background: var(--tint);
+a.os-th-buttons-btn:hover {
+  background: var(--btn-bg-hover);
 }
 
 .os-th-opener {
@@ -1271,10 +1296,14 @@ a.os-th-template-btn:hover {
 /* --- Contact panel pane ------------------------------------------------------ */
 
 .os-ix-panel {
-  flex: 0 0 300px;
+  /* Same width as the Contacts panel (--os-panel-w, set by the layout from
+     the os_panel_w cookie; components/os/contact-panel/resizer.tsx). It
+     gives way before the conversation gets too narrow. */
+  position: relative;
+  flex: 0 1 var(--os-panel-w, 380px);
+  width: var(--os-panel-w, 380px);
   /* Long field values must not widen the panel (the thread would shift). */
-  min-width: 0;
-  max-width: 300px;
+  min-width: 280px;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -1305,7 +1334,7 @@ a.os-th-template-btn:hover {
   max-width: 88%;
 }
 
-.os-chat .os-th-template,
+.os-chat .os-th-buttons,
 .os-chat .os-th-link {
   width: 228px;
 }
@@ -1324,6 +1353,12 @@ a.os-th-template-btn:hover {
 @media (max-width: 1180px) {
   .os-ix-panel {
     display: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  .os-ix-conv {
+    min-width: 0;
   }
 }
 

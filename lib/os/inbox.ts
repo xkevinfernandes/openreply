@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { Contact, InstagramAccount } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db/client";
 import {
@@ -18,7 +19,7 @@ import { parseZernioMessages, splitLinks } from "@/lib/os/messages/parse";
 import type { RichMessage } from "@/lib/os/messages/types";
 import { leadMagnetsByMessage, markSetterMessages, sentBubbleSet, type ThreadExtras } from "@/lib/os/messages/view";
 import { MOCK_OPENER_BY_AUTOMATION, markMockHeld, mockLeadMagnets, mockSentDrafts, mockThreadMedia, mockThreadMessages } from "@/lib/os/mock-thread";
-import { discardDraft } from "@/lib/os/setter/service";
+import { discardDraft, pendingDrafts } from "@/lib/os/setter/service";
 import { defaultSetterId } from "@/lib/os/setter/setters";
 import { DEFAULT_SETTINGS, getWorkspaceSettings } from "@/lib/os/workspace-settings";
 
@@ -88,10 +89,39 @@ export async function getInboxAccount(workspaceId: string) {
   });
 }
 
+/** Per-request copies: the Inbox page reads the account and the Zernio
+ *  context for the list and the thread at the same time. */
+const requestAccount = cache((workspaceId: string) => getInboxAccount(workspaceId));
+const requestContext = cache((account: InstagramAccount) => createInstagramContext(account));
+
+/** Pending drafts once per request (the layout's badge and the page both need them). */
+export const requestPendingDrafts = cache((workspaceId: string) => pendingDrafts(workspaceId));
+
+// The Zernio thread list, kept for a few seconds per account. Every thread
+// click re-renders the Inbox page; without this each click re-read the list
+// from Zernio before the conversation could load. A send clears it.
+const LIST_TTL_MS = 10_000;
+const listCache = new Map<string, { at: number; rows: Promise<RawThread[]> }>();
+
+function cachedThreads(account: InstagramAccount, now = Date.now()): Promise<RawThread[]> {
+  const hit = listCache.get(account.id);
+  if (hit && now - hit.at < LIST_TTL_MS) return hit.rows;
+  const rows = readThreads(account);
+  listCache.set(account.id, { at: now, rows });
+  rows.catch(() => listCache.delete(account.id));
+  return rows;
+}
+
+/** Drop the cached list (after a send, so the preview is ours). */
+export function invalidateThreadList(accountId?: string) {
+  if (accountId) listCache.delete(accountId);
+  else listCache.clear();
+}
+
 /** Threads from Zernio (or Meta), newest first. Zernio's list carries the last
  *  message text, which the upstream reader drops, so we read it directly. */
 async function readThreads(account: InstagramAccount): Promise<RawThread[]> {
-  const context = await createInstagramContext(account);
+  const context = await requestContext(account);
   if (context.provider === "ZERNIO") {
     const result = await zernioRequest<{
       data: {
@@ -159,35 +189,11 @@ async function readThreads(account: InstagramAccount): Promise<RawThread[]> {
 export async function listThreads(workspaceId: string): Promise<{ account: InstagramAccount | null; threads: InboxThread[] }> {
   if (osMockEnabled()) return { account: null, threads: mockThreads() };
 
-  const account = await getInboxAccount(workspaceId);
+  const account = await requestAccount(workspaceId);
   if (!account) return { account: null, threads: [] };
 
-  const raw = await readThreads(account);
-  const commenters = new Set(
-    (
-      await prisma.dmLog.findMany({
-        where: { instagramAccountId: account.id, commenterId: { in: raw.map((t) => t.igUserId) } },
-        select: { commenterId: true },
-        distinct: ["commenterId"],
-      })
-    ).map((l) => l.commenterId)
-  );
-
-  const contacts = await Promise.all(
-    raw.map((t) =>
-      upsertContact({
-        workspaceId,
-        instagramAccountId: account.id,
-        igUserId: t.igUserId,
-        username: t.username,
-        fullName: t.fullName,
-        avatarUrl: t.avatarUrl,
-        zernioConversationId: t.conversationId,
-        entryPath: commenters.has(t.igUserId) ? "comment" : null,
-        at: t.updatedTime ? new Date(t.updatedTime) : undefined,
-      })
-    )
-  );
+  const raw = await cachedThreads(account);
+  const contacts = await syncThreadContacts(workspaceId, account.id, raw);
 
   // New Unsorted contacts get J's sales/personal guess in the background.
   const untriaged = contacts.filter((c) => c.kind === "UNSORTED" && !c.triagedAt && c.zernioConversationId).map((c) => c.id);
@@ -200,6 +206,88 @@ export async function listThreads(workspaceId: string): Promise<{ account: Insta
   return {
     account,
     threads: raw.map((t, i) => ({ ...t, contact: contacts[i] })),
+  };
+}
+
+/** Pure: does the stored contact already say what this list row says? */
+export function contactUpToDate(
+  c: Pick<Contact, "username" | "fullName" | "avatarUrl" | "zernioConversationId" | "lastMessageAt">,
+  t: Pick<RawThread, "username" | "fullName" | "avatarUrl" | "conversationId" | "updatedTime">
+): boolean {
+  return (
+    (!t.username || c.username === t.username) &&
+    (!t.fullName || c.fullName === t.fullName) &&
+    (!t.avatarUrl || c.avatarUrl === t.avatarUrl) &&
+    c.zernioConversationId === t.conversationId &&
+    Boolean(t.updatedTime) &&
+    c.lastMessageAt?.getTime() === new Date(t.updatedTime!).getTime()
+  );
+}
+
+/**
+ * Every thread we read is recorded as a Contact, so contacts fill up from the
+ * inbox even before the webhook writes them. One read for all of them; only
+ * new or changed rows are written (this used to be 50 upserts per load).
+ * Someone who commented on one of our campaigns comes in as sales.
+ */
+async function syncThreadContacts(workspaceId: string, instagramAccountId: string, raw: RawThread[]): Promise<Contact[]> {
+  const ids = raw.map((t) => t.igUserId);
+  const existing = await prisma.contact.findMany({ where: { workspaceId, instagramAccountId, igUserId: { in: ids } } });
+  const byUser = new Map(existing.map((c) => [c.igUserId, c]));
+  const stale = raw.filter((t) => {
+    const c = byUser.get(t.igUserId);
+    return !c || !contactUpToDate(c, t);
+  });
+  if (!stale.length) return raw.map((t) => byUser.get(t.igUserId)!);
+
+  // Only first sight needs the entry path.
+  const fresh = stale.filter((t) => !byUser.has(t.igUserId)).map((t) => t.igUserId);
+  const commenters = new Set(
+    fresh.length
+      ? (
+          await prisma.dmLog.findMany({
+            where: { instagramAccountId, commenterId: { in: fresh } },
+            select: { commenterId: true },
+            distinct: ["commenterId"],
+          })
+        ).map((l) => l.commenterId)
+      : []
+  );
+  const written = await Promise.all(
+    stale.map((t) =>
+      upsertContact({
+        workspaceId,
+        instagramAccountId,
+        igUserId: t.igUserId,
+        username: t.username,
+        fullName: t.fullName,
+        avatarUrl: t.avatarUrl,
+        zernioConversationId: t.conversationId,
+        entryPath: commenters.has(t.igUserId) ? "comment" : null,
+        at: t.updatedTime ? new Date(t.updatedTime) : undefined,
+      })
+    )
+  );
+  for (const c of written) byUser.set(c.igUserId, c);
+  return raw.map((t) => byUser.get(t.igUserId)!);
+}
+
+/** The open thread straight from the database, so the conversation can load
+ *  next to the list instead of after it. Null for a thread we haven't
+ *  recorded yet (the caller then waits for the list). */
+export async function threadFromContact(workspaceId: string, conversationId: string): Promise<InboxThread | null> {
+  if (osMockEnabled()) return mockThreads().find((t) => t.conversationId === conversationId) ?? null;
+  const c = await prisma.contact.findFirst({ where: { workspaceId, zernioConversationId: conversationId }, orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } } });
+  if (!c) return null;
+  return {
+    conversationId,
+    igUserId: c.igUserId,
+    username: c.username,
+    fullName: c.fullName,
+    avatarUrl: c.avatarUrl,
+    updatedTime: c.lastMessageAt?.toISOString() ?? null,
+    preview: null,
+    contact: c,
   };
 }
 
@@ -229,6 +317,7 @@ async function sendReplyUnguarded(workspaceId: string, igUserId: string, text: s
 
   const account = await getInboxAccount(workspaceId);
   if (!account) throw new Error("Instagram account not connected.");
+  invalidateThreadList(account.id);
   const context = await createInstagramContext(account);
   if (options.humanAgent) {
     if (context.provider !== "ZERNIO" || !options.conversationId) {
@@ -277,10 +366,12 @@ export interface ThreadData extends ThreadPage {
 export async function readThreadPage(workspaceId: string, conversationId: string, cursor: string | null = null): Promise<ThreadPage> {
   if (osMockEnabled()) return { messages: mockThreadMessages(conversationId), cursor: null };
 
-  const account = await getInboxAccount(workspaceId);
+  const account = await requestAccount(workspaceId);
   if (!account) return { messages: [], cursor: null };
-  const context = await createInstagramContext(account);
-  const voice = await voiceByMessage(workspaceId, conversationId).catch(() => new Map<string, InboxVoice>());
+  const [context, voice] = await Promise.all([
+    requestContext(account),
+    voiceByMessage(workspaceId, conversationId).catch(() => new Map<string, InboxVoice>()),
+  ]);
 
   let messages: RichMessage[];
   let next: string | null = null;

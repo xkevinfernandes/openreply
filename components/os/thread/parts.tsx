@@ -63,28 +63,41 @@ function StoryReply({ part, media }: { part: Extract<MessagePart, { type: "story
   );
 }
 
+/** A message with buttons, as Instagram draws it: the text in a bubble with
+ *  the buttons stacked full width inside it. A generic card adds its image
+ *  (only when it has one) and its subtitle. */
 function Template({ part, mine }: { part: Extract<MessagePart, { type: "template" }>; mine: boolean }) {
-  const hasCard = part.image || part.title;
+  const card = Boolean(part.image || part.subtitle);
   return (
-    <div className="os-th-template" data-mine={mine || undefined} aria-label={`Button template${part.title ? `: ${part.title}` : ""}`}>
-      {hasCard ? <Cover src={part.image} label="Card image" className="os-th-template-img" /> : null}
+    <div
+      className="os-th-buttons"
+      data-mine={mine || undefined}
+      data-card={card || undefined}
+      role="group"
+      aria-label={`Message with buttons${part.title ? `: ${part.title}` : ""}`}
+    >
+      {part.image ? <Cover src={part.image} label="Card image" className="os-th-buttons-img" /> : null}
       {part.title || part.subtitle ? (
-        <div className="os-th-template-body">
-          {part.title ? <span className="os-th-template-title">{part.title}</span> : null}
-          {part.subtitle ? <span className="os-th-template-sub">{part.subtitle}</span> : null}
+        <div className="os-th-buttons-text">
+          {part.title ? <span className="os-th-buttons-title">{part.title}</span> : null}
+          {part.subtitle ? <span className="os-th-buttons-sub">{part.subtitle}</span> : null}
         </div>
       ) : null}
-      {part.buttons.map((b, i) =>
-        b.url ? (
-          <a key={i} className="os-th-template-btn" href={b.url} target="_blank" rel="noreferrer">
-            {b.title}
-          </a>
-        ) : (
-          <span key={i} className="os-th-template-btn">
-            {b.title}
-          </span>
-        )
-      )}
+      {part.buttons.length ? (
+        <div className="os-th-buttons-list">
+          {part.buttons.map((b, i) =>
+            b.url ? (
+              <a key={i} className="os-th-buttons-btn" href={b.url} target="_blank" rel="noreferrer">
+                {b.title}
+              </a>
+            ) : (
+              <span key={i} className="os-th-buttons-btn">
+                {b.title}
+              </span>
+            )
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

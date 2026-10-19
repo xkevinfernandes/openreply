@@ -12,6 +12,7 @@ import type { ContactKind } from "@/app/generated/prisma/enums";
 import ActivityTab from "@/components/os/contact-panel/activity-tab";
 import DetailsTab from "@/components/os/contact-panel/details-tab";
 import ContactPanel from "@/components/os/contact-panel/panel";
+import PanelResizer from "@/components/os/contact-panel/resizer";
 import BulkBar from "@/components/os/contacts/bulk-bar";
 import ContactsKanban from "@/components/os/contacts/contacts-kanban";
 import ContactsTable from "@/components/os/contacts/contacts-table";
@@ -345,6 +346,7 @@ export default function ContactsScreen({ contacts, setters, truncated, initialVi
             }
           }}
         >
+          <PanelResizer />
           <button type="button" className="os-cx-close" aria-label="Close panel" title="Close panel" onClick={closePanel}>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="m4 4 8 8M12 4l-8 8" />

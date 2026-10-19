@@ -10,7 +10,7 @@ import { MOCK_CARD_NOTES, MOCK_FOLLOWUPS, MOCK_SOURCES } from "@/lib/os/mock-con
 import type { BookedCall } from "@/components/os/inbox/booked-call";
 import { activeCalendar } from "@/lib/os/integrations/calendar/store";
 import { latestBookings } from "@/lib/os/setter/booking-store";
-import { pendingDrafts } from "@/lib/os/setter/service";
+import { requestPendingDrafts } from "@/lib/os/inbox";
 
 export interface ContactRow {
   id: string;
@@ -65,7 +65,7 @@ export const CONTACTS_CAP = 2000;
 
 async function draftContactIds(workspaceId: string): Promise<Set<string>> {
   try {
-    return new Set((await pendingDrafts(workspaceId)).map((d) => d.contactId));
+    return new Set((await requestPendingDrafts(workspaceId)).map((d) => d.contactId));
   } catch (err) {
     console.error("[OS Contacts] drafts failed:", err instanceof Error ? err.message : err);
     return new Set();
@@ -159,26 +159,37 @@ async function cardExtras(workspaceId: string, rows: { id: string; igUserId: str
 }
 
 /** Each contact's booked call, in Kevin's time. A failure leaves them off. */
-async function withBookings(workspaceId: string, rows: ContactRow[]): Promise<ContactRow[]> {
+async function bookingsFor(workspaceId: string, ids: string[]): Promise<(id: string) => BookedCall | null> {
   try {
-    const map = await latestBookings(workspaceId, rows.map((r) => r.id));
-    if (!map.size) return rows;
-    const host = (await activeCalendar(workspaceId, null).catch(() => null))?.settings.hostTimezone;
-    return rows.map((r) => {
-      const b = map.get(r.id);
-      return b ? { ...r, booking: { start: b.start, timezone: b.timezone, hostTimezone: host ?? b.timezone, status: b.status, email: b.email } } : r;
-    });
+    const [map, calendar] = await Promise.all([latestBookings(workspaceId, ids), activeCalendar(workspaceId, null).catch(() => null)]);
+    const host = calendar?.settings.hostTimezone;
+    return (id) => {
+      const b = map.get(id);
+      return b ? { start: b.start, timezone: b.timezone, hostTimezone: host ?? b.timezone, status: b.status, email: b.email } : null;
+    };
   } catch (err) {
     console.error("[OS Contacts] bookings failed:", err instanceof Error ? err.message : err);
-    return rows;
+    return () => null;
   }
 }
 
-export async function listContacts(workspaceId: string): Promise<ContactsData> {
-  const drafts = await draftContactIds(workspaceId);
-  if (osMockEnabled()) return { contacts: await withBookings(workspaceId, mockContacts(drafts)), setters: await setterOptions(workspaceId).catch(() => []), truncated: false };
+async function withBookings(workspaceId: string, rows: ContactRow[]): Promise<ContactRow[]> {
+  const of = await bookingsFor(workspaceId, rows.map((r) => r.id));
+  return rows.map((r) => {
+    const booking = of(r.id);
+    return booking ? { ...r, booking } : r;
+  });
+}
 
-  const [rows, setters] = await Promise.all([
+export async function listContacts(workspaceId: string): Promise<ContactsData> {
+  if (osMockEnabled()) {
+    const [drafts, setters] = await Promise.all([draftContactIds(workspaceId), setterOptions(workspaceId).catch(() => [])]);
+    return { contacts: await withBookings(workspaceId, mockContacts(drafts)), setters, truncated: false };
+  }
+
+  // Drafts, contacts and setters at once; then the card extras and bookings at once.
+  const [drafts, rows, setters] = await Promise.all([
+    draftContactIds(workspaceId),
     prisma.contact.findMany({
       where: { workspaceId },
       orderBy: [{ lastMessageAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
@@ -207,27 +218,29 @@ export async function listContacts(workspaceId: string): Promise<ContactsData> {
     setterOptions(workspaceId),
   ]);
   const kept = rows.slice(0, CONTACTS_CAP);
-  const extra = await cardExtras(workspaceId, kept).catch((err) => {
-    console.error("[OS Contacts] card extras failed:", err instanceof Error ? err.message : err);
-    return null;
-  });
+  const [extra, bookings] = await Promise.all([
+    cardExtras(workspaceId, kept).catch((err) => {
+      console.error("[OS Contacts] card extras failed:", err instanceof Error ? err.message : err);
+      return null;
+    }),
+    bookingsFor(workspaceId, kept.map((r) => r.id)),
+  ]);
 
   return {
-    contacts: await withBookings(
-      workspaceId,
-      kept.map(({ igUserId, instagramAccountId, ...c }) => {
-        const x = extra?.({ id: c.id, igUserId, instagramAccountId });
-        return {
-          ...c,
-          lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
-          draftWaiting: drafts.has(c.id),
-          note: c.notes?.split("\n")[0]?.slice(0, 120) || x?.fieldNote || null,
-          source: x?.source ?? null,
-          followup: x?.followup ?? false,
-          attendance: x?.attendance ?? null,
-        };
-      })
-    ),
+    contacts: kept.map(({ igUserId, instagramAccountId, ...c }) => {
+      const x = extra?.({ id: c.id, igUserId, instagramAccountId });
+      const booking = bookings(c.id);
+      return {
+        ...c,
+        lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
+        draftWaiting: drafts.has(c.id),
+        note: c.notes?.split("\n")[0]?.slice(0, 120) || x?.fieldNote || null,
+        source: x?.source ?? null,
+        followup: x?.followup ?? false,
+        attendance: x?.attendance ?? null,
+        ...(booking ? { booking } : {}),
+      };
+    }),
     setters,
     truncated: rows.length > CONTACTS_CAP,
   };

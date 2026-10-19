@@ -891,6 +891,9 @@
 
 .os-main {
   min-width: 0;
+  /* No page scrolls sideways: anything wider scrolls inside its own box
+     (board, tables). clip, not hidden, so sticky headers keep working. */
+  overflow-x: clip;
   padding: var(--sp-8) var(--sp-10) 72px;
 }
 
@@ -1152,13 +1155,16 @@
   color: var(--ink);
 }
 
+/* Hidden tips are display:none: a hidden but laid-out 260px tip near the
+   right edge used to widen the page (the Knowledge bases sideways scroll). */
 .os-infotip-body {
   position: absolute;
   z-index: 60;
   bottom: calc(100% + 6px);
   left: 50%;
+  display: none;
   width: max-content;
-  max-width: 260px;
+  max-width: min(260px, calc(100vw - 32px));
   padding: 8px 10px;
   border-radius: var(--radius);
   background: var(--ink);
@@ -1168,19 +1174,40 @@
   line-height: 1.4;
   white-space: normal;
   box-shadow: var(--shadow);
-  opacity: 0;
-  visibility: hidden;
-  transform: translate(-50%, 2px);
-  transition: opacity 120ms ease, transform 120ms var(--ease), visibility 0s linear 120ms;
+  transform: translate(-50%, 0);
   pointer-events: none;
 }
 
 .os-infotip:hover .os-infotip-body,
 .os-infotip:focus-within .os-infotip-body {
-  opacity: 1;
-  visibility: visible;
-  transform: translate(-50%, 0);
-  transition: opacity 120ms ease, transform 120ms var(--ease), visibility 0s;
+  display: block;
+  animation: os-infotip-in 120ms var(--ease);
+}
+
+/* Near an edge (set on show by InfoTip): hang the tip inward. */
+.os-infotip[data-align="end"] .os-infotip-body {
+  left: auto;
+  right: -4px;
+  transform: none;
+}
+
+.os-infotip[data-align="start"] .os-infotip-body {
+  left: -4px;
+  transform: none;
+}
+
+@keyframes os-infotip-in {
+  from {
+    opacity: 0;
+    translate: 0 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-infotip:hover .os-infotip-body,
+  .os-infotip:focus-within .os-infotip-body {
+    animation: none;
+  }
 }
 
 .os-setter-mark {
@@ -1611,5 +1638,109 @@
     --line-strong: rgb(17 17 17 / 0.4);
     --muted: rgb(17 17 17 / 0.8);
     --faint: rgb(17 17 17 / 0.75);
+  }
+}
+
+/* --- Loading skeletons (components/os/ui/skeleton.tsx) ---------------------- */
+
+.os-skel {
+  display: block;
+  flex: none;
+  border-radius: 6px;
+  background: var(--tint-2);
+  animation: os-skel-pulse 1.4s ease-in-out infinite;
+}
+
+.os-skel-round {
+  border-radius: 50%;
+}
+
+.os-skel-lines {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.os-skel-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  margin: 0;
+  list-style: none;
+}
+
+.os-skel-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
+}
+
+.os-skel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+}
+
+.os-skel-thread {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 20px;
+}
+
+.os-skel-bubble {
+  height: 34px;
+  max-width: 420px;
+  border-radius: 18px;
+}
+
+.os-skel-bubble[data-mine] {
+  align-self: flex-end;
+}
+
+.os-skel-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+
+.os-skel-panel .os-skel-head {
+  padding: 0;
+}
+
+.os-skel-board {
+  display: flex;
+  gap: 12px;
+  overflow: hidden;
+  padding-right: 24px;
+}
+
+.os-skel-col {
+  flex: 0 0 224px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius);
+  background: var(--paper-2);
+}
+
+@keyframes os-skel-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-skel {
+    animation: none;
   }
 }

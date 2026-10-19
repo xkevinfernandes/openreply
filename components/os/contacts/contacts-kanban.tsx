@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { threadName } from "@/components/os/inbox/names";
+import { Avatar } from "@/components/os/ui/avatar";
 import type { ContactRow } from "@/lib/os/contacts-board";
 import { boardColumns, groupByColumn, sourceOf, type BoardColumn } from "@/lib/os/contacts-filter";
 import type { FunnelColumn } from "@/lib/os/funnel";
@@ -142,7 +143,6 @@ interface CardProps {
 
 function Card({ c, now, open, noShow, onOpen, onKeyDown, onDragStart, onDragEnd }: CardProps) {
   const name = c.username ?? threadName(c.username, c.fullName);
-  const initial = (c.username ?? c.fullName ?? "?").replace(/^@/, "").charAt(0).toUpperCase();
   const when = shortAgo(c.lastMessageAt, now);
   const note = c.note ?? (noShow ? "no-show" : null);
   return (
@@ -159,9 +159,7 @@ function Card({ c, now, open, noShow, onOpen, onKeyDown, onDragStart, onDragEnd 
       onDragEnd={onDragEnd}
     >
       <span className="os-cx-card-top">
-        <span className="os-cx-av" aria-hidden="true">
-          {initial}
-        </span>
+        <Avatar name={c.username ?? c.fullName} src={c.avatarUrl} size={22} className="os-cx-av" />
         <span className="os-cx-user">{name}</span>
         {c.draftWaiting ? <span className="os-cx-draft" title="Draft waiting" aria-label="Draft waiting" role="img" /> : null}
         {c.followup ? (
