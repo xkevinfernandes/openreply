@@ -69,7 +69,7 @@ export const PALETTE_SCREENS: PaletteScreen[] = [
   { key: "inbox", label: "Inbox", href: "/os/inbox", chord: "I", words: ["drafts", "threads", "dms"] },
   { key: "contacts", label: "Contacts", href: "/os/contacts", chord: "C", words: ["kanban", "pipeline", "leads"] },
   { key: "followups", label: "Follow-ups", href: "/os/follow-ups", chord: "F", words: ["followups", "scheduled", "nudges"] },
-  { key: "automations", label: "Automations", href: "/os/automations", chord: "A", words: ["campaigns", "keywords"] },
+  { key: "automations", label: "Automations", href: "/os/automations/workflows", chord: "A", words: ["workflows", "campaigns", "keywords"] },
   { key: "broadcasts", label: "Broadcasts", href: "/os/automations/broadcasts", trail: "Automations › ", words: ["follow-up friday", "friday"] },
   { key: "tests", label: "Tests", href: "/os/knowledge?s=tests", trail: "Knowledge bases › ", words: ["experiments", "a/b", "ab"] },
   { key: "knowledge", label: "Knowledge bases", href: "/os/knowledge", chord: "K", words: ["setters", "kb", "docs"] },

@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
-import { loadContactRun, resumeContactRun } from "@/app/(os)/os/automations/workflows/actions";
+import { loadContactRun, loadFailedRuns, resumeContactRun } from "@/app/(os)/os/automations/workflows/actions";
 import { WfIcon } from "@/components/os/workflows/icons";
 import type { ContactRun } from "@/components/os/workflows/types";
 import "@/components/os/workflows/workflows.css";
@@ -92,4 +92,25 @@ export function PausedNotice({ contactId }: { contactId: string | null }) {
       </button>
     </div>
   );
+}
+
+/** Inbox list: contactId → failReason for the threads on screen. */
+export function useFailedRuns(contactIds: string[]): Record<string, string> {
+  const key = [...contactIds].sort().join(",");
+  const [failed, setFailed] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!key) return;
+    let live = true;
+    void loadFailedRuns(key.split(",")).then((r) => live && setFailed(r));
+    return () => {
+      live = false;
+    };
+  }, [key]);
+  return failed;
+}
+
+/** The red dot on a thread row; the reason on hover. */
+export function FailDot({ reason }: { reason: string | undefined }) {
+  if (!reason) return null;
+  return <span className="os-dot wf-faildot" data-tone="bad" role="img" aria-label={`Workflow failed: ${reason}`} title={`Workflow failed: ${reason}`} />;
 }

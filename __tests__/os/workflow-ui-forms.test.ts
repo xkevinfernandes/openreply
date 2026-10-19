@@ -268,6 +268,7 @@ describe("mock adapter (OS_MOCK=1)", () => {
       expect((await data.contactRun("w", "c1"))?.status).toBe("active");
       expect(await data.contactRun("w", "nobody")).toBeNull();
 
+      expect(await data.failedRuns("w", ["c8", "c1"])).toEqual({ c8: "Instagram rate limit: 3 tries failed" });
       const stats = await data.workflowStats("w", "wf1");
       expect(stats?.strip.triggered).toBe(64);
       expect(stats?.nodes.trigger.reached).toBe(64);
@@ -287,7 +288,7 @@ describe("mock adapter (OS_MOCK=1)", () => {
     vi.doMock("@/lib/os/workflows/api", () => ({
       listWorkflows: async () => [summary],
       getWorkflow: async () => ({ ...summary, draft, published: draft, versions: [{ id: "v2", number: 2, publishedAt: "2026-10-12T09:00:00Z", activeRuns: 1 }], problems: [], warnings: [] }),
-      workflowStats: async () => ({ period: "all", versionId: "v2", header: { triggered: 10, replied: 6, leadMagnet: 3, booked: 1, showed: 1 }, nodes: { opener: { nodeId: "opener", type: "message", reached: 6, pctOfPrev: 60 } }, ports: { "setter:exit:quiet": 2 } }),
+      workflowStats: async () => ({ period: "all", versionId: "v2", header: { triggered: 10, replied: 6, leadMagnet: 3, booked: 1, showed: 1 }, nodes: { opener: { nodeId: "opener", type: "message", reached: 6, pctOfPrev: 0.6 }, setter: { nodeId: "setter", type: "setter", reached: 6, pctOfPrev: 1, setter: { reached: 6, replied: 4, released: 3, releasedBy: { booked: 1, quiet: 2, notReady: 0, askedTwice: 0, notFit: 0 }, booked: 1, showed: 1 } }, rnd: { nodeId: "rnd", type: "randomizer", reached: 6, pctOfPrev: 1, branches: { a: { reached: 3, replied: 2, leadMagnet: 1, booked: 1, showed: 0 } } } }, ports: { "setter:exit:quiet": 2 } }),
       createWorkflow: async () => ({ ok: true, id: "w9" }),
       saveDraft: async (_w: string, _id: string, g: unknown) => {
         saved.push(g);
@@ -307,6 +308,8 @@ describe("mock adapter (OS_MOCK=1)", () => {
       const stats = (await data.workflowStats("w", "w9"))!;
       expect(stats.nodes.opener).toEqual({ reached: 6, share: 0.6 });
       expect(stats.ports.setter).toEqual({ "exit:quiet": 2 });
+      expect(stats.releases.setter).toEqual({ booked: 1, quiet: 2, notReady: 0, askedTwice: 0, notFit: 0 });
+      expect(stats.branches.rnd.a.replied).toBe(2);
       expect(stats.since).toBe("2026-10-12T09:00:00Z");
       expect((await data.getWorkflow("w", "w9"))?.graph).toEqual(draft);
       await data.createWorkflow("w", "hold_lead_magnet", "setter-starter");

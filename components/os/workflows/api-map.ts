@@ -25,19 +25,14 @@ export function detailFromApi(d: Api.WorkflowDetail): WorkflowDetail {
   return { id: d.id, name: d.name, mode: d.mode, on: d.active, graph: d.draft, version: d.version, unpublished: d.unpublished, updatedAt: d.updatedAt };
 }
 
-/** pctOfPrev may come as 0..100 or 0..1; the canvas wants a 0..1 share. */
-function share(p: number | null): number | null {
-  if (p === null || p === undefined || !Number.isFinite(p)) return null;
-  return p > 1 ? p / 100 : p;
-}
-
 export function statsFromApi(s: Api.WorkflowStats, since: string | null = null): WorkflowStats {
   const nodes: WorkflowStats["nodes"] = {};
   const releases: WorkflowStats["releases"] = {};
+  const branches: WorkflowStats["branches"] = {};
   for (const [id, n] of Object.entries(s.nodes)) {
-    nodes[id] = { reached: n.reached, share: share(n.pctOfPrev) };
-    // TODO(wfengine): releases per rule; only the total comes back today.
-    if (n.setter) releases[id] = {};
+    nodes[id] = { reached: n.reached, share: n.pctOfPrev };
+    if (n.setter) releases[id] = { ...n.setter.releasedBy };
+    if (n.branches) branches[id] = { ...n.branches };
   }
   // "<nodeId>:<port>" → {nodeId: {port: n}}. Node ids never contain ":".
   const ports: WorkflowStats["ports"] = {};
@@ -45,15 +40,6 @@ export function statsFromApi(s: Api.WorkflowStats, since: string | null = null):
     const i = key.indexOf(":");
     if (i < 0) continue;
     (ports[key.slice(0, i)] ??= {})[key.slice(i + 1)] = n;
-  }
-  // TODO(wfengine): the full funnel per randomizer branch. Until then only
-  // Reached is known (people who left by the branch arrow).
-  const branches: WorkflowStats["branches"] = {};
-  for (const [nodeId, byPort] of Object.entries(ports)) {
-    for (const [port, n] of Object.entries(byPort)) {
-      if (!port.startsWith("branch:")) continue;
-      (branches[nodeId] ??= {})[port.slice(7)] = { reached: n, replied: 0, leadMagnet: 0, booked: 0, showed: 0 };
-    }
   }
   return { strip: s.header, since, nodes, ports, releases, branches };
 }

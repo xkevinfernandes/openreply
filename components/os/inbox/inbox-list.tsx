@@ -13,6 +13,7 @@ import { INBOX_LIST_COOKIE, inboxListView, neighbourHref } from "@/components/os
 import { ResortPitches, TriageBar, TriageSuggestion } from "@/components/os/inbox/triage";
 import { useOsCommand } from "@/components/os/keys";
 import { Avatar, AvatarRail } from "@/components/os/ui";
+import { FailDot, useFailedRuns } from "@/components/os/workflows/run-line";
 import type { InboxThread } from "@/lib/os/inbox";
 import { isUnsure } from "@/lib/os/triage-copy";
 
@@ -42,6 +43,7 @@ export default function InboxList({ threads, tab, selected, now, draftContactIds
   );
   const unsorted = threads.filter((t) => t.contact?.kind === "UNSORTED");
   const byId = useMemo(() => new Map(threads.map((t) => [t.conversationId, t])), [threads]);
+  const failed = useFailedRuns(threads.flatMap((t) => (t.contact?.id ? [t.contact.id] : [])));
 
   useOsCommand("next", () => {
     const href = neighbourHref(view.rows, 1);
@@ -129,6 +131,7 @@ export default function InboxList({ threads, tab, selected, now, draftContactIds
                 <span className="os-ix-row-body">
                   <span className="os-ix-row-top">
                     <span className="os-ix-row-name">{r.name}</span>
+                    <FailDot reason={c ? failed[c.id] : undefined} />
                     <span className="os-ix-row-time">{r.time}</span>
                   </span>
                   <span className="os-ix-row-preview">{r.preview}</span>

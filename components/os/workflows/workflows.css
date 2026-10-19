@@ -1802,3 +1802,9 @@
 .wf-paused-btn:hover:not(:disabled) {
   border-color: var(--ink);
 }
+
+.wf-faildot {
+  flex: 0 0 auto;
+  align-self: center;
+  margin-left: 4px;
+}

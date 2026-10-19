@@ -89,3 +89,12 @@ export async function resumeContactRun(contactId: string) {
   revalidatePath("/os/inbox");
   return r;
 }
+
+/** Inbox list: red dots for threads whose workflow run failed. */
+export async function loadFailedRuns(contactIds: string[]): Promise<Record<string, string>> {
+  try {
+    return await data.failedRuns(await ws(), contactIds);
+  } catch {
+    return {};
+  }
+}

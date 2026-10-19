@@ -41,6 +41,8 @@ interface StoredWorkflow {
 interface Store {
   workflows: Map<string, StoredWorkflow>;
   runs: Map<string, { workflowId: string; stepId: string; status: "active" | "paused" }>;
+  /** contactId → failReason (O6: send failed after retries). */
+  failed: Map<string, string>;
   seq: number;
 }
 
@@ -153,6 +155,16 @@ export async function pauseRun(workspaceId: string, contactId: string): Promise<
 export async function resumeRun(workspaceId: string, contactId: string): Promise<void> {
   if (osMockEnabled()) return mockResumeRun(workspaceId, contactId);
   ok(await (await api()).resumeContact(workspaceId, contactId));
+}
+
+/** Inbox red dot: contactId → why their workflow run failed. */
+export async function failedRuns(workspaceId: string, contactIds: string[]): Promise<Record<string, string>> {
+  if (osMockEnabled()) {
+    const f = store().failed;
+    return Object.fromEntries(contactIds.filter((c) => f.has(c)).map((c) => [c, f.get(c)!]));
+  }
+  const { failedRuns: read } = await import("@/lib/os/workflows/failed");
+  return read(workspaceId, contactIds);
 }
 
 // ---------------------------------------------------------------- mock store
@@ -424,6 +436,7 @@ function seed(): Store {
       ["c2", { workflowId: "wf1", stepId: "s1", status: "active" as const }],
       ["c3", { workflowId: "wf1", stepId: "s5", status: "active" as const }],
     ]),
+    failed: new Map([["c8", "Instagram rate limit: 3 tries failed"]]),
     seq: rows.length,
   };
 }
