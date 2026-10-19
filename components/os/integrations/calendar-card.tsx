@@ -9,6 +9,7 @@ import {
   previewTimes,
   saveCalendarSettings,
   setCalendarEnabled,
+  setupCalendarWebhooks,
   testCalendar,
   type CalendarActionResult,
 } from "@/app/(os)/os/integrations/calendar-actions";
@@ -169,6 +170,7 @@ export default function CalendarCard({
                 )}
               </section>
               <SettingsEditor key={JSON.stringify(view.settings)} view={view} setters={setters} pending={pending} onAct={act} />
+              <Webhooks view={view} />
             </>
           )}
         </div>
@@ -470,5 +472,57 @@ function SettingsEditor({
         )}
       </section>
     </>
+  );
+}
+
+// ---------------------------------------------------------------- webhooks
+/** Cancels, reschedules and no-shows reach J's follow-ups through these. */
+function Webhooks({ view }: { view: CalendarView }) {
+  const info = CALENDAR_INFO[view.provider];
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [result, setResult] = useState<{ ok: boolean; text: string; url?: string; secret?: string } | null>(null);
+  function setup() {
+    setResult(null);
+    start(async () => {
+      const r = await setupCalendarWebhooks(view.provider);
+      setResult({ ok: !r.error, text: r.error ?? r.notice ?? "Done.", url: r.webhook?.url, secret: r.webhook?.secret });
+      router.refresh();
+    });
+  }
+  return (
+    <section className="os-int-section" aria-label="Webhooks">
+      <h3>Cancels, reschedules, no-shows</h3>
+      <div className="os-int-row">
+        <div className="os-int-row-main">
+          <strong>{view.webhook.ready ? `${info.name} tells J when a call moves` : "Off: reminders only follow what J booked"}</strong>
+          <span>
+            {view.webhook.ready
+              ? "A reschedule moves the reminders, a cancel stops them, a no-show starts the re-engagement. You can still mark Showed / No-show yourself."
+              : `Set it up so a call moved or cancelled in ${info.name} moves J's reminders too.`}
+          </span>
+        </div>
+        <button type="button" className="os-button" disabled={pending} onClick={setup}>
+          {pending ? "Setting up…" : view.webhook.ready ? "Set up again" : "Set up"}
+        </button>
+      </div>
+      {result && (
+        <div className="os-cal-webhook" role={result.ok ? "status" : "alert"}>
+          <p className={`os-int-msg ${result.ok ? "notice" : "error"}`}>{result.text}</p>
+          {!result.ok && result.url && (
+            <dl>
+              <dt>Webhook URL</dt>
+              <dd>
+                <code>{result.url}</code>
+              </dd>
+              <dt>Secret</dt>
+              <dd>
+                <code>{result.secret}</code>
+              </dd>
+            </dl>
+          )}
+        </div>
+      )}
+    </section>
   );
 }

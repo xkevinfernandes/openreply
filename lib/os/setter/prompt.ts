@@ -30,6 +30,10 @@ export const KIND_BRIEF: Record<string, string> = {
     "We wrote last, {ago}, and they went quiet. ONE bubble, zero pressure, no guilt, " +
     "no repeat of the earlier question — a light door-opener a friend would send. " +
     "If nothing natural exists, a single pressure-remover is fine.",
+  followup:
+    "A follow-up from one of your sequences: we wrote last, {ago}, and they went quiet " +
+    "(or a call is coming up). Do exactly what the FOLLOW-UP STEP below says, in your voice. " +
+    "Never pushy, never guilt, no \"just checking in\". Holding is valid.",
   friday:
     "Follow-up Friday. One warm, specific line that references your last exchange, " +
     "then hand them the resource below as a gift. No ask, no call, no pitch. 1-2 bubbles.",

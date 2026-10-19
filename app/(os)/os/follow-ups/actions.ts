@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { approveJDraft, discardJDraft, draftWithJ, type DraftActionResult } from "@/app/(os)/os/inbox/actions";
 import { getCurrentWorkspaceId } from "@/lib/auth";
+import { cancelSequence, markAttendance, sendStepNow, setTaskDone, setThreadFollowups, skipStep, type EngineResult } from "@/lib/os/sequences/engine";
 import { setterStore } from "@/lib/os/setter/store";
 import { sendFridayResource, setFriday, skipTimer, snoozeContact, type FridaySendInput, type FridaySendResult } from "@/lib/os/followups-data";
 
@@ -99,4 +100,64 @@ export async function sendFridayBatch(inputs: FridaySendInput[]): Promise<Friday
   }
   refresh();
   return out;
+}
+
+// --- Follow-up sequences (lib/os/sequences) ----------------------------------
+
+function refreshAll() {
+  refresh();
+  revalidatePath("/os/inbox");
+  revalidatePath("/os/contacts");
+}
+
+async function guarded(fn: (workspaceId: string) => Promise<EngineResult>): Promise<DraftActionResult> {
+  const workspaceId = await requireWorkspace();
+  try {
+    return await fn(workspaceId);
+  } catch (err) {
+    console.error("[OS Follow-ups] action failed:", err);
+    return { error: err instanceof Error ? err.message : "That didn't work. Try again." };
+  } finally {
+    refreshAll();
+  }
+}
+
+/** Send now: a drafted step goes out; a queued fixed line goes out; J's own words come back as a draft to approve. */
+export async function sendFollowupNow(stepId: string): Promise<DraftActionResult> {
+  return guarded((w) => sendStepNow(w, String(stepId)));
+}
+
+export async function skipFollowup(stepId: string): Promise<DraftActionResult> {
+  return guarded((w) => skipStep(w, String(stepId)));
+}
+
+export async function cancelFollowups(contactId: string): Promise<DraftActionResult> {
+  return guarded((w) => cancelSequence(w, String(contactId)));
+}
+
+/** Per-thread Follow-ups on / off. */
+export async function setFollowupsOn(contactId: string, on: boolean): Promise<DraftActionResult> {
+  if (typeof on !== "boolean") return { error: "On or off?" };
+  return guarded((w) => setThreadFollowups(w, String(contactId), on));
+}
+
+/** Showed / No-show / clear, by hand. */
+export async function markCall(contactId: string, attendance: "SHOWED" | "NO_SHOW" | null): Promise<DraftActionResult> {
+  if (attendance !== null && attendance !== "SHOWED" && attendance !== "NO_SHOW") return { error: "Showed or no-show?" };
+  return guarded(async (w) => {
+    const r = await markAttendance(w, String(contactId), attendance, "user");
+    if (r.error) return r;
+    return {
+      notice:
+        attendance === "SHOWED"
+          ? "Marked as showed. Your voice-note task is on Home."
+          : attendance === "NO_SHOW"
+            ? "Marked as no-show. J starts a warm check-in; nothing goes without your approve."
+            : "Cleared.",
+    };
+  });
+}
+
+export async function completeTask(taskId: string, done = true): Promise<DraftActionResult> {
+  return guarded((w) => setTaskDone(w, String(taskId), done));
 }

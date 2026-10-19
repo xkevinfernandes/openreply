@@ -279,6 +279,22 @@ async function fake({ prompt, job }: Call): Promise<[string, DraftUsage]> {
     return [JSON.stringify({ bubbles: [], hold: true, hold_reason: "fake backend holds" }), usage];
   }
   const kind = /DRAFT KIND: (\w+)/.exec(prompt)?.[1] ?? "reply";
+  if (kind === "followup") {
+    // A sample line per step so the follow-up queue reads right on sample data.
+    const label = /FOLLOW-UP STEP: "([^"]+)"/.exec(prompt)?.[1] ?? "";
+    const link = /exact link on its own line: (\S+)/.exec(prompt)?.[1];
+    const lines: Record<string, string[]> = {
+      "Value first": ["random thought after what you said about posting, batching it all on one day saved me hours a week", "might be worth a go"],
+      "Social proof": ["one of the guys I work with had the exact same thing last month", "got it sorted in about 2 weeks, made me think of you"],
+      "Direct ask": ["quick one, is sorting this still a priority for you right now?"],
+      Breakup: ["haven't heard back so I'll leave it here", "if things change just shout, always happy to help"],
+      "On the day": ["looking forward to it in a bit 🙌"],
+      "Check in": ["hey, all good? we were meant to jump on earlier", "hope everything's ok, things come up"],
+      "Offer another time": ["no stress at all, want to find another time that works better?"],
+    };
+    const bubbles = [...(lines[label] ?? (link ? ["made me think of you after what you said, sharing in case it helps"] : ["no rush on this, just thought of you"])), ...(link ? [link] : [])];
+    return [JSON.stringify({ bubbles, stage_reasoning: "fake backend", template_used: "fake", propose_tags: {} }), usage];
+  }
   const bubbles =
     {
       value_opener: ["did you get a chance to watch it?", "curious what you're building rn"],

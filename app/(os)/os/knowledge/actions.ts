@@ -14,6 +14,8 @@ import { prisma } from "@/lib/db/client";
 import { asBusiness, asCorrections, asFunnel, asOffers, asSettings, slugify } from "@/lib/os/setter/kb";
 import { sandboxReply, type SandboxReply, type SandboxTurn } from "@/lib/os/setter/sandbox";
 import { dbKnowledge, importFromFiles } from "@/lib/os/setter/setters";
+import { saveSetterSequence } from "@/lib/os/sequences/engine";
+import { cleanSequence, isSequenceKey } from "@/lib/os/sequences/types";
 
 const BASE = "/os/knowledge";
 
@@ -277,4 +279,18 @@ export async function runSandbox(
     console.error("[OS Sandbox]", err);
     return { error: err instanceof Error ? `J couldn't answer: ${err.message}` : "J couldn't answer. Try again." };
   }
+}
+
+// ---------------------------------------------------------------- follow-ups
+/** One follow-up sequence: its switch and its steps. Switching off cancels
+ *  what's queued from it; on (or an edit) re-plans who it applies to. */
+export async function saveFollowupSequence(setterId: string, key: string, raw: unknown): Promise<ActionResult> {
+  const workspaceId = await requireWorkspace();
+  return attempt(async () => {
+    await ownSetter(workspaceId, setterId);
+    if (!isSequenceKey(key)) throw new Error("Unknown sequence.");
+    await saveSetterSequence(workspaceId, setterId, cleanSequence(key, raw));
+    revalidatePath(`${BASE}/${setterId}`);
+    revalidatePath("/os/follow-ups");
+  });
 }

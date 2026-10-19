@@ -61,27 +61,30 @@ export default function FollowupsScreen({ data, now }: Props) {
   const [flash, setFlash] = useState<string | null>(null);
   return (
     <div className="os-fu">
-      <section className="os-fu-section" aria-labelledby="fu-nudges">
-        <header className="os-fu-section-head">
-          <h2 id="fu-nudges">J&apos;s nudges</h2>
-          <span className="os-fu-count">{due ? `${due} ready or due` : "Nothing due"}</span>
-        </header>
-        {flash && (
-          <p className="os-fu-notice os-fu-flash" role="status">
-            {flash}
-          </p>
-        )}
-        <p className="os-fu-lede">People who went quiet after J&apos;s last message, and lead magnets that need their value opener. One nudge each, never pushy.</p>
-        {data.nudges.length === 0 ? (
-          <div className="os-fu-empty">Nobody to nudge in the next 24 hours.</div>
-        ) : (
-          <ul className="os-fu-list">
-            {data.nudges.map((n) => (
-              <NudgeRow key={n.contactId} item={n} now={now} onFlash={setFlash} />
-            ))}
-          </ul>
-        )}
-      </section>
+      {/* J's value openers (and the old single nudge, where sequences don't run). */}
+      {(data.nudges.length > 0 || flash) && (
+        <section className="os-fu-section" aria-labelledby="fu-nudges">
+          <header className="os-fu-section-head">
+            <h2 id="fu-nudges">Value openers</h2>
+            <span className="os-fu-count">{due ? `${due} ready or due` : "Nothing due"}</span>
+          </header>
+          {flash && (
+            <p className="os-fu-notice os-fu-flash" role="status">
+              {flash}
+            </p>
+          )}
+          <p className="os-fu-lede">Lead magnets that went out and need J&apos;s first message. Never pushy.</p>
+          {data.nudges.length === 0 ? (
+            <div className="os-fu-empty">Nobody to nudge in the next 24 hours.</div>
+          ) : (
+            <ul className="os-fu-list">
+              {data.nudges.map((n) => (
+                <NudgeRow key={n.contactId} item={n} now={now} onFlash={setFlash} />
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <FridaySection data={data} now={now} />
     </div>

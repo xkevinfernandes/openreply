@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/client";
 import { osMockEnabled } from "@/lib/os/mock";
 import { normalizeCalendarSettings, type CalendarSettings } from "./settings";
 import { CALENDAR_PROVIDERS, type CalendarProviderId } from "./types";
+import { webhookUrl } from "@/lib/os/sequences/calendar-sync";
 
 export interface CalendarView {
   provider: CalendarProviderId;
@@ -14,6 +15,8 @@ export interface CalendarView {
   lastError: string | null;
   booked: number;
   upcoming: number;
+  /** Cancels, reschedules and no-shows come in (lib/os/sequences/calendar-sync.ts). */
+  webhook: { ready: boolean; url: string };
 }
 
 export interface CalendarBoard {
@@ -41,6 +44,7 @@ export async function calendarBoard(workspaceId: string): Promise<CalendarBoard>
       lastError: row?.lastError ?? null,
       booked: counts.find((c) => c.provider === provider)?._count._all ?? 0,
       upcoming: upcoming.find((c) => c.provider === provider)?._count._all ?? 0,
+      webhook: { ready: Boolean(row?.webhookSecret), url: webhookUrl(workspaceId, provider) },
     };
   });
   return { calendars, setters, sample: osMockEnabled() && !calendars.some((c) => c.enabled) };

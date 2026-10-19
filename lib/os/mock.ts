@@ -34,6 +34,11 @@ const seedPeople: MockPerson[] = [
     contact: { id: "c9", kind: "SALES", kindSource: "entry", stage: "WON", entryPath: "comment", setterStage: "booked", paused: true, ...untriaged } },
   { conversationId: "m10", igUserId: "110", username: "dev.hobby", preview: "just curious tbh, not running anything", hours: 200,
     contact: { id: "c10", kind: "SALES", kindSource: "entry", stage: "NOT_QUALIFIED", entryPath: "story_reply", setterStage: "qualify", paused: false, ...untriaged, ...friday } },
+  // Follow-up samples (lib/os/sequences/mock-seed.ts): a no-show, and one who showed.
+  { conversationId: "m11", igUserId: "111", username: "chris.makes", fullName: "Chris Doyle", preview: "perfect, see you then", hours: 27,
+    contact: { id: "c11", kind: "SALES", kindSource: "entry", stage: "CALL_BOOKED", entryPath: "comment", setterStage: "booked", paused: false, ...untriaged } },
+  { conversationId: "m12", igUserId: "112", username: "ava.creates", fullName: "Ava Moreau", preview: "locked in for tomorrow 🙌", hours: 40,
+    contact: { id: "c12", kind: "SALES", kindSource: "entry", stage: "CALL_BOOKED", entryPath: "keyword_dm", setterStage: "booked", paused: false, ...untriaged } },
 ];
 
 // On globalThis so kind/stage/triage changes made by server actions are seen
@@ -133,6 +138,8 @@ const seedExtras: Record<string, MockContactExtras> = {
   c6: { tags: ["booked"], notes: "Call Thursday 3pm.", email: "lena@fitlab.co" },
   c8: { tags: ["agency"], notes: null, email: null },
   c9: { tags: ["client"], notes: "Started the program.", email: "nora@lind.coach" },
+  c11: { tags: [], notes: null, email: "chris@doyle.studio" },
+  c12: { tags: [], notes: "Wants 10k/mo from IG without posting every day. DMs pile up, no system for them.", email: "ava@moreau.co" },
 };
 
 const extras = ((globalThis as { __osMockExtras?: Record<string, MockContactExtras> }).__osMockExtras ??= structuredClone(seedExtras));

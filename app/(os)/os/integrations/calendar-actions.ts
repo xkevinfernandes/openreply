@@ -7,6 +7,7 @@ import { normalizeCalendarSettings, type CalendarSettings } from "@/lib/os/integ
 import { filterSlots, formatSlotShort, pickOptions } from "@/lib/os/integrations/calendar/slots";
 import { calendarClient, encryptCalendarToken, loadCalendarProvider } from "@/lib/os/integrations/calendar/store";
 import { CalendarApiError, type CalendarEventType, type CalendarProviderId } from "@/lib/os/integrations/calendar/types";
+import { setupCalendarWebhook } from "@/lib/os/sequences/calendar-sync";
 import { canManageWorkspace, getCurrentWorkspaceContext } from "@/lib/workspace-access";
 
 export interface CalendarActionResult {
@@ -177,6 +178,24 @@ export async function previewTimes(provider: CalendarProviderId): Promise<{ time
       times: slots.slice(0, 8).map((x) => formatSlotShort(x.start, s.hostTimezone)),
       offered: pickOptions(slots, s.options, null).map((x) => formatSlotShort(x.start, s.hostTimezone)),
     };
+  } catch (error) {
+    return { error: friendly(error) };
+  }
+}
+
+export interface WebhookActionResult extends CalendarActionResult {
+  webhook?: { url: string; secret: string; registered: boolean };
+}
+
+/** Cancels, reschedules and no-shows: make the signing secret and register
+ *  our webhook with the calendar (or say how to add it by hand). */
+export async function setupCalendarWebhooks(provider: CalendarProviderId): Promise<WebhookActionResult> {
+  try {
+    const workspaceId = await requireManager();
+    const p = providerSchema.parse(provider);
+    const r = await setupCalendarWebhook(workspaceId, p);
+    revalidatePath("/os/integrations");
+    return { ...(r.registered ? { notice: r.message } : { error: r.message }), webhook: { url: r.url, secret: r.secret, registered: r.registered } };
   } catch (error) {
     return { error: friendly(error) };
   }

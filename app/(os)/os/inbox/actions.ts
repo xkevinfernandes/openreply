@@ -10,6 +10,7 @@ import type { SyncEvent } from "@/lib/os/integrations/mapping";
 import { appendMockIncoming, mockThreads, osMockEnabled, updateMockContact } from "@/lib/os/mock";
 import { enqueueTriageMany, redisConfigured, scheduleNextAction } from "@/lib/os/setter/queue";
 import { TRIAGE_DISABLED_NOTICE, triageContact, triageDisabled } from "@/lib/os/setter/triage";
+import { markAttendance, syncFollowupsQuietly } from "@/lib/os/sequences/engine";
 import { approveDraft, discardDraft, draftForContact } from "@/lib/os/setter/service";
 import { setterStore } from "@/lib/os/setter/store";
 import type { SetterRecord } from "@/lib/os/setter/state";
@@ -48,11 +49,16 @@ export async function setContactKind(contactId: string, kind: ContactKind) {
   if (!Object.values(ContactKind).includes(kind)) throw new Error("Unknown kind.");
   // The user decided: J's suggestion (or "move to Sales?" flag) is done.
   await updateContact(contactId, { kind, kindSource: "user", suggestedKind: null, suggestedReason: null, suggestedConfidence: null }, "kind_changed");
+  // Out of Sales = no follow-ups; into Sales = maybe one is due.
+  await syncFollowupsQuietly(contactId);
 }
 
 export async function setContactStage(contactId: string, stage: ContactStage) {
   if (!Object.values(ContactStage).includes(stage)) throw new Error("Unknown stage.");
   await updateContact(contactId, { stage }, "stage_changed");
+  // Showed on the board = they came to the call: Kevin's voice-note task.
+  if (stage === "SHOWED") await markAttendance(await requireWorkspace(), contactId, "SHOWED").catch(() => null);
+  revalidatePath("/os/follow-ups");
 }
 
 /** Replace a contact's tags (trimmed, deduped). Pushed to the CRMs. */
@@ -89,6 +95,8 @@ async function scheduleTimer(contactId: string, rec: SetterRecord) {
   } catch (err) {
     console.error("[OS Setter] could not schedule the next timer:", err instanceof Error ? err.message : err);
   }
+  // Re-plan the follow-up after every look: a reply stops a sequence, a send moves it on.
+  await syncFollowupsQuietly(contactId);
 }
 
 /** "Draft with J" (and Regenerate): a person asked, so J drafts even when no timer is due. */
@@ -124,7 +132,9 @@ export async function approveJDraft(draftId: string, editedText?: string | null)
     revalidatePath("/os/inbox");
     return { error: result.error, notice: again.error ?? again.notice };
   }
+  if (contactId) await syncFollowupsQuietly(contactId, { workspaceId });
   revalidatePath("/os/inbox");
+  revalidatePath("/os/follow-ups");
   return { error: result.error };
 }
 
@@ -142,8 +152,11 @@ export async function simulateTheirReply(conversationId: string, text: string, s
 
 export async function discardJDraft(draftId: string): Promise<DraftActionResult> {
   const workspaceId = await requireWorkspace();
+  const contactId = (await setterStore().getDraft(draftId, workspaceId))?.contactId ?? null;
   const result = await discardDraft(draftId, workspaceId);
+  if (contactId) await syncFollowupsQuietly(contactId, { workspaceId });
   revalidatePath("/os/inbox");
+  revalidatePath("/os/follow-ups");
   return result;
 }
 

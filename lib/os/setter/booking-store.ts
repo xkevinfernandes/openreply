@@ -116,14 +116,29 @@ const dbBookings: BookingStore = {
 };
 
 // ---------------------------------------------------------------- OS_MOCK
-const mem = ((globalThis as { __osMockBookings?: Map<string, BookingRecord & { draftId: string }> }).__osMockBookings ??= new Map());
+/** A sample booking, plus what the follow-up engine tracks on it. */
+export type MockBooking = BookingRecord & {
+  draftId: string;
+  createdAt?: string;
+  attendance?: "SHOWED" | "NO_SHOW" | null;
+  attendanceSource?: string | null;
+  attendanceAt?: string | null;
+  cancelledAt?: string | null;
+};
+
+const mem = ((globalThis as { __osMockBookings?: Map<string, MockBooking> }).__osMockBookings ??= new Map());
+
+/** OS_MOCK: the in-memory bookings (lib/os/sequences reads and marks them). */
+export function mockBookingRows(): Map<string, MockBooking> {
+  return mem;
+}
 
 const mockBookings: BookingStore = {
   async byDraft(draftId) {
     return [...mem.values()].find((b) => b.draftId === draftId) ?? null;
   },
   async create(input) {
-    const b = { ...input, id: `mock-booking-${mem.size + 1}`, confirmedAt: null };
+    const b = { ...input, id: `mock-booking-${mem.size + 1}`, confirmedAt: null, createdAt: new Date().toISOString() };
     mem.set(b.id, b);
     return b;
   },

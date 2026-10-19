@@ -92,6 +92,10 @@ model Contact {
   fridaySends FridaySend[]
   /// Calls J booked in the DM (lib/os/integrations/calendar).
   bookings    Booking[]
+  /// Per-thread "Follow-ups off": no sequence step is queued for them.
+  followupsOff  Boolean        @default(false)
+  followupSteps FollowupStep[]
+  tasks         OsTask[]
 
   @@unique([workspaceId, instagramAccountId, igUserId])
   @@index([workspaceId, kind])
@@ -220,6 +224,7 @@ model Setter {
   campaigns  CampaignSetter[]
   contacts   Contact[]
   voiceClips VoiceClip[]
+  sequences  FollowupSequence[]
 
   @@index([workspaceId])
   @@index([workspaceId, instagramAccountId])
@@ -313,6 +318,9 @@ model OsIntegration {
   settings     Json      @default("{}")
   lastTestedAt DateTime?
   lastError    String?
+  /// Calendar providers: the encrypted secret their webhooks are signed with
+  /// (app/api/os/calendar). Null until webhooks are set up.
+  webhookSecret String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -410,10 +418,119 @@ model Booking {
   /// Calendly link fallback, or the provider's manage link.
   url         String?
   confirmedAt DateTime?
+  /// Did they come? From the calendar's webhook or Kevin marking it.
+  attendance       Attendance?
+  /// "user" | "calcom" | "calendly"
+  attendanceSource String?
+  attendanceAt     DateTime?
+  cancelledAt      DateTime?
+  rescheduledAt    DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
   @@index([workspaceId, start])
+  @@index([workspaceId, externalId])
+  @@index([contactId])
+}
+
+enum Attendance {
+  SHOWED
+  NO_SHOW
+}
+
+// --- Follow-up sequences (wave 2, item 3) ------------------------------------
+// lib/os/sequences: per-setter sequences (no reply per stage, before the call,
+// no-show) and the queue of steps. One live step per contact at a time.
+
+/// One sequence of one setter. No row = the default (lib/os/sequences/types.ts).
+model FollowupSequence {
+  id          String   @id @default(cuid())
+  workspaceId String
+  setterId    String
+  setter      Setter   @relation(fields: [setterId], references: [id], onDelete: Cascade)
+  /// no_reply_lead | no_reply_qualifying | no_reply_value | no_reply_invite | pre_call | no_show | showed
+  key         String
+  enabled     Boolean  @default(true)
+  /// SequenceStep[]: id, label, timing, intent, fixedLine, voicePhrase, resource.
+  steps       Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([setterId, key])
+  @@index([workspaceId])
+}
+
+enum FollowupStepStatus {
+  /// Waiting for its time (a delayed job on os-setter).
+  QUEUED
+  /// J wrote it: a Draft (kind "followup") waits for approval.
+  DRAFTED
+  SENT
+  /// Skipped by Kevin, held by J, or nothing to send (window closed, no resource left).
+  SKIPPED
+  /// The plan moved on (they replied, the call moved), or Kevin cancelled the sequence (reason "stopped").
+  CANCELLED
+}
+
+/// One step of a sequence for one contact: the queue and its history.
+model FollowupStep {
+  id            String             @id @default(cuid())
+  workspaceId   String
+  contactId     String
+  contact       Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  setterId      String?
+  sequence      String
+  stepId        String
+  stepIndex     Int
+  /// One run of a sequence: a silence, a booking, a no-show.
+  episode       String
+  /// sequence + episode + step: the same step is never queued twice.
+  key           String             @unique
+  dueAt         DateTime
+  status        FollowupStepStatus @default(QUEUED)
+  /// = contactId while QUEUED or DRAFTED, else null. The unique index is the
+  /// "never two follow-ups queued for one contact" guarantee.
+  liveContactId String?            @unique
+  /// The step as configured when it was queued (label, intent, fixed line, voice phrase).
+  step          Json
+  draftId       String?
+  bookingId     String?
+  /// Why it was skipped or cancelled.
+  reason        String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  doneAt        DateTime?
+
+  @@index([workspaceId, status, dueAt])
+  @@index([contactId, sequence])
+}
+
+enum OsTaskStatus {
+  OPEN
+  DONE
+  DISMISSED
+}
+
+/// Something for Kevin to do by hand, e.g. "Send a personal voice note to @x"
+/// after they showed up to the call. Never automated.
+model OsTask {
+  id          String       @id @default(cuid())
+  workspaceId String
+  contactId   String
+  contact     Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  /// voice_note
+  kind        String
+  title       String
+  /// {goal, pain, notes, lastWords[]}: what to talk about, from the thread.
+  context     Json         @default("{}")
+  status      OsTaskStatus @default(OPEN)
+  /// kind + booking: one task per call, however often it is marked.
+  dedupeKey   String       @unique
+  bookingId   String?
+  createdAt   DateTime     @default(now())
+  doneAt      DateTime?
+
+  @@index([workspaceId, status])
   @@index([contactId])
 }
 

@@ -64,7 +64,8 @@ export interface Entry {
 }
 
 export type WindowState = "free" | "human_agent" | "closed";
-export type ActionKind = "reply" | "value_opener" | "nudge";
+/** "followup" = a step of a follow-up sequence (lib/os/sequences), never from advance(). */
+export type ActionKind = "reply" | "value_opener" | "nudge" | "followup";
 
 export interface ThreadMessage {
   id: string;

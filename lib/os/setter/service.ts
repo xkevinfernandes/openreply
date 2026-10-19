@@ -77,6 +77,14 @@ export interface DraftOptions {
   experiments?: ExperimentStore;
   /** The voice bank (default: DB / OS_MOCK; none when a test passes its own store). */
   voice?: VoiceBank | null;
+  /** The follow-up engine (lib/os/sequences) owns no-reply follow-ups, so
+   *  advance() schedules no nudge of its own. False = the old single nudge. */
+  sequences?: boolean;
+}
+
+/** The state config J runs on: without the old nudge when sequences own follow-ups. */
+function stateCfg(cfg: SetterConfig, sequences: boolean | undefined): SetterConfig {
+  return sequences === false ? cfg : { ...cfg, timers: { ...cfg.timers, nudge_max: 0 } };
 }
 
 /** Tests that bring their own store get no voice bank unless they pass one. */
@@ -138,7 +146,7 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
       .catch((err) => console.error("[OS Setter] could not confirm the booking:", err instanceof Error ? err.message : err));
   }
   let action: SetterAction | null;
-  [rec, action] = advance(rec, now, cfg);
+  [rec, action] = advance(rec, now, stateCfg(cfg, opts.sequences));
 
   const save = async () => {
     await store.saveState(contact, rec);
@@ -328,6 +336,7 @@ export interface ApproveOptions {
   bookings?: BookingStore;
   experiments?: ExperimentStore;
   voice?: VoiceBank | null;
+  sequences?: boolean;
 }
 
 export interface ApproveResult {
@@ -521,7 +530,7 @@ export async function approveDraft(draftId: string, workspaceId: string, opts: A
     rec.stage = d.setterStage;
     await store.setSetterStage(contact.id, d.setterStage);
   }
-  [rec] = advance(rec, now(), cfg);
+  [rec] = advance(rec, now(), stateCfg(cfg, opts.sequences));
   await store.saveState(contact, rec);
   await opts.onState?.(rec);
   return {};

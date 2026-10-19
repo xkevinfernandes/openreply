@@ -16,6 +16,7 @@ import {
   type ActionResult,
   type SetterPatch,
 } from "@/app/(os)/os/knowledge/actions";
+import FollowupsEditor from "@/components/os/knowledge/followups-editor";
 import { Field, RepeatItem, Section, Select, Switch, TextArea, TextInput, useSaver } from "@/components/os/knowledge/fields";
 import VoiceNotesSection from "@/components/os/knowledge/voice-notes-section";
 import type { SetterEditorView } from "@/lib/os/knowledge";
@@ -32,6 +33,7 @@ export const SECTIONS = [
   ["examples", "Examples"],
   ["corrections", "Voice corrections"],
   ["campaigns", "Campaigns"],
+  ["follow-ups", "Follow-ups"],
 ] as const;
 
 function useSection<T>(initial: T) {
@@ -71,6 +73,7 @@ export default function SetterEditor({ view, voiceClips = [], sampleData = false
         <ExamplesSection view={view} save={save} />
         <CorrectionsSection view={view} save={save} />
         <CampaignsSection view={view} />
+        <FollowupsEditor setterId={view.id} sequences={view.sequences} />
         <DangerZone view={view} />
       </div>
     </div>

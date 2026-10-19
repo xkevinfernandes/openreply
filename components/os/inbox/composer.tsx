@@ -24,9 +24,11 @@ interface ComposerProps {
   draftVoice?: DraftVoicePreview | null;
   /** Clips the mic can send. */
   voiceClips?: VoiceClipView[];
+  /** Open the mic panel on load (the "send a personal voice note" task links here). */
+  voiceAtStart?: boolean;
 }
 
-export default function Composer({ igUserId, username, name, avatarUrl, contactId, draft, draftBlockedReason, draftVoice = null, voiceClips = [] }: ComposerProps) {
+export default function Composer({ igUserId, username, name, avatarUrl, contactId, draft, draftBlockedReason, draftVoice = null, voiceClips = [], voiceAtStart = false }: ComposerProps) {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState("");
@@ -36,7 +38,7 @@ export default function Composer({ igUserId, username, name, avatarUrl, contactI
   const [notice, setNotice] = useState<string | null>(null);
   const [sending, startSend] = useTransition();
   const [drafting, startDraft] = useTransition();
-  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(voiceAtStart);
 
   const editing = Boolean(draft && editingDraftId === draft.id);
   const who = name ?? (username ? `@${username}` : "them");

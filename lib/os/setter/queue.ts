@@ -21,6 +21,8 @@ import { getRedisConnection } from "@/lib/queue/client";
 export const SETTER_QUEUE = "os-setter";
 export const SETTER_DRAFT_JOB = "os-setter-draft";
 export const SETTER_TRIAGE_JOB = "os-setter-triage";
+/** A follow-up step at its time (lib/os/sequences/deliver.ts). */
+export const SETTER_FOLLOWUP_JOB = "os-setter-followup";
 /** Most triage calls per minute across the worker (Zernio reads + one Jev or Haiku call). */
 export const TRIAGE_PER_MINUTE = 10;
 
@@ -34,7 +36,11 @@ export interface SetterTriageJob {
   reason: "new" | "inbound" | "manual";
 }
 
-type SetterJob = SetterDraftJob | SetterTriageJob;
+export interface SetterFollowupJob {
+  stepId: string;
+}
+
+type SetterJob = SetterDraftJob | SetterTriageJob | SetterFollowupJob;
 
 let queue: Queue<SetterJob> | null = null;
 
@@ -72,6 +78,16 @@ export async function enqueueTriage(job: SetterTriageJob, opts: { delayMs?: numb
     jobId: opts.jobId ?? `triage_${job.contactId}`,
     ...(opts.delayMs ? { delay: opts.delayMs } : {}),
   });
+}
+
+/** Put a follow-up step on the worker at its time. The job id carries the
+ *  time, so a step moved to a new time gets a new job; the old one finds the
+ *  step changed and does nothing (deliverStep re-checks everything). */
+export async function enqueueFollowupStep(stepId: string, dueAt: string) {
+  if (!redisConfigured()) return;
+  const at = new Date(dueAt).getTime();
+  const delayMs = Math.max(0, at - Date.now()) + 2_000;
+  await getSetterQueue().add(SETTER_FOLLOWUP_JOB, { stepId }, { delay: delayMs, jobId: `followup_${stepId}_${at}` });
 }
 
 /** Queue many, spaced so the rate limit rarely has to push one back. */
@@ -160,11 +176,22 @@ async function processTriageJob(job: Job<SetterTriageJob>, token?: string) {
   );
 }
 
+async function processFollowupJob(job: Job<SetterFollowupJob>) {
+  // Lazy: the sequences engine imports this module for its scheduling.
+  const { deliverStep } = await import("@/lib/os/sequences/deliver");
+  const result = await deliverStep(job.data.stepId);
+  console.log(`[OS Follow-ups] step ${job.data.stepId}: ${result.status}${"reason" in result ? ` — ${result.reason}` : ""}`);
+}
+
 async function processSetterJob(job: Job<SetterJob>, token?: string) {
   if (job.name === SETTER_TRIAGE_JOB) return processTriageJob(job as Job<SetterTriageJob>, token);
-  const { contactId } = job.data;
+  if (job.name === SETTER_FOLLOWUP_JOB) return processFollowupJob(job as Job<SetterFollowupJob>);
+  const { contactId } = job.data as SetterDraftJob;
   const result = await draftForContact(contactId, { onState: (rec) => scheduleNextAction(contactId, rec) });
-  console.log(`[OS Setter] ${contactId} (${job.data.reason}): ${result.status}${"reason" in result ? ` — ${result.reason}` : ""}`);
+  console.log(`[OS Setter] ${contactId} (${(job.data as SetterDraftJob).reason}): ${result.status}${"reason" in result ? ` — ${result.reason}` : ""}`);
+  // Every look at the thread re-plans its follow-up: a reply stops a sequence at once.
+  const { syncFollowupsQuietly } = await import("@/lib/os/sequences/engine");
+  await syncFollowupsQuietly(contactId);
 }
 
 export function createSetterWorker(): Worker<SetterJob> {

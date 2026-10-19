@@ -7,6 +7,9 @@ import ContactControls from "@/components/os/inbox/contact-controls";
 import MockReply from "@/components/os/inbox/mock-reply";
 import SyncStatus from "@/components/os/integrations/sync-status";
 import ThreadList from "@/components/os/inbox/thread-list";
+import ThreadStrip from "@/components/os/followups/thread-strip";
+import { mockFollowupTick } from "@/lib/os/sequences/mock-seed";
+import { loadThreadFollowups, type ThreadFollowups } from "@/lib/os/sequences/view";
 import { TriageSuggestion } from "@/components/os/inbox/triage";
 import { isUnsure } from "@/lib/os/triage-copy";
 import { getCurrentWorkspaceId } from "@/lib/auth";
@@ -31,6 +34,17 @@ async function loadSyncLines(workspaceId: string, contactId: string | undefined)
     return await contactSyncLines(workspaceId, contactId, await activeProviders(workspaceId));
   } catch {
     return [];
+  }
+}
+
+/** The follow-up strip for a Sales thread. A failure hides it. */
+async function loadStrip(workspaceId: string, contact: { id: string; kind: string } | null | undefined): Promise<ThreadFollowups | null> {
+  if (!contact || contact.kind !== "SALES") return null;
+  try {
+    return await loadThreadFollowups(workspaceId, contact.id);
+  } catch (err) {
+    console.error("[OS Inbox] follow-ups failed:", err instanceof Error ? err.message : err);
+    return null;
   }
 }
 
@@ -59,7 +73,7 @@ async function loadVoiceClips(workspaceId: string, contactId: string | undefined
   }
 }
 
-type PageProps = { searchParams: Promise<{ tab?: string; c?: string; drafts?: string }> };
+type PageProps = { searchParams: Promise<{ tab?: string; c?: string; drafts?: string; voice?: string }> };
 
 async function loadInbox(workspaceId: string, conversationId: string | undefined) {
   try {
@@ -95,10 +109,13 @@ export default async function InboxPage({ searchParams }: PageProps) {
   const tab = kindTabs.some((k) => k.tab === params.tab) ? params.tab! : "sales";
   // One-off: drop fake "(sample)" guesses an ungated deploy wrote (no-op after the first load).
   await clearSampleSuggestionsOnce(workspaceId);
+  // Sample data has no worker: due follow-ups are drafted here (no-op otherwise).
+  await mockFollowupTick().catch(() => null);
   const { connected, threads, selected, messages, drafts, error, now } = await loadInbox(workspaceId, params.c);
-  const [syncLines, bookedCall] = await Promise.all([
+  const [syncLines, bookedCall, strip] = await Promise.all([
     loadSyncLines(workspaceId, selected?.contact?.id),
     loadBookedCall(workspaceId, selected?.contact?.id),
+    loadStrip(workspaceId, selected?.contact),
   ]);
   const draftByContact = new Map(drafts.map((d) => [d.contactId, d]));
   const selectedDraft = selected?.contact ? (draftByContact.get(selected.contact.id) ?? null) : null;
@@ -185,6 +202,8 @@ export default async function InboxPage({ searchParams }: PageProps) {
 
             <SyncStatus lines={syncLines} now={now} />
 
+            {strip && selected.contact && <ThreadStrip key={selected.contact.id} contactId={selected.contact.id} data={strip} now={now} />}
+
             {selected.contact &&
               ((selected.contact.suggestedKind &&
                 (selected.contact.kind === "UNSORTED" ||
@@ -237,6 +256,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
               draftBlockedReason={draftBlockedReason}
               draftVoice={draftVoice}
               voiceClips={voiceClips}
+              voiceAtStart={params.voice === "1"}
             />
           </>
         )}

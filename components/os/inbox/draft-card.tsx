@@ -14,6 +14,7 @@ const KIND_LABEL: Record<string, string> = {
   reply: "Reply",
   value_opener: "Opener",
   nudge: "Nudge",
+  followup: "Follow-up",
   invite: "Invitation",
   booking: "Booking",
 };

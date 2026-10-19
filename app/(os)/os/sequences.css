@@ -1,0 +1,310 @@
+/* --- Follow-up sequences ---------------------------------------------------------
+   The queue (Follow-ups, Home, the thread strip) and the sequence editor in a
+   knowledge base. Built from the Follow-ups row and the Knowledge toggles. */
+
+.os-seq-row {
+  display: grid;
+  gap: 10px;
+}
+
+.os-seq-row[data-compact] {
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.os-seq-row[data-compact]:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.os-fu-row:has(> .os-seq-row[data-status="DRAFTED"]) {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow);
+}
+
+.os-seq-row[aria-busy="true"] {
+  opacity: 0.65;
+  transition: opacity 160ms ease;
+}
+
+.os-seq-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.os-seq-title strong {
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+
+.os-seq-title .muted,
+.os-fu-strip .muted {
+  font-size: var(--fs-xs);
+  color: var(--faint);
+}
+
+/* A fixed line reads like the draft bubble: written, not sent. */
+.os-seq-preview {
+  margin: 0;
+}
+
+.os-seq-preview .bubble {
+  display: inline-block;
+  max-width: 70ch;
+  padding: 7px 11px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 14px;
+  font-size: var(--fs-sm);
+}
+
+.os-seq-group + .os-seq-group {
+  margin-top: 18px;
+}
+
+.os-seq-group-title {
+  margin: 0 0 8px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Voice-note task: what to talk about. */
+.os-task-context {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+.os-task-context > div {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.os-task-context dt {
+  color: var(--faint);
+}
+
+.os-task-context dd {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+/* --- The strip on a thread */
+.os-fu-strip {
+  display: grid;
+  gap: 10px;
+  margin: 0 16px 8px;
+  padding: 10px 14px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.os-fu-strip[aria-busy="true"] .os-switch {
+  opacity: 0.7;
+}
+
+.os-fu-strip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.os-fu-strip-title {
+  min-width: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.os-fu-strip-title .muted {
+  font-weight: 400;
+}
+
+.os-fu-strip-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.os-fu-strip-later {
+  margin: 0;
+}
+
+/* --- Home */
+.os-home-yours {
+  margin-bottom: 16px;
+}
+
+.os-home-yours .os-fu-list {
+  max-width: 860px;
+}
+
+/* --- Knowledge base → Follow-ups */
+.os-seq-list {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.os-seq {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.os-seq-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.os-seq[data-off="true"] .os-kb-toggle-text,
+.os-seq[data-off="true"] .os-seq-summary {
+  opacity: 0.55;
+  transition: opacity 160ms ease;
+}
+
+.os-seq-summary {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: seq;
+  font-size: var(--fs-sm);
+}
+
+.os-seq-summary li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  counter-increment: seq;
+}
+
+.os-seq-summary li::before {
+  content: counter(seq);
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--tint);
+  color: var(--faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.os-seq-summary li.os-seq-fixed::before {
+  content: "✓";
+}
+
+.os-seq-summary .lbl {
+  font-weight: 500;
+}
+
+.os-seq-summary .when {
+  color: var(--faint);
+}
+
+.os-seq > .os-link {
+  justify-self: start;
+}
+
+.os-seq-steps {
+  display: grid;
+  gap: 12px;
+}
+
+.os-seq-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.os-seq-foot .os-kb-note {
+  margin-left: auto;
+}
+
+.os-seq-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.os-seq-timing {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.os-seq-num {
+  width: 72px;
+}
+
+/* --- Integrations: the webhook fallback */
+.os-cal-webhook dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 8px 0 0;
+  font-size: var(--fs-sm);
+}
+
+.os-cal-webhook dt {
+  color: var(--faint);
+}
+
+.os-cal-webhook dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.os-cal-webhook code {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  word-break: break-all;
+  user-select: all;
+}
+
+@media (max-width: 640px) {
+  .os-task-context > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .os-fu-strip {
+    margin: 0 12px 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-seq-row,
+  .os-seq .os-kb-toggle-text {
+    transition: none;
+  }
+}
+
+/* --- Contacts panel: Showed / No-show */
+.os-ct-attendance {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}

@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { ContactStage } from "@/app/generated/prisma/enums";
 import Avatar from "@/components/os/inbox/avatar";
+import CallAttendance from "@/components/os/contacts/call-attendance";
 import BookedCallChip from "@/components/os/inbox/booked-call";
 import { initialSource, threadName } from "@/components/os/inbox/names";
 import type { ContactRow } from "@/lib/os/contacts-board";
@@ -236,6 +237,7 @@ function Details({
             <dd className="os-ct-call">
               <BookedCallChip booking={c.booking} />
               <span className="muted">Invite sent to {c.booking.email}</span>
+              {c.booking.status !== "CANCELLED" && c.booking.status !== "LINK_SENT" && new Date(c.booking.start).getTime() < now && <CallAttendance contactId={c.id} />}
             </dd>
           </div>
         )}

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { PageHead } from "@/components/os/page-head";
 import { getCurrentWorkspaceId } from "@/lib/auth";
+import { AttendanceRow, TaskCard } from "@/components/os/followups/sequence-queue";
 import { getHomeStats, getSetterOverview, type Bar, type SetterOverview } from "@/lib/os/home";
+import { loadHomeFollowups } from "@/lib/os/sequences/view";
 
 function inHours(iso: string | null, now: number): string | null {
   if (!iso) return null;
@@ -49,7 +51,14 @@ export default async function OsHome() {
   if (!workspaceId) return null;
 
   const now = new Date();
-  const [{ today, stats }, setter] = await Promise.all([getHomeStats(workspaceId), overview(workspaceId, now)]);
+  const [{ today, stats }, setter, yours] = await Promise.all([
+    getHomeStats(workspaceId),
+    overview(workspaceId, now),
+    loadHomeFollowups(workspaceId, now).catch((err) => {
+      console.error("[OS Home] follow-ups failed:", err);
+      return null;
+    }),
+  ]);
 
   return (
     <>
@@ -80,9 +89,29 @@ export default async function OsHome() {
             <Link className="os-stat os-stat-link" href="/os/follow-ups" data-hot={setter.followupsDue > 0 || undefined}>
               <div className="label">Follow-ups due</div>
               <div className="value">{setter.followupsDue}</div>
-              <div className="sub">Nudges and Friday sends</div>
+              <div className="sub">Sequences, calls to mark, Friday sends</div>
             </Link>
           </section>
+          {yours && (yours.tasks.length > 0 || yours.attendance.length > 0) && (
+            <section className="os-home-panel os-home-yours" aria-label="Yours to do">
+              <header>
+                <h2>Yours to do</h2>
+                <span>after the call, from you not J</span>
+              </header>
+              <ul className="os-fu-list">
+                {yours.attendance.map((a) => (
+                  <li key={a.bookingId} className="os-fu-row">
+                    <AttendanceRow a={a} now={now.getTime()} />
+                  </li>
+                ))}
+                {yours.tasks.map((t) => (
+                  <li key={t.id} className="os-fu-row">
+                    <TaskCard t={t} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           <div className="os-home-grid">
             <Bars title="Setter funnel" bars={setter.funnel} hint="sales contacts at a J stage" />
             <Bars title="Pipeline" bars={setter.pipeline} hint="sales contacts by stage" />

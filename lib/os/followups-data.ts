@@ -68,8 +68,9 @@ const MOCK_RESOURCES: FridayResource[] = [
 
 const ago = (h: number) => new Date(Date.now() - h * HOUR);
 
-/** One-time sample state: a value opener due, a nudge drafted, a nudge soon. */
-async function seedMock() {
+/** One-time sample state: a value opener due, and two quiet threads the
+ *  follow-up sequences pick up (lib/os/sequences/mock-seed.ts). */
+export async function seedFollowupsMock() {
   if (mockFu.seeded) return;
   mockFu.seeded = true;
   const store = setterStore();
@@ -93,38 +94,22 @@ async function seedMock() {
     r.resources_sent = ["claude-starter"];
     r.next_action = { kind: "value_opener", at: iso(ago(0.7)) };
   });
-  // sam.creates: we wrote last 8h ago, J drafted the nudge (outside 24h).
-  appendMockMessage("m8", "makes sense. what's the bit that eats most of your week right now?", ago(8));
+  // sam.creates: we wrote last 21h ago and they went quiet mid-qualifying:
+  // the no-reply sequence's first step (value first) is due.
+  appendMockMessage("m8", "makes sense. what's the bit that eats most of your week right now?", ago(21));
   await put("c8", (r) => {
     r.state = "in_conversation";
-    r.our_last_at = iso(ago(8));
+    r.stage = "qualify";
+    r.our_last_at = iso(ago(21));
     r.resources_sent = ["claude-starter"];
-    r.next_action = { kind: "nudge", at: iso(ago(2)) };
   });
-  const sam = await store.getContact("c8", "mock");
-  if (sam) {
-    await store.createDraft({
-      workspaceId: "mock",
-      contactId: "c8",
-      kind: "nudge",
-      anchor: `nudge:${iso(ago(8))}`,
-      bubbles: ["no rush on this one", "curious which part of the week you'd hand off first if you could"],
-      reasoning: "They went quiet after a qualifying question. One light nudge, no pitch.",
-      setterStage: "qualify",
-      humanAgent: true,
-      flags: ["human_agent", "sample"],
-      proposedTags: {},
-      raw: null,
-      backend: "fake",
-      model: "sample",
-    });
-  }
-  // jordan.ops: we answered an hour ago; the nudge is due in 5h.
+  // jordan.ops: we offered the call an hour ago; "after the invite" is queued.
   appendMockMessage("m3", "it'd be a 20 min call, I'd map your current DM flow and show where it leaks", ago(1));
   await put("c3", (r) => {
     r.state = "in_conversation";
+    r.stage = "bridge";
     r.our_last_at = iso(ago(1));
-    r.next_action = { kind: "nudge", at: iso(new Date(Date.now() + 5 * HOUR)) };
+    r.invited = { route: "call", offer: null, at: iso(ago(1))! };
   });
 }
 
@@ -252,7 +237,7 @@ export async function loadFollowups(workspaceId: string, now: Date = new Date())
   const drafts = await store.listPending(workspaceId);
 
   if (osMockEnabled()) {
-    await seedMock();
+    await seedFollowupsMock();
     queue = await mockQueueContacts();
     friday = { contacts: await mockFridayContacts(), sends: mockFu.sends, resources: MOCK_RESOURCES };
   } else {
@@ -276,7 +261,10 @@ export async function loadFollowups(workspaceId: string, now: Date = new Date())
 /** The sidebar number. */
 export async function followupsDue(workspaceId: string, now: Date = new Date()): Promise<number> {
   const data = await loadFollowups(workspaceId, now);
-  return dueCount(data.nudges, data.friday.items, data.friday.isToday);
+  // Lazy: the sequences view seeds its samples from this module.
+  const { followupAttentionCount } = await import("@/lib/os/sequences/view");
+  const sequences = await followupAttentionCount(workspaceId, now).catch(() => 0);
+  return dueCount(data.nudges, data.friday.items, data.friday.isToday) + sequences;
 }
 
 // ---------------------------------------------------------------- nudge writes

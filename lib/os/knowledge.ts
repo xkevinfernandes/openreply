@@ -4,6 +4,7 @@
 import { prisma } from "@/lib/db/client";
 import { offerIsOpen, type SetterProfile } from "@/lib/os/setter/profile";
 import { profileFromRow, type ResourceStatusName } from "@/lib/os/setter/kb";
+import { resolveSequenceSet, type SequenceSet } from "@/lib/os/sequences/types";
 
 export interface ResourceView {
   id: string;
@@ -43,6 +44,8 @@ export interface SetterEditorView {
   accounts: { id: string; username: string }[];
   campaigns: { id: string; name: string; setterId: string | null; setterName: string | null }[];
   otherSetters: { id: string; name: string }[];
+  /** Follow-up sequences (lib/os/sequences), defaults filled in. */
+  sequences: SequenceSet;
 }
 
 type ResourceRow = Awaited<ReturnType<typeof prisma.resource.findMany>>[number] & { _count?: { setters: number } };
@@ -101,12 +104,13 @@ export async function listSetterCards(workspaceId: string): Promise<SetterCard[]
 export async function loadSetterEditor(workspaceId: string, setterId: string): Promise<SetterEditorView | null> {
   const s = await prisma.setter.findFirst({ where: { id: setterId, workspaceId }, include: { resources: { select: { resourceId: true } } } });
   if (!s) return null;
-  const [resources, accounts, automations, maps, setters] = await Promise.all([
+  const [resources, accounts, automations, maps, setters, sequenceRows] = await Promise.all([
     listResources(workspaceId),
     prisma.instagramAccount.findMany({ where: { workspaceId }, select: { id: true, username: true }, orderBy: { connectedAt: "asc" } }),
     prisma.automation.findMany({ where: { workspaceId }, select: { id: true, name: true }, orderBy: { createdAt: "desc" } }),
     prisma.campaignSetter.findMany({ where: { workspaceId }, select: { automationId: true, setterId: true } }),
     prisma.setter.findMany({ where: { workspaceId }, select: { id: true, name: true }, orderBy: { createdAt: "asc" } }),
+    prisma.followupSequence.findMany({ where: { setterId, workspaceId } }),
   ]);
   const nameOf = new Map(setters.map((x) => [x.id, x.name]));
   return {
@@ -124,5 +128,6 @@ export async function loadSetterEditor(workspaceId: string, setterId: string): P
       return { id: a.id, name: a.name, setterId: m?.setterId ?? null, setterName: m ? (nameOf.get(m.setterId) ?? null) : null };
     }),
     otherSetters: setters.filter((x) => x.id !== s.id),
+    sequences: resolveSequenceSet(sequenceRows),
   };
 }
