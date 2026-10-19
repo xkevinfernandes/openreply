@@ -14,17 +14,24 @@ import type { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db/client";
 import { resolvedFromRows, resourceFromCatalog, rowDataFromProfile, type KnowledgeSource, type ResolvedSetter } from "@/lib/os/setter/kb";
 import { fileSetter, loadCatalog, loadKnowledge } from "@/lib/os/setter/knowledge";
+import { fieldsForSetter, loadDocs } from "@/lib/os/setter/knowledge/doc-store";
 import { profileFromFiles } from "@/lib/os/setter/profile";
 import type { SetterContact } from "@/lib/os/setter/store";
 
 async function loadResolved(workspaceId: string, setterId: string): Promise<ResolvedSetter | null> {
   const setter = await prisma.setter.findFirst({ where: { id: setterId, workspaceId }, include: { resources: { select: { resourceId: true } } } });
   if (!setter) return null;
-  const resources = await prisma.resource.findMany({ where: { workspaceId }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] });
+  const [resources, docs, fields] = await Promise.all([
+    prisma.resource.findMany({ where: { workspaceId }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
+    // Docs and fields are additive: if they can't load, J still has the JSON.
+    loadDocs(setter.id).catch(() => ({})),
+    fieldsForSetter(setter.id).catch(() => []),
+  ]);
   return resolvedFromRows(
     setter,
     resources,
-    setter.resources.map((r) => r.resourceId)
+    setter.resources.map((r) => r.resourceId),
+    { docs, fields }
   );
 }
 

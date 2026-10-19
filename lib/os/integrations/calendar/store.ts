@@ -1,6 +1,7 @@
 // DB side of the calendars: the encrypted token, the settings, and which
 // calendar J books on. One calendar books at a time: switching one on
 // switches the other off (app/(os)/os/integrations/calendar-actions.ts).
+import { bookingOf, calendarForSetter } from "@/lib/os/integrations/calendar/setter-booking";
 import { prisma } from "@/lib/db/client";
 import { decryptToken, encryptToken } from "@/lib/meta/oauth";
 import { osMockEnabled } from "@/lib/os/mock";
@@ -18,6 +19,9 @@ export interface ActiveCalendar {
   eventTypeId: string | null;
   eventName: string | null;
   durationMinutes: number | null;
+  /** Setup › Booking: the link J falls back to when no offered time fits. */
+  fallbackLink?: string | null;
+  fallbackAfterHours?: number;
 }
 
 export function encryptCalendarToken(token: string): string {
@@ -65,6 +69,19 @@ export async function loadCalendarProvider(workspaceId: string, provider: Calend
 /** The calendar J books on for this setter: connected and switched on. With
  *  OS_MOCK and nothing connected, the sample calendar. */
 export async function activeCalendar(workspaceId: string, setterId: string | null): Promise<ActiveCalendar | null> {
+  const cal = await connectedCalendar(workspaceId, setterId);
+  if (!cal || !setterId) return cal;
+  // Setup › Booking: link mode means J never offers times; calendar mode sets
+  // how many and how far ahead, and the fallback link.
+  const setter = await prisma.setter.findFirst({ where: { id: setterId, workspaceId }, select: { settings: true } }).catch(() => null);
+  const booking = bookingOf(setter?.settings);
+  const settings = calendarForSetter(cal.settings, booking);
+  if (!settings) return null;
+  return { ...cal, settings, fallbackLink: booking.link, fallbackAfterHours: booking.fallbackAfterHours };
+}
+
+/** The connected calendar before the setter's own rule. */
+export async function connectedCalendar(workspaceId: string, setterId: string | null): Promise<ActiveCalendar | null> {
   {
     const rows = await prisma.osIntegration
       .findMany({

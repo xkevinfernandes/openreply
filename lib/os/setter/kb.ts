@@ -4,7 +4,8 @@
 // lib/os/setter/knowledge.ts. Nothing here does I/O, so tests use it directly.
 
 import { z } from "zod";
-import type { ClientSettings, FunnelStage, Offer, SetterProfile, VoiceCorrection } from "@/lib/os/setter/profile";
+import { profilePartsFromDocs, type SetterDocs } from "@/lib/os/setter/knowledge/docs";
+import type { ClientSettings, Episode, FieldToFill, FunnelStage, Offer, SetterProfile, VoiceCorrection } from "@/lib/os/setter/profile";
 import type { SetterContact } from "@/lib/os/setter/store";
 import type { Catalog, CatalogRow, CatalogTrigger } from "@/lib/os/setter/types";
 
@@ -115,8 +116,10 @@ export interface SetterRowLike {
   voiceCorrections: unknown;
 }
 
-export function profileFromRow(row: SetterRowLike): SetterProfile {
-  return {
+/** What J reads for one setter. The docs (SetterDoc rows) win where they
+ *  exist; the JSON columns stay as the fallback for any doc that doesn't. */
+export function profileFromRow(row: SetterRowLike, docs?: SetterDocs | null): SetterProfile {
+  const base: SetterProfile = {
     name: row.name,
     settings: asSettings(row.settings),
     business: asBusiness(row.business),
@@ -127,6 +130,17 @@ export function profileFromRow(row: SetterRowLike): SetterProfile {
     examples: row.examples ?? "",
     voiceCorrections: asCorrections(row.voiceCorrections),
   };
+  if (!docs) return base;
+  const d = profilePartsFromDocs(docs);
+  const out: SetterProfile = { ...base, business: { ...base.business } };
+  if (d.persona !== undefined) out.persona = d.persona;
+  if (d.voice !== undefined) out.voice = d.voice;
+  if (d.voiceExamples !== undefined) out.voiceExamples = d.voiceExamples;
+  if (d.sections) out.business.sections = asBusiness({ sections: d.sections }).sections;
+  if (d.objections) out.business.objections = asBusiness({ objections: d.objections }).objections;
+  if (d.offers) out.offers = asOffers(d.offers);
+  if (d.examples !== undefined) out.examples = d.examples;
+  return out;
 }
 
 /** A profile as Setter columns (import, duplicate). */
@@ -234,12 +248,34 @@ export interface KnowledgeSource {
   forSetter(workspaceId: string, setterId: string): Promise<ResolvedSetter | null>;
 }
 
+export interface ResolveExtras {
+  docs?: SetterDocs | null;
+  /** Setup › Fields J fills. */
+  fields?: FieldToFill[];
+}
+
+/** Best episodes: Resource rows of kind "episode", in the order given. */
+export function episodesFrom(resources: ResourceLike[]): Episode[] {
+  return resources
+    .filter((r) => r.kind === "episode" && r.status === "ACTIVE" && r.link)
+    .map((r) => {
+      const d = (r.data && typeof r.data === "object" ? r.data : {}) as { when?: unknown };
+      return { name: r.name, link: r.link ?? "", when: typeof d.when === "string" ? d.when : r.description };
+    });
+}
+
 export function resolvedFromRows(
   setter: SetterRowLike,
-  resources: ResourceLike[],
-  enabledResourceIds: Iterable<string>
+  allResources: ResourceLike[],
+  enabledResourceIds: Iterable<string>,
+  extras: ResolveExtras = {}
 ): ResolvedSetter {
-  const profile = profileFromRow(setter);
+  const profile = profileFromRow(setter, extras.docs);
+  const episodes = episodesFrom(allResources);
+  if (episodes.length) profile.episodes = episodes;
+  if (extras.fields?.length) profile.fields = extras.fields;
+  // Episodes are their own block, never a lead magnet J matches on.
+  const resources = allResources.filter((r) => r.kind !== "episode");
   const enabled = new Set(enabledResourceIds);
   const rows = resources.map((r) => ({ r, row: catalogRowFromResource(r) }));
   const tag_options = profile.settings.tag_options as string[] | undefined;

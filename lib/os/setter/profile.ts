@@ -313,6 +313,51 @@ export interface SetterProfile {
   /** Full example threads (conversation-examples.md). */
   examples: string;
   voiceCorrections: VoiceCorrection[];
+  /** Who J is (System prompt.md above `## Voice`). Empty for imported setters. */
+  persona?: string;
+  /** The global custom fields this setter fills (Setup › Fields J fills). */
+  fields?: FieldToFill[];
+  /** Best episodes J may share, highest priority first (Resources). */
+  episodes?: Episode[];
+}
+
+export interface FieldToFill {
+  key: string;
+  label: string;
+  type: string;
+}
+
+export interface Episode {
+  name: string;
+  link: string;
+  /** When to share it, in Kevin's words. */
+  when: string;
+}
+
+/** settings.booking (Setup › Booking): how J books calls. */
+export function bookingLinkOf(settings: ClientSettings | undefined): string {
+  const b = settings?.booking;
+  const link = b && typeof b === "object" ? (b as { link?: unknown }).link : undefined;
+  return typeof link === "string" ? link.trim() : "";
+}
+
+export function fieldsBlock(fields: FieldToFill[]): string {
+  if (!fields.length) return "";
+  return (
+    "### FIELDS TO FILL (only from what they actually said — never guess)\n" +
+    fields.map((f) => `- \`${f.key}\`: ${f.label} (${f.type.toLowerCase()})`).join("\n") +
+    '\nPut what you learned in the JSON as "fields": {"<key>": "<value in their words>"}. Leave a field out until they say it.\n'
+  );
+}
+
+export function episodesBlock(episodes: Episode[]): string {
+  const list = episodes.filter((e) => e.link.trim());
+  if (!list.length) return "";
+  return (
+    "### BEST EPISODES (videos you may share, highest first — share at most one, only when it fits)\n" +
+    list.map((e, i) => `${i + 1}. **${e.name}**: ${e.link}${e.when.trim() ? `\n   when: ${e.when.trim().replace(/\n/g, " ")}` : ""}`).join("\n") +
+    "\n"
+  );
 }
 
 /** The markdown files → a profile. playbook.md only fills gaps in offer.md. */
@@ -376,7 +421,7 @@ export function renderBrandBlock(p: SetterProfile, catalogRows: CatalogRow[], to
   const examples = threads ? (voiceExamples ? `${voiceExamples}\n\n${threads}`.trim() : threads) : voiceExamples;
   const audience = (settings.audience || "b2b").toLowerCase();
   const objectionPlaybook = p.business?.objections ?? [];
-  const calUrl = offer.booking_link || settings.cal_com_url || "";
+  const calUrl = bookingLinkOf(settings) || offer.booking_link || settings.cal_com_url || "";
   const unknown = "unknown — do NOT claim or invent anything here";
   const val = (key: string, fallback = "") => offer[key] || fallback || unknown;
 
@@ -388,6 +433,7 @@ export function renderBrandBlock(p: SetterProfile, catalogRows: CatalogRow[], to
     `- **AUDIENCE: ${audience.toUpperCase()}** — apply the ${audience.toUpperCase()} frame rules from the method`,
     "",
   ];
+  if (p.persona?.trim()) out.push("### WHO YOU ARE\n" + p.persona.trim() + "\n");
   out.push(section("Offer", val("offer")));
   out.push(section("Outcome they buy", val("outcome")));
   out.push(section("Price / how it's discussed", val("price", "never quote a price in DMs; it depends, that is what the call is for")));
@@ -428,6 +474,10 @@ export function renderBrandBlock(p: SetterProfile, catalogRows: CatalogRow[], to
   } else {
     out.push("### RESOURCES\nnone — never invent a resource or a link.\n");
   }
+  const eps = episodesBlock(p.episodes ?? []);
+  if (eps) out.push(eps);
+  const flds = fieldsBlock(p.fields ?? []);
+  if (flds) out.push(flds);
   const corr = correctionsBlock(p.voiceCorrections ?? []);
   if (corr) out.push(corr);
   return out.join("\n").trim();

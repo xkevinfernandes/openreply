@@ -115,12 +115,13 @@ export function buildPrompt(
       '"stage_reasoning": "...", "template_used": "...", ' +
       '"qualification": {"is_owner": null, "niche": null, "monthly_revenue": null, "pain": null, ' +
       '"tried_before": null, "fit_score": 0, "fast_track_signal": null}, ' +
-      '"propose_tags": {"<tag>": "<one-line reason>"}, ' +
+      '"propose_tags": {"<tag>": "<one-line reason>"}, "fields": {}, ' +
       '"invite_ready": false, "invite": null, "doc_bubbles": [], ' +
       '"hold": false, "hold_reason": null, "notes": "..."}\n' +
       `propose_tags may only use: ${tagOptions(catalog).join(", ")}. Propose \`qualified\` when fit_score >= 3, ` +
       "`friday` when they are worth a weekly gift, `not_now` when this is not a sales conversation, " +
       "`client`/`booked` only when the transcript says so. Empty object when nothing applies.\n" +
+      "fields: only keys from FIELDS TO FILL in the BRAND CONTEXT, with what they said in their words. Empty object when nothing new.\n" +
       "INVITATION (Stage 5): set invite_ready true ONLY when you can quote their goal and their challenge " +
       "from the transcript in THEIR words (invite.their_goal, invite.their_challenge). If either is missing, " +
       "ask for it instead (one question). Never invent an answer. invite.in_the_way = what's made it hard " +

@@ -9,6 +9,7 @@
 
 import { prefilledLink } from "@/lib/os/integrations/calendar/calendly";
 import { isTimeZone } from "@/lib/os/integrations/calendar/settings";
+import { fallbackDue } from "@/lib/os/integrations/calendar/setter-booking";
 import { filterSlots, formatSlot, formatTime, guessTimezone, pickOptions, slotId, tzCity } from "@/lib/os/integrations/calendar/slots";
 import type { ActiveCalendar } from "@/lib/os/integrations/calendar/store";
 import { calendarName, type BookingPayload, type CalendarSlot } from "@/lib/os/integrations/calendar/types";
@@ -60,8 +61,9 @@ function slotLine(slot: CalendarSlot, ctx: BookingContext): string {
 }
 
 /** The CALENDAR section of the draft prompt. */
-export function bookingBlock(ctx: BookingContext, rec: SetterRecord): string {
+export function bookingBlock(ctx: BookingContext, rec: SetterRecord, now: Date = new Date()): string {
   const cal = ctx.calendar;
+  const fallback = cal.fallbackLink ?? null;
   const host = cal.settings.hostTimezone;
   const event = cal.eventName ? `"${cal.eventName}"${cal.durationMinutes ? `, ${cal.durationMinutes} min` : ""}` : "the setter call";
   const bk = rec.booking;
@@ -83,7 +85,11 @@ export function bookingBlock(ctx: BookingContext, rec: SetterRecord): string {
     : `Their timezone: UNKNOWN. Before offering times, ask where they're based (casually, one short line, e.g. "where are you based btw? want to give you times that actually work"). The times below are in ${tzCity(host)} time.`;
   const lines = [head, tzLine];
   if (!ctx.slots.length) {
-    lines.push(`NO free times in the next ${cal.settings.daysAhead} days. Say this week is packed and you'll come back with a time; booking.action "none". Never invent a time.`);
+    lines.push(
+      fallback
+        ? `NO free times in the next ${cal.settings.daysAhead} days. Send the booking link so they pick a time themselves: ${fallback} — booking.action "none". Never invent a time.`
+        : `NO free times in the next ${cal.settings.daysAhead} days. Say this week is packed and you'll come back with a time; booking.action "none". Never invent a time.`
+    );
   } else {
     lines.push(`Suggested times to offer (${ctx.options.length}):\n${ctx.options.map((s) => slotLine(s, ctx)).join("\n")}`);
     const more = ctx.slots.filter((s) => !ctx.options.includes(s)).slice(0, MORE_TIMES);
@@ -94,6 +100,9 @@ export function bookingBlock(ctx: BookingContext, rec: SetterRecord): string {
   if (bk?.picked) prior.push(`they picked ${formatSlot(bk.picked, bk.timezone || ctx.leadTz || host)}`);
   if (bk?.taken?.length) prior.push(`TAKEN since (someone else booked it, never offer again): ${bk.taken.map((t) => formatSlot(t, bk.timezone || ctx.leadTz || host)).join(", ")}. Say sorry lightly that the time just went, and offer the suggested times`);
   if (rec.email) prior.push(`their email from the thread: ${rec.email}`);
+  if (fallback && bk?.phase === "proposed" && fallbackDue(bk.at, { fallbackAfterHours: cal.fallbackAfterHours ?? 24 }, now)) {
+    prior.push(`it's been over ${cal.fallbackAfterHours ?? 24}h since you offered times with no pick: don't offer new times, send the booking link (${fallback}) with no pressure`);
+  }
   if (prior.length) lines.push(`So far: ${prior.join("; ")}.`);
   const confirmStep =
     ctx.mode === "link"
@@ -104,7 +113,10 @@ export function bookingBlock(ctx: BookingContext, rec: SetterRecord): string {
       "How (one step per message, match their energy, never rush them):",
       "1. They said yes to a call but you don't know their timezone → ask where they're based. action \"ask_timezone\".",
       `2. Offer the suggested times in ONE bubble, their time, e.g. "would tuesday 3pm or wednesday 11am work? (your time)". action "propose", slots = the ids you offered.`,
-      "3. They pick one → ask for the best email for the invite (and their name if you don't know it). action \"ask_email\", slot = the id. They want another time → take it if it's listed, otherwise say so lightly and offer the two closest listed ones (action \"propose\").",
+      "3. They pick one → ask for the best email for the invite (and their name if you don't know it). action \"ask_email\", slot = the id. They want another time → take it if it's listed, otherwise " +
+        (fallback
+          ? `send the booking link so they pick what works: ${fallback} (action \"none\"), no more times.`
+          : "say so lightly and offer the two closest listed ones (action \"propose\")."),
       confirmStep,
       "Never say it's booked before action \"confirm\". Never invent a time or an id. If they haven't said yes to a call, ignore this section (action \"none\").",
     ].join("\n")
