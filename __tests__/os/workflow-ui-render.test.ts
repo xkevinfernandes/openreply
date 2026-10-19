@@ -24,8 +24,8 @@ const ctx: BuilderContext = {
   stats: {
     strip: { triggered: 64, replied: 41, leadMagnet: 26, booked: 6, showed: 4 },
     since: "2026-10-12",
-    nodes: { s1: { reached: 41, share: 0.64 } },
-    ports: { s2: { "exit:booked": 6 } },
+    nodes: { opener: { reached: 41, share: 0.64 } },
+    ports: { setter: { "exit:booked": 6 } },
     releases: {},
     branches: {},
   },
@@ -57,7 +57,7 @@ describe("node faces", () => {
   });
 
   it("shows the template's content, counts and setter summary", () => {
-    const g = templateGraph("hold", "setter-starter");
+    const g = templateGraph("hold_lead_magnet", "setter-starter");
     const html = render(g.nodes, { trigger: ["Add a keyword"] });
     expect(html).toContain("caught your comment");
     expect(html).toContain("J · Book a call · Hold");

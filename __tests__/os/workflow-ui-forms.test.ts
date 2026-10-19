@@ -2,7 +2,7 @@
 // bubble), buttons, randomizer weights and A vs B, actions, setter, labels,
 // Publish problems, the list/strip numbers, and the mock adapter.
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   abResults,
   addBranch,
@@ -32,6 +32,7 @@ import {
   waitWindowWarning,
 } from "@/components/os/workflows/forms";
 import { defaultData, emptyGraph, addNode, connect } from "@/components/os/workflows/graph-edit";
+import { templateGraph } from "@/components/os/workflows/templates";
 import { listFunnel, nodeStatText, sinceLabel, stripItems } from "@/components/os/workflows/view";
 import { portsOf, type Bubble, type GraphNode, type StepData } from "@/lib/os/workflows/graph";
 
@@ -239,15 +240,17 @@ describe("mock adapter (OS_MOCK=1)", () => {
       expect(rows.map((r) => r.name)).toContain("Hold the lead magnet");
       expect(rows.find((r) => r.name === "Hold the lead magnet")?.ab).toBe(true);
 
-      const { id } = await data.createWorkflow("w", "simple", "script-vault");
+      const { id } = await data.createWorkflow("w", "send_link", "script-vault");
       const wf = (await data.getWorkflow("w", id))!;
       expect(wf.mode).toBe("draft");
       expect(wf.version).toBeNull();
-      // No keyword yet: blocked.
+      // No keyword: blocked.
+      const g = wf.graph;
+      (g.nodes[0].data as StepData<"trigger">).keywords = [];
+      await data.saveDraft("w", id, { graph: g });
       const blocked = await data.publishWorkflow("w", id);
       expect("problems" in blocked && blocked.problems[0].message).toBe("Add a keyword");
       // A keyword that's live elsewhere: blocked (E12).
-      const g = wf.graph;
       (g.nodes[0].data as StepData<"trigger">).keywords = ["SETTER"];
       await data.saveDraft("w", id, { graph: g });
       const clash = await data.publishWorkflow("w", id);
@@ -274,15 +277,66 @@ describe("mock adapter (OS_MOCK=1)", () => {
     }
   });
 
-  it("without OS_MOCK the list is empty and writes say it isn't on yet", async () => {
+  it("without OS_MOCK it goes through the engine API (lib/os/workflows/api.ts)", async () => {
     const prev = process.env.OS_MOCK;
     delete process.env.OS_MOCK;
+    vi.resetModules();
+    const draft = templateGraph("hold_lead_magnet");
+    const summary = { id: "w9", name: "Hold", mode: "draft" as const, active: true, trigger: { kind: "comment" as const, keywords: ["GUIDE"], postIds: "any" as const }, version: 2, unpublished: true, runs: { active: 1, paused: 0, failed: 0, total: 3 }, updatedAt: "2026-10-19T10:00:00Z" };
+    const saved: unknown[] = [];
+    vi.doMock("@/lib/os/workflows/api", () => ({
+      listWorkflows: async () => [summary],
+      getWorkflow: async () => ({ ...summary, draft, published: draft, versions: [{ id: "v2", number: 2, publishedAt: "2026-10-12T09:00:00Z", activeRuns: 1 }], problems: [], warnings: [] }),
+      workflowStats: async () => ({ period: "all", versionId: "v2", header: { triggered: 10, replied: 6, leadMagnet: 3, booked: 1, showed: 1 }, nodes: { opener: { nodeId: "opener", type: "message", reached: 6, pctOfPrev: 60 } }, ports: { "setter:exit:quiet": 2 } }),
+      createWorkflow: async () => ({ ok: true, id: "w9" }),
+      saveDraft: async (_w: string, _id: string, g: unknown) => {
+        saved.push(g);
+        return { ok: true, warnings: [] };
+      },
+      publishWorkflow: async () => ({ ok: false, error: "Keyword clash", problems: [], clashes: [{ keyword: "GUIDE", with: "campaign", id: "c1", name: "Old campaign" }] }),
+      setWorkflowMode: async () => ({ ok: false, error: "Nope" }),
+      setWorkflowActive: async () => ({ ok: true }),
+      contactRun: async () => ({ runId: "r", workflowId: "w9", workflowName: "Hold", status: "waiting", nodeId: "setter", nodeType: "setter", pausedAt: null, pausedReason: null, failReason: null, held: [], released: [], waitUntil: null }),
+      resumeContact: async () => ({ ok: true, runId: "r" }),
+      pauseContact: async () => ({ ok: true, runId: "r" }),
+    }));
     try {
       const data = await import("@/components/os/workflows/data");
-      expect(await data.listWorkflows("w")).toEqual([]);
-      await expect(data.createWorkflow("w", "blank")).rejects.toThrow(/switched on/);
+      const rows = await data.listWorkflows("w");
+      expect(rows[0]).toMatchObject({ id: "w9", on: true, version: 2, funnel: { triggered: 10 }, trigger: { keywords: ["GUIDE"] }, ab: false });
+      const stats = (await data.workflowStats("w", "w9"))!;
+      expect(stats.nodes.opener).toEqual({ reached: 6, share: 0.6 });
+      expect(stats.ports.setter).toEqual({ "exit:quiet": 2 });
+      expect(stats.since).toBe("2026-10-12T09:00:00Z");
+      expect((await data.getWorkflow("w", "w9"))?.graph).toEqual(draft);
+      await data.createWorkflow("w", "hold_lead_magnet", "setter-starter");
+      expect(saved).toHaveLength(1);
+      const r = await data.publishWorkflow("w", "w9");
+      expect(r).toEqual({ problems: [{ nodeId: "trigger", message: "GUIDE is already live in Old campaign" }] });
+      await expect(data.setMode("w", "w9", "auto")).rejects.toThrow("Nope");
+      expect(await data.contactRun("w", "c1")).toEqual({ workflowId: "w9", workflowName: "Hold", stepId: "setter", stepLabel: "Setter", status: "active" });
     } finally {
+      vi.doUnmock("@/lib/os/workflows/api");
+      vi.resetModules();
       process.env.OS_MOCK = prev;
     }
+  });
+});
+
+describe("engine API mapping", () => {
+  it("the Inbox line shows only live runs", async () => {
+    const { runFromApi } = await import("@/components/os/workflows/api-map");
+    const base = { runId: "r", workflowId: "w", workflowName: "Hold", nodeId: "s", nodeType: "message" as const, pausedAt: null, pausedReason: null, failReason: null, held: [], released: [], waitUntil: null };
+    expect(runFromApi({ ...base, status: "paused" })?.status).toBe("paused");
+    expect(runFromApi({ ...base, status: "active" })?.stepLabel).toBe("Message");
+    expect(runFromApi({ ...base, status: "completed" })).toBeNull();
+    expect(runFromApi(null)).toBeNull();
+  });
+
+  it("a waiting-on-a-removed-step refusal becomes a plain problem", async () => {
+    const { publishProblems } = await import("@/components/os/workflows/api-map");
+    const out = publishProblems({ ok: false, error: "x", problems: [], waiting: [{ nodeId: "s3", count: 2 }] }, templateGraph("blank"));
+    expect(out[0].message).toMatch(/2 people wait/);
+    expect(publishProblems({ ok: false, error: "Broken", problems: [] }, templateGraph("blank"))).toEqual([{ message: "Broken" }]);
   });
 });

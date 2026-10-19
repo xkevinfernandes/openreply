@@ -21,7 +21,7 @@ import {
   updateNodeData,
 } from "@/components/os/workflows/graph-edit";
 import { friendlyProblems } from "@/components/os/workflows/forms";
-import { isTemplateKey, templateGraph, TEMPLATE_KEYS, TEMPLATES } from "@/components/os/workflows/templates";
+import { isTemplateKey, layoutGraph, templateGraph, TEMPLATE_KEYS, TEMPLATES } from "@/components/os/workflows/templates";
 import { portsOf, STEP_DATA, STEP_TYPES, validateGraph, type StepData, type WorkflowGraph } from "@/lib/os/workflows/graph";
 
 function withKeyword(g: WorkflowGraph, kw = "SETTER"): WorkflowGraph {
@@ -108,20 +108,20 @@ describe("graph editing", () => {
   });
 
   it("deleting a step removes its arrows; the trigger can't be deleted", () => {
-    let g = withKeyword(templateGraph("simple", "setter-starter"));
+    let g = templateGraph("send_link", "setter-starter");
     const before = g.edges.length;
-    g = removeNodes(g, ["s2", "trigger"]);
+    g = removeNodes(g, ["link", "trigger"]);
     expect(g.nodes.some((n) => n.id === "trigger")).toBe(true);
-    expect(g.nodes.some((n) => n.id === "s2")).toBe(false);
-    expect(g.edges.some((e) => e.from === "s2" || e.to === "s2")).toBe(false);
+    expect(g.nodes.some((n) => n.id === "link")).toBe(false);
+    expect(g.edges.some((e) => e.from === "link" || e.to === "link")).toBe(false);
     expect(g.edges.length).toBe(before - 2);
     expect(validateGraph(g)).toEqual([]);
   });
 
   it("removing an arrow by id", () => {
-    const g = templateGraph("simple");
-    const next = removeEdges(g, ["s1:next"]);
-    expect(next.edges.find((e) => e.id === "s1:next")).toBeUndefined();
+    const g = templateGraph("send_link");
+    const id = g.edges[0].id;
+    expect(removeEdges(g, [id]).edges.find((e) => e.id === id)).toBeUndefined();
   });
 
   it("drops arrows from ports that vanish when a step changes", () => {
@@ -216,38 +216,48 @@ describe("undo", () => {
 describe("templates (New workflow picker)", () => {
   it("offers the four starting points, Hold the lead magnet first and default", () => {
     expect(TEMPLATES.map((t) => t.label)).toEqual(["Hold the lead magnet", "Simple: send the link", "Start a conversation", "Blank"]);
-    expect(TEMPLATES.find((t) => t.isDefault)?.key).toBe("hold");
-    expect(isTemplateKey("hold")).toBe(true);
+    expect(TEMPLATES.find((t) => t.isDefault)?.key).toBe("hold_lead_magnet");
+    expect(isTemplateKey("send_link")).toBe(true);
     expect(isTemplateKey("nope")).toBe(false);
   });
 
-  it("every template is a valid graph that only needs a keyword to publish", () => {
+  it("every template is publishable as it comes (Blank only needs an arrow)", () => {
     for (const k of TEMPLATE_KEYS) {
       const g = templateGraph(k, "setter-starter");
-      expect(validateGraph(g).filter((p) => !/keyword|small|items/i.test(p.message))).toEqual([]);
-      const problems = friendlyProblems(withKeyword(g));
+      expect(validateGraph(g), k).toEqual([]);
+      const problems = friendlyProblems(g);
       if (k === "blank") expect(problems.map((p) => p.message)).toEqual(["Connect the trigger"]);
       else expect(problems, k).toEqual([]);
     }
   });
 
   it("Hold = Book a call + Hold until release, with the lead magnet filled in", () => {
-    const setter = templateGraph("hold", "setter-starter").nodes.find((n) => n.type === "setter")!.data as StepData<"setter">;
+    const setter = templateGraph("hold_lead_magnet", "setter-starter").nodes.find((n) => n.type === "setter")!.data as StepData<"setter">;
     expect(setter.goal).toBe("book_call");
     expect(setter.leadMagnet).toEqual({ mode: "hold", resources: ["setter-starter"] });
     expect(Object.values(setter.release).every(Boolean)).toBe(true);
   });
 
   it("Simple sends the link as its own bubble; Start a conversation has J with that goal", () => {
-    const msg = templateGraph("simple", "script-vault").nodes.find((n) => n.type === "message")!.data as StepData<"message">;
-    expect(msg.bubbles.map((b) => b.kind)).toEqual(["text", "link"]);
-    const conv = templateGraph("conversation").nodes.find((n) => n.type === "setter")!.data as StepData<"setter">;
+    const g = templateGraph("send_link", "script-vault");
+    const link = g.nodes.find((n) => n.type === "message" && (n.data as StepData<"message">).bubbles.some((b) => b.kind === "link"))!.data as StepData<"message">;
+    expect(link.bubbles.map((b) => b.kind)).toEqual(["text", "link"]);
+    expect(link.bubbles[1]).toEqual({ kind: "link", resourceSlug: "script-vault" });
+    const conv = templateGraph("start_conversation").nodes.find((n) => n.type === "setter")!.data as StepData<"setter">;
     expect(conv.goal).toBe("start_conversation");
   });
 
+  it("lays steps out left to right along the arrows", () => {
+    const g = templateGraph("hold_lead_magnet");
+    const x = (id: string) => g.nodes.find((n) => n.id === id)!.position.x;
+    for (const e of g.edges) expect(x(e.to), `${e.from}→${e.to}`).toBeGreaterThan(x(e.from));
+    const orphan = layoutGraph({ ...g, edges: [] });
+    expect(new Set(orphan.nodes.filter((n) => n.type !== "trigger").map((n) => n.position.x)).size).toBe(1);
+  });
+
   it("returns a fresh graph each time (editing one never changes the next)", () => {
-    const a = templateGraph("hold");
+    const a = templateGraph("hold_lead_magnet");
     a.nodes[0].position.x = 999;
-    expect(templateGraph("hold").nodes[0].position.x).toBe(0);
+    expect(templateGraph("hold_lead_magnet").nodes[0].position.x).toBe(0);
   });
 });

@@ -1,18 +1,25 @@
-// The Workflows screens' data adapter (server only).
+// The Workflows screens' data adapter (server only): the engine API
+// (lib/os/workflows/api.ts, stream wfengine) mapped to the screens' shapes
+// (api-map.ts).
 //
-// TODO(wfengine): the engine stream owns the real store and API
-// (lib/os/workflows/api.ts + prisma/os-workflows.prisma). When it lands,
-// replace the bodies below with calls to it; the exported signatures are the
-// ones the screens use. Until then:
-//  - OS_MOCK=1: an in-memory store seeded with the WorkflowsList board's four
-//    workflows, per-step stats and two runs (maya.builds paused, tom.k active).
-//  - otherwise: an empty list, and writes say workflows aren't switched on yet.
+// OS_MOCK=1 uses an in-memory store instead, seeded with the WorkflowsList
+// board's four workflows, per-step stats and runs (maya.builds paused,
+// tom.k and jordan.ops active), so the screens work without the engine.
 
+import { detailFromApi, publishProblems, rowFromSummary, runFromApi, statsFromApi } from "@/components/os/workflows/api-map";
 import { friendlyProblems, STEP_LABEL } from "@/components/os/workflows/forms";
-import { templateGraph, TEMPLATES, type TemplateKey } from "@/components/os/workflows/templates";
+import { fillResource, layoutGraph, templateGraph, TEMPLATES, type TemplateKey } from "@/components/os/workflows/templates";
 import type { ContactRun, FunnelStrip, NodeStat, Period, WorkflowDetail, WorkflowMode, WorkflowRow, WorkflowStats } from "@/components/os/workflows/types";
 import { osMockEnabled } from "@/lib/os/mock";
 import { WorkflowGraph, type GraphProblem, type StepData } from "@/lib/os/workflows/graph";
+
+const api = () => import("@/lib/os/workflows/api");
+
+/** An ApiResult that failed becomes an Error with the engine's words. */
+function ok<T extends { ok: boolean }>(r: T): Extract<T, { ok: true }> {
+  if (!r.ok) throw new Error((r as { error?: string }).error || "That didn't save. Try again.");
+  return r as Extract<T, { ok: true }>;
+}
 
 export class WorkflowsUnavailable extends Error {
   constructor() {
@@ -50,8 +57,106 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 // ---------------------------------------------------------------- reads
-export async function listWorkflows(_workspaceId: string): Promise<WorkflowRow[]> {
-  if (!osMockEnabled()) return [];
+export async function listWorkflows(workspaceId: string): Promise<WorkflowRow[]> {
+  if (osMockEnabled()) return mockListWorkflows(workspaceId);
+  const a = await api();
+  const list = await a.listWorkflows(workspaceId);
+  return Promise.all(
+    list.map(async (w) => {
+      const [stats, detail] = await Promise.all([a.workflowStats(workspaceId, w.id).catch(() => null), a.getWorkflow(workspaceId, w.id).catch(() => null)]);
+      const graph = detail?.published ?? detail?.draft;
+      return rowFromSummary(w, stats, Boolean(graph?.nodes.some((n) => n.type === "randomizer")));
+    })
+  );
+}
+
+export async function getWorkflow(workspaceId: string, id: string): Promise<WorkflowDetail | null> {
+  if (osMockEnabled()) return mockGetWorkflow(workspaceId, id);
+  const d = await (await api()).getWorkflow(workspaceId, id);
+  return d ? detailFromApi(d) : null;
+}
+
+export async function workflowStats(workspaceId: string, id: string, period: Period = "all"): Promise<WorkflowStats | null> {
+  if (osMockEnabled()) return mockWorkflowStats(workspaceId, id, period);
+  const a = await api();
+  const [s, d] = await Promise.all([a.workflowStats(workspaceId, id, { period }), a.getWorkflow(workspaceId, id)]);
+  return s ? statsFromApi(s, d?.versions[0]?.publishedAt ?? null) : null;
+}
+
+/** For the Go to picker. */
+export async function workflowNames(workspaceId: string): Promise<{ id: string; name: string }[]> {
+  return (await listWorkflows(workspaceId)).map((w) => ({ id: w.id, name: w.name }));
+}
+
+// ---------------------------------------------------------------- writes
+/** New workflow from a template, laid out left to right with the first lead magnet filled in. */
+export async function createWorkflow(workspaceId: string, template: TemplateKey, resourceSlug?: string): Promise<{ id: string }> {
+  if (osMockEnabled()) return mockCreateWorkflow(workspaceId, template, resourceSlug);
+  const a = await api();
+  const { id } = ok(await a.createWorkflow(workspaceId, { templateId: template }));
+  const d = await a.getWorkflow(workspaceId, id);
+  if (d) ok(await a.saveDraft(workspaceId, id, layoutGraph(fillResource(d.draft, resourceSlug))));
+  return { id };
+}
+
+export async function saveDraft(workspaceId: string, id: string, input: { graph?: unknown; name?: string }): Promise<{ savedAt: string }> {
+  if (osMockEnabled()) return mockSaveDraft(workspaceId, id, input);
+  const a = await api();
+  let graph: WorkflowGraph;
+  if (input.graph !== undefined) {
+    const parsed = WorkflowGraph.safeParse(input.graph);
+    if (!parsed.success) throw new Error("That didn't save: the workflow looks broken. Undo the last change.");
+    graph = parsed.data;
+  } else {
+    const d = await a.getWorkflow(workspaceId, id);
+    if (!d) throw new Error("That workflow is gone. Refresh the page.");
+    graph = d.draft;
+  }
+  ok(await a.saveDraft(workspaceId, id, graph, input.name !== undefined ? { name: input.name.trim().slice(0, 80) } : {}));
+  return { savedAt: new Date().toISOString() };
+}
+
+/** Publish the draft as a new version, unless something blocks it. */
+export async function publishWorkflow(workspaceId: string, id: string): Promise<{ version: number } | { problems: GraphProblem[] }> {
+  if (osMockEnabled()) return mockPublishWorkflow(workspaceId, id);
+  const a = await api();
+  const d = await a.getWorkflow(workspaceId, id);
+  if (!d) throw new Error("That workflow is gone. Refresh the page.");
+  const own = friendlyProblems(d.draft);
+  if (own.length) return { problems: own };
+  const r = await a.publishWorkflow(workspaceId, id);
+  return r.ok ? { version: r.version } : { problems: publishProblems(r, d.draft) };
+}
+
+export async function setMode(workspaceId: string, id: string, mode: WorkflowMode): Promise<void> {
+  if (osMockEnabled()) return mockSetMode(workspaceId, id, mode);
+  ok(await (await api()).setWorkflowMode(workspaceId, id, mode));
+}
+
+export async function setOn(workspaceId: string, id: string, on: boolean): Promise<void> {
+  if (osMockEnabled()) return mockSetOn(workspaceId, id, on);
+  ok(await (await api()).setWorkflowActive(workspaceId, id, on));
+}
+
+// ---------------------------------------------------------------- runs (Inbox)
+export async function contactRun(workspaceId: string, contactId: string): Promise<ContactRun | null> {
+  if (osMockEnabled()) return mockContactRun(workspaceId, contactId);
+  return runFromApi(await (await api()).contactRun(workspaceId, contactId));
+}
+
+export async function pauseRun(workspaceId: string, contactId: string): Promise<void> {
+  if (osMockEnabled()) return mockPauseRun(workspaceId, contactId);
+  ok(await (await api()).pauseContact(workspaceId, contactId));
+}
+
+/** K2: J reads what Kevin wrote and carries on; timers restart from now. */
+export async function resumeRun(workspaceId: string, contactId: string): Promise<void> {
+  if (osMockEnabled()) return mockResumeRun(workspaceId, contactId);
+  ok(await (await api()).resumeContact(workspaceId, contactId));
+}
+
+// ---------------------------------------------------------------- mock store
+async function mockListWorkflows(_workspaceId: string): Promise<WorkflowRow[]> {
   return [...store().workflows.values()].map((w) => {
     const graph = w.versions.at(-1)?.graph ?? w.draft;
     const trig = graph.nodes.find((n) => n.type === "trigger")?.data as StepData<"trigger"> | undefined;
@@ -69,8 +174,7 @@ export async function listWorkflows(_workspaceId: string): Promise<WorkflowRow[]
   });
 }
 
-export async function getWorkflow(_workspaceId: string, id: string): Promise<WorkflowDetail | null> {
-  if (!osMockEnabled()) return null;
+async function mockGetWorkflow(_workspaceId: string, id: string): Promise<WorkflowDetail | null> {
   const w = store().workflows.get(id);
   if (!w) return null;
   const published = w.versions.at(-1)?.graph;
@@ -86,30 +190,24 @@ export async function getWorkflow(_workspaceId: string, id: string): Promise<Wor
   };
 }
 
-export async function workflowStats(_workspaceId: string, id: string, _period: Period = "all"): Promise<WorkflowStats | null> {
-  if (!osMockEnabled()) return null;
+async function mockWorkflowStats(_workspaceId: string, id: string, _period: Period = "all"): Promise<WorkflowStats | null> {
   const w = store().workflows.get(id);
   return w ? computeStats(w) : null;
 }
 
-/** For the Go to picker. */
-export async function workflowNames(workspaceId: string): Promise<{ id: string; name: string }[]> {
-  return (await listWorkflows(workspaceId)).map((w) => ({ id: w.id, name: w.name }));
-}
-
 // ---------------------------------------------------------------- writes
-export async function createWorkflow(_workspaceId: string, template: TemplateKey, resourceSlug?: string): Promise<{ id: string }> {
+async function mockCreateWorkflow(_workspaceId: string, template: TemplateKey, resourceSlug?: string): Promise<{ id: string }> {
   const s = store();
   const t = TEMPLATES.find((x) => x.key === template)!;
   const id = `wf${++s.seq}`;
   const taken = new Set([...s.workflows.values()].map((w) => w.name));
-  let name = t.name;
-  for (let i = 2; taken.has(name); i++) name = `${t.name} ${i}`;
+  let name = t.label;
+  for (let i = 2; taken.has(name); i++) name = `${t.label} ${i}`;
   s.workflows.set(id, { id, name, mode: "draft", on: false, draft: templateGraph(template, resourceSlug), versions: [], updatedAt: now(), triggered: 0 });
   return { id };
 }
 
-export async function saveDraft(_workspaceId: string, id: string, input: { graph?: unknown; name?: string }): Promise<{ savedAt: string }> {
+async function mockSaveDraft(_workspaceId: string, id: string, input: { graph?: unknown; name?: string }): Promise<{ savedAt: string }> {
   const w = store().workflows.get(id);
   if (!w) throw new Error("That workflow is gone. Refresh the page.");
   if (input.graph !== undefined) {
@@ -122,8 +220,7 @@ export async function saveDraft(_workspaceId: string, id: string, input: { graph
   return { savedAt: w.updatedAt };
 }
 
-/** Publish the draft as a new version, unless something blocks it. */
-export async function publishWorkflow(_workspaceId: string, id: string): Promise<{ version: number } | { problems: GraphProblem[] }> {
+async function mockPublishWorkflow(_workspaceId: string, id: string): Promise<{ version: number } | { problems: GraphProblem[] }> {
   const w = store().workflows.get(id);
   if (!w) throw new Error("That workflow is gone. Refresh the page.");
   const problems = friendlyProblems(w.draft);
@@ -150,26 +247,21 @@ function keywordClash(w: StoredWorkflow): string | null {
   return null;
 }
 
-export async function setMode(_workspaceId: string, id: string, mode: WorkflowMode): Promise<void> {
+async function mockSetMode(_workspaceId: string, id: string, mode: WorkflowMode): Promise<void> {
   const w = store().workflows.get(id);
   if (!w) throw new Error("That workflow is gone. Refresh the page.");
   w.mode = mode;
 }
 
-export async function setOn(_workspaceId: string, id: string, on: boolean): Promise<void> {
+async function mockSetOn(_workspaceId: string, id: string, on: boolean): Promise<void> {
   const w = store().workflows.get(id);
   if (!w) throw new Error("That workflow is gone. Refresh the page.");
   if (on && !w.versions.length) throw new Error("Publish it first.");
   w.on = on;
 }
 
-export async function deleteWorkflow(_workspaceId: string, id: string): Promise<void> {
-  store().workflows.delete(id);
-}
-
 // ---------------------------------------------------------------- runs (Inbox)
-export async function contactRun(_workspaceId: string, contactId: string): Promise<ContactRun | null> {
-  if (!osMockEnabled()) return null;
+async function mockContactRun(_workspaceId: string, contactId: string): Promise<ContactRun | null> {
   const s = store();
   const r = s.runs.get(contactId);
   const w = r && s.workflows.get(r.workflowId);
@@ -178,13 +270,12 @@ export async function contactRun(_workspaceId: string, contactId: string): Promi
   return { workflowId: w.id, workflowName: w.name, stepId: r.stepId, stepLabel: node ? STEP_LABEL[node.type] : "Step", status: r.status };
 }
 
-export async function pauseRun(_workspaceId: string, contactId: string): Promise<void> {
+async function mockPauseRun(_workspaceId: string, contactId: string): Promise<void> {
   const r = store().runs.get(contactId);
   if (r) r.status = "paused";
 }
 
-/** K2: J reads what Kevin wrote and carries on; timers restart from now. */
-export async function resumeRun(_workspaceId: string, contactId: string): Promise<void> {
+async function mockResumeRun(_workspaceId: string, contactId: string): Promise<void> {
   const r = store().runs.get(contactId);
   if (!r) throw new Error("Nothing to resume.");
   r.status = "active";
@@ -281,7 +372,7 @@ function computeStats(w: StoredWorkflow): WorkflowStats {
 // ---------------------------------------------------------------- mock seed
 function seed(): Store {
   const at = "2026-10-12T09:00:00.000Z";
-  const hold = templateGraph("hold", "setter-starter");
+  const hold = templateGraph("hold_lead_magnet", "setter-starter");
   // The board's Hold the lead magnet: opener → Randomizer → A/B opener → J.
   hold.nodes = [
     { id: "trigger", type: "trigger", position: { x: 0, y: 60 }, data: { kind: "comment", keywords: ["SETTER"], postIds: "any", publicReplies: ["sent it to your DMs", "just sent it over", "check your DMs"], reentry: { mode: "after_days", days: 30 } } },
@@ -307,12 +398,14 @@ function seed(): Store {
     { id: "s7:next", from: "s7", fromPort: "next", to: "s8" },
   ];
 
-  const vault = templateGraph("simple", "script-vault");
+  const vault = templateGraph("send_link", "script-vault");
   (vault.nodes[0].data as StepData<"trigger">).kind = "story_reply";
   (vault.nodes[0].data as StepData<"trigger">).keywords = ["SCRIPT"];
   (vault.nodes[0].data as StepData<"trigger">).publicReplies = [];
 
-  const hello = templateGraph("conversation");
+  const hello = templateGraph("start_conversation");
+  (hello.nodes[0].data as StepData<"trigger">).kind = "dm";
+  (hello.nodes[0].data as StepData<"trigger">).publicReplies = [];
   (hello.nodes[0].data as StepData<"trigger">).keywords = ["CLAUDE", "HELP"];
 
   const carousel = clone(hold);

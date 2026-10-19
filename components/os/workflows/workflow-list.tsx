@@ -18,7 +18,7 @@ import "@/components/os/workflows/workflows.css";
 function Sketch({ k }: { k: TemplateKey }) {
   return (
     <svg width="102" height="44" viewBox="0 0 102 44" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
-      {k === "hold" && (
+      {k === "hold_lead_magnet" && (
         <>
           <rect x="4" y="16" width="18" height="12" rx="2" />
           <rect x="30" y="16" width="18" height="12" rx="2" />
@@ -29,7 +29,7 @@ function Sketch({ k }: { k: TemplateKey }) {
           <path d="M22 22h8M48 22h7M69 22c5 0 5-13 11-13M69 22h11M69 22c5 0 5 13 11 13" />
         </>
       )}
-      {k === "simple" && (
+      {k === "send_link" && (
         <>
           <rect x="4" y="16" width="18" height="12" rx="2" />
           <rect x="30" y="16" width="18" height="12" rx="2" />
@@ -38,7 +38,7 @@ function Sketch({ k }: { k: TemplateKey }) {
           <path d="M22 22h8M48 22h8M74 22h8" />
         </>
       )}
-      {k === "conversation" && (
+      {k === "start_conversation" && (
         <>
           <rect x="4" y="16" width="18" height="12" rx="2" />
           <rect x="30" y="16" width="18" height="12" rx="2" />
@@ -97,6 +97,7 @@ export function TemplatePicker({ onClose, resourceSlug }: { onClose: () => void;
             key={t.key}
             type="button"
             className="wf-tpl"
+            title={t.description}
             data-default={t.isDefault || undefined}
             data-blank={t.key === "blank" || undefined}
             aria-busy={pending && picked === t.key}

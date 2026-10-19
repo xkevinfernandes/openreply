@@ -72,16 +72,6 @@ export async function setWorkflowOn(id: string, on: boolean) {
   return r;
 }
 
-export async function deleteWorkflowAction(id: string): Promise<{ error: string }> {
-  const r = await guard(async (w) => {
-    await data.deleteWorkflow(w, id);
-    return {};
-  });
-  if (r.error !== undefined) return { error: r.error };
-  refresh();
-  redirect("/os/automations/workflows");
-}
-
 // ---------------------------------------------------------------- Inbox
 export async function loadContactRun(contactId: string): Promise<ContactRun | null> {
   try {
