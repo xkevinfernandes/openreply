@@ -1,14 +1,16 @@
 import Link from "next/link";
 
-export type AutomationsTab = "campaigns" | "broadcasts";
+export type AutomationsTab = "workflows" | "campaigns" | "broadcasts";
 
 const TABS: { key: AutomationsTab; label: string; href: string }[] = [
+  // Workflows first; Campaigns stay until each is rebuilt as a workflow (C3).
+  { key: "workflows", label: "Workflows", href: "/os/automations/workflows" },
   { key: "campaigns", label: "Campaigns", href: "/os/automations" },
   // The broadcasts screens are S5's (app/(os)/os/automations/broadcasts).
   { key: "broadcasts", label: "Broadcasts", href: "/os/automations/broadcasts" },
 ];
 
-/** Campaigns · Broadcasts (AutomationsA board). Line tests live in Knowledge bases › Tests. */
+/** Workflows · Campaigns · Broadcasts (WorkflowsList board). Line tests live in Knowledge bases › Tests. */
 export function AutomationsTabs({ active, counts }: { active: AutomationsTab; counts?: Partial<Record<AutomationsTab, number>> }) {
   return (
     <nav className="os-tabs os-auto-tabs" aria-label="Automation types">

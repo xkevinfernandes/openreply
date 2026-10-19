@@ -15,6 +15,7 @@ import DetailsTab from "@/components/os/contact-panel/details-tab";
 import FollowupsTab from "@/components/os/contact-panel/followups-tab";
 import InspectSlot from "@/components/os/inspect/inspect-slot";
 import { emitOs } from "@/components/os/keys";
+import { RunLine } from "@/components/os/workflows/run-line";
 import { Avatar, SetterMark, Tabs } from "@/components/os/ui";
 import { PANEL_TABS, type ContactPanelData, type PanelTab } from "@/lib/os/contact-panel/types";
 
@@ -94,6 +95,8 @@ function PanelBody({ data, tab = "details", tabHref, slots = {}, hideTabs = [] }
             </span>
           ) : null}
         </div>
+
+        <RunLine contactId={data.contactId} />
 
         {data.nextFollowup ? (
           <Link className="os-panel-next" href={data.nextFollowup.href} title={data.nextFollowup.tip ?? undefined}>

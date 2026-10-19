@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { AutomationsTabs } from "@/components/os/automations/automations-tabs";
 import AutomationList from "@/components/os/automations/automation-list";
+import { listWorkflows } from "@/components/os/workflows/data";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { parseChip } from "@/lib/os/automations";
 import { automationTabCounts, listAutomationRows, listBroadcastSummaries, type BroadcastSummary } from "@/lib/os/automations-data";
@@ -33,7 +34,7 @@ export default async function AutomationsPage({ searchParams }: PageProps) {
       return [] as BroadcastSummary[];
     }),
   ]);
-  const counts = await automationTabCounts(workspaceId, rows.length);
+  const [counts, workflows] = await Promise.all([automationTabCounts(workspaceId, rows.length), listWorkflows(workspaceId).catch(() => [])]);
 
   return (
     <div className="os-auto">
@@ -46,7 +47,7 @@ export default async function AutomationsPage({ searchParams }: PageProps) {
           New campaign
         </Link>
       </header>
-      <AutomationsTabs active="campaigns" counts={counts} />
+      <AutomationsTabs active="campaigns" counts={{ ...counts, workflows: workflows.length }} />
 
       <AutomationList rows={rows} sample={sample} initialChip={parseChip(params.trigger)} />
 

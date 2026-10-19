@@ -9,6 +9,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } 
 import { loadEarlierMessages } from "@/app/(os)/os/inbox/actions";
 import { MessageParts, Reactions } from "@/components/os/thread/parts";
 import { Avatar, SetterMark } from "@/components/os/ui";
+import { PausedNotice } from "@/components/os/workflows/run-line";
 import type { ThreadData } from "@/lib/os/inbox";
 import { buildThreadRows, mergeMessages, type ThreadRow } from "@/lib/os/messages/view";
 
@@ -136,6 +137,7 @@ export default function ThreadView({ data, contactId, who, avatarUrl = null, now
           {rows.map((r) => (
             <Row key={r.key} row={r} who={who} avatarUrl={avatarUrl} />
           ))}
+          <PausedNotice contactId={contactId} />
         </div>
       </div>
     </div>

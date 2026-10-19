@@ -34,23 +34,28 @@ function useAct() {
   return { pending, error, run };
 }
 
-export default function LineTests({ setterId, setterName, rows }: { setterId: string; setterName: string; rows: StageLineRow[] }) {
+/** `workflowId`: new tests are scoped to that workflow (the Setter step's Tests tab). `bare`: no section frame. */
+export default function LineTests({ setterId, setterName, rows, workflowId, bare }: { setterId: string; setterName: string; rows: StageLineRow[]; workflowId?: string; bare?: boolean }) {
+  const list = (
+    <ul className="kb-lt">
+      {rows.map((row) => (
+        <LineRow key={row.key} setterId={setterId} setterName={setterName} row={row} workflowId={workflowId} />
+      ))}
+    </ul>
+  );
+  if (bare) return list;
   return (
     <Section
       id="tests"
       title="Tests"
       description="Each person gets A or B the first time J reaches the line, and keeps it. Only messages that went out count. Judged on replies once 30 people reached each version."
     >
-      <ul className="kb-lt">
-        {rows.map((row) => (
-          <LineRow key={row.key} setterId={setterId} setterName={setterName} row={row} />
-        ))}
-      </ul>
+      {list}
     </Section>
   );
 }
 
-function LineRow({ setterId, setterName, row }: { setterId: string; setterName: string; row: StageLineRow }) {
+function LineRow({ setterId, setterName, row, workflowId }: { setterId: string; setterName: string; row: StageLineRow; workflowId?: string }) {
   const [adding, setAdding] = useState(false);
   const running = row.tests.some((t) => t.status === "RUNNING");
   return (
@@ -66,7 +71,7 @@ function LineRow({ setterId, setterName, row }: { setterId: string; setterName: 
           </button>
         )}
       </div>
-      {adding && <Editor label={row.label} initial={["", ""]} onClose={() => setAdding(false)} create={{ setterId, line: row.key }} />}
+      {adding && <Editor label={row.label} initial={["", ""]} onClose={() => setAdding(false)} create={{ setterId, line: row.key, workflowId }} />}
       {row.tests.map((t) => (
         <TestCard key={t.id} setterId={setterId} setterName={setterName} label={row.label} test={t} />
       ))}
@@ -214,7 +219,7 @@ function Editor({
   label: string;
   initial: string[];
   onClose?: () => void;
-  create?: { setterId: string; line: string };
+  create?: { setterId: string; line: string; workflowId?: string };
   draft?: { setterId: string; id: string };
 }) {
   const [texts, setTexts] = useState<string[]>(initial.length >= 2 ? initial : [...initial, ""].slice(0, Math.max(2, initial.length)));
@@ -222,7 +227,7 @@ function Editor({
   const set = (i: number, x: string) => setTexts((list) => list.map((t, j) => (j === i ? x : t)));
   const save = (start: boolean) =>
     act.run(
-      () => (create ? createLineTest(create.setterId, { line: create.line, texts, start }) : saveLineDraft(draft!.setterId, draft!.id, texts, start)),
+      () => (create ? createLineTest(create.setterId, { line: create.line, texts, start, workflowId: create.workflowId }) : saveLineDraft(draft!.setterId, draft!.id, texts, start)),
       create ? onClose : undefined
     );
   return (
