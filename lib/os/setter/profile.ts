@@ -99,20 +99,17 @@ export interface FunnelStage {
   key: string;
   label: string;
   guidance: string;
-  /** Other ways to say this stage's line, so J doesn't always say the same thing. */
+  /** Legacy: the old untracked "Variations". Never shown or sent to J; kept
+   *  until scripts/os-migrate-variations.ts turns them into a draft line test. */
   variations?: string[];
-  /** Rotate the variations (A/B). Off: J only reads the guidance. */
-  ab?: boolean;
   /** "auto": J's drafts at this stage send without Approve (lib/os/setter/autopilot.ts). Default approve. */
   autopilot?: StageAutopilot;
 }
 
-/** One stage line for the brand block. Without A/B variations it is exactly the old line. */
+/** One stage line for the brand block. Line tests (lib/os/experiments) put
+ *  their one assigned line in the user prompt, never here. */
 export function stageLine(s: FunnelStage): string {
-  const head = `**${s.label}** — ${s.guidance}`;
-  const vars = s.ab ? (s.variations ?? []).map((v) => v.trim()).filter(Boolean) : [];
-  if (!vars.length) return head;
-  return `${head}\n  Say it in one of these ways (rotate between them, never copy one word for word):\n${vars.map((v) => `  - ${v.replace(/\n/g, " ")}`).join("\n")}`;
+  return `**${s.label}** — ${s.guidance}`;
 }
 
 export function parseFunnel(text: string): FunnelStage[] {

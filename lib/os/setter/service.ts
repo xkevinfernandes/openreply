@@ -585,6 +585,8 @@ export async function approveDraft(draftId: string, workspaceId: string, opts: A
     }
     // Some bubbles are out: record what went, never resend those.
     await store.markSent(d.id, { bubbles: bubbles.slice(0, sentCount), editedText: edited ? opts.editedText! : null, edited });
+    // A test line in the bubbles that went out still counts.
+    await recordSent({ person: abPerson(contact), draftId: d.id, abVariants: d.abVariants, bubbles: bubbles.slice(0, sentCount), edited, at: now(), store: opts.experiments });
     return { error: `Sent ${sentCount} of ${bubbles.length} bubbles, then: ${message}` };
   }
   await store.markSent(d.id, { bubbles, editedText: edited ? opts.editedText! : null, edited });

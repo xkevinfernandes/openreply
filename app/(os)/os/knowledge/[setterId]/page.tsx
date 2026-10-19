@@ -5,6 +5,7 @@ import { SetterChatPanel, SetterChatProvider } from "@/components/os/knowledge/s
 import SetupPane from "@/components/os/knowledge/setter-editor";
 import { isSetupKey, pageOf, SetterTree, type TreeSel } from "@/components/os/knowledge/setter-tree";
 import { getCurrentWorkspaceId } from "@/lib/auth";
+import { loadLineTests, type StageLineRow } from "@/lib/os/experiments/data";
 import { loadSetterEditor } from "@/lib/os/knowledge";
 import { osMockEnabled } from "@/lib/os/mock";
 import { correctionPair } from "@/lib/os/setter/knowledge/corrections";
@@ -54,7 +55,14 @@ export default async function SetterPage({ params, searchParams }: { params: Pro
             return [];
           })
         : [];
-    pane = <SetupPane key={`${view.id}:${page}`} view={view} page={page} voiceClips={voiceClips} sampleData={osMockEnabled()} />;
+    const lineTests: StageLineRow[] | null =
+      page === "tests"
+        ? await loadLineTests(workspaceId, view.id).catch((err) => {
+            console.error("[OS Tests] load failed:", err);
+            return null;
+          })
+        : null;
+    pane = <SetupPane key={`${view.id}:${page}`} view={view} page={page} voiceClips={voiceClips} sampleData={osMockEnabled()} lineTests={lineTests} />;
   }
 
   return (

@@ -1,7 +1,7 @@
 "use client";
 
 // One setter's Setup pages (the left tree's lower half): Funnel, Lead magnets,
-// Voice notes, Booking, Fields, Follow-ups, Voice corrections and Profile.
+// Voice notes, Booking, Fields, Follow-ups, Tests, Voice corrections and Profile.
 // Each saves on its own, so an edit in one never overwrites another. The knowledge itself (voice,
 // business, offers, objections, examples) is in the Markdown files.
 
@@ -15,6 +15,8 @@ import BookingSetup, { FieldsSection } from "@/components/os/knowledge/booking-s
 import CorrectionsCards from "@/components/os/knowledge/corrections-cards";
 import FollowupsEditor from "@/components/os/knowledge/followups-editor";
 import FunnelSetup from "@/components/os/knowledge/funnel-setup";
+import LineTests from "@/components/os/knowledge/line-tests";
+import type { StageLineRow } from "@/lib/os/experiments/data";
 import type { SetupPage } from "@/components/os/knowledge/setter-tree";
 import VoiceNotesSection from "@/components/os/knowledge/voice-notes-section";
 import type { VoiceClipView } from "@/lib/os/voice/clips";
@@ -222,7 +224,20 @@ export function DangerZone({ view }: { view: SetterEditorView }) {
 export type { SetupPage };
 
 /** The right pane for a Setup item. */
-export default function SetupPane({ view, page, voiceClips = [], sampleData = false }: { view: SetterEditorView; page: SetupPage; voiceClips?: VoiceClipView[]; sampleData?: boolean }) {
+export default function SetupPane({
+  view,
+  page,
+  voiceClips = [],
+  sampleData = false,
+  lineTests = null,
+}: {
+  view: SetterEditorView;
+  page: SetupPage;
+  voiceClips?: VoiceClipView[];
+  sampleData?: boolean;
+  /** Setup › Tests; null = didn't load. */
+  lineTests?: StageLineRow[] | null;
+}) {
   const save = (p: SetterPatch) => saveSetter(view.id, p);
   return (
     <div className="kb-setup">
@@ -232,6 +247,7 @@ export default function SetupPane({ view, page, voiceClips = [], sampleData = fa
       {page === "booking" && <BookingSetup view={view} />}
       {page === "fields" && <FieldsSection setterId={view.id} name={view.name} fields={view.fields} />}
       {page === "follow-ups" && <FollowupsEditor setterId={view.id} sequences={view.sequences} />}
+      {page === "tests" && (lineTests ? <LineTests setterId={view.id} setterName={view.name} rows={lineTests} /> : <div className="os-banner">Tests didn&apos;t load. Refresh in a minute.</div>)}
       {page === "corrections" && <CorrectionsCards view={view} />}
       {page === "profile" && (
         <>

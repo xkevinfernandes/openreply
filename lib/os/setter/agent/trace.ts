@@ -51,6 +51,8 @@ export interface TraceLine {
   /** What J reports back in lines_used: "opener", "permission_ask"… */
   label: string;
   text: string;
+  /** When the line's moment comes ("you invite them to the call"). */
+  when?: string;
 }
 
 /** A queued action and what the server made of it. */

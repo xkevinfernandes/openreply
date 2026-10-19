@@ -551,6 +551,8 @@ model OsTask {
 // stored: lib/os/experiments/funnel.ts counts them from existing data.
 
 enum ExperimentStatus {
+  /// Written, never started: no one is assigned (line tests, migrated Funnel variations).
+  DRAFT
   RUNNING
   PAUSED
   FINISHED

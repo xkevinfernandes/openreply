@@ -818,3 +818,7 @@
     padding-right: 6px;
   }
 }
+
+.os-auto-tabs {
+  margin: -12px 0 var(--sp-6);
+}

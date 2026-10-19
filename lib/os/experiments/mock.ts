@@ -9,11 +9,12 @@ export type MockExperiment = Omit<ExperimentFull, "sample"> & { sampleCounts: Re
 
 const days = (d: number) => new Date(Date.now() - d * 86400_000);
 
-const c = (sent: number, replied: number, valueSent: number, inviteSent: number, booked: number, showed: number, edited = 0): FunnelCounts => ({
+const c = (sent: number, replied: number, valueSent: number, inviteSent: number, booked: number, showed: number, edited = 0, nextStage = Math.round(replied * 0.6)): FunnelCounts => ({
   assigned: sent,
   sent,
   edited,
   replied,
+  nextStage,
   valueSent,
   inviteSent,
   booked,
@@ -64,6 +65,27 @@ export function mockSeed(workspaceId: string): MockExperiment[] {
       sampleCounts: {
         "sample-v-ja": c(31, 9, 2, 1, 0, 0, 2),
         "sample-v-jb": c(28, 15, 4, 3, 2, 1, 1),
+      },
+    },
+    {
+      id: "sample-exp-permission",
+      workspaceId,
+      setterId: null,
+      name: "Permission ask",
+      slot: "line:permission_ask",
+      status: "RUNNING",
+      allocation: "EVEN",
+      minSends: 30,
+      winnerVariantId: null,
+      startedAt: days(9),
+      finishedAt: null,
+      variants: [
+        { id: "sample-v-pa", label: "A", text: "cool if I ask a couple of q's to see if I can actually help?", weight: 1, active: true, style: null },
+        { id: "sample-v-pb", label: "B", text: "mind if I ask you 2 quick things first?", weight: 1, active: true, style: null },
+      ],
+      sampleCounts: {
+        "sample-v-pa": c(34, 21, 0, 6, 3, 2, 1, 15),
+        "sample-v-pb": c(31, 15, 0, 4, 2, 1, 0, 10),
       },
     },
     {

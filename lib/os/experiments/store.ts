@@ -36,7 +36,11 @@ export interface NewExperiment {
   allocation: AllocationName;
   minSends: number;
   variants: { label: string; text: string; weight: number; style: string | null }[];
+  /** Default RUNNING. DRAFT = written, not started. */
+  status?: "DRAFT" | "RUNNING";
 }
+
+export type NewVariant = NewExperiment["variants"][number];
 
 export interface ExperimentFull extends ExperimentLite {
   minSends: number;
@@ -58,7 +62,12 @@ export interface ExperimentStore {
   list(workspaceId: string): Promise<ExperimentFull[]>;
   get(workspaceId: string, id: string): Promise<ExperimentFull | null>;
   create(input: NewExperiment): Promise<ExperimentFull>;
+  /** Starting a draft sets startedAt to now. */
   setStatus(workspaceId: string, id: string, status: ExperimentStatusName): Promise<boolean>;
+  /** A draft's words. Refused (false) once it has started. */
+  updateDraft(workspaceId: string, id: string, variants: NewVariant[]): Promise<boolean>;
+  /** Deletes a draft. Refused (false) once it has started. */
+  removeDraft(workspaceId: string, id: string): Promise<boolean>;
   /** The winner becomes the only active variant: everyone new gets it (the
    *  test keeps running so the slot keeps using it); people who already had
    *  another variant keep theirs. */
@@ -152,6 +161,7 @@ const dbExperiments: ExperimentStore = {
         slot: input.slot,
         allocation: input.allocation,
         minSends: input.minSends,
+        status: input.status ?? "RUNNING",
         variants: { create: input.variants.map((v, i) => ({ ...v, sortOrder: i })) },
       },
       include: fullInclude,
@@ -159,10 +169,26 @@ const dbExperiments: ExperimentStore = {
     return full(e);
   },
   async setStatus(workspaceId, id, status) {
-    const r = await prisma.experiment.updateMany({
-      where: { id, workspaceId },
-      data: { status, finishedAt: status === "FINISHED" ? new Date() : null },
+    const e = await prisma.experiment.findFirst({ where: { id, workspaceId }, select: { status: true } });
+    if (!e) return false;
+    const now = new Date();
+    await prisma.experiment.update({
+      where: { id },
+      data: { status, finishedAt: status === "FINISHED" ? now : null, ...(e.status === "DRAFT" && status === "RUNNING" ? { startedAt: now } : {}) },
     });
+    return true;
+  },
+  async updateDraft(workspaceId, id, variants) {
+    const e = await prisma.experiment.findFirst({ where: { id, workspaceId, status: "DRAFT" }, select: { id: true } });
+    if (!e) return false;
+    await prisma.$transaction([
+      prisma.variant.deleteMany({ where: { experimentId: id } }),
+      prisma.variant.createMany({ data: variants.map((v, i) => ({ ...v, experimentId: id, sortOrder: i })) }),
+    ]);
+    return true;
+  },
+  async removeDraft(workspaceId, id) {
+    const r = await prisma.experiment.deleteMany({ where: { id, workspaceId, status: "DRAFT" } });
     return r.count === 1;
   },
   async pickWinner(workspaceId, id, variantId) {
@@ -254,7 +280,7 @@ const mockExperiments: ExperimentStore = {
       setterId: input.setterId,
       name: input.name,
       slot: input.slot,
-      status: "RUNNING",
+      status: input.status ?? "RUNNING",
       allocation: input.allocation,
       minSends: input.minSends,
       winnerVariantId: null,
@@ -269,8 +295,21 @@ const mockExperiments: ExperimentStore = {
   async setStatus(_workspaceId, id, status) {
     const e = mem.experiments.find((x) => x.id === id);
     if (!e) return false;
+    if (e.status === "DRAFT" && status === "RUNNING") e.startedAt = new Date();
     e.status = status;
     e.finishedAt = status === "FINISHED" ? new Date() : null;
+    return true;
+  },
+  async updateDraft(_workspaceId, id, variants) {
+    const e = mem.experiments.find((x) => x.id === id);
+    if (!e || e.status !== "DRAFT") return false;
+    e.variants = variants.map((v, i) => ({ id: `${id}-v${++mem.seq}-${i}`, label: v.label, text: v.text, weight: v.weight, active: true, style: v.style }));
+    return true;
+  },
+  async removeDraft(_workspaceId, id) {
+    const i = mem.experiments.findIndex((x) => x.id === id && x.status === "DRAFT");
+    if (i === -1) return false;
+    mem.experiments.splice(i, 1);
     return true;
   },
   async pickWinner(_workspaceId, id, variantId) {

@@ -140,6 +140,8 @@ export interface AutomationRow {
   link?: string | null;
   /** An opener A/B test is running on this campaign. */
   ab?: boolean;
+  /** Its results in a few words ("A/B replied · A 27% · B 48%", "A/B · too early"). */
+  abText?: string | null;
   /** Distinct people who triggered it, replied (a conversation started) and booked. */
   replied?: number;
   booked?: number;

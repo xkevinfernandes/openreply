@@ -15,6 +15,8 @@ export interface ContactFacts {
   /** Bookings that aren't cancelled (createdAt). */
   bookedAts: string[];
   stage: ContactStage | null;
+  /** J's funnel stage now (rec.stage: opener → value → permission → qualify → bridge → booked). */
+  setterStage?: string | null;
 }
 
 export interface Exposure {
@@ -23,6 +25,10 @@ export interface Exposure {
   sentAt: string | null;
   edited: boolean;
   facts: ContactFacts | null;
+  /** J's stage when the line went out (the draft's stage); null = unknown. */
+  stageAtSend?: string | null;
+  /** The stage the line belongs to, when the draft didn't say. */
+  lineStage?: string | null;
 }
 
 export interface FunnelCounts {
@@ -30,6 +36,8 @@ export interface FunnelCounts {
   sent: number;
   edited: number;
   replied: number;
+  /** J's stage moved past the one the line went out at. */
+  nextStage: number;
   valueSent: number;
   inviteSent: number;
   booked: number;
@@ -41,6 +49,7 @@ export const emptyCounts = (): FunnelCounts => ({
   sent: 0,
   edited: 0,
   replied: 0,
+  nextStage: 0,
   valueSent: 0,
   inviteSent: 0,
   booked: 0,
@@ -49,6 +58,20 @@ export const emptyCounts = (): FunnelCounts => ({
 
 const BOOKED_STAGES: ContactStage[] = ["CALL_BOOKED", "SHOWED", "WON"];
 const SHOWED_STAGES: ContactStage[] = ["SHOWED", "WON"];
+
+/** J's stages in order (prompt.ts stage_proposed). */
+export const SETTER_STAGES = ["opener", "value", "permission", "qualify", "bridge", "booked"] as const;
+
+export function stageRank(stage: string | null | undefined): number {
+  const s = String(stage ?? "").trim().toLowerCase();
+  if (!s) return -1;
+  const i = SETTER_STAGES.indexOf(s as (typeof SETTER_STAGES)[number]);
+  if (i !== -1) return i;
+  // Old or hand-named stages.
+  if (/^(open|first)/.test(s)) return 0;
+  if (/invite|call|book/.test(s)) return s.includes("booked") ? 5 : 4;
+  return -1;
+}
 
 const after = (ats: (string | null | undefined)[], t: number) => ats.some((a) => a != null && new Date(a).getTime() >= t);
 
@@ -65,11 +88,14 @@ export function countFunnel(exposures: Exposure[]): FunnelCounts {
     const t = new Date(e.sentAt).getTime();
     // A reply in the same second as our send is the same burst, not an answer.
     if (f.theirLastAt && new Date(f.theirLastAt).getTime() > t) c.replied++;
+    const from = stageRank(e.stageAtSend) >= 0 ? stageRank(e.stageAtSend) : stageRank(e.lineStage);
+    const isBooked = after(f.bookedAts, t) || Boolean(f.stage && BOOKED_STAGES.includes(f.stage));
+    if (from >= 0 && (stageRank(f.setterStage) > from || isBooked)) c.nextStage++;
     if (after(f.valueAts, t)) c.valueSent++;
     if (after(f.inviteAts, t)) c.inviteSent++;
     // The Kanban stage has no time: it counts because a contact keeps its
     // variant and the stage only moves forward from the first line.
-    if (after(f.bookedAts, t) || (f.stage && BOOKED_STAGES.includes(f.stage))) c.booked++;
+    if (isBooked) c.booked++;
     if (f.stage && SHOWED_STAGES.includes(f.stage)) c.showed++;
   }
   return c;
@@ -85,7 +111,7 @@ export function byVariant(exposures: Exposure[], variantIds: string[]): Map<stri
 
 /** The facts from J's state record (SetterState.record). */
 export function factsFromRecord(
-  rec: { their_last_at?: string | null; delivered_at?: string | null; invited?: { at?: string } | null; history?: { at: string | null; event: string }[] } | null,
+  rec: { stage?: string | null; their_last_at?: string | null; delivered_at?: string | null; invited?: { at?: string } | null; history?: { at: string | null; event: string }[] } | null,
   extra: { valueAts?: string[]; inviteAts?: string[]; bookedAts?: string[]; stage?: ContactStage | null } = {}
 ): ContactFacts {
   const delivered = (rec?.history ?? []).filter((h) => h.event.startsWith("delivered:")).map((h) => h.at);
@@ -95,5 +121,6 @@ export function factsFromRecord(
     inviteAts: [rec?.invited?.at, ...(extra.inviteAts ?? [])].filter((x): x is string => Boolean(x)),
     bookedAts: extra.bookedAts ?? [],
     stage: extra.stage ?? null,
+    setterStage: rec?.stage ?? null,
   };
 }

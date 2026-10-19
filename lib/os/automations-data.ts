@@ -16,6 +16,7 @@ import {
   type WorkspaceHealth,
 } from "@/lib/os/automations";
 import { campaignHandoffChoice, setterOnSet } from "@/lib/os/automations-handoff";
+import { openerSummaries } from "@/lib/os/experiments/data";
 import { nextRunDate } from "@/lib/os/home";
 import { catalogRowFromResource } from "@/lib/os/setter/kb";
 import { resolve } from "@/lib/os/setter/resources";
@@ -82,7 +83,10 @@ export async function listAutomationRows(workspaceId: string, now = new Date()):
     prisma.campaignResource.findMany({ where: { workspaceId, automationId: { in: ids } }, select: { automationId: true, resourceId: true } }),
     prisma.resource.findMany({ where: { workspaceId, kind: "resource" } }),
     prisma.trackedLink.findMany({ where: { workspaceId, automationId: { in: ids } }, select: { automationId: true, destinationUrl: true, position: true, createdAt: true } }),
-    prisma.experiment.findMany({ where: { workspaceId, status: "RUNNING", slot: { startsWith: "campaign_opener:" } }, select: { slot: true } }),
+    openerSummaries(workspaceId).catch((err) => {
+      console.error("[OS Automations] opener tests:", err instanceof Error ? err.message : err);
+      return new Map<string, string>();
+    }),
     prisma.dmLog.findMany({
       where: { workspaceId, automationId: { in: ids } },
       select: { automationId: true, instagramAccountId: true, commenterId: true },
@@ -104,7 +108,6 @@ export async function listAutomationRows(workspaceId: string, now = new Date()):
       })
     : [];
   const stats = campaignStats(people, contacts, events);
-  const abOn = new Set(experiments.map((e) => e.slot.slice("campaign_opener:".length)));
   const mappedMap = new Map(mapped.map((m) => [m.automationId, m.resourceId]));
   const catalog = resources.map(catalogRowFromResource);
   const idBySlug = new Map(resources.map((r) => [r.slug, r.id]));
@@ -151,7 +154,8 @@ export async function listAutomationRows(workspaceId: string, now = new Date()):
       ...shapes[i],
       resource: campaignResource(a.id, mappedMap, resources, resolvedId ? { id: resolvedId } : null),
       link,
-      ab: abOn.has(a.id),
+      ab: experiments.has(a.id),
+      abText: experiments.get(a.id) ?? null,
       replied: st?.replied ?? 0,
       booked: st?.booked ?? 0,
       username: acc?.username ?? null,
@@ -259,12 +263,11 @@ export async function listBroadcastSummaries(workspaceId: string, now = new Date
 }
 
 export async function automationTabCounts(workspaceId: string, campaignCount?: number) {
-  const [campaigns, broadcasts, tests] = await Promise.all([
+  const [campaigns, broadcasts] = await Promise.all([
     campaignCount ?? prisma.automation.count({ where: { workspaceId } }).then((n) => (n || !osMockEnabled() ? n : sampleRows(new Date()).length)).catch(() => 0),
     prisma.broadcast.count({ where: { workspaceId } }).catch(() => 0),
-    prisma.experiment.count({ where: { workspaceId, status: "RUNNING" } }).catch(() => 0),
   ]);
-  return { campaigns, broadcasts, tests };
+  return { campaigns, broadcasts };
 }
 
 /** Lead magnets for the keyword → resource picker on the edit page. */
@@ -309,6 +312,7 @@ function sampleRows(now: Date): AutomationRow[] {
       resource: starter,
       link: "https://claudepreneur.com/starter",
       ab: true,
+      abText: "A/B replied · A 27% · B 48%",
       isActive: true,
       setter: j,
       setterOn: true,

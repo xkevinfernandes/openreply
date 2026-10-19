@@ -42,3 +42,28 @@ export function cleanInput(raw: ExperimentInput, busySlots: string[]): { error: 
     },
   };
 }
+
+// ---------------------------------------------------------------- line tests
+/** Variants per line test (A, B, C). */
+export const MAX_LINE_VARIANTS = 3;
+
+/** A line test's words: a draft may have one, a running test needs two. */
+export function cleanLineVariants(texts: unknown, toRun: boolean): { error: string } | { variants: { label: string; text: string; weight: number; style: null }[] } {
+  const list = (Array.isArray(texts) ? texts : []).map((t) => String(t ?? "").trim()).filter(Boolean);
+  if (!list.length) return { error: "Write the line first." };
+  if (toRun && list.length < 2) return { error: "Write a B to start the test." };
+  if (list.length > MAX_LINE_VARIANTS) return { error: `Up to ${MAX_LINE_VARIANTS} versions.` };
+  if (list.some((t) => t.length > 1000)) return { error: "Keep each version under 1000 characters." };
+  if (new Set(list.map((t) => t.toLowerCase())).size !== list.length) return { error: "Two versions say the same thing." };
+  return { variants: list.map((text, i) => ({ label: String.fromCharCode(65 + i), text, weight: 1, style: null })) };
+}
+
+/** The running test that already covers this line in this scope: same slot
+ *  (workflow scope included), and the same setter or one of them is for
+ *  every setter. One running test per line per scope. */
+export function runningClash<T extends { id: string; slot: string; setterId: string | null; status: string }>(
+  list: T[],
+  t: { id?: string; slot: string; setterId: string | null }
+): T | null {
+  return list.find((x) => x.id !== t.id && x.status === "RUNNING" && x.slot === t.slot && (!x.setterId || !t.setterId || x.setterId === t.setterId)) ?? null;
+}

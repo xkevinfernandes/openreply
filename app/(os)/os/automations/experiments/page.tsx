@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Old URL: Experiments is now Automations › Tests. */
+/** Old URL: line tests live in Knowledge bases › setter › Tests now. */
 export default function ExperimentsRedirect() {
-  redirect("/os/automations/tests");
+  redirect("/os/knowledge?s=tests");
 }

@@ -1,21 +1,22 @@
 "use client";
 
-// Setup › Funnel: per stage, what J does, other ways to say it (A/B rotates
-// them so J doesn't always say the same thing), and Approve ↔ Auto.
-// Stage text saves with Save; the Autopilot switch saves at once.
+// Setup › Funnel: per stage, what J does, and Approve ↔ Auto. Stage text
+// saves with Save; the Autopilot switch saves at once. Testing a stage's
+// wording lives in Setup › Tests (tracked line tests).
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { saveSetter } from "@/app/(os)/os/knowledge/actions";
 import { setStageAutopilot } from "@/app/(os)/os/knowledge/setup-actions";
-import { Field, RepeatItem, Section, Switch, TextArea, TextInput, useSaver } from "@/components/os/knowledge/fields";
+import { Field, RepeatItem, Section, TextArea, TextInput, useSaver } from "@/components/os/knowledge/fields";
 import type { SetterEditorView } from "@/lib/os/knowledge";
-import { MAX_VARIATIONS, slugify } from "@/lib/os/setter/kb";
+import { slugify } from "@/lib/os/setter/kb";
 import { CLEAN_TARGET, type FunnelStage, type StageAutopilot } from "@/lib/os/setter/profile";
 
-/** What Save sends: keys re-derive from labels on the server. */
-const forSave = (list: FunnelStage[]) => list.map((s) => ({ ...s, key: "", variations: (s.variations ?? []).map((v) => v.trim()).filter(Boolean) }));
-const keyed = (list: FunnelStage[]) => list.map((s) => ({ ...s, key: slugify(s.label), variations: (s.variations ?? []).map((v) => v.trim()).filter(Boolean) }));
+/** What Save sends: keys re-derive from labels on the server. Legacy
+ *  variations ride along untouched until they're migrated into a test. */
+const forSave = (list: FunnelStage[]) => list.map((s) => ({ ...s, key: "" }));
+const keyed = (list: FunnelStage[]) => list.map((s) => ({ ...s, key: slugify(s.label) }));
 
 export default function FunnelSetup({ view }: { view: SetterEditorView }) {
   const router = useRouter();
@@ -65,7 +66,7 @@ export default function FunnelSetup({ view }: { view: SetterEditorView }) {
     <Section
       id="funnel"
       title="Funnel"
-      description="What J does at each stage, other ways to say it, and whether J's drafts there wait for Approve."
+      description="What J does at each stage, and whether J's drafts there wait for Approve."
       onSave={save}
       dirty={dirty}
       pending={saver.pending}
@@ -89,7 +90,6 @@ export default function FunnelSetup({ view }: { view: SetterEditorView }) {
             <Field label="What J does here" wide>
               {(id) => <TextArea id={id} rows={3} value={s.guidance} onChange={(x) => setStage(i, { guidance: x })} />}
             </Field>
-            <Variations stage={s} onChange={(p) => setStage(i, p)} />
             <AutopilotRow setterId={view.id} stage={s} stats={view.stageStats[s.key]} locked={dirty || !s.key} onSaved={autopilotSaved} />
           </RepeatItem>
         ))}
@@ -98,40 +98,6 @@ export default function FunnelSetup({ view }: { view: SetterEditorView }) {
         Add stage
       </button>
     </Section>
-  );
-}
-
-function Variations({ stage, onChange }: { stage: FunnelStage; onChange: (p: Partial<FunnelStage>) => void }) {
-  const vars = stage.variations ?? [];
-  const setVar = (j: number, v: string) => onChange({ variations: vars.map((x, k) => (k === j ? v : x)) });
-  const name = stage.label || "this stage";
-  return (
-    <div className="kb-vars" data-off={stage.ab ? undefined : "true"}>
-      <div className="kb-vars-h">
-        <span className="kb-lbl">Variations</span>
-        <span className="kb-quiet">{stage.ab ? "J rotates these" : "Off"}</span>
-        <div className="kb-grow" />
-        <span className="kb-quiet">A/B</span>
-        <Switch checked={Boolean(stage.ab)} onChange={(x) => onChange({ ab: x || undefined })} label={`A/B variations for ${name}`} />
-      </div>
-      {vars.length > 0 && (
-        <ul className="kb-vars-list">
-          {vars.map((v, j) => (
-            <li key={j}>
-              <input className="os-input" aria-label={`Variation ${j + 1}`} value={v} placeholder="another way to say it" onChange={(e) => setVar(j, e.target.value)} />
-              <button type="button" className="os-link quiet" aria-label={`Remove variation ${j + 1}`} onClick={() => onChange({ variations: vars.filter((_, k) => k !== j) })}>
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {vars.length < MAX_VARIATIONS && (
-        <button type="button" className="os-link" onClick={() => onChange({ variations: [...vars, ""] })}>
-          Add variation
-        </button>
-      )}
-    </div>
   );
 }
 

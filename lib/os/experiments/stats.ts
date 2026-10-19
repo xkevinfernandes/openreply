@@ -54,3 +54,37 @@ export function pct(x: number): string {
   const v = x * 100;
   return `${v >= 10 ? Math.round(v) : v.toFixed(1).replace(/\.0$/, "")}%`;
 }
+
+// ---------------------------------------------------------------- line tests
+/** People who must reach each variant before a line test is judged. */
+export const LINE_MIN_REACHED = 30;
+/** Bookings each variant needs before bookings, not replies, decide. */
+export const LINE_MIN_BOOKED = 10;
+
+export interface LineArm {
+  id: string;
+  label: string;
+  reached: number;
+  replied: number;
+  booked: number;
+}
+
+export type LineVerdict =
+  | { kind: "empty" }
+  | { kind: "too_early"; needed: number }
+  | { kind: "tie"; metric: "replied" | "booked" }
+  | { kind: "leader"; metric: "replied" | "booked"; leaderId: string; clear: boolean };
+
+/** Too early until every variant has `min` people reached. Then the fast
+ *  metric decides (replies), bookings only once each variant has enough of
+ *  them. `clear` = the 95% ranges don't overlap. */
+export function lineVerdict(arms: LineArm[], min = LINE_MIN_REACHED): LineVerdict {
+  if (arms.length < 2) return { kind: "empty" };
+  const fewest = Math.min(...arms.map((a) => a.reached));
+  if (fewest < min) return { kind: "too_early", needed: min - fewest };
+  const metric: "replied" | "booked" = arms.every((a) => a.booked >= LINE_MIN_BOOKED) ? "booked" : "replied";
+  const scored = arms.map((a) => ({ a, ci: wilson(a[metric], a.reached) })).sort((x, y) => y.ci.rate - x.ci.rate);
+  const [top, next] = scored;
+  if (top.ci.rate === next.ci.rate) return { kind: "tie", metric };
+  return { kind: "leader", metric, leaderId: top.a.id, clear: scored.slice(1).every((r) => top.ci.low > r.ci.high) };
+}

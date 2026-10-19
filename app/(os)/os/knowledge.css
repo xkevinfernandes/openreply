@@ -2351,15 +2351,7 @@ a.kb-kw:hover {
 
 /* --- setup pages, funnel, autopilot --- */
 
-/* Funnel: variations and the Autopilot row under each stage. */
-.kb-vars {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: flex-start;
-}
-
-.kb-vars-h,
+/* Funnel: the Autopilot row under each stage. */
 .kb-ap-row {
   display: flex;
   align-items: center;
@@ -2367,31 +2359,6 @@ a.kb-kw:hover {
   flex-wrap: wrap;
   align-self: stretch;
   min-width: 0;
-}
-
-.kb-vars-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-self: stretch;
-}
-
-.kb-vars-list li {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.kb-vars-list .os-input {
-  flex: 1;
-  min-width: 0;
-}
-
-.kb-vars[data-off="true"] .kb-vars-list {
-  opacity: 0.55;
 }
 
 .kb-ap {
@@ -2523,4 +2490,192 @@ a.kb-kw:hover {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* --- Setup › Tests (line tests, WorkflowA Tests tab) ----------------------- */
+.kb-lt {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.kb-lt-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.kb-lt-row:first-child {
+  border-top: 0;
+}
+
+.kb-lt-line,
+.kb-lt-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.kb-lt-name {
+  font-size: var(--fs-sm);
+}
+
+.kb-lt .kb-btn {
+  height: 26px;
+  padding: 0 8px;
+  font-size: var(--fs-xs);
+}
+
+.kb-lt-test {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+}
+
+.kb-lt-test[data-status="draft"] {
+  padding-bottom: 10px;
+  gap: 8px;
+  border-style: dashed;
+}
+
+.kb-lt-head {
+  padding-bottom: 8px;
+}
+
+.kb-lt-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.kb-lt-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--ink);
+}
+
+.kb-lt-status[data-status="running"]::before {
+  background: var(--ink);
+}
+
+.kb-lt .kb-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--tint);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.kb-lt-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(5, 52px);
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+}
+
+.kb-lt-grid > span:not(:first-child) {
+  text-align: right;
+}
+
+.kb-lt-grid [data-strong] {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.kb-lt-cols {
+  font-size: 11px;
+  color: var(--ghost);
+  padding-bottom: 4px;
+}
+
+.kb-lt-var {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.kb-lt-var[data-off="true"] {
+  opacity: 0.5;
+}
+
+.kb-lt-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.kb-lt-badge {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  border-radius: 4px;
+  background: var(--tint);
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.kb-lt-badge[data-lead] {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.kb-lt-mark {
+  font-size: 9px;
+  color: var(--ink);
+}
+
+.kb-lt-text {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.kb-lt-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kb-lt-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.kb-lt-field .kb-lt-badge {
+  margin-top: 6px;
+}
+
+.kb-lt-field textarea {
+  flex: 1;
+  min-width: 0;
+  resize: vertical;
+}
+
+@media (max-width: 640px) {
+  .kb-lt-grid {
+    grid-template-columns: minmax(0, 1fr) repeat(5, 40px);
+  }
 }

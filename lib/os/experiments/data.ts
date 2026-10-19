@@ -1,12 +1,13 @@
-// Loading experiments for /os/automations/tests: each variant's funnel,
-// counted from existing data (funnel.ts), plus the confidence hint (stats.ts).
+// Loading experiments: each variant's funnel, counted from existing data
+// (funnel.ts), plus the verdict (stats.ts). Line tests show in Knowledge
+// bases › setter › Tests; campaign opener tests on the campaign row.
 
 import { prisma } from "@/lib/db/client";
 import { osMockEnabled } from "@/lib/os/mock";
 import { byVariant, emptyCounts, factsFromRecord, type ContactFacts, type Exposure, type FunnelCounts } from "@/lib/os/experiments/funnel";
-import { verdict, wilson, type Verdict } from "@/lib/os/experiments/stats";
+import { lineVerdict, pct, verdict, wilson, type LineVerdict, type Verdict } from "@/lib/os/experiments/stats";
 import { experimentStore, mockSampleCounts, type AssignmentRow, type ExperimentFull } from "@/lib/os/experiments/store";
-import { ENTRY_PATHS, LINE_KEYS, parseSlot } from "@/lib/os/experiments/types";
+import { baseSlot, ENTRY_PATHS, LINE_KEYS, parseSlot, STAGE_LINES, stageLineOf, type ExperimentStatusName, type StageLineKey } from "@/lib/os/experiments/types";
 import type { SetterRecord } from "@/lib/os/setter/state";
 
 export interface VariantRow {
@@ -88,6 +89,14 @@ export function toView(e: ExperimentFull, counts: Map<string, FunnelCounts>, nam
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 
+/** The stage a line belongs to, when the draft that carried it didn't say. */
+export function lineStageOf(slot: string): string | null {
+  const p = parseSlot(slot);
+  if (!p) return null;
+  if (p.kind !== "line") return "opener";
+  return ({ permission_ask: "permission", qualifying: "qualify", value_offer: "value", invite: "bridge" } as Record<string, string>)[p.ref] ?? null;
+}
+
 /** Exposures for one experiment, from the DB. Campaign openers take their
  *  send time from DmLog; J lines from the approved draft (sentAt). */
 async function exposures(e: ExperimentFull, rows: AssignmentRow[]): Promise<Exposure[]> {
@@ -117,7 +126,8 @@ async function exposures(e: ExperimentFull, rows: AssignmentRow[]): Promise<Expo
     select: { id: true, instagramAccountId: true, igUserId: true, stage: true },
   });
   const ids = contacts.map((c) => c.id);
-  const [states, drafts, fridays, bookings] = await Promise.all([
+  const draftIds = rows.map((r) => r.draftId).filter((x): x is string => Boolean(x));
+  const [states, drafts, fridays, bookings, carriers] = await Promise.all([
     prisma.setterState.findMany({ where: { contactId: { in: ids } }, select: { contactId: true, record: true } }),
     prisma.draft.findMany({
       where: { contactId: { in: ids }, status: "SENT", kind: { in: ["invite", "booking"] } },
@@ -125,7 +135,10 @@ async function exposures(e: ExperimentFull, rows: AssignmentRow[]): Promise<Expo
     }),
     prisma.fridaySend.findMany({ where: { contactId: { in: ids }, status: { not: "sending" } }, select: { contactId: true, sentAt: true, createdAt: true } }),
     prisma.booking.findMany({ where: { contactId: { in: ids }, status: { not: "CANCELLED" } }, select: { contactId: true, createdAt: true } }),
+    draftIds.length ? prisma.draft.findMany({ where: { id: { in: draftIds } }, select: { id: true, setterStage: true } }) : [],
   ]);
+  const stageAt = new Map(carriers.map((d) => [d.id, d.setterStage]));
+  const lineStage = lineStageOf(e.slot);
   const group = <T extends { contactId: string }>(list: T[]) => {
     const m = new Map<string, T[]>();
     for (const x of list) m.set(x.contactId, [...(m.get(x.contactId) ?? []), x]);
@@ -152,6 +165,8 @@ async function exposures(e: ExperimentFull, rows: AssignmentRow[]): Promise<Expo
     sentAt: iso(sentAt.get(r.id)),
     edited: r.edited,
     facts: facts.get(`${r.instagramAccountId}:${r.igUserId}`) ?? null,
+    stageAtSend: r.draftId ? (stageAt.get(r.draftId) ?? null) : null,
+    lineStage,
   }));
 }
 
@@ -196,44 +211,112 @@ export async function listExperiments(workspaceId: string): Promise<ExperimentVi
   );
 }
 
-export interface CreateOptions {
-  campaigns: { id: string; name: string; openingDm: string | null }[];
-  setters: { id: string; name: string }[];
-  /** Slots that already have a running experiment (one at a time per slot). */
-  busySlots: string[];
+// ---------------------------------------------------------------- line tests
+export interface LineVariantView {
+  id: string;
+  label: string;
+  text: string;
+  active: boolean;
+  counts: FunnelCounts;
 }
 
-export async function createOptions(workspaceId: string): Promise<CreateOptions> {
-  const running = (await experimentStore().list(workspaceId)).filter((e) => e.status === "RUNNING").map((e) => e.slot);
-  if (osMockEnabled()) {
-    const real = await prisma.automation
-      .findMany({ where: { workspaceId }, select: { id: true, name: true, openingDmEnabled: true, openingDmMessage: true } })
-      .catch(() => []);
-    return {
-      campaigns: [
-        { id: "sample-automation-1", name: "Claude Code reel (sample)", openingDm: "hey, appreciate you commenting! want the guide?" },
-        ...real.map((a) => ({ id: a.id, name: a.name, openingDm: a.openingDmEnabled ? a.openingDmMessage : null })),
-      ],
-      setters: [],
-      busySlots: running,
-    };
-  }
-  const [automations, setters] = await Promise.all([
-    prisma.automation.findMany({
-      where: { workspaceId },
-      select: { id: true, name: true, openingDmEnabled: true, openingDmMessage: true, openingDmButtonLabel: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.setter.findMany({ where: { workspaceId }, select: { id: true, name: true }, orderBy: { createdAt: "asc" } }),
-  ]);
+export interface LineTestView {
+  id: string;
+  slot: string;
+  /** "setter" = all of this setter, "all" = every setter, "workflow" = one workflow. */
+  scope: "setter" | "all" | "workflow";
+  workflowId: string | null;
+  /** A J opener test for one way in (not "any"): its label. */
+  entry: string | null;
+  status: ExperimentStatusName;
+  winnerVariantId: string | null;
+  variants: LineVariantView[];
+  verdict: LineVerdict;
+  sample: boolean;
+}
+
+export interface StageLineRow {
+  key: StageLineKey;
+  label: string;
+  /** The setter-wide slot "+ Test" creates. */
+  slot: string;
+  tests: LineTestView[];
+}
+
+const STATUS_ORDER: Record<ExperimentStatusName, number> = { RUNNING: 0, PAUSED: 1, DRAFT: 2, FINISHED: 3 };
+
+/** Pure: one test as the Tests tab shows it. */
+export function lineTestView(e: ExperimentFull, counts: Map<string, FunnelCounts>, setterId: string, sample = false): LineTestView {
+  const p = parseSlot(e.slot);
+  const variants = e.variants.map((v) => ({ id: v.id, label: v.label, text: v.text, active: v.active, counts: counts.get(v.id) ?? emptyCounts() }));
+  // A variant that lost (picked winner) still shows, but only arms that can
+  // still get people, or already have, are judged.
+  const arms = variants
+    .filter((v) => v.active || v.counts.sent > 0)
+    .map((v) => ({ id: v.id, label: v.label, reached: v.counts.sent, replied: v.counts.replied, booked: v.counts.booked }));
+  const entry = p?.kind === "j_opener" && p.ref !== "any" ? (ENTRY_PATHS.find((x) => x.key === p.ref)?.label ?? p.ref) : null;
   return {
-    campaigns: automations.map((a) => ({
-      id: a.id,
-      name: a.name,
-      // The worker only sends an opening DM with all three set.
-      openingDm: a.openingDmEnabled && a.openingDmMessage && a.openingDmButtonLabel ? a.openingDmMessage : null,
-    })),
-    setters,
-    busySlots: running,
+    id: e.id,
+    slot: e.slot,
+    scope: p?.workflowId ? "workflow" : e.setterId === setterId ? "setter" : "all",
+    workflowId: p?.workflowId ?? null,
+    entry,
+    status: e.status,
+    winnerVariantId: e.winnerVariantId,
+    variants,
+    verdict: lineVerdict(arms),
+    sample,
   };
+}
+
+/** Pure: the six stage lines with this setter's tests (not stopped ones). */
+export function stageLineRows(tests: { e: ExperimentFull; view: LineTestView }[]): StageLineRow[] {
+  return STAGE_LINES.map((l) => ({
+    key: l.key,
+    label: l.label,
+    slot: l.slot,
+    tests: tests
+      .filter((t) => t.e.status !== "FINISHED" && stageLineOf(t.e.slot)?.key === l.key)
+      .sort((a, b) => STATUS_ORDER[a.e.status] - STATUS_ORDER[b.e.status])
+      .map((t) => t.view),
+  }));
+}
+
+/** Knowledge bases › setter › Tests. */
+export async function loadLineTests(workspaceId: string, setterId: string): Promise<StageLineRow[]> {
+  const list = (await experimentStore().list(workspaceId)).filter((e) => stageLineOf(e.slot) && e.status !== "FINISHED" && (!e.setterId || e.setterId === setterId));
+  const tests = await Promise.all(
+    list.map(async (e) => {
+      const { counts, sample } = await countsFor(e);
+      return { e, view: lineTestView(e, counts, setterId, sample) };
+    })
+  );
+  return stageLineRows(tests);
+}
+
+/** Pure: the campaign row's A/B note. */
+export function openerSummary(e: ExperimentFull, counts: Map<string, FunnelCounts>): string {
+  const arms = e.variants
+    .map((v) => ({ v, c: counts.get(v.id) ?? emptyCounts() }))
+    .filter((x) => x.v.active || x.c.sent > 0)
+    .map((x) => ({ id: x.v.id, label: x.v.label, reached: x.c.sent, replied: x.c.replied, booked: x.c.booked }));
+  const v = lineVerdict(arms);
+  if (v.kind !== "leader" && v.kind !== "tie") return "A/B · too early";
+  const rates = arms.map((a) => `${a.label} ${pct(a[v.metric === "booked" ? "booked" : "replied"] / Math.max(1, a.reached))}`).join(" · ");
+  return `A/B ${v.metric === "booked" ? "booked" : "replied"} · ${rates}`;
+}
+
+/** Running campaign opener tests, per campaign id: the row's A/B note. */
+export async function openerSummaries(workspaceId: string): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const list = (await experimentStore().list(workspaceId)).filter((e) => e.status === "RUNNING" && parseSlot(e.slot)?.kind === "campaign_opener");
+  for (const e of list) {
+    try {
+      const { counts } = await countsFor(e);
+      out.set(parseSlot(baseSlot(e.slot))!.ref, openerSummary(e, counts));
+    } catch (err) {
+      console.error("[OS Experiments] opener summary:", err instanceof Error ? err.message : err);
+    }
+  }
+  return out;
 }

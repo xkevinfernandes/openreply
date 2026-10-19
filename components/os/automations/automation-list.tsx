@@ -193,7 +193,7 @@ export default function AutomationList({ rows: initialRows, sample, initialChip 
                       <span className="chip">{kw.toUpperCase()}</span>
                       {more ? <span className="more">+{more}</span> : null}
                     </span>
-                    {row.ab ? <span className="ab">A/B running</span> : null}
+                    {row.ab ? <span className="ab">{row.abText || "A/B running"}</span> : null}
                   </span>
                   <span className="os-auto-sends" data-empty={row.resource ? undefined : "true"} title={row.resource?.viaLink ? "Matched from the link" : undefined}>
                     {row.resource?.name ?? (row.link ? "Link only" : "Not set")}

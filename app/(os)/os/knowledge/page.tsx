@@ -7,13 +7,16 @@ import { prisma } from "@/lib/db/client";
 export const dynamic = "force-dynamic";
 
 /** Knowledge bases opens on the default setter (J). */
-export default async function KnowledgePage() {
+export default async function KnowledgePage({ searchParams }: { searchParams: Promise<{ s?: string | string[] }> }) {
   const workspaceId = await getCurrentWorkspaceId();
   if (!workspaceId) return null;
   const first =
     (await prisma.setter.findFirst({ where: { workspaceId, isDefault: true }, orderBy: { createdAt: "asc" }, select: { id: true } })) ??
     (await prisma.setter.findFirst({ where: { workspaceId }, orderBy: { createdAt: "asc" }, select: { id: true } }));
-  if (first) redirect(`/os/knowledge/${first.id}`);
+  // ?s= opens a Setup page on it (⌘K "Tests", old Automations › Tests links).
+  const s = (await searchParams).s;
+  const page = typeof s === "string" && /^[a-z-]+$/.test(s) ? `?s=${s}` : "";
+  if (first) redirect(`/os/knowledge/${first.id}${page}`);
 
   return (
     <div className="kb-ws">

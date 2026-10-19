@@ -4,6 +4,7 @@
 // lines (lines_used instead of ab_lines_used).
 
 import { linesBlock, type OfferedLine } from "@/lib/os/experiments";
+import { LINE_KEYS } from "@/lib/os/experiments/types";
 import { formatSlot } from "@/lib/os/integrations/calendar/slots";
 import type { ActiveCalendar } from "@/lib/os/integrations/calendar/store";
 import { calendarName } from "@/lib/os/integrations/calendar/types";
@@ -59,9 +60,16 @@ export function bookingStateBlock(cal: ActiveCalendar | null, rec: SetterRecord)
   return so.length ? `${head}\nSo far: ${so.join("; ")}.` : head;
 }
 
-/** This contact's assigned lines, as the trace / get_step show them. */
+/** This contact's assigned lines, as the trace / get_step show them: only
+ *  the variant this person has, never the others. */
 export function traceLines(lines: OfferedLine[]): TraceLine[] {
-  return lines.map((l) => ({ slot: l.slot, variantId: l.variantId, label: l.key, text: l.text }));
+  return lines.map((l) => ({
+    slot: l.slot,
+    variantId: l.variantId,
+    label: l.key,
+    text: l.text,
+    when: l.key === "opener" ? "this draft is your first reply to them" : (LINE_KEYS.find((k) => k.key === l.key)?.brief ?? undefined),
+  }));
 }
 
 /** The legacy A/B LINES block, reporting through reply.lines_used. */

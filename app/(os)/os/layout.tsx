@@ -19,7 +19,6 @@ import "./automations.css";
 import "./settings.css";
 import "./contacts.css";
 import "./followups.css";
-import "./experiments.css";
 import "./voice.css";
 import "./sequences.css";
 // Wave-0 stream files (empty until their stream fills them).

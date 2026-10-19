@@ -264,6 +264,8 @@ describe("draft → voice on Approve", () => {
     const marked: { text: string }[] = [];
     const experiments = {
       get: async () => ({ id: "e1", variants: [{ id: "vB", text: "hey, still with me?" }] }),
+      findAssignment: async () => null,
+      createAssignment: async () => ({ variantId: "vB", sentAt: null }),
       markSent: async (_e: string, _p: unknown, s: { text: string }) => void marked.push(s),
     } as unknown as ExperimentStore;
     const d = { ...add(["hey, still with me?"]), abVariants: [{ experimentId: "e1", variantId: "vB", slot: "line:follow_up_1", used: true }] };

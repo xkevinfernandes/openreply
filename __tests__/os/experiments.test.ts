@@ -72,6 +72,8 @@ function memExperiments(list: ExperimentFull[]) {
       throw new Error("not in tests");
     },
     setStatus: async () => true,
+    updateDraft: async () => true,
+    removeDraft: async () => true,
     pickWinner: async () => true,
     assignments: async (id) => rows.filter((r) => r.experimentId === id),
   };
@@ -141,7 +143,7 @@ describe("J's lines", () => {
   it("offers opener slots on the first message, key lines later", () => {
     const base = { entry: "post_keyword", nudgesSoFar: 0, alreadyInvited: false };
     expect(candidateSlots({ ...base, actionKind: "value_opener", firstMessage: true })).toEqual(["j_opener:post_keyword", "j_opener:any"]);
-    expect(candidateSlots({ ...base, actionKind: "reply", firstMessage: false })).toEqual(["line:permission_ask", "line:value_offer", "line:invite"]);
+    expect(candidateSlots({ ...base, actionKind: "reply", firstMessage: false })).toEqual(["line:permission_ask", "line:qualifying", "line:value_offer", "line:invite"]);
     expect(candidateSlots({ ...base, actionKind: "reply", firstMessage: false, alreadyInvited: true })).not.toContain("line:invite");
     expect(candidateSlots({ ...base, actionKind: "nudge", firstMessage: false })).toContain("line:follow_up_1");
     expect(candidateSlots({ ...base, actionKind: "nudge", firstMessage: false, nudgesSoFar: 1 })).not.toContain("line:follow_up_1");
@@ -167,8 +169,8 @@ describe("J's lines", () => {
     };
     const lines = await linesForDraft(input);
     expect(lines.map((l) => [l.experimentId, l.key, l.text, l.forced])).toEqual([["pk", "opener", "hey Sam, what are you building?", true]]);
-    expect(linesBlock(lines)).toContain('Use this as your first bubble: "hey Sam, what are you building?"');
-    await store.markSent("pk", person("u1"), { draftId: "d1", at: new Date(), edited: false, text: "x" });
+    expect(linesBlock(lines)).toContain('Say it like this: "hey Sam, what are you building?"');
+    await recordSent({ person: person("u1"), draftId: "d1", abVariants: tagsFor(lines, ["opener"], ["hey"]), bubbles: ["hey"], edited: false, at: new Date(), store });
     expect((await linesForDraft(input)).map((l) => l.experimentId)).toEqual(["any"]);
   });
 
@@ -256,8 +258,8 @@ describe("J end to end (fake drafter)", () => {
     const r = await draftForContact("c1", { store, knowledge: fileKnowledgeSource(), now, experiments });
     if (r.status !== "drafted") throw new Error(`expected a draft, got ${r.status}`);
     expect(r.draft.abVariants).toEqual([{ experimentId: "jo", variantId: "a", slot: "j_opener:any", used: true }]);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].sentAt).toBeNull();
+    // Not assigned until the line actually goes out.
+    expect(rows).toHaveLength(0);
     const res = await approveDraft(r.draft.id, "w1", { store, now: () => now, gapMs: 0, experiments });
     expect(res.error).toBeUndefined();
     expect(rows[0].sentAt?.toISOString()).toBe(now.toISOString());
@@ -277,7 +279,7 @@ describe("funnel attribution", () => {
       { variantId: "a", sentAt: at(1), edited: false, facts: facts({ stage: "SHOWED" }) },
       { variantId: "a", sentAt: at(1), edited: false, facts: null },
     ];
-    expect(countFunnel(exposures)).toEqual({ assigned: 5, sent: 4, edited: 1, replied: 1, valueSent: 1, inviteSent: 1, booked: 2, showed: 1 });
+    expect(countFunnel(exposures)).toEqual({ assigned: 5, sent: 4, edited: 1, replied: 1, nextStage: 0, valueSent: 1, inviteSent: 1, booked: 2, showed: 1 });
   });
 
   it("a reply at the same instant as the send isn't a reply", () => {

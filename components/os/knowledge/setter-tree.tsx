@@ -9,15 +9,15 @@ export type SetupKey = (typeof SETUP_KEYS)[number];
 /** What the right pane shows: a file or a Setup page. */
 export type TreeSel = { file: DocKey } | { setup: SetupKey };
 
-/** The pages the pane can show. "tests" and "autopilot" are old links: both live on Funnel now. */
-export type SetupPage = Exclude<SetupKey, "tests" | "autopilot">;
+/** The pages the pane can show. "autopilot" is an old link: it lives on Funnel now. */
+export type SetupPage = Exclude<SetupKey, "autopilot">;
 
 export function isSetupKey(k: unknown): k is SetupKey {
   return typeof k === "string" && (SETUP_KEYS as readonly string[]).includes(k);
 }
 
 export function pageOf(setup: SetupKey): SetupPage {
-  return setup === "tests" || setup === "autopilot" ? "funnel" : setup;
+  return setup === "autopilot" ? "funnel" : setup;
 }
 
 export function hrefFor(sel: TreeSel): string {
@@ -69,6 +69,7 @@ const SETUP: { key: SetupPage; label: string; icon: KbIconName; meta: (v: Setter
   },
   { key: "fields", label: "Fields J fills", icon: "table", meta: (v) => v.fields.filter((f) => f.on).length },
   { key: "follow-ups", label: "Follow-ups", icon: "clock", meta: (v) => Object.values(v.sequences).filter((s) => s.enabled).length },
+  { key: "tests", label: "Tests", icon: "flask", meta: () => null },
   { key: "corrections", label: "Voice corrections", icon: "pencil", meta: (v) => v.voiceCorrections.length },
   { key: "profile", label: "Profile", icon: "user", meta: (v) => (v.settings.ig_username ? `@${v.settings.ig_username}` : null) },
 ];
