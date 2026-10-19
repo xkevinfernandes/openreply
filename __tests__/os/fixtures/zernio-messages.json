@@ -1,0 +1,1445 @@
+[
+ {
+  "id": "mid_0001",
+  "conversationId": "conv_0003",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "here you go 👇",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-09-29T15:34:23.103Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-09-29T15:34:23.103Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0004",
+  "conversationId": "conv_0003",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "hey! saw your reel",
+  "senderId": "conv_0003",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-09-28T15:26:40.271Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-09-28T15:26:40.271Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0005",
+  "conversationId": "conv_0003",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "haha the classic. how many a day roughly?",
+  "senderId": "igsid_0006",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-09-28T15:26:33.296Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "read",
+  "deliveredAt": "2026-09-28T15:26:33.297Z",
+  "readAt": "2026-09-28T15:26:33.297Z",
+  "sentAt": "2026-09-28T15:26:33.296Z",
+  "metadata": {
+   "sentVia": "comment_automation",
+   "metaInteractive": {
+    "buttons": [
+     {
+      "url": "https://my.zernio.com/r/trk0007/0",
+      "type": "url",
+      "title": "Get the guide"
+     }
+    ]
+   }
+  },
+  "sentVia": "comment_automation"
+ },
+ {
+  "id": "mid_0008",
+  "conversationId": "conv_0003",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "how does it work?",
+  "senderId": "conv_0003",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-09-28T15:26:28.958Z",
+  "attachments": [],
+  "storyReply": {
+   "storyId": "story_0009",
+   "storyUrl": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000010&signature=REDACTED"
+  },
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-09-28T15:26:28.958Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0011",
+  "conversationId": "conv_0003",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-04-06T18:20:43.502Z",
+  "attachments": [
+   {
+    "_id": "att_0012",
+    "type": "template",
+    "payload": {
+     "generic": {
+      "elements": [
+       {
+        "title": "Want the free guide?",
+        "buttons": [
+         {
+          "url": "https://my.manychat.com/r?act=REDACTED&u=1814780387&p=4454256&h=78764c9e9f",
+          "type": "open_url",
+          "title": "Watch the walkthrough"
+         },
+         {
+          "type": "postback",
+          "title": "Yes, send it over",
+          "payload": "PAYLOAD_REDACTED"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-04-06T18:20:43.502Z",
+  "sentVia": null
+ },
+ {
+  "id": "postback_0013",
+  "conversationId": "conv_0003",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "Yes, send it over",
+  "senderId": "conv_0003",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-04-06T17:20:37.385Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-04-06T17:20:37.385Z",
+  "metadata": {
+   "postbackTitle": "Yes, send it over",
+   "postbackPayload": "PAYLOAD_REDACTED"
+  },
+  "sentVia": null
+ },
+ {
+  "id": "mid_0014",
+  "conversationId": "conv_0015",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "want the scripts I use? free",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-08-25T12:10:29.220Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "read",
+  "deliveredAt": "2026-08-25T12:10:29.221Z",
+  "readAt": "2026-08-25T12:10:29.221Z",
+  "sentAt": "2026-08-25T12:10:29.220Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0016",
+  "conversationId": "igsid_0017",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0017",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-09-10T12:55:18.600Z",
+  "attachments": [
+   {
+    "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000018&signature=REDACTED",
+    "type": "file",
+    "payload": {
+     "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000018&signature=REDACTED"
+    },
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-09-10T12:55:18.600Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0019",
+  "conversationId": "igsid_0017",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0017",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-09-10T12:55:15.350Z",
+  "attachments": [
+   {
+    "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000020&signature=REDACTED",
+    "type": "image",
+    "payload": {
+     "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000020&signature=REDACTED"
+    },
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-09-10T12:55:15.350Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0021",
+  "conversationId": "igsid_0022",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0022",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-09-17T13:26:44.529Z",
+  "attachments": [
+   {
+    "type": "template",
+    "payload": {
+     "generic": {
+      "elements": [
+       {
+        "title": "Want the free guide?",
+        "buttons": [
+         {
+          "url": "https://my.manychat.com/r?act=REDACTED&u=444059274&p=394072&h=6cd56f8200",
+          "type": "open_url",
+          "title": "Get the guide"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-09-17T13:26:44.529Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0023",
+  "conversationId": "igsid_0024",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0024",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-08-28T22:05:23.731Z",
+  "attachments": [
+   {
+    "_id": "att_0025",
+    "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000026&signature=REDACTED",
+    "type": "audio",
+    "payload": {
+     "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000026&signature=REDACTED"
+    },
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-08-28T22:05:23.731Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0027",
+  "conversationId": "igsid_0028",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "haha love that",
+  "senderId": "igsid_0028",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-09-07T04:36:15.289Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": true,
+  "editedAt": "2026-09-07T04:36:47.161Z",
+  "editCount": 1,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-09-07T04:36:15.289Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0029",
+  "conversationId": "conv_0030",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "no stress at all",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-10-18T12:17:04.602Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "read",
+  "deliveredAt": "2026-10-18T12:17:04.603Z",
+  "readAt": "2026-10-18T12:17:04.603Z",
+  "sentAt": "2026-10-18T12:17:04.602Z",
+  "metadata": {
+   "sentVia": "api"
+  },
+  "sentVia": "api"
+ },
+ {
+  "id": "mid_0031",
+  "conversationId": "conv_0030",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-10-18T11:47:13.898Z",
+  "attachments": [
+   {
+    "type": "template",
+    "payload": {
+     "generic": {
+      "elements": [
+       {
+        "title": "Want the free guide?",
+        "buttons": [
+         {
+          "type": "postback",
+          "title": "Watch the walkthrough",
+          "payload": "PAYLOAD_REDACTED"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "read",
+  "deliveredAt": "2026-10-18T11:47:13.899Z",
+  "readAt": "2026-10-18T11:47:13.899Z",
+  "sentAt": "2026-10-18T11:47:13.898Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0032",
+  "conversationId": "conv_0030",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-10-18T10:34:48.100Z",
+  "attachments": [
+   {
+    "url": "https://www.instagram.com/reel/REEL0033/",
+    "type": "video",
+    "payload": {
+     "url": "https://www.instagram.com/reel/REEL0033/",
+     "title": "Comment \"GUIDE\" and I'll send it over",
+     "reel_video_id": "17900034"
+    },
+    "originalType": "ig_reel",
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "read",
+  "deliveredAt": "2026-10-18T10:34:48.101Z",
+  "readAt": "2026-10-18T10:34:48.101Z",
+  "sentAt": "2026-10-18T10:34:48.100Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0035",
+  "conversationId": "conv_0036",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "here you go 👇",
+  "senderId": "igsid_0006",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-09-03T16:09:52.806Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "sent",
+  "sentAt": "2026-09-03T16:09:52.806Z",
+  "metadata": {
+   "sentVia": "comment_automation"
+  },
+  "sentVia": "comment_automation"
+ },
+ {
+  "id": "mid_0037",
+  "conversationId": "conv_0036",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-03-11T20:05:53.000Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-03-11T20:05:53.000Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0038",
+  "conversationId": "conv_0039",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "haha the classic. how many a day roughly?",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-08-29T07:22:17.830Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "read",
+  "deliveredAt": "2026-08-29T07:22:17.831Z",
+  "readAt": "2026-08-29T07:22:17.831Z",
+  "sentAt": "2026-08-29T07:22:17.830Z",
+  "reactions": [
+   {
+    "_id": "6a92cbc0459cecbcfe52a2cc",
+    "emoji": "❤",
+    "fromMe": false,
+    "reactedAt": "2026-08-29T12:08:32.635Z"
+   }
+  ],
+  "sentVia": null
+ },
+ {
+  "id": "mid_0040",
+  "conversationId": "conv_0041",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "want the scripts I use? free",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-10-11T10:33:56.293Z",
+  "attachments": [],
+  "storyReply": {
+   "storyId": "story_0042",
+   "storyUrl": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000043&signature=REDACTED"
+  },
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-10-11T10:33:56.293Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0044",
+  "conversationId": "conv_0045",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "no stress at all",
+  "senderId": "igsid_0006",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-10-06T16:48:34.505Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "sent",
+  "sentAt": "2026-10-06T16:48:34.505Z",
+  "reactions": [
+   {
+    "emoji": "❤",
+    "fromMe": false,
+    "reactedAt": "2026-10-06T16:48:52.432Z"
+   }
+  ],
+  "metadata": {
+   "sentVia": "comment_automation",
+   "automationId": "auto_0046",
+   "metaInteractive": {
+    "buttons": [
+     {
+      "url": "https://my.zernio.com/r/trk0047/0",
+      "type": "url",
+      "title": "Yes, send it over"
+     }
+    ]
+   }
+  },
+  "sentVia": "comment_automation"
+ },
+ {
+  "id": "mid_0048",
+  "conversationId": "igsid_0049",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0049",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-08-28T17:41:37.312Z",
+  "attachments": [
+   {
+    "_id": "att_0050",
+    "type": "share",
+    "payload": {
+     "story_media_id": "17700001",
+     "story_media_url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=17700001&signature=REDACTED"
+    }
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-08-28T17:41:37.312Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0051",
+  "conversationId": "igsid_0052",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "what does it cost?",
+  "senderId": "igsid_0052",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-09-17T15:30:52.386Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-09-17T15:30:52.386Z",
+  "metadata": {
+   "quotedMessageId": "mid_0053"
+  },
+  "sentVia": null
+ },
+ {
+  "id": "mid_0054",
+  "conversationId": "igsid_0055",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0055",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-09-09T15:20:59.642Z",
+  "attachments": [
+   {
+    "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000056&signature=REDACTED",
+    "type": "image",
+    "payload": {
+     "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000056&signature=REDACTED"
+    },
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": true,
+  "deletedAt": "2026-09-09T15:26:05.504Z",
+  "deliveryStatus": null,
+  "sentAt": "2026-09-09T15:20:59.642Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0057",
+  "conversationId": "igsid_0055",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "sounds good",
+  "senderId": "igsid_0055",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-09-09T15:20:59.502Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": true,
+  "deletedAt": "2026-09-09T15:25:58.655Z",
+  "deliveryStatus": null,
+  "sentAt": "2026-09-09T15:20:59.502Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0058",
+  "conversationId": "conv_0059",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "here you go 👇",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-09-29T05:43:36.407Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-09-29T05:43:36.407Z",
+  "metadata": {
+   "sentVia": "api",
+   "metaInteractive": {
+    "buttons": [
+     {
+      "url": "https://example.com/loom",
+      "type": "url",
+      "title": "Get the guide"
+     }
+    ]
+   }
+  },
+  "sentVia": "api"
+ },
+ {
+  "id": "mid_0060",
+  "conversationId": "conv_0061",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "haha the classic. how many a day roughly?",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-09-29T15:14:22.110Z",
+  "attachments": [],
+  "storyReply": {
+   "storyId": "story_0062",
+   "storyUrl": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000063&signature=REDACTED"
+  },
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "read",
+  "deliveredAt": "2026-09-29T15:14:22.111Z",
+  "readAt": "2026-09-29T15:14:22.111Z",
+  "sentAt": "2026-09-29T15:14:22.110Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0064",
+  "conversationId": "conv_0065",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "want the scripts I use? free",
+  "senderId": "igsid_0006",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-10-06T15:52:15.473Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "sent",
+  "sentAt": "2026-10-06T15:52:15.473Z",
+  "metadata": {
+   "sentVia": "comment_automation",
+   "automationId": "auto_0046",
+   "metaInteractive": {
+    "buttons": [
+     {
+      "url": "https://my.zernio.com/r/trk0066/0",
+      "type": "url",
+      "title": "Watch the walkthrough"
+     }
+    ]
+   }
+  },
+  "sentVia": "comment_automation"
+ },
+ {
+  "id": "mid_0067",
+  "conversationId": "conv_0068",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "no stress at all",
+  "senderId": "igsid_0006",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-09-28T15:23:32.105Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "sent",
+  "sentAt": "2026-09-28T15:23:32.105Z",
+  "metadata": {
+   "sentVia": "comment_automation",
+   "metaInteractive": {
+    "buttons": [
+     {
+      "url": "https://my.zernio.com/r/trk0069/0",
+      "type": "url",
+      "title": "Yes, send it over"
+     }
+    ]
+   }
+  },
+  "sentVia": "comment_automation"
+ },
+ {
+  "id": "mid_0070",
+  "conversationId": "igsid_0071",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0071",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-09-14T10:59:46.692Z",
+  "attachments": [
+   {
+    "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000072&signature=REDACTED",
+    "type": "share",
+    "payload": {
+     "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000072&signature=REDACTED",
+     "title": "Comment \"GUIDE\" and I'll send it over",
+     "ig_post_media_id": "17800073"
+    },
+    "originalType": "ig_post",
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-09-14T10:59:46.692Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0074",
+  "conversationId": "igsid_0071",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0071",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-09-14T07:58:35.856Z",
+  "attachments": [
+   {
+    "url": "https://www.instagram.com/reel/REEL0075/",
+    "type": "video",
+    "payload": {
+     "url": "https://www.instagram.com/reel/REEL0075/",
+     "title": "Comment \"GUIDE\" and I'll send it over",
+     "reel_video_id": "17900076"
+    },
+    "originalType": "ig_reel",
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-09-14T07:58:35.856Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0077",
+  "conversationId": "igsid_0071",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-09-13T11:41:30.185Z",
+  "attachments": [
+   {
+    "url": "https://www.instagram.com/reel/REEL0078/",
+    "type": "video",
+    "payload": {
+     "url": "https://www.instagram.com/reel/REEL0078/",
+     "title": "Comment \"GUIDE\" and I'll send it over",
+     "reel_video_id": "17900079"
+    },
+    "originalType": "ig_reel",
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-09-13T11:41:30.185Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0080",
+  "conversationId": "igsid_0071",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0071",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-09-12T07:58:19.603Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": true,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-09-12T07:58:19.603Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0081",
+  "conversationId": "igsid_0071",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-09-10T22:40:07.813Z",
+  "attachments": [
+   {
+    "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000082&signature=REDACTED",
+    "type": "share",
+    "payload": {
+     "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000082&signature=REDACTED",
+     "title": "Comment \"GUIDE\" and I'll send it over",
+     "ig_post_media_id": "17800083"
+    },
+    "originalType": "ig_post",
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "read",
+  "deliveredAt": "2026-09-10T22:40:07.814Z",
+  "readAt": "2026-09-10T22:40:07.814Z",
+  "sentAt": "2026-09-10T22:40:07.813Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0084",
+  "conversationId": "igsid_0071",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0071",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-09-10T13:27:15.191Z",
+  "attachments": [
+   {
+    "url": "https://www.instagram.com/reel/REEL0085/",
+    "type": "video",
+    "payload": {
+     "url": "https://www.instagram.com/reel/REEL0085/",
+     "reel_video_id": "17900086"
+    },
+    "originalType": "ig_reel",
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-09-10T13:27:15.191Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0087",
+  "conversationId": "igsid_0071",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0071",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-08-17T07:22:44.612Z",
+  "attachments": [
+   {
+    "_id": "att_0088",
+    "url": "https://www.instagram.com/reel/REEL0089/",
+    "type": "video",
+    "payload": {
+     "url": "https://www.instagram.com/reel/REEL0089/",
+     "title": "Comment \"GUIDE\" and I'll send it over",
+     "reel_video_id": "17900090"
+    },
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-08-17T07:22:44.612Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0091",
+  "conversationId": "igsid_0071",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0071",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-08-16T21:10:48.958Z",
+  "attachments": [
+   {
+    "_id": "att_0092",
+    "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000093&signature=REDACTED",
+    "type": "share",
+    "payload": {
+     "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000093&signature=REDACTED",
+     "title": "Comment \"GUIDE\" and I'll send it over",
+     "ig_post_media_id": "17800094"
+    },
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-08-16T21:10:48.958Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0095",
+  "conversationId": "igsid_0071",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0071",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-08-16T05:39:22.951Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-08-16T05:39:22.951Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0096",
+  "conversationId": "igsid_0071",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-08-14T15:49:40.294Z",
+  "attachments": [
+   {
+    "_id": "att_0097",
+    "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000098&signature=REDACTED",
+    "type": "share",
+    "payload": {
+     "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000098&signature=REDACTED",
+     "title": "Comment \"GUIDE\" and I'll send it over",
+     "ig_post_media_id": "17800099"
+    },
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "read",
+  "deliveredAt": "2026-08-14T15:49:40.295Z",
+  "readAt": "2026-08-14T15:49:40.295Z",
+  "sentAt": "2026-08-14T15:49:40.294Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0100",
+  "conversationId": "igsid_0071",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-08-13T15:38:01.193Z",
+  "attachments": [
+   {
+    "_id": "att_0101",
+    "url": "https://www.instagram.com/reel/REEL0102/",
+    "type": "video",
+    "payload": {
+     "url": "https://www.instagram.com/reel/REEL0102/",
+     "title": "Comment \"GUIDE\" and I'll send it over",
+     "reel_video_id": "17900103"
+    },
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "read",
+  "deliveredAt": "2026-08-13T15:38:01.194Z",
+  "readAt": "2026-08-13T15:38:01.194Z",
+  "sentAt": "2026-08-13T15:38:01.193Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0104",
+  "conversationId": "conv_0105",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "here you go 👇",
+  "senderId": "igsid_0006",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-09-28T15:49:20.799Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "sent",
+  "sentAt": "2026-09-28T15:49:20.799Z",
+  "reactions": [
+   {
+    "emoji": "❤",
+    "fromMe": false,
+    "reactedAt": "2026-09-28T15:54:07.835Z"
+   }
+  ],
+  "metadata": {
+   "sentVia": "comment_automation",
+   "metaInteractive": {
+    "buttons": [
+     {
+      "url": "https://my.zernio.com/r/trk0106/0",
+      "type": "url",
+      "title": "Get the guide"
+     }
+    ]
+   }
+  },
+  "sentVia": "comment_automation"
+ },
+ {
+  "id": "mid_0107",
+  "conversationId": "igsid_0108",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "thanks man! https://example.com/guide",
+  "senderId": "igsid_0108",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-08-22T21:40:30.311Z",
+  "attachments": [
+   {
+    "_id": "att_0109",
+    "url": "https://www.instagram.com/reel/REEL0110/",
+    "type": "video",
+    "payload": {
+     "url": "https://www.instagram.com/reel/REEL0110/",
+     "reel_video_id": "17900111"
+    },
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-08-22T21:40:30.311Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0112",
+  "conversationId": "igsid_0108",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "haha the classic. how many a day roughly? https://example.com/guide",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-08-21T11:52:40.827Z",
+  "attachments": [
+   {
+    "_id": "att_0113",
+    "url": "https://www.instagram.com/reel/REEL0114/",
+    "type": "video",
+    "payload": {
+     "url": "https://www.instagram.com/reel/REEL0114/",
+     "title": "Comment \"GUIDE\" and I'll send it over",
+     "reel_video_id": "17900115"
+    },
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "read",
+  "deliveredAt": "2026-08-21T11:52:40.828Z",
+  "readAt": "2026-08-21T11:52:40.828Z",
+  "sentAt": "2026-08-21T11:52:40.827Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0116",
+  "conversationId": "conv_0117",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "want the scripts I use? free",
+  "senderId": "igsid_0006",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-10-06T17:36:39.829Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "read",
+  "deliveredAt": "2026-10-06T17:36:39.830Z",
+  "readAt": "2026-10-06T17:36:39.830Z",
+  "sentAt": "2026-10-06T17:36:39.829Z",
+  "metadata": {
+   "sentVia": "comment_automation",
+   "automationId": "auto_0046",
+   "metaInteractive": {
+    "buttons": [
+     {
+      "url": "https://my.zernio.com/r/trk0118/0",
+      "type": "url",
+      "title": "Watch the walkthrough"
+     }
+    ]
+   }
+  },
+  "sentVia": "comment_automation"
+ },
+ {
+  "id": "mid_0119",
+  "conversationId": "igsid_0120",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0120",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-09-29T17:28:04.808Z",
+  "attachments": [
+   {
+    "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000121&signature=REDACTED",
+    "type": "video",
+    "payload": {
+     "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000121&signature=REDACTED"
+    },
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-09-29T17:28:04.808Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0122",
+  "conversationId": "igsid_0120",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-09-29T15:51:27.232Z",
+  "attachments": [
+   {
+    "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000123&signature=REDACTED",
+    "type": "audio",
+    "payload": {
+     "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000123&signature=REDACTED"
+    },
+    "refreshUrl": "https://zernio.com/api/v1/inbox/conversations/CONV/messages/MSG"
+   }
+  ],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "read",
+  "deliveredAt": "2026-09-29T15:51:27.233Z",
+  "readAt": "2026-09-29T15:51:27.233Z",
+  "sentAt": "2026-09-29T15:51:27.232Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0124",
+  "conversationId": "conv_0125",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "no stress at all",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-10-18T14:16:02.423Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-10-18T14:16:02.423Z",
+  "metadata": {
+   "sentVia": "api"
+  },
+  "sentVia": "api"
+ },
+ {
+  "id": "mid_0126",
+  "conversationId": "conv_0127",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "here you go 👇",
+  "senderId": "igsid_0006",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-09-28T15:38:16.824Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": "read",
+  "deliveredAt": "2026-09-28T15:38:16.825Z",
+  "readAt": "2026-09-28T15:38:16.825Z",
+  "sentAt": "2026-09-28T15:38:16.824Z",
+  "reactions": [
+   {
+    "emoji": "❤",
+    "fromMe": false,
+    "reactedAt": "2026-09-28T15:40:47.079Z"
+   }
+  ],
+  "metadata": {
+   "sentVia": "comment_automation",
+   "metaInteractive": {
+    "buttons": [
+     {
+      "url": "https://my.zernio.com/r/trk0128/0",
+      "type": "url",
+      "title": "Yes, send it over"
+     }
+    ]
+   }
+  },
+  "sentVia": "comment_automation"
+ },
+ {
+  "id": "mid_0129",
+  "conversationId": "igsid_0130",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "",
+  "senderId": "igsid_0130",
+  "senderName": "lead_user",
+  "direction": "incoming",
+  "createdAt": "2026-08-11T23:09:28.232Z",
+  "attachments": [],
+  "storyReply": {
+   "storyId": "story_0131",
+   "storyUrl": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=90000132&signature=REDACTED"
+  },
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-08-11T23:09:28.232Z",
+  "sentVia": null
+ },
+ {
+  "id": "mid_0133",
+  "conversationId": "conv_0003",
+  "accountId": "acct_0001",
+  "platform": "instagram",
+  "message": "haha the classic. how many a day roughly? https://example.com/guide",
+  "senderId": "igsid_0002",
+  "senderName": "my_account",
+  "direction": "outgoing",
+  "createdAt": "2026-03-16T15:08:54.000Z",
+  "attachments": [],
+  "isStoryMention": false,
+  "noRenderableContent": false,
+  "isEdited": false,
+  "editCount": 0,
+  "isDeleted": false,
+  "deliveryStatus": null,
+  "sentAt": "2026-03-16T15:08:54.000Z",
+  "sentVia": null
+ }
+]

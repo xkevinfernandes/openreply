@@ -10,6 +10,7 @@
 import { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { prisma } from "@/lib/db/client";
 import { normalizeTag, parseEmail } from "@/lib/os/contacts-filter";
+import { osEventHooks, type OsEventHooks } from "@/lib/os/events-hooks";
 import { fireContactEvent } from "@/lib/os/integrations/events";
 import type { SyncEvent } from "@/lib/os/integrations/mapping";
 import { mockContactExtras, osMockEnabled, updateMockContact, updateMockContactExtras } from "@/lib/os/mock";
@@ -109,7 +110,9 @@ export async function editContacts(
   ids: unknown,
   change: ContactChange,
   db: ContactsEditDb = prisma as unknown as ContactsEditDb,
-  fire: FireEvent = fireContactEvent
+  fire: FireEvent = fireContactEvent,
+  // OsEvents (won) only against the real database; tests pass their own db.
+  hooks: Pick<OsEventHooks, "onStageChanged"> | null = db === (prisma as unknown) ? osEventHooks : null
 ): Promise<EditResult> {
   const list = cleanIds(ids);
   if (!list) return { error: "Pick at least one contact." };
@@ -124,6 +127,7 @@ export async function editContacts(
   const done = async (count: number): Promise<EditResult> => {
     // Never throws (fireContactEvent catches); one event per changed contact.
     if (event) for (const contactId of changed) await fire({ workspaceId, contactId, event });
+    if (change.type === "stage" && hooks) for (const contactId of changed) await hooks.onStageChanged({ workspaceId, contactId, stage: change.stage });
     return { count };
   };
 

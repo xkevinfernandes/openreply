@@ -12,6 +12,7 @@ import { getBaseUrl, getMetaGraphApiVersion } from "@/lib/env";
 import { createInstagramContext } from "@/lib/instagram/provider";
 import { appendMockVoice, osMockEnabled } from "@/lib/os/mock";
 import { getInboxAccount } from "@/lib/os/inbox";
+import { assertCanSend, recordSend } from "@/lib/os/sending/cap";
 import { zernioRequest, ZernioApiError, ZernioDeliveryUnconfirmedError } from "@/lib/zernio/client";
 
 /** The public url Zernio / Instagram fetch the file from. */
@@ -39,6 +40,14 @@ export interface AudioSend {
 }
 
 export async function sendAudioMessage(s: AudioSend): Promise<{ messageId: string | null }> {
+  // Send cap + Pause all: a voice note is one bubble.
+  await assertCanSend(s.workspaceId);
+  const result = await sendAudioUnguarded(s);
+  await recordSend(s.workspaceId, { key: `voice:${s.sendKey}`, source: "voice" });
+  return result;
+}
+
+async function sendAudioUnguarded(s: AudioSend): Promise<{ messageId: string | null }> {
   if (osMockEnabled()) {
     const id = s.conversationId ? appendMockVoice(s.conversationId, { url: voicePath(s.audioId, s.ext), transcript: s.transcript, durationMs: s.durationMs }) : null;
     return { messageId: id };

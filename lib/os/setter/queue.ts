@@ -17,12 +17,18 @@ import { draftForContact } from "@/lib/os/setter/service";
 import type { SetterRecord } from "@/lib/os/setter/state";
 import { triageContact } from "@/lib/os/setter/triage";
 import { getRedisConnection } from "@/lib/queue/client";
+import type { BroadcastSendJob } from "@/lib/os/broadcasts/types";
+import { isPausedAll } from "@/lib/os/workspace-settings";
 
 export const SETTER_QUEUE = "os-setter";
 export const SETTER_DRAFT_JOB = "os-setter-draft";
 export const SETTER_TRIAGE_JOB = "os-setter-triage";
 /** A follow-up step at its time (lib/os/sequences/deliver.ts). */
 export const SETTER_FOLLOWUP_JOB = "os-setter-followup";
+/** Wave-0 slot (owner S2): download + transcribe/describe one message's media at arrival. */
+export const SETTER_MEDIA_ENRICH_JOB = "os-media-enrich";
+/** Wave-0 slot (owner S5): send one approved broadcast message (lib/os/broadcasts). */
+export const SETTER_BROADCAST_SEND_JOB = "os-broadcast-send";
 /** Most triage calls per minute across the worker (Zernio reads + one Jev or Haiku call). */
 export const TRIAGE_PER_MINUTE = 10;
 
@@ -40,7 +46,13 @@ export interface SetterFollowupJob {
   stepId: string;
 }
 
-type SetterJob = SetterDraftJob | SetterTriageJob | SetterFollowupJob;
+export interface MediaEnrichJob {
+  workspaceId: string;
+  conversationId: string;
+  messageId: string;
+}
+
+type SetterJob = SetterDraftJob | SetterTriageJob | SetterFollowupJob | MediaEnrichJob | BroadcastSendJob;
 
 let queue: Queue<SetterJob> | null = null;
 
@@ -183,10 +195,41 @@ async function processFollowupJob(job: Job<SetterFollowupJob>) {
   console.log(`[OS Follow-ups] step ${job.data.stepId}: ${result.status}${"reason" in result ? ` — ${result.reason}` : ""}`);
 }
 
+/** Wave-0 slot: S2 replaces this with lib/os/media enrich. */
+async function processMediaEnrichJob(job: Job<MediaEnrichJob>) {
+  console.log(`[OS Media] enrich ${job.data.messageId}: not built yet`);
+}
+
+/** Wave-0 slot: S5 replaces this with lib/os/broadcasts send (through the cap guard). */
+async function processBroadcastSendJob(job: Job<BroadcastSendJob>) {
+  console.log(`[OS Broadcasts] send ${job.data.messageId} (${job.data.part}): not built yet`);
+}
+
+/** Pause all (OsWorkspace.pausedAll) stops every draft job. */
+async function pausedFor(contactId: string): Promise<boolean> {
+  const c = await prisma.contact.findUnique({ where: { id: contactId }, select: { workspaceId: true } });
+  return c ? isPausedAll(c.workspaceId) : false;
+}
+
+/** While paused, a draft or follow-up job waits and re-checks (nothing is lost). */
+const PAUSE_RECHECK_MS = 15 * 60_000;
+async function holdWhilePaused(job: Job<SetterJob>, token?: string): Promise<never> {
+  console.log(`[OS Setter] ${job.name} ${job.id}: Pause all is on, retrying in 15 min`);
+  await job.moveToDelayed(Date.now() + PAUSE_RECHECK_MS, token);
+  throw new DelayedError();
+}
+
 async function processSetterJob(job: Job<SetterJob>, token?: string) {
   if (job.name === SETTER_TRIAGE_JOB) return processTriageJob(job as Job<SetterTriageJob>, token);
-  if (job.name === SETTER_FOLLOWUP_JOB) return processFollowupJob(job as Job<SetterFollowupJob>);
+  if (job.name === SETTER_MEDIA_ENRICH_JOB) return processMediaEnrichJob(job as Job<MediaEnrichJob>);
+  if (job.name === SETTER_BROADCAST_SEND_JOB) return processBroadcastSendJob(job as Job<BroadcastSendJob>);
+  if (job.name === SETTER_FOLLOWUP_JOB) {
+    const step = await prisma.followupStep.findUnique({ where: { id: (job.data as SetterFollowupJob).stepId }, select: { workspaceId: true } });
+    if (step && (await isPausedAll(step.workspaceId))) return holdWhilePaused(job, token);
+    return processFollowupJob(job as Job<SetterFollowupJob>);
+  }
   const { contactId } = job.data as SetterDraftJob;
+  if (await pausedFor(contactId)) return holdWhilePaused(job, token);
   const result = await draftForContact(contactId, { onState: (rec) => scheduleNextAction(contactId, rec) });
   console.log(`[OS Setter] ${contactId} (${(job.data as SetterDraftJob).reason}): ${result.status}${"reason" in result ? ` — ${result.reason}` : ""}`);
   // Every look at the thread re-plans its follow-up: a reply stops a sequence at once.

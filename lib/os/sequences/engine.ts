@@ -10,6 +10,7 @@
 // approves it (approveDraft). "Send now" is that person pressing send.
 
 import { prisma } from "@/lib/db/client";
+import { osEventHooks } from "@/lib/os/events-hooks";
 import { fireContactEvent } from "@/lib/os/integrations/queue";
 import { osMockEnabled, updateMockContact } from "@/lib/os/mock";
 import { getSetterConfig } from "@/lib/os/setter/config";
@@ -237,6 +238,8 @@ export async function markAttendance(
   const now = deps.now ?? new Date();
   if (attendance && new Date(booking.start).getTime() > now.getTime()) return { error: "The call hasn't started yet." };
   await steps.setAttendance(workspaceId, booking.id, attendance, source, now);
+  // OsEvent "showed" (Home); only on the real store, tests pass their own.
+  if (!deps.steps) await osEventHooks.onAttendance({ workspaceId, contactId, bookingId: booking.id, attendance, at: now });
 
   if (attendance === "SHOWED") {
     const { set } = await steps.loadSet(workspaceId, contact.setterId ?? null, contact.instagramAccountId);

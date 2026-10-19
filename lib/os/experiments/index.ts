@@ -9,6 +9,7 @@
 import { fillName, keepOrPick } from "@/lib/os/experiments/assign";
 import { editedHeavily, lineUsed } from "@/lib/os/experiments/similarity";
 import { experimentStore, type ExperimentStore, type Person } from "@/lib/os/experiments/store";
+import { recordSend } from "@/lib/os/sending/cap";
 import { LINE_KEYS, parseSlot, readAbTags, slotOf, type AbTag, type ExperimentLite, type LineKey, type VariantLite } from "@/lib/os/experiments/types";
 
 let warned = false;
@@ -47,6 +48,9 @@ export interface CampaignOpenerInput {
  *  ({username} etc.), and records the send in DmLog, which is how the send
  *  is attributed (lib/os/experiments/data.ts). */
 export async function campaignOpenerText(input: CampaignOpenerInput): Promise<string> {
+  // The opener is about to go out: it counts toward today's send cap
+  // (lib/os/sending/cap.ts). Counted, never blocked: OpenReply owns this send.
+  if (!input.store) await recordSend(input.workspaceId, { key: `opener:${input.automationId}:${input.igUserId}`, source: "campaign_opener" });
   try {
     const store = input.store ?? experimentStore();
     const [exp] = await store.running(input.workspaceId, [slotOf("campaign_opener", input.automationId)]);

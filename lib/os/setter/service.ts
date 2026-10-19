@@ -9,7 +9,9 @@ import { linesBlock, linesForDraft, recordSent, tagsFor } from "@/lib/os/experim
 import type { ExperimentStore, Person } from "@/lib/os/experiments/store";
 import { formatSlot } from "@/lib/os/integrations/calendar/slots";
 import { CalendarApiError, type BookingPayload } from "@/lib/os/integrations/calendar/types";
+import { osEventHooks, type OsEventHooks } from "@/lib/os/events-hooks";
 import { osMockEnabled } from "@/lib/os/mock";
+import { assertCanSend, SendBlockedError } from "@/lib/os/sending/cap";
 import {
   applyBookingReply,
   bookingBlock,
@@ -59,7 +61,20 @@ export type DraftResult =
   | { status: "idle"; reason: string; nextActionAt?: string | null }
   | { status: "skipped"; reason: string };
 
+/** OsEvent hooks (lib/os/events-hooks.ts): real ones unless a test passes its own store. */
+function hooksFor(opts: { hooks?: OsEventHooks | null; store?: SetterStore }): OsEventHooks | null {
+  return opts.hooks !== undefined ? opts.hooks : opts.store ? null : osEventHooks;
+}
+
+/** The daily send cap / Pause all check for a whole draft (lib/os/sending/cap.ts). */
+type CapGuard = (workspaceId: string, bubbles: number) => Promise<unknown>;
+function capGuardFor(opts: { capGuard?: CapGuard | null; store?: SetterStore }): CapGuard | null {
+  return opts.capGuard !== undefined ? opts.capGuard : opts.store ? null : assertCanSend;
+}
+
 export interface DraftOptions {
+  /** OsEvent hooks; null = none. Default: real hooks unless `store` is a test store. */
+  hooks?: OsEventHooks | null;
   /** A person asked ("Draft with J"): draft even when no timer is due. */
   force?: boolean;
   /** Scope the contact lookup to this workspace (server actions). */
@@ -138,6 +153,7 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
   let rec = (await store.loadState(contact.id)) ?? newRecord(contact.conversationId ?? contact.id, contact.username ?? "", contact.id);
   const phaseBefore = rec.booking?.phase ?? null;
   rec = observe(rec, msgs, contact.tags, catalog.resources, now, cfg);
+  await hooksFor(opts)?.onThreadObserved({ workspaceId: contact.workspaceId, contactId: contact.id, setterId: setter.setterId, record: rec, at: now });
   if (phaseBefore !== "confirmed" && rec.booking?.phase === "confirmed") {
     // Their screenshot of the invite: the call is confirmed (Call booked, CRM sync).
     const at = rec.booking.confirmed_at ? new Date(rec.booking.confirmed_at) : now;
@@ -337,6 +353,9 @@ export interface ApproveOptions {
   experiments?: ExperimentStore;
   voice?: VoiceBank | null;
   sequences?: boolean;
+  hooks?: OsEventHooks | null;
+  /** Default: lib/os/sending/cap.ts assertCanSend unless `store` is a test store. */
+  capGuard?: CapGuard | null;
 }
 
 export interface ApproveResult {
@@ -453,6 +472,14 @@ export async function approveDraft(draftId: string, workspaceId: string, opts: A
   if (win === "closed") return { error: "Instagram's reply window has closed for this person. Discard the draft." };
   const humanAgent = win === "human_agent";
 
+  // The whole draft fits under today's cap, or nothing goes (no half-sent drafts).
+  try {
+    await capGuardFor(opts)?.(workspaceId, bubbles.length);
+  } catch (err) {
+    if (err instanceof SendBlockedError) return { error: err.message };
+    throw err;
+  }
+
   if (!(await store.claimDraft(d.id))) return { error: "That draft was already handled." };
 
   const payload = d.kind === "booking" && d.booking ? d.booking : null;
@@ -504,6 +531,7 @@ export async function approveDraft(draftId: string, workspaceId: string, opts: A
   }
   await store.markSent(d.id, { bubbles, editedText: edited ? opts.editedText! : null, edited });
   await recordSent({ person: abPerson(contact), draftId: d.id, abVariants: d.abVariants, bubbles, edited, at: now(), store: opts.experiments });
+  await hooksFor(opts)?.onDraftSent({ workspaceId: contact.workspaceId, contactId: contact.id, setterId: d.setterId ?? null, draftId: d.id, kind: d.kind, bubbles, at: now() });
 
   let rec = prev ?? newRecord(contact.conversationId ?? contact.id, contact.username ?? "", contact.id);
   // The booking step this draft moved to (proposed, awaiting email…) only

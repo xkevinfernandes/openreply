@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
+import { osEventHooks } from "@/lib/os/events-hooks";
 import { sendReply } from "@/lib/os/inbox";
 import { fireContactEvent } from "@/lib/os/integrations/events";
 import type { SyncEvent } from "@/lib/os/integrations/mapping";
@@ -56,6 +57,7 @@ export async function setContactKind(contactId: string, kind: ContactKind) {
 export async function setContactStage(contactId: string, stage: ContactStage) {
   if (!Object.values(ContactStage).includes(stage)) throw new Error("Unknown stage.");
   await updateContact(contactId, { stage }, "stage_changed");
+  if (!osMockEnabled()) await osEventHooks.onStageChanged({ workspaceId: await requireWorkspace(), contactId, stage });
   // Showed on the board = they came to the call: Kevin's voice-note task.
   if (stage === "SHOWED") await markAttendance(await requireWorkspace(), contactId, "SHOWED").catch(() => null);
   revalidatePath("/os/follow-ups");

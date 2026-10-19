@@ -6,6 +6,7 @@ import type { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db/client";
 import { activeCalendar, disableDirectBooking, loadCalendarProvider, type ActiveCalendar } from "@/lib/os/integrations/calendar/store";
 import type { CalendarProvider, CalendarSourceId } from "@/lib/os/integrations/calendar/types";
+import { osEventHooks } from "@/lib/os/events-hooks";
 import { fireContactEvent } from "@/lib/os/integrations/queue";
 import { osMockEnabled, updateMockContact, updateMockContactExtras } from "@/lib/os/mock";
 import type { SetterContact } from "@/lib/os/setter/store";
@@ -92,6 +93,8 @@ const dbBookings: BookingStore = {
   async booked(contact, booking) {
     await prisma.contact.updateMany({ where: { id: contact.id, workspaceId: contact.workspaceId }, data: { email: booking.email.toLowerCase() } });
     await fireContactEvent({ workspaceId: contact.workspaceId, contactId: contact.id, event: "email_captured" });
+    // A Calendly link for a time (LINK_SENT) is not a booking yet.
+    if (booking.status === "BOOKED") await osEventHooks.onBooking({ workspaceId: contact.workspaceId, contactId: contact.id, bookingId: booking.id });
   },
   async confirm(contact, bookingId, at) {
     const target =
@@ -105,6 +108,7 @@ const dbBookings: BookingStore = {
       data: { stage: "CALL_BOOKED", setterStage: "booked", ...(target ? { email: target.email.toLowerCase() } : {}) },
     });
     await fireContactEvent({ workspaceId: contact.workspaceId, contactId: contact.id, event: "stage_changed" });
+    if (target) await osEventHooks.onBooking({ workspaceId: contact.workspaceId, contactId: contact.id, bookingId: target.id, at });
   },
   async latest(workspaceId, contactId) {
     const b = await prisma.booking.findFirst({
