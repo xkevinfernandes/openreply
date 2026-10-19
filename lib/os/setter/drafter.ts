@@ -126,6 +126,28 @@ interface Call {
 
 let client: Anthropic | null = null;
 
+/** The shared SDK client (J's tool loop, lib/os/setter/agent, uses it too). */
+export function anthropicClient(s: DrafterSettings): Anthropic {
+  client ??= new Anthropic({ timeout: s.timeout_seconds * 1000 });
+  return client;
+}
+
+/** output_config.effort for a job, when the model takes it. Haiku 4.5
+ *  rejects it; the 4.6+/5 family takes it and runs adaptive thinking. */
+export function effortFor(s: DrafterSettings, job: string, model: string): { output_config: { effort: "low" | "medium" | "high" } } | Record<string, never> {
+  const effort = s.effort[job];
+  return effort && !model.startsWith("claude-haiku-4") ? { output_config: { effort: effort as "low" | "medium" | "high" } } : {};
+}
+
+/** SDK errors as a DraftError with a readable message; anything else as is. */
+export function apiError(err: unknown): unknown {
+  if (err instanceof Anthropic.AuthenticationError) return new DraftError("Anthropic auth failed — check ANTHROPIC_API_KEY.");
+  if (err instanceof Anthropic.RateLimitError) return new DraftError(`Anthropic rate limit: ${err.message}`);
+  if (err instanceof Anthropic.APIConnectionError) return new DraftError(`Anthropic connection error: ${err.message}`);
+  if (err instanceof Anthropic.APIError) return new DraftError(`Anthropic API ${err.status}: ${err.message}`);
+  return err;
+}
+
 async function anthropicApi({ system, prompt, job, s }: Call): Promise<[string, DraftUsage]> {
   const model = resolveModel(s.models[job] ?? s.models.draft, job);
   client ??= new Anthropic({ timeout: s.timeout_seconds * 1000 });

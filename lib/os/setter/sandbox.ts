@@ -3,12 +3,17 @@
 // here reads or writes Instagram, a Contact, a Draft or J's state: the
 // transcript lives in the browser and is passed in whole on every turn.
 
+import { calendarSource, type CalendarSource } from "@/lib/os/setter/booking-store";
+import { agentBackend, runAgentTurn, type AgentBackend, type DraftTrace } from "@/lib/os/setter/agent";
+import { bookingStateBlock, toolsBrief } from "@/lib/os/setter/agent/brief";
+import { usableCalendar } from "@/lib/os/setter/agent/context";
+import type { ActiveCalendar } from "@/lib/os/integrations/calendar/store";
 import { getSetterConfig } from "@/lib/os/setter/config";
 import { draft as runDrafter, type DraftUsage } from "@/lib/os/setter/drafter";
 import type { ResolvedSetter } from "@/lib/os/setter/kb";
 import { loadMethod } from "@/lib/os/setter/knowledge";
 import { bubblesOf, buildPrompt, isInvitation, mentionsPrice, systemPrompt, type DraftObject } from "@/lib/os/setter/prompt";
-import { advance, newRecord, observe, type SetterAction, type ThreadMessage } from "@/lib/os/setter/state";
+import { advance, newRecord, observe, type SetterAction, type SetterRecord, type ThreadMessage } from "@/lib/os/setter/state";
 
 export interface SandboxTurn {
   from: "lead" | "setter";
@@ -20,6 +25,13 @@ export interface SandboxOptions {
   entrySlug?: string | null;
   handle?: string;
   now?: Date;
+  /** J with tools (OS_J_TOOLS=1): the workspace, so check_calendar reads the
+   *  setter's real calendar. Without it the sandbox has no calendar tools. */
+  workspaceId?: string | null;
+  /** Override the calendar (tests). */
+  calendar?: CalendarSource;
+  /** Override the tool-loop model backend (tests). */
+  agent?: AgentBackend | null;
 }
 
 export interface SandboxReply {
@@ -30,6 +42,8 @@ export interface SandboxReply {
   reasoning: string | null;
   flags: string[];
   usage: DraftUsage;
+  /** J with tools: what he saw and did. Actions are recorded here, never run. */
+  trace?: DraftTrace;
 }
 
 /** The opener OpenReply/Zernio would have sent for an entry row. */
@@ -65,6 +79,8 @@ export async function sandboxReply(setter: ResolvedSetter, turns: SandboxTurn[],
 
   const today = now.toISOString().slice(0, 10);
   const system = systemPrompt(loadMethod(), setter.profile, setter.offered, today);
+  const tools = agentBackend(cfg.drafter.backend, opts.agent);
+  if (tools) return sandboxToolTurn(setter, tools, { rec, msgs, action, now, system, workspaceId: opts.workspaceId ?? null, calendar: opts.calendar });
   const prompt = buildPrompt(rec, msgs, action, setter.catalog, now);
   const result = await runDrafter({ system, prompt, job: "draft", settings: cfg.drafter });
   const obj = (result.obj && typeof result.obj === "object" ? result.obj : {}) as DraftObject;
@@ -82,5 +98,59 @@ export async function sandboxReply(setter: ResolvedSetter, turns: SandboxTurn[],
     reasoning: obj.stage_reasoning || obj.reasoning || null,
     flags,
     usage: result.usage,
+  };
+}
+
+/** The sandbox turn with tools: reads are real (or fake), actions are only
+ *  recorded in the trace. Nothing is booked, sent, saved or synced. */
+async function sandboxToolTurn(
+  setter: ResolvedSetter,
+  backend: AgentBackend,
+  o: { rec: SetterRecord; msgs: ThreadMessage[]; action: SetterAction; now: Date; system: string; workspaceId: string | null; calendar?: CalendarSource }
+): Promise<SandboxReply> {
+  const cfg = getSetterConfig();
+  let cal: ActiveCalendar | null = null;
+  if (o.workspaceId) {
+    try {
+      cal = usableCalendar(await (o.calendar ?? calendarSource).forSetter(o.workspaceId, setter.setterId));
+    } catch (err) {
+      console.error("[OS Sandbox] calendar read failed:", err instanceof Error ? err.message : err);
+    }
+  }
+  const extras = [bookingStateBlock(cal, o.rec)].filter(Boolean);
+  const prompt = buildPrompt(o.rec, o.msgs, o.action, setter.catalog, o.now, extras, toolsBrief({ calendar: Boolean(cal), fields: Boolean(setter.profile.fields?.length) }));
+  const turn = await runAgentTurn({
+    system: o.system,
+    prompt,
+    backend,
+    settings: cfg.drafter,
+    env: {
+      now: o.now,
+      contact: { id: null, username: o.rec.handle, fullName: null, email: null, tags: [], stage: null, setterStage: null, paused: false },
+      rec: o.rec,
+      msgs: o.msgs,
+      setter,
+      windowClosed: false,
+      calendar: cal,
+      lines: [],
+      dry: true,
+    },
+  });
+  const obj = turn.obj;
+  const bubbles = [...bubblesOf(obj), ...turn.resourceBubbles];
+  const hold = Boolean(obj.hold) || !bubbles.length;
+  const flags = [...turn.flags];
+  if (!hold && isInvitation(obj, o.rec)) flags.push("invite");
+  if (!hold && mentionsPrice(bubbles)) flags.push("price");
+  if (turn.usage.backend === "fake") flags.push("sample");
+  return {
+    bubbles: hold ? [] : bubbles,
+    hold,
+    holdReason: hold ? String(obj.hold_reason || "no reply needed") : null,
+    stage: obj.stage_proposed || null,
+    reasoning: obj.stage_reasoning || null,
+    flags,
+    usage: turn.usage,
+    trace: turn.trace,
   };
 }

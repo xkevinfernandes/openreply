@@ -22,6 +22,10 @@ import {
   type BookingDecision,
 } from "@/lib/os/setter/booking";
 import { bookingStore, calendarSource, type BookingRecord, type BookingStore, type CalendarSource } from "@/lib/os/setter/booking-store";
+import { agentBackend, dbFieldValues, runAgentTurn, type AgentBackend, type AgentEnv, type AgentTurn } from "@/lib/os/setter/agent";
+import { bookingStateBlock, toolLinesBlock, toolsBrief, traceLines } from "@/lib/os/setter/agent/brief";
+import { usableCalendar, type FieldValueView } from "@/lib/os/setter/agent/context";
+import type { ActiveCalendar } from "@/lib/os/integrations/calendar/store";
 import { getSetterConfig, type SetterConfig } from "@/lib/os/setter/config";
 import { draft as runDrafter, DraftError } from "@/lib/os/setter/drafter";
 import type { KnowledgeSource } from "@/lib/os/setter/kb";
@@ -95,11 +99,23 @@ export interface DraftOptions {
   /** The follow-up engine (lib/os/sequences) owns no-reply follow-ups, so
    *  advance() schedules no nudge of its own. False = the old single nudge. */
   sequences?: boolean;
+  /** J with tools (OS_J_TOOLS=1): the model backend for the tool loop, e.g. a
+   *  test script. Ignored when the flag is off. */
+  agent?: AgentBackend | null;
+  /** Fields filled so far (get_contact). Default: Postgres unless a test store. */
+  fieldValues?: ((contactId: string) => Promise<FieldValueView[]>) | null;
 }
 
 /** The state config J runs on: without the old nudge when sequences own follow-ups. */
 function stateCfg(cfg: SetterConfig, sequences: boolean | undefined): SetterConfig {
   return sequences === false ? cfg : { ...cfg, timers: { ...cfg.timers, nudge_max: 0 } };
+}
+
+/** get_contact's field reader: Postgres, except for test stores and OS_MOCK. */
+function fieldValuesFor(opts: DraftOptions, contactId: string): (() => Promise<FieldValueView[]>) | undefined {
+  if (opts.fieldValues !== undefined) return opts.fieldValues ? () => opts.fieldValues!(contactId) : undefined;
+  if (opts.store || osMockEnabled()) return undefined;
+  return () => dbFieldValues(contactId);
 }
 
 /** Tests that bring their own store get no voice bank unless they pass one. */
@@ -191,12 +207,27 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
     return { status: "held", reason: "You skipped this one already." };
   }
 
+  // J with tools (OS_J_TOOLS=1): null = the legacy one-call path.
+  const tools = agentBackend(cfg.drafter.backend, opts.agent);
+
   // A call is on the table and a calendar is connected: J offers real times
   // and books in the DM. Without one, the old path (send the booking link).
   const extras: string[] = [];
   const preFlags: string[] = [];
   let bookingCtx: BookingContext | null = null;
-  if (wantsCalendar(rec, contact)) {
+  let toolCal: ActiveCalendar | null = null;
+  if (tools) {
+    // With tools J reads free times himself (check_calendar): only the
+    // calendar and the booking state go in the prompt.
+    try {
+      toolCal = usableCalendar(await (opts.calendar ?? calendarSource).forSetter(contact.workspaceId, setter.setterId));
+    } catch (err) {
+      console.error("[OS Setter] calendar read failed:", err instanceof Error ? err.message : err);
+      preFlags.push("calendar_off");
+    }
+    const block = bookingStateBlock(toolCal, rec);
+    if (block) extras.push(block);
+  } else if (wantsCalendar(rec, contact)) {
     try {
       const cal = await (opts.calendar ?? calendarSource).forSetter(contact.workspaceId, setter.setterId);
       if (cal) {
@@ -225,7 +256,7 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
     alreadyInvited: Boolean(rec.invited),
     store: opts.experiments,
   });
-  const abBlock = linesBlock(abLines);
+  const abBlock = tools ? toolLinesBlock(abLines) : linesBlock(abLines);
   if (abBlock) extras.push(abBlock);
 
   // Voice notes: the recorded lines this person hasn't heard yet, so J uses
@@ -244,18 +275,44 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
 
   const today = now.toISOString().slice(0, 10);
   const system = systemPrompt(loadMethod(), setter.profile, setter.offered, today);
-  const prompt = buildPrompt(rec, msgs, action, catalog, now, extras);
+  const answerFormat = tools ? toolsBrief({ calendar: Boolean(toolCal), fields: Boolean(setter.profile.fields?.length) }) : undefined;
+  const prompt = buildPrompt(rec, msgs, action, catalog, now, extras, answerFormat);
   let result;
+  let turn: AgentTurn | null = null;
   try {
-    result = await runDrafter({ system, prompt, job: "draft", settings: cfg.drafter });
+    if (tools) {
+      const env: AgentEnv = {
+        now,
+        contact: { id: contact.id, username: contact.username, fullName: contact.fullName, email: contact.email, tags: contact.tags, stage: contact.stage, setterStage: contact.setterStage, paused: contact.paused },
+        rec,
+        msgs,
+        setter,
+        windowClosed: rec.window.state === "closed",
+        calendar: toolCal,
+        lines: traceLines(abLines),
+        dry: false,
+        fieldValues: fieldValuesFor(opts, contact.id),
+        bookings: async () => {
+          const b = await (opts.bookings ?? bookingStore()).latest(contact.workspaceId, contact.id);
+          return b ? [{ start: b.start, status: b.status, email: b.email }] : [];
+        },
+      };
+      turn = await runAgentTurn({ system, prompt, env, backend: tools, settings: cfg.drafter });
+      result = { obj: turn.obj, usage: turn.usage };
+      bookingCtx = turn.bookingCtx;
+    } else {
+      result = await runDrafter({ system, prompt, job: "draft", settings: cfg.drafter });
+    }
   } catch (err) {
     await save();
     throw err instanceof DraftError ? err : new DraftError(err instanceof Error ? err.message : String(err));
   }
   const obj = (result.obj && typeof result.obj === "object" ? result.obj : {}) as DraftObject;
   const bubbles = bubblesOf(obj);
+  // send_resource links: their own bubbles, after the reply.
+  const linkBubbles = turn?.resourceBubbles ?? [];
 
-  if (obj.hold || !bubbles.length) {
+  if (obj.hold || (!bubbles.length && !linkBubbles.length)) {
     // J chose silence (low-signal message, we wrote twice…). Remember the
     // anchor so it isn't re-asked until they write again. Holding is valid.
     const reason = obj.hold_reason || "no reply needed";
@@ -275,11 +332,11 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
   if (booking?.timezone) rec.booking = { ...(rec.booking ?? { phase: "proposed", at: iso(now)! }), timezone: booking.timezone };
   const inBooking = Boolean(bookingReply && bookingReply.action !== "none");
   const invite = !inBooking && isInvitation(obj, rec);
-  const flags: string[] = [...preFlags, ...(booking?.flags ?? [])];
+  const flags: string[] = [...preFlags, ...(booking?.flags ?? []), ...(turn?.flags ?? [])];
   if (action.human_agent) flags.push("human_agent");
   if (invite) flags.push("invite");
   if (invite && missingQualifiers(obj.invite as Record<string, unknown>).length) flags.push("unqualified");
-  const finalBubbles = booking?.bubbles.length ? booking.bubbles : bubbles;
+  const finalBubbles = [...(booking?.bubbles.length ? booking.bubbles : bubbles), ...linkBubbles];
   const abVariants = abLines.length ? tagsFor(abLines, obj.ab_lines_used, finalBubbles) : null;
   if (mentionsPrice(finalBubbles)) flags.push("price");
   if (result.usage.backend === "fake") flags.push("sample");
@@ -288,7 +345,7 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
   let stage = obj.stage_proposed || obj.stage || null;
   // "booked" only once their screenshot confirms the call (Kevin's commitment
   // step); until then the DM booking is still the bridge.
-  if (bookingCtx && stage === "booked" && rec.booking?.phase !== "confirmed") stage = "bridge";
+  if ((bookingCtx || toolCal) && stage === "booked" && rec.booking?.phase !== "confirmed") stage = "bridge";
   const d = await store.createDraft({
     workspaceId: contact.workspaceId,
     contactId: contact.id,
@@ -300,7 +357,8 @@ export async function draftForContact(contactId: string, opts: DraftOptions = {}
     humanAgent: action.human_agent,
     flags,
     proposedTags: proposed,
-    raw: obj,
+    // With tools, J's brain (what he saw and did) rides along on the draft.
+    raw: turn ? { ...obj, trace: turn.trace } : obj,
     backend: result.usage.backend,
     model: result.usage.model,
     inputTokens: result.usage.inputTokens,

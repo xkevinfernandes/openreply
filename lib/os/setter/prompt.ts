@@ -65,7 +65,10 @@ export function buildPrompt(
   catalog: Catalog,
   now: Date,
   /** Extra sections from the service, e.g. the CALENDAR block (booking.ts). */
-  extras: string[] = []
+  extras: string[] = [],
+  /** J with tools (lib/os/setter/agent): this replaces the STRICT JSON
+   *  answer format at the end. Omitted = the legacy prompt, unchanged. */
+  answerFormat?: string
 ): string {
   const kind = action.kind;
   const lines = msgs.filter((m) => (m.text ?? "").trim()).map((m) => `${m.incoming ? "THEM" : "YOU"}: ${m.text}`);
@@ -109,6 +112,10 @@ export function buildPrompt(
       "especially what they told you early on:\n" +
       (lines.length ? lines.join("\n") : "(they have not written anything yet)")
   );
+  if (answerFormat !== undefined) {
+    parts.push(answerFormat);
+    return parts.join("\n\n");
+  }
   parts.push(
     "Respond with STRICT JSON only:\n" +
       '{"bubbles": ["..."], "stage_proposed": "opener|value|permission|qualify|bridge|booked", ' +
