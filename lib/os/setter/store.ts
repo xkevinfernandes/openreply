@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db/client";
 import { getInboxAccount, sendReply } from "@/lib/os/inbox";
 import { readAbTags, type AbTag } from "@/lib/os/experiments/types";
 import { isBookingPayload, type BookingPayload } from "@/lib/os/integrations/calendar/types";
-import { mockContact, mockContactExtras, mockMessages, osMockEnabled } from "@/lib/os/mock";
+import { MAYA, MAYA_DRAFT, mockContact, mockContactExtras, mockMessages, osMockEnabled } from "@/lib/os/mock";
 import type { SetterRecord, ThreadMessage } from "@/lib/os/setter/state";
 import { readSetterThread } from "@/lib/os/setter/thread";
 import { voiceTranscripts } from "@/lib/os/voice/store";
@@ -232,9 +232,30 @@ interface MockDb {
 
 const mem = ((globalThis as { __osSetterMock?: MockDb }).__osSetterMock ??= {
   states: new Map(),
-  drafts: new Map(),
+  // Maya's draft from the InboxA board, so the composer shows it on first load.
+  drafts: new Map([["mock-draft-maya", mayaMockDraft()]]),
   seq: 0,
 });
+
+function mayaMockDraft(): DraftView {
+  return {
+    id: "mock-draft-maya",
+    contactId: MAYA.contactId,
+    kind: "reply",
+    anchor: "m1-r13",
+    bubbles: MAYA_DRAFT.bubbles,
+    status: "PENDING",
+    reasoning: MAYA_DRAFT.reasoning,
+    setterStage: MAYA_DRAFT.setterStage,
+    humanAgent: false,
+    flags: [],
+    backend: "fake",
+    createdAt: new Date().toISOString(),
+    booking: null,
+    abVariants: null,
+    setterId: null,
+  };
+}
 
 const mockStore: SetterStore = {
   async getContact(contactId, workspaceId) {
