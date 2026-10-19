@@ -25,7 +25,6 @@ import {
   stillHeld,
   windowOf,
   type SetterData,
-  type SetterSignal,
 } from "@/lib/os/workflows/setter-step";
 import { matchTrigger, triggerNode, type Surface } from "@/lib/os/workflows/triggers";
 import { isLive, type ContactInfo, type EngineDeps, type OutMessage, type RunRecord, type RunStatus, type SendContext, type TriggerInfo, type VersionDef, type WorkflowDef } from "@/lib/os/workflows/types";
