@@ -1,6 +1,7 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n/provider";
+import EmailGatePreview from "@/components/os/automations/email-gate-preview"; // DM OS: email-first bubbles
 
 
 /* eslint-disable @next/next/no-img-element */
@@ -43,6 +44,7 @@ interface CampaignPreviewProps {
   followUpEnabled: boolean;
   followUpMessage: string;
   followUpDelayMinutes?: number;
+  emailGatePrompt?: string | null; // DM OS: email-first step on (its prompt text)
 }
 
 const SAMPLE_USER = "username";
@@ -328,6 +330,7 @@ function DmScreen({
   followUpDelayMinutes = 0,
   linkUrl,
   inboundMessage,
+  emailGatePrompt,
 }: {
   username: string;
   avatarUrl: string | null;
@@ -348,6 +351,7 @@ function DmScreen({
   followUpDelayMinutes?: number;
   // Present on the keyword-trigger thread: the DM the user sends to start it.
   inboundMessage?: string;
+  emailGatePrompt?: string | null; // DM OS
 }) {
   const { t } = useI18n();
   return (
@@ -363,7 +367,7 @@ function DmScreen({
         </span>
       </div>
 
-      <div className="flex-1 space-y-3 px-3 py-4">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4">
         {inboundMessage !== undefined && (
           <div className="flex justify-end">
             <div className="max-w-[80%] rounded-2xl rounded-br-md bg-accent px-3 py-2 text-sm">
@@ -410,6 +414,7 @@ function DmScreen({
             </div>
           </>
         )}
+        {emailGatePrompt != null && <EmailGatePreview prompt={emailGatePrompt} avatarUrl={avatarUrl} />}
         {(() => {
           const resolved = revealMessage.replace(/\{username\}/g, SAMPLE_USER);
           const hasToken = resolved.includes("{link}");
@@ -535,6 +540,7 @@ export default function CampaignPreview(props: CampaignPreviewProps) {
             followUpMessage={props.followUpMessage}
             followUpDelayMinutes={props.followUpDelayMinutes}
             linkUrl={props.linkUrl}
+            emailGatePrompt={props.emailGatePrompt}
           />
         )}
         {activeTab === "dmTrigger" && (
@@ -558,6 +564,7 @@ export default function CampaignPreview(props: CampaignPreviewProps) {
             followUpDelayMinutes={props.followUpDelayMinutes}
             linkUrl={props.linkUrl}
             inboundMessage={props.sampleComment}
+            emailGatePrompt={props.emailGatePrompt}
           />
         )}
       </Phone>

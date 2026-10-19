@@ -15,6 +15,7 @@ import {
   type TriggerShape,
   type WorkspaceHealth,
 } from "@/lib/os/automations";
+import { campaignHandoffChoice, setterOnSet } from "@/lib/os/automations-handoff";
 import { nextRunDate } from "@/lib/os/home";
 import { catalogRowFromResource } from "@/lib/os/setter/kb";
 import { resolve } from "@/lib/os/setter/resources";
@@ -77,7 +78,7 @@ export async function listAutomationRows(workspaceId: string, now = new Date()):
   if (!automations.length && osMockEnabled()) return { rows: sampleRows(now), sample: true };
 
   const ids = automations.map((a) => a.id);
-  const [mapped, resources, links, experiments, people] = await Promise.all([
+  const [mapped, resources, links, experiments, people, on] = await Promise.all([
     prisma.campaignResource.findMany({ where: { workspaceId, automationId: { in: ids } }, select: { automationId: true, resourceId: true } }),
     prisma.resource.findMany({ where: { workspaceId, kind: "resource" } }),
     prisma.trackedLink.findMany({ where: { workspaceId, automationId: { in: ids } }, select: { automationId: true, destinationUrl: true, position: true, createdAt: true } }),
@@ -88,6 +89,7 @@ export async function listAutomationRows(workspaceId: string, now = new Date()):
       distinct: ["automationId", "commenterId"],
       take: 20000,
     }),
+    setterOnSet(workspaceId, ids),
   ]);
   const contacts = people.length
     ? await prisma.contact.findMany({
@@ -158,6 +160,7 @@ export async function listAutomationRows(workspaceId: string, now = new Date()):
       requireEmail: a.requireEmail,
       requireFollow: a.requireFollow,
       setter: setterForCampaign(a.id, a.instagramAccountId, overrideMap, setters),
+      setterOn: on.has(a.id),
       runs: c.runs,
       sent: c.sent,
       failed: c.failed,
@@ -182,24 +185,22 @@ export async function listAutomationRows(workspaceId: string, now = new Date()):
   return { rows, sample: false };
 }
 
-/** Setters for the "Answered by" picker on the edit page. */
+/** The Setter picker on the edit page: off / account default / a setter. */
 export async function campaignSetterChoice(workspaceId: string, automationId: string) {
-  const [setters, override, automation] = await Promise.all([
+  const [setters, automation, selected] = await Promise.all([
     prisma.setter.findMany({
       where: { workspaceId },
       select: { id: true, name: true, isDefault: true, instagramAccountId: true, createdAt: true },
       orderBy: { createdAt: "asc" },
     }),
-    prisma.campaignSetter.findUnique({ where: { automationId }, select: { setterId: true, workspaceId: true } }),
     prisma.automation.findFirst({ where: { id: automationId, workspaceId }, select: { instagramAccountId: true } }),
+    campaignHandoffChoice(workspaceId, automationId),
   ]);
   if (!automation) return null;
-  const overrides = new Map<string, string>();
-  if (override && override.workspaceId === workspaceId) overrides.set(automationId, override.setterId);
   const fallback = setterForCampaign(automationId, automation.instagramAccountId, new Map(), setters);
   return {
     setters: setters.map((s) => ({ id: s.id, name: s.name })),
-    selected: overrides.get(automationId) ?? null,
+    selected,
     defaultName: fallback?.name ?? null,
   };
 }
@@ -310,6 +311,7 @@ function sampleRows(now: Date): AutomationRow[] {
       ab: true,
       isActive: true,
       setter: j,
+      setterOn: true,
       runs: 64,
       sent: 64,
       replied: 27,
@@ -330,6 +332,7 @@ function sampleRows(now: Date): AutomationRow[] {
       ab: false,
       isActive: true,
       setter: j,
+      setterOn: false,
       runs: 38,
       sent: 38,
       replied: 15,
@@ -349,6 +352,7 @@ function sampleRows(now: Date): AutomationRow[] {
       ab: false,
       isActive: false,
       setter: nova,
+      setterOn: true,
       runs: 12,
       sent: 12,
       replied: 4,

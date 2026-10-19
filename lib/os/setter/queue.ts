@@ -11,6 +11,7 @@
 
 import { DelayedError, Queue, Worker, type Job } from "bullmq";
 import { prisma } from "@/lib/db/client";
+import { campaignHoldsSetter } from "@/lib/os/automations-handoff";
 import { upsertContact } from "@/lib/os/contacts";
 import { getSetterConfig } from "@/lib/os/setter/config";
 import { draftForContact } from "@/lib/os/setter/service";
@@ -148,6 +149,9 @@ export async function queueSetterForInbound(event: {
   /** Our InstagramAccount.id (not the Instagram id). */
   instagramAccountId: string;
   igUserId: string;
+  /** Button tap payload / DM text: lets a Setter-Off campaign keep its own flow (lib/os/automations-handoff.ts). */
+  tapPayload?: string | null;
+  text?: string | null;
 }) {
   try {
     const commented = await prisma.dmLog.findFirst({
@@ -169,6 +173,7 @@ export async function queueSetterForInbound(event: {
         console.error("[OS Media] could not queue enrich:", err instanceof Error ? err.message : err)
       );
     }
+    if (await campaignHoldsSetter(event)) return; // Setter Off: OpenReply's flow, not J's.
     // Pitches: J never drafts or re-sorts on its own (Re-sort pitches does).
     if (contact.kind === "PITCHES") return;
     if (contact.kind !== "SALES") {

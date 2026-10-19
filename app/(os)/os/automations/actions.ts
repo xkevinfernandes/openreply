@@ -1,6 +1,6 @@
 "use server";
 
-// Automations' own writes: which setter answers a campaign (CampaignSetter)
+// Automations' own writes: the setter hand-off (CampaignHandoff + CampaignSetter)
 // and which lead magnet its keyword hands out (CampaignResource). Campaign
 // edits themselves go through OpenReply's /api/automations.
 
@@ -26,23 +26,33 @@ function refresh(automationId: string) {
   revalidatePath(`/os/automations/${automationId}`);
 }
 
-export async function setCampaignSetter(automationId: string, setterId: string | null): Promise<AutomationActionResult> {
+/**
+ * Setter hand-off: "off" (automation only, J stays out of the flow),
+ * "default" (the account's default setter takes over once they reply) or a
+ * setter id (that setter takes over). lib/os/automations-handoff.ts.
+ */
+export async function setCampaignHandoff(automationId: string, choice: string): Promise<AutomationActionResult> {
   if (osMockEnabled() && automationId.startsWith("sample-")) return {};
   try {
     const own = await ownCampaign(automationId);
     if ("error" in own) return own;
     const { workspaceId } = own;
-    if (!setterId) {
-      await prisma.campaignSetter.deleteMany({ where: { automationId, workspaceId } });
-    } else {
+    const setterOn = choice !== "off";
+    const setterId = choice === "off" || choice === "default" ? null : choice;
+    if (setterId) {
       const setter = await prisma.setter.findFirst({ where: { id: setterId, workspaceId }, select: { id: true } });
       if (!setter) return { error: "That setter isn't in this workspace." };
-      await prisma.campaignSetter.upsert({ where: { automationId }, create: { workspaceId, automationId, setterId }, update: { setterId } });
     }
+    await prisma.$transaction([
+      prisma.campaignHandoff.upsert({ where: { automationId }, create: { workspaceId, automationId, setterOn }, update: { setterOn } }),
+      setterId
+        ? prisma.campaignSetter.upsert({ where: { automationId }, create: { workspaceId, automationId, setterId }, update: { setterId } })
+        : prisma.campaignSetter.deleteMany({ where: { automationId, workspaceId } }),
+    ]);
     refresh(automationId);
     return {};
   } catch (err) {
-    console.error("[OS Automations] setter:", err);
+    console.error("[OS Automations] hand-off:", err);
     return { error: "Couldn't save that. Try again." };
   }
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AutomationsTabs } from "@/components/os/automations/automations-tabs";
 import ExperimentCard from "@/components/os/experiments/experiment-card";
 import { PageHead } from "@/components/os/page-head";
+import { InfoTip } from "@/components/os/ui";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { automationTabCounts } from "@/lib/os/automations-data";
 import { listExperiments, type ExperimentView } from "@/lib/os/experiments/data";
@@ -33,6 +34,12 @@ export default async function ExperimentsPage() {
         }
       />
       <AutomationsTabs active="tests" counts={counts} />
+      <p className="os-auto-sub">
+        Try two versions of one message and keep the one that gets more replies.
+        <InfoTip label="About tests">
+          Each person gets one version, A or B, and keeps it. Replies and booked calls are counted per version. Works on a campaign&apos;s opener and on lines J uses.
+        </InfoTip>
+      </p>
 
       {!sorted ? (
         <div className="os-banner">Experiments didn&apos;t load. Refresh in a minute.</div>
@@ -45,7 +52,7 @@ export default async function ExperimentsPage() {
           </Link>
         </div>
       ) : (
-        <div className="os-exp-list">
+        <div className="os-exp-list os-auto-tests">
           {sorted.map((e) => (
             <ExperimentCard key={e.id} exp={e} />
           ))}

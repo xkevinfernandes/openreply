@@ -59,6 +59,7 @@ function row(over: Partial<AutomationRow> = {}): AutomationRow {
     requireFollow: false,
     isActive: true,
     setter: { id: "s1", name: "Claudepreneur", viaCampaign: false },
+    setterOn: true,
     runs: 0,
     sent: 0,
     failed: 0,

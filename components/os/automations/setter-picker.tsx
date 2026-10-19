@@ -1,11 +1,12 @@
 "use client";
 
-// The campaign bar on the edit page: which lead magnet the keyword hands out
-// (CampaignResource) and which setter answers when they reply (CampaignSetter).
+// The campaign bar on the edit page: what the keyword sends (CampaignResource)
+// and the setter hand-off (Off = automation only, or a setter takes over once
+// they reply: lib/os/automations-handoff.ts).
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { setCampaignResource, setCampaignSetter, type AutomationActionResult } from "@/app/(os)/os/automations/actions";
+import { setCampaignHandoff, setCampaignResource, type AutomationActionResult } from "@/app/(os)/os/automations/actions";
 import { InfoTip } from "@/components/os/ui";
 
 interface Option {
@@ -16,7 +17,8 @@ interface Option {
 interface Props {
   automationId: string;
   setters: Option[];
-  selected: string | null;
+  /** "off" | "default" | a setter id. */
+  selected: string;
   defaultName: string | null;
   resources: Option[];
   resourceId: string | null;
@@ -33,7 +35,8 @@ function Picker({
   label: string;
   tip: string;
   value: string | null;
-  empty: string;
+  /** The "" option; omit when every choice is in options. */
+  empty?: string;
   options: Option[];
   save: (v: string | null) => Promise<AutomationActionResult>;
 }) {
@@ -62,7 +65,7 @@ function Picker({
             });
           }}
         >
-          <option value="">{empty}</option>
+          {empty !== undefined && <option value="">{empty}</option>}
           {options.map((o) => (
             <option key={o.id} value={o.id}>
               {o.name}
@@ -83,20 +86,23 @@ export default function SetterPicker({ automationId, setters, selected, defaultN
   return (
     <section className="os-auto-bar" aria-label="Campaign">
       <Picker
-        label="Lead magnet"
-        tip="What this keyword hands out. Counted as a lead magnet sent; shown on the contact. Empty = worked out from the link."
+        label="Sends"
+        tip="The lead magnet this keyword delivers. Logged as sent on the contact."
         value={resourceId}
-        empty="From the link"
+        empty="Match from the link"
         options={resources}
         save={(id) => setCampaignResource(automationId, id)}
       />
       <Picker
         label="Setter"
-        tip="Who drafts when they reply. A contact keeps its setter."
+        tip="Off: the automation runs on its own. Pick a setter to take over once they reply."
         value={selected}
-        empty={`Account default${defaultName ? ` (${defaultName})` : ""}`}
-        options={setters}
-        save={(id) => setCampaignSetter(automationId, id)}
+        options={[
+          { id: "off", name: "Off (automation only)" },
+          { id: "default", name: `Account default${defaultName ? ` (${defaultName})` : ""}` },
+          ...setters,
+        ]}
+        save={(id) => setCampaignHandoff(automationId, id ?? "off")}
       />
     </section>
   );

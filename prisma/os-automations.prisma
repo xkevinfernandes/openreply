@@ -1,0 +1,18 @@
+// DM OS: Automations' own tables (owner: Automations). Upstream's Automation
+// model is untouched; automationId is a plain column, like CampaignSetter.
+
+/// Setter hand-off for one OpenReply campaign (Automations › edit › Setter).
+/// Setter Off (the default, and what "no row" means): the campaign runs as a
+/// plain automation and J stays out of its flow (lib/os/automations-handoff.ts).
+/// setterOn: once they reply, a setter takes over (CampaignSetter's, else the
+/// account default). The migration gave every campaign that existed before it
+/// setterOn = true, so live campaigns kept J.
+model CampaignHandoff {
+  automationId String   @id
+  workspaceId  String
+  setterOn     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([workspaceId])
+}

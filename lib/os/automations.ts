@@ -132,6 +132,8 @@ export interface AutomationRow {
   requireFollow: boolean;
   isActive: boolean;
   setter: { id: string; name: string; viaCampaign: boolean } | null;
+  /** Setter hand-off on: `setter` takes over once they reply. Off: automation only. */
+  setterOn: boolean;
   /** Keyword → lead magnet (CampaignResource, else resolved from the link). */
   resource?: { id: string; name: string; viaLink: boolean } | null;
   /** The link they get (first tracked link, else the first URL in the DM). */

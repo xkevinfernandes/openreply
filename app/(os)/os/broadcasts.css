@@ -715,3 +715,36 @@
 .os-bcl-state[data-needs] {
   color: var(--warn);
 }
+
+/* An (i) at the end of a row opens leftwards, so it never pushes the page wide. */
+.os-bc-row > .os-infotip .os-infotip-body {
+  left: auto;
+  right: -6px;
+  transform: translate(0, 2px);
+}
+
+.os-bc-row > .os-infotip:hover .os-infotip-body,
+.os-bc-row > .os-infotip:focus-within .os-infotip-body {
+  transform: translate(0, 0);
+}
+
+/* Phones: a row's (i) opens as a full-width card under the icon instead of
+   centring on it (which ran off the right edge). */
+@media (max-width: 480px) {
+  .os-bc-row .os-infotip-body,
+  .os-bc-row > .os-infotip .os-infotip-body {
+    position: fixed;
+    top: auto;
+    bottom: auto;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+    margin-top: 24px;
+    transform: none;
+  }
+  .os-bc-row .os-infotip:hover .os-infotip-body,
+  .os-bc-row .os-infotip:focus-within .os-infotip-body {
+    transform: none;
+  }
+}

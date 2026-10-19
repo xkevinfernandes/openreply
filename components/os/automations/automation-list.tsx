@@ -1,9 +1,11 @@
 "use client";
 
 // Campaigns (AutomationsA board): trigger chips, then one row per campaign:
-// keyword → lead magnet (A/B badge), trigger, opener + link, setter, status,
-// Triggered / Replied / Booked. Status toggles the campaign through
-// OpenReply's own /api/automations; the ⋯ menu keeps Edit / Duplicate / Delete.
+// keyword (A/B badge), what it sends, trigger, opener + link, setter (Off or
+// who takes over), status, Triggered / Replied / Booked. The whole row opens
+// the campaign (a stretched link; Status and ⋯ sit above it). Status toggles
+// the campaign through OpenReply's own /api/automations; ⋯ keeps Edit /
+// Duplicate / Delete.
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -17,7 +19,6 @@ interface Props {
   initialChip: TriggerChip;
 }
 
-const ARROW = "M3 8h10M9.5 4.5 13 8l-3.5 3.5";
 const LINK = "M6.5 9.5 9.5 6.5M7 4.5l1-1a2.8 2.8 0 0 1 4 4l-1 1M9 11.5l-1 1a2.8 2.8 0 0 1-4-4l1-1";
 
 function RowMenu({ row, disabled, onDuplicate, onDelete }: { row: AutomationRow; disabled: boolean; onDuplicate: () => void; onDelete: () => void }) {
@@ -163,13 +164,14 @@ export default function AutomationList({ rows: initialRows, sample, initialChip 
         <section className="os-auto-grid" aria-label="Campaigns">
           <div className="os-auto-r os-auto-hr" aria-hidden="true">
             <span>Keyword</span>
-            <span>Trigger</span>
-            <span>Opener DM</span>
-            <span>Setter</span>
+            <span>Sends</span>
+            <span className="os-auto-c-trig">Trigger</span>
+            <span className="os-auto-c-open">Opener DM</span>
+            <span className="os-auto-c-set">Setter</span>
             <span>Status</span>
-            <span className="num">Triggered</span>
-            <span className="num">Replied</span>
-            <span className="num">Booked</span>
+            <span className="num os-auto-c-trd">Triggered</span>
+            <span className="num os-auto-c-rep">Replied</span>
+            <span className="num os-auto-c-bk">Booked</span>
             <span />
           </div>
           {!visible.length ? (
@@ -182,31 +184,25 @@ export default function AutomationList({ rows: initialRows, sample, initialChip 
               const edit = sample ? undefined : `/os/automations/${row.id}`;
               const warn = row.isActive && row.actions.length > 0;
               return (
-                <div key={row.id} className="os-auto-r" data-off={row.isActive ? undefined : "true"}>
+                <div key={row.id} className="os-auto-r" data-off={row.isActive ? undefined : "true"} data-link={edit ? "true" : undefined}>
+                  {edit ? (
+                    <Link href={edit} className="os-auto-rowlink" aria-label={`Open ${row.name}`} />
+                  ) : null}
                   <span className="os-auto-kw">
                     <span className="line">
-                      {edit ? (
-                        <Link href={edit} className="chip" title={row.keywords.join(", ")}>
-                          {kw.toUpperCase()}
-                        </Link>
-                      ) : (
-                        <span className="chip">{kw.toUpperCase()}</span>
-                      )}
+                      <span className="chip">{kw.toUpperCase()}</span>
                       {more ? <span className="more">+{more}</span> : null}
-                      <svg viewBox="0 0 16 16" role="img" aria-label="maps to">
-                        <path d={ARROW} />
-                      </svg>
-                      <span className="res" data-empty={row.resource ? undefined : "true"} title={row.resource?.viaLink ? "From the link" : undefined}>
-                        {row.resource?.name ?? "No lead magnet"}
-                      </span>
                     </span>
                     {row.ab ? <span className="ab">A/B running</span> : null}
                   </span>
-                  <span className="os-auto-two">
+                  <span className="os-auto-sends" data-empty={row.resource ? undefined : "true"} title={row.resource?.viaLink ? "Matched from the link" : undefined}>
+                    {row.resource?.name ?? (row.link ? "Link only" : "Not set")}
+                  </span>
+                  <span className="os-auto-two os-auto-c-trig">
                     <span>{t.trigger}</span>
                     <span className="sub">{t.where}</span>
                   </span>
-                  <span className="os-auto-two">
+                  <span className="os-auto-two os-auto-c-open">
                     <span className="clip">{row.opener}</span>
                     {row.link ? (
                       <span className="sub os-auto-link">
@@ -217,8 +213,8 @@ export default function AutomationList({ rows: initialRows, sample, initialChip 
                       </span>
                     ) : null}
                   </span>
-                  <span className="os-auto-setter2">
-                    {row.setter ? (
+                  <span className="os-auto-setter2 os-auto-c-set">
+                    {row.setterOn && row.setter ? (
                       <>
                         <span className="av" data-default={row.setter.viaCampaign ? undefined : "true"} aria-hidden="true">
                           {row.setter.name.charAt(0).toUpperCase()}
@@ -226,7 +222,7 @@ export default function AutomationList({ rows: initialRows, sample, initialChip 
                         {row.setter.name}
                       </>
                     ) : (
-                      <span className="sub">—</span>
+                      <span className="sub" title="Automation only. J stays out of this flow.">Off</span>
                     )}
                   </span>
                   <button
@@ -242,9 +238,9 @@ export default function AutomationList({ rows: initialRows, sample, initialChip 
                     <span className="dot" aria-hidden="true" />
                     {warn ? "Fix" : row.isActive ? "Live" : "Paused"}
                   </button>
-                  <span className="num">{row.runs.toLocaleString("en-GB")}</span>
-                  <span className="num">{(row.replied ?? 0).toLocaleString("en-GB")}</span>
-                  <span className="num">{(row.booked ?? 0).toLocaleString("en-GB")}</span>
+                  <span className="num os-auto-c-trd">{row.runs.toLocaleString("en-GB")}</span>
+                  <span className="num os-auto-c-rep">{(row.replied ?? 0).toLocaleString("en-GB")}</span>
+                  <span className="num os-auto-c-bk">{(row.booked ?? 0).toLocaleString("en-GB")}</span>
                   <RowMenu row={row} disabled={sample || busy === row.id} onDuplicate={() => void duplicate(row)} onDelete={() => void remove(row)} />
                 </div>
               );

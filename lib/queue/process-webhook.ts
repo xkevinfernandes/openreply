@@ -75,7 +75,7 @@ export async function processInstagramWebhook({ payload: incoming, provider, wor
 
     for (const event of postbackEvents) {
       const tapAccount = accountMap.get(event.instagramAccountId);
-      if (tapAccount) await queueSetterForInbound({ workspaceId: tapAccount.workspaceId, instagramAccountId: tapAccount.id, igUserId: event.userId });
+      if (tapAccount) await queueSetterForInbound({ workspaceId: tapAccount.workspaceId, instagramAccountId: tapAccount.id, igUserId: event.userId, tapPayload: event.payload });
       await queue.add(
         POSTBACK_JOB_NAME,
         {
@@ -103,7 +103,7 @@ export async function processInstagramWebhook({ payload: incoming, provider, wor
     for (const event of messageEvents) {
       const account = accountMap.get(event.instagramAccountId);
       if (!account) continue;
-      await queueSetterForInbound({ workspaceId: account.workspaceId, instagramAccountId: account.id, igUserId: event.senderId });
+      await queueSetterForInbound({ workspaceId: account.workspaceId, instagramAccountId: account.id, igUserId: event.senderId, text: event.messageText });
 
       await queue.add(
         MESSAGE_JOB_NAME,

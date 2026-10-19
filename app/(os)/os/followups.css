@@ -501,3 +501,49 @@
   font-size: var(--fs-xs);
   font-weight: 600;
 }
+
+/* Header actions, Follow-up Friday's next run, the start-here empty state. */
+.os-tl-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.os-tl-actions .os-tl-filter {
+  margin-right: var(--sp-2);
+}
+
+.os-tl-fri {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  text-decoration: none;
+}
+
+.os-tl-fri:hover {
+  background: var(--paper-2);
+}
+
+.os-tl-fri strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.os-tl-fri[data-on="true"] svg {
+  color: var(--mark);
+}
+
+.os-tl-start {
+  display: inline-flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  justify-content: center;
+}

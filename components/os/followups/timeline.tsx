@@ -9,6 +9,7 @@ import { useState, useTransition } from "react";
 import { completeTask, markCall, sendFollowupNow, setFollowupsOn, skipFollowup } from "@/app/(os)/os/follow-ups/actions";
 import { sendBroadcastNowAction, skipBroadcastAction, unscheduleBroadcastAction } from "@/app/(os)/os/automations/broadcasts/actions";
 import { EmptyState, InfoTip, Tabs } from "@/components/os/ui";
+import type { FollowupsHeader } from "@/lib/os/followups-header";
 import { chatHref, TIMELINE_TABS, type DayGroup, type Timeline, type TimelineRow, type TimelineTab, type TodoItem } from "@/lib/os/followups-timeline";
 
 const ICON = {
@@ -167,7 +168,32 @@ function Todo({ items, act, pending }: { items: TodoItem[]; act: (fn: Act) => vo
   );
 }
 
-export default function FollowupsTimeline({ data, tab, source }: { data: Timeline; tab: TimelineTab; source: string }) {
+/** Nothing anywhere yet: show how follow-ups get made. */
+function isEmpty(d: Timeline) {
+  return !d.todo.length && !d.scheduled.length && !d.sent.length && !d.paused.length;
+}
+
+function Start({ header }: { header: FollowupsHeader }) {
+  return (
+    <EmptyState
+      title="No follow-ups yet"
+      action={
+        <span className="os-tl-start">
+          <Link className="os-button primary" href={header.setupHref}>
+            Set up sequences
+          </Link>
+          <Link className="os-button" href="/os/automations/broadcasts">
+            New broadcast
+          </Link>
+        </span>
+      }
+    >
+      Sequences follow up for a setter. Broadcasts go to a tagged list.
+    </EmptyState>
+  );
+}
+
+export default function FollowupsTimeline({ data, tab, source, header }: { data: Timeline; tab: TimelineTab; source: string; header: FollowupsHeader }) {
   const router = useRouter();
   const { pending, msg, act } = useAct();
   const href = (t: string, s = source) => {
@@ -185,19 +211,35 @@ export default function FollowupsTimeline({ data, tab, source }: { data: Timelin
           <h1>Follow-ups</h1>
           <InfoTip label="What shows here">Everything scheduled to go out: setter sequences (defined in Knowledge bases) and broadcasts (defined in Automations). Nothing sends without your approve.</InfoTip>
         </div>
-        <label className="os-tl-filter">
-          <span>Source</span>
-          <span className="os-select">
-            <select value={source} onChange={(e) => router.push(href(tab, e.target.value))} aria-label="Source">
-              {data.sources.map((s) => (
-                <option key={s.key} value={s.key}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </span>
-        </label>
+        <div className="os-tl-actions">
+          <label className="os-tl-filter">
+            <span>Source</span>
+            <span className="os-select">
+              <select value={source} onChange={(e) => router.push(href(tab, e.target.value))} aria-label="Source">
+                {data.sources.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </span>
+          </label>
+          <Link className="os-button" href={header.setupHref}>
+            Set up sequences
+          </Link>
+          <Link className="os-button" href="/os/automations/broadcasts">
+            New broadcast
+          </Link>
+        </div>
       </header>
+
+      {header.friday ? (
+        <Link className="os-tl-fri" href={header.friday.href} data-on={header.friday.on || undefined}>
+          <Icon d={ICON.megaphone} />
+          <strong>{header.friday.name}</strong>
+          <span>{`Next run ${header.friday.when}${header.friday.on ? "" : " · off"}`}</span>
+        </Link>
+      ) : null}
 
       <Tabs
         tabs={TIMELINE_TABS.map((t) => ({ key: t.key, label: t.label, count: t.key === "sent" || t.key === "paused" ? null : data.counts[t.key] }))}
@@ -213,7 +255,8 @@ export default function FollowupsTimeline({ data, tab, source }: { data: Timelin
       ) : null}
 
       {tab === "todo" || tab === "scheduled" ? <Todo items={data.todo} act={act} pending={pending} /> : null}
-      {tab === "todo" && !data.todo.length ? <EmptyState title="Nothing for you right now" /> : null}
+      {isEmpty(data) && source === "all" ? <Start header={header} /> : null}
+      {tab === "todo" && !data.todo.length && !(isEmpty(data) && source === "all") ? <EmptyState title="Nothing for you right now" /> : null}
 
       {tab === "scheduled" ? (
         data.scheduled.length ? (
@@ -237,7 +280,7 @@ export default function FollowupsTimeline({ data, tab, source }: { data: Timelin
               </div>
             ))}
           </section>
-        ) : (
+        ) : isEmpty(data) && source === "all" ? null : (
           <EmptyState title="Nothing scheduled" />
         )
       ) : null}
@@ -261,7 +304,7 @@ export default function FollowupsTimeline({ data, tab, source }: { data: Timelin
               </li>
             ))}
           </ul>
-        ) : (
+        ) : isEmpty(data) && source === "all" ? null : (
           <EmptyState title="Nothing sent yet" />
         )
       ) : null}
@@ -287,7 +330,7 @@ export default function FollowupsTimeline({ data, tab, source }: { data: Timelin
               </li>
             ))}
           </ul>
-        ) : (
+        ) : isEmpty(data) && source === "all" ? null : (
           <EmptyState title="Nothing paused" />
         )
       ) : null}

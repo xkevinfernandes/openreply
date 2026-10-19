@@ -100,21 +100,102 @@
 }
 
 /* Campaign grid */
+/* No horizontal scroll: columns are fluid and the least important ones drop
+   out as the list gets narrower (container queries on the grid). */
 .os .os-auto-grid {
+  container-type: inline-size;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  overflow-x: auto;
 }
 
 .os .os-auto-r {
+  --cols: minmax(84px, 0.8fr) minmax(110px, 1fr) minmax(96px, 0.8fr) minmax(0, 1.4fr) 76px 68px 64px 56px 56px 32px;
+  position: relative;
   display: grid;
-  grid-template-columns: 250px 140px minmax(200px, 1fr) 96px 76px 64px 64px 56px 32px;
+  grid-template-columns: var(--cols);
   gap: 12px;
   align-items: center;
-  min-width: 1040px;
+  min-width: 0;
   padding: 12px 14px;
   border-bottom: 1px solid var(--line);
   color: var(--ink);
+}
+
+@container (max-width: 980px) {
+  .os .os-auto-r {
+    --cols: minmax(84px, 0.8fr) minmax(110px, 1fr) minmax(96px, 0.8fr) 76px 68px 64px 56px 56px 32px;
+  }
+  .os .os-auto-c-open {
+    display: none;
+  }
+}
+
+@container (max-width: 780px) {
+  .os .os-auto-r {
+    --cols: minmax(84px, 0.8fr) minmax(0, 1fr) 76px 68px 56px 32px;
+  }
+  .os .os-auto-c-trig,
+  .os .os-auto-c-trd,
+  .os .os-auto-c-rep {
+    display: none;
+  }
+}
+
+@container (max-width: 520px) {
+  .os .os-auto-r {
+    --cols: minmax(72px, auto) minmax(0, 1fr) 64px 32px;
+    gap: 8px;
+  }
+  .os .os-auto-c-set,
+  .os .os-auto-c-bk {
+    display: none;
+  }
+}
+
+/* The whole row opens the campaign: one stretched link under the row's
+   content; Status and the ⋯ menu sit above it and keep their own clicks. */
+.os .os-auto-rowlink {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+}
+
+.os .os-auto-rowlink:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.os .os-auto-r[data-link="true"] {
+  cursor: pointer;
+}
+
+.os .os-auto-r > :not(.os-auto-rowlink) {
+  position: relative;
+  pointer-events: none;
+}
+
+.os .os-auto-r > .os-auto-status,
+.os .os-auto-r > .os-auto-menu {
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.os .os-auto-sends {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.os .os-auto-sends[data-empty="true"] {
+  font-weight: 400;
+  color: var(--ghost);
+}
+
+.os .os-auto-r[data-off="true"] .os-auto-sends {
+  opacity: 0.62;
 }
 
 .os .os-auto-r:last-child {
@@ -176,9 +257,6 @@
   text-decoration: none;
 }
 
-.os .os-auto-kw a.chip:hover {
-  background: var(--line-strong);
-}
 
 .os .os-auto-kw .more {
   flex: none;
@@ -682,5 +760,61 @@
 @media (prefers-reduced-motion: reduce) {
   .os-auto-pop {
     animation: none;
+  }
+}
+
+/* Tests: one plain-language line under the tabs (a rebuild is later work). */
+.os .os-auto-sub {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: calc(var(--sp-2) * -1) 0 var(--sp-4);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+/* (i) at the end of a line opens leftwards, so it never pushes the page wide. */
+.os .os-auto-sub .os-infotip-body {
+  left: auto;
+  right: -6px;
+  transform: translate(0, 2px);
+}
+
+.os .os-auto-sub .os-infotip:hover .os-infotip-body,
+.os .os-auto-sub .os-infotip:focus-within .os-infotip-body {
+  transform: translate(0, 0);
+}
+
+/* Tests: the cards shrink with the page (no horizontal scroll); on narrow
+   screens the table keeps Variant, Sent, Reply, Booked and the pick. */
+.os .os-auto-tests {
+  grid-template-columns: minmax(0, 1fr);
+  container-type: inline-size;
+}
+
+.os .os-auto-tests .os-exp-head > * {
+  min-width: 0;
+}
+
+@container (max-width: 860px) {
+  .os .os-auto-tests .os-exp-table {
+    min-width: 0;
+  }
+  .os .os-auto-tests .os-exp-variant {
+    min-width: 0;
+  }
+  .os .os-auto-tests .os-exp-table tr > :nth-child(4),
+  .os .os-auto-tests .os-exp-table tr > :nth-child(5),
+  .os .os-auto-tests .os-exp-table tr > :nth-child(7),
+  .os .os-auto-tests .os-exp-table tr > :nth-child(8) {
+    display: none;
+  }
+}
+
+@container (max-width: 480px) {
+  .os .os-auto-tests .os-exp-table th,
+  .os .os-auto-tests .os-exp-table td {
+    padding-left: 6px;
+    padding-right: 6px;
   }
 }
