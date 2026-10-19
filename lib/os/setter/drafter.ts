@@ -211,7 +211,12 @@ async function fake({ prompt, job }: Call): Promise<[string, DraftUsage]> {
   if (job === "triage" && prompt.startsWith("TRIAGE: kind")) {
     // One contact (lib/os/setter/triage.ts). Markers force a verdict in tests;
     // otherwise a keyword guess on what they wrote, so demos look plausible.
-    const said = prompt.split("\n").filter((l) => /^(NEW )?THEM:/.test(l)).join(" ");
+    const said = prompt.split("\n").filter((l) => /^(NEW )?THEM( \(card\))?:/.test(l)).join(" ");
+    const pitch =
+      prompt.includes("[fake:pitch]") ||
+      (!prompt.includes("[fake:sales]") && !prompt.includes("[fake:personal]") && !prompt.includes("already marked PERSONAL") &&
+        (/THEM \(card\):/.test(prompt) || /grow your (page|account)|\d+x your|our agency|we help|collab|sponsor|shout ?out/i.test(said)));
+    if (pitch) return [JSON.stringify({ kind: "pitch", why: "Selling to you (sample)" }), usage];
     const sales = prompt.includes("[fake:sales]")
       ? true
       : prompt.includes("[fake:personal]")
@@ -301,6 +306,9 @@ async function fake({ prompt, job }: Call): Promise<[string, DraftUsage]> {
       nudge: ["no stress if not, just lmk if it was useful"],
       friday: ["thought of you when I saw this, sharing in case it helps"],
     }[kind] ?? ["ha okay that's actually interesting", "what are you working on right now?"];
+  // Like the real model, answer what they said in their latest voice note.
+  const voice = kind === "reply" ? lastVoiceNote(prompt) : null;
+  if (voice) bubbles[0] = `"${voice}" haha I hear you`;
   // Like the real model, use a recorded line word for word when one is offered.
   const voiceLine = /Use as its own bubble:\n- "([^"\n]+)"/.exec(prompt)?.[1];
   if (voiceLine) bubbles[bubbles.length - 1] = voiceLine;
@@ -315,6 +323,21 @@ async function fake({ prompt, job }: Call): Promise<[string, DraftUsage]> {
     }),
     usage,
   ];
+}
+
+/** The first words of the latest voice note in the conversation block, if it
+ *  is among their last three messages ("[voice note] \"…\""). */
+export function lastVoiceNote(prompt: string): string | null {
+  const convo = prompt.split("The WHOLE conversation")[1] ?? "";
+  const lines = convo.split("\n").filter((l) => /^(THEM|YOU):/.test(l));
+  for (const l of lines.slice(-3).reverse()) {
+    const m = /^THEM: \[voice note\] "?([^"\n]+?)"?\s*$/.exec(l);
+    if (m && !m[1].startsWith("(no speech)")) {
+      const words = m[1].replace(/^\(sample\)\s*/, "").split(/\s+/);
+      return words.slice(0, 9).join(" ") + (words.length > 9 ? "…" : "");
+    }
+  }
+  return null;
 }
 
 const BACKENDS: Record<DrafterBackend, (c: Call) => Promise<[string, DraftUsage]>> = {

@@ -76,6 +76,8 @@ export interface ThreadMessage {
   postback?: boolean;
   /** An image/file they sent ("image", "file", …); null for text. */
   attachment?: string | null;
+  /** A button card or template (an automation's DM, ours or another creator's). */
+  card?: boolean;
 }
 
 /** Where J is in booking a call inside the DM (lib/os/setter/booking.ts). */

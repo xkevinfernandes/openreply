@@ -156,7 +156,7 @@ describe("triageContact on Jev", () => {
     expect(body.state).toContain("came in via story reply");
     expect(body.state).toContain("THEM: hey, how much is your coaching?");
     expect(body.questions.kind.type).toBe("choice");
-    expect(Object.keys(body.questions.kind.criteria)).toEqual(["sales", "personal"]);
+    expect(Object.keys(body.questions.kind.criteria)).toEqual(["sales", "personal", "pitch"]);
   });
 
   it("below the floor: no suggestion, keeps the probability (J isn't sure)", async () => {

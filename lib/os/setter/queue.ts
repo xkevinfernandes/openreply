@@ -46,10 +46,12 @@ export interface SetterFollowupJob {
   stepId: string;
 }
 
+/** Save the media of a conversation's newest messages (lib/os/media/jobs.ts). */
 export interface MediaEnrichJob {
   workspaceId: string;
   conversationId: string;
-  messageId: string;
+  /** One message; absent: the newest incoming messages. */
+  messageId?: string;
 }
 
 type SetterJob = SetterDraftJob | SetterTriageJob | SetterFollowupJob | MediaEnrichJob | BroadcastSendJob;
@@ -102,6 +104,17 @@ export async function enqueueFollowupStep(stepId: string, dueAt: string) {
   await getSetterQueue().add(SETTER_FOLLOWUP_JOB, { stepId }, { delay: delayMs, jobId: `followup_${stepId}_${at}` });
 }
 
+/** Download + transcribe/describe at arrival, before CDN urls expire and
+ *  before J's draft reads the thread. Deduped per conversation per few seconds. */
+export async function enqueueMediaEnrich(job: MediaEnrichJob, opts: { delayMs?: number } = {}) {
+  if (!redisConfigured()) return;
+  const bucket = Math.floor(Date.now() / 5_000);
+  await getSetterQueue().add(SETTER_MEDIA_ENRICH_JOB, job, {
+    jobId: `media_${job.conversationId}_${job.messageId ?? bucket}`.replace(/:/g, "_"),
+    delay: opts.delayMs ?? 2_000,
+  });
+}
+
 /** Queue many, spaced so the rate limit rarely has to push one back. */
 export async function enqueueTriageMany(contactIds: string[], reason: SetterTriageJob["reason"]) {
   if (!redisConfigured() || !contactIds.length) return 0;
@@ -149,6 +162,15 @@ export async function queueSetterForInbound(event: {
     });
     const debounceMs = getSetterConfig().debounce_seconds * 1000;
     const bucket = Math.floor(Date.now() / debounceMs);
+    // Their voice notes and photos are saved now (CDN urls expire); Personal
+    // and Pitches threads cost nothing.
+    if ((contact.kind === "SALES" || contact.kind === "UNSORTED") && contact.zernioConversationId) {
+      await enqueueMediaEnrich({ workspaceId: event.workspaceId, conversationId: contact.zernioConversationId }).catch((err) =>
+        console.error("[OS Media] could not queue enrich:", err instanceof Error ? err.message : err)
+      );
+    }
+    // Pitches: J never drafts or re-sorts on its own (Re-sort pitches does).
+    if (contact.kind === "PITCHES") return;
     if (contact.kind !== "SALES") {
       // Unsorted: J guesses once ("Sort with J" re-checks after new messages).
       // Personal: J only looks for an offer question. J never drafts for either.
@@ -195,9 +217,11 @@ async function processFollowupJob(job: Job<SetterFollowupJob>) {
   console.log(`[OS Follow-ups] step ${job.data.stepId}: ${result.status}${"reason" in result ? ` — ${result.reason}` : ""}`);
 }
 
-/** Wave-0 slot: S2 replaces this with lib/os/media enrich. */
 async function processMediaEnrichJob(job: Job<MediaEnrichJob>) {
-  console.log(`[OS Media] enrich ${job.data.messageId}: not built yet`);
+  // Lazy: provider adapters and Zernio reads only load on the worker.
+  const { enrichConversation } = await import("@/lib/os/media/jobs");
+  const r = await enrichConversation(job.data);
+  console.log(`[OS Media] ${job.data.conversationId}: ${r.enriched} enriched${r.skipped ? ` (${r.skipped})` : ""}`);
 }
 
 /** Wave-0 slot: S5 replaces this with lib/os/broadcasts send (through the cap guard). */
