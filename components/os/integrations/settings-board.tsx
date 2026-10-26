@@ -1,13 +1,15 @@
 "use client";
 
-// Settings › Integrations (Settings board): the Instagram account strip, then
-// rows grouped Content (Data OS) · Calendar · CRM and email. Manage opens the
-// full controls under the row.
+// Settings › Integrations (Integrations canvas): Instagram, Zernio, Kit and
+// Cal.com first, each with its logo, status, one line and its actions; Data
+// OS, GoHighLevel and Calendly below. Manage opens the full controls under
+// the row.
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { connectDataOs, removeDataOs } from "@/app/(os)/os/integrations/actions";
+import { DisconnectButton, ZernioPanel } from "@/components/os/settings/instagram-panel";
 import { InfoTip } from "@/components/os/ui";
 import type { CalendarBoard } from "@/lib/os/integrations/calendar/view";
 import type { DataOsView } from "@/lib/os/integrations/dataos";
@@ -15,9 +17,12 @@ import type { IntegrationView } from "@/lib/os/integrations/view";
 import { shortAgo } from "@/lib/os/labels";
 import CalendarCard from "./calendar-card";
 import IntegrationCard from "./card";
+import { CalcomWordmark, InstagramLogo, KitLogo, ZernioLogo } from "./logos";
 import type { MappingFieldSource } from "./mapping-editor";
 
 export interface InstagramStrip {
+  /** The InstagramAccount id (Disconnect); null in sample mode. */
+  id: string | null;
   username: string | null;
   provider: string | null;
   problem: string | null;
@@ -26,6 +31,7 @@ export interface InstagramStrip {
 
 interface Props {
   instagram: InstagramStrip;
+  zernio: { configured: boolean; webhookReady: boolean };
   dataos: DataOsView;
   views: IntegrationView[];
   calendars: CalendarBoard;
@@ -50,15 +56,19 @@ interface RowProps {
   action: string;
   primary?: boolean;
   canManage: boolean;
-  children: React.ReactNode;
+  /** Links/buttons shown instead of the Manage toggle. */
+  actions?: React.ReactNode;
+  /** The logo tile: "brand" = white in both themes (Zernio). */
+  tile?: "brand";
+  children?: React.ReactNode;
 }
 
-function Row({ id, logo, name, sub, tone, status, action, primary, canManage, children }: RowProps) {
+function Row({ id, logo, name, sub, tone, status, action, primary, canManage, actions, tile, children }: RowProps) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="os-si-item" data-open={open || undefined}>
+    <div className="os-si-item" data-open={open || undefined} data-id={id}>
       <div className="os-si-row">
-        <span className="os-si-logo" aria-hidden="true">
+        <span className="os-si-logo" data-tile={tile} aria-hidden="true">
           {logo}
         </span>
         <span className="os-si-text">
@@ -69,7 +79,9 @@ function Row({ id, logo, name, sub, tone, status, action, primary, canManage, ch
           <i />
           {status}
         </span>
-        {canManage ? (
+        {actions ? (
+          <span className="os-si-acts">{actions}</span>
+        ) : canManage ? (
           <button type="button" className={`os-si-btn${primary && !open ? " primary" : ""}`} aria-expanded={open} aria-controls={`si-${id}`} onClick={() => setOpen((o) => !o)}>
             {open ? "Done" : action}
           </button>
@@ -100,46 +112,134 @@ const DB_ICON = (
   </svg>
 );
 
-export default function SettingsIntegrations({ instagram, dataos, views, calendars, mapped, fields = [], kitTags, canManage, now }: Props) {
+export default function SettingsIntegrations({ instagram, zernio, dataos, views, calendars, mapped, fields = [], kitTags, canManage, now }: Props) {
   const ghl = views.find((v) => v.provider === "ghl");
   const kit = views.find((v) => v.provider === "kit");
+  const calcom = calendars.calendars.find((c) => c.provider === "calcom");
+  const others = calendars.calendars.filter((c) => c.provider !== "calcom");
   const lastSync = views.map((v) => v.lastSyncedAt).filter((v): v is string => Boolean(v)).sort().pop() ?? null;
   const setterName = (id: string) => calendars.setters.find((s) => s.id === id)?.name ?? (id === "default" ? "every setter" : null);
 
+  const calendarRow = (c: CalendarBoard["calendars"][number]) => {
+    const name = c.provider === "calcom" ? "Cal.com" : "Calendly";
+    const firstType = Object.entries(c.settings.eventTypes)[0];
+    const info = firstType ? c.settings.eventTypeInfo[firstType[1]] : null;
+    const who = firstType ? setterName(firstType[0]) : null;
+    const sub = c.connected
+      ? info
+        ? `Event type: ${info.name}${info.durationMinutes ? ` · ${info.durationMinutes} min` : ""}${who ? ` · used by ${who}` : ""}`
+        : c.provider === "calcom"
+          ? `Calls J books land here, and bookings, reschedules and no-shows come back. ${c.upcoming} upcoming.`
+          : `${c.upcoming} upcoming · ${c.booked} booked`
+      : c.provider === "calcom"
+        ? "J offers live times and books the call"
+        : "Booking link or live times";
+    return (
+      <Row
+        key={c.provider}
+        id={c.provider}
+        logo={c.provider === "calcom" ? <CalcomWordmark /> : <span className="os-si-mono">Cy</span>}
+        name={name}
+        sub={sub}
+        tone={c.connected ? (c.lastError ? "bad" : c.enabled ? "good" : "warn") : "off"}
+        status={c.connected ? (c.lastError ? "Needs attention" : c.enabled ? "Connected" : "Paused") : "Not connected"}
+        action={c.connected ? "Event types" : "Connect"}
+        canManage={canManage}
+      >
+        <CalendarCard view={c} setters={calendars.setters} canManage={canManage} now={now} embedded />
+      </Row>
+    );
+  };
+
   return (
     <div className="os-si">
-      <section className="os-si-ig" aria-labelledby="si-ig">
-        <span className="os-si-logo light" aria-hidden="true">
-          <svg viewBox="0 0 16 16">
-            <rect x="2" y="2" width="12" height="12" rx="3.5" />
-            <circle cx="8" cy="8" r="2.8" />
-            <path d="M11.6 4.4h.01" />
-          </svg>
-        </span>
-        <span className="os-si-text">
-          <h2 id="si-ig" className="os-si-name">
-            {instagram.username ? `@${instagram.username}` : "No Instagram account"}
-          </h2>
-          <span className="os-si-sub">{instagram.provider === "ZERNIO" ? "Via Zernio · Business account" : instagram.provider ? "Own Meta app" : "Connect one to start"}</span>
-        </span>
-        <span className="os-si-status" data-tone={instagram.username ? (instagram.problem ? "bad" : "good") : "off"}>
-          <i />
-          {instagram.username ? (instagram.problem ?? "Connected") : "Not connected"}
-        </span>
-        <span className="os-si-cap">
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M8 2.5 14 13H2L8 2.5ZM8 6.5v3M8 11.3v.1" />
-          </svg>
-          Setter limit {instagram.sendCap}/day
-        </span>
-        <InfoTip label="Why is there a setter send limit?">Instagram limits how many DMs a new or flagged account may send. Every bubble J sends counts (workflows and openers don&apos;t); change the limit in Workspace.</InfoTip>
-        <Link href="/os/settings" className="os-si-link">
-          Manage
-        </Link>
+      <header className="os-si-head">
+        <h2>Integrations</h2>
+        <p>What the DM OS talks to.</p>
+      </header>
+
+      <section className="os-si-group" aria-label="Main integrations">
+        <div className="os-si-box">
+          <Row
+            id="instagram"
+            logo={<InstagramLogo />}
+            name="Instagram"
+            sub={
+              instagram.username
+                ? `@${instagram.username}. Comments, DMs and story replies come in through this account.`
+                : "Connect an account to start."
+            }
+            tone={instagram.username ? (instagram.problem ? "bad" : "good") : "off"}
+            status={instagram.username ? (instagram.problem ?? "Connected") : "Not connected"}
+            action="Manage"
+            canManage={canManage}
+            actions={
+              <>
+                <Link href="/os/settings?tab=instagram" className={`os-si-btn${instagram.problem || !instagram.username ? " primary" : ""}`}>
+                  {instagram.problem ? "Reconnect" : instagram.username ? "Manage" : "Connect"}
+                </Link>
+                {canManage && instagram.id && instagram.username ? <DisconnectButton id={instagram.id} username={instagram.username} /> : null}
+              </>
+            }
+          />
+          <Row
+            id="zernio"
+            logo={<ZernioLogo />}
+            tile="brand"
+            name="Zernio"
+            sub="Sends and reads DMs without your own Meta app. Inbox access, key stored encrypted."
+            tone={zernio.configured ? (zernio.webhookReady ? "good" : "bad") : "off"}
+            status={zernio.configured ? (zernio.webhookReady ? "Connected" : "Webhook not set up") : "Not connected"}
+            action={zernio.configured ? "Manage" : "Connect"}
+            primary={!zernio.configured}
+            canManage={canManage}
+          >
+            <ZernioPanel canManage={canManage} />
+          </Row>
+          {kit ? (
+            <Row
+              id="kit"
+              logo={<KitLogo />}
+              name="Kit"
+              sub={
+                kit.connected ? (
+                  kitTags.length ? (
+                    <span className="os-si-tags">
+                      Captured emails and tags sync to your Kit list. Tags:
+                      {kitTags.map((t) => (
+                        <span key={t}>{t}</span>
+                      ))}
+                    </span>
+                  ) : kit.lastSyncedAt ? (
+                    `Captured emails and tags sync to your Kit list. Last sync ${shortAgo(kit.lastSyncedAt, now)} ago, ${kit.failing ? `${kit.failing} failing` : "no errors"}.`
+                  ) : (
+                    "Connected · nothing synced yet"
+                  )
+                ) : (
+                  "Captured emails and tags sync to your Kit list."
+                )
+              }
+              {...crmTone(kit)}
+              action={kit.connected ? "Manage" : "Connect"}
+              primary={!kit.connected}
+              canManage={canManage}
+            >
+              <IntegrationCard view={kit} fields={fields} canManage={canManage} now={now} embedded />
+            </Row>
+          ) : null}
+          {calcom ? calendarRow(calcom) : null}
+        </div>
+        {calendars.sample ? <p className="os-si-note">Sample calendar (OS_MOCK).</p> : null}
+        <p className="os-si-note">
+          Setter limit {instagram.sendCap}/day{" "}
+          <InfoTip label="Why is there a setter send limit?">
+            Instagram limits how many DMs a new or flagged account may send. Every bubble J sends counts (workflows and openers don&apos;t); change the limit in Workspace.
+          </InfoTip>
+        </p>
       </section>
 
-      <section className="os-si-group" aria-labelledby="si-content">
-        <h2 id="si-content">Content</h2>
+      <section className="os-si-group" aria-labelledby="si-more">
+        <h2 id="si-more">More</h2>
         <div className="os-si-box">
           <Row
             id="dataos"
@@ -149,52 +249,10 @@ export default function SettingsIntegrations({ instagram, dataos, views, calenda
             tone={dataos.connected ? (dataos.lastError ? "bad" : "good") : "off"}
             status={dataos.connected ? (dataos.lastError ? "Needs attention" : dataos.mode === "mock" ? "Connected · sample" : "Connected") : "Not connected"}
             action={dataos.connected ? "Manage" : "Connect"}
-            primary={!dataos.connected}
             canManage={canManage}
           >
             <DataOsForm view={dataos} />
           </Row>
-        </div>
-      </section>
-
-      <section className="os-si-group" aria-labelledby="si-cal">
-        <h2 id="si-cal">Calendar</h2>
-        <div className="os-si-box">
-          {calendars.calendars.map((c) => {
-            const name = c.provider === "calcom" ? "Cal.com" : "Calendly";
-            const firstType = Object.entries(c.settings.eventTypes)[0];
-            const info = firstType ? c.settings.eventTypeInfo[firstType[1]] : null;
-            const who = firstType ? setterName(firstType[0]) : null;
-            const sub = c.connected
-              ? info
-                ? `Event type: ${info.name}${info.durationMinutes ? ` · ${info.durationMinutes} min` : ""}${who ? ` · used by ${who}` : ""}`
-                : `${c.upcoming} upcoming · ${c.booked} booked`
-              : c.provider === "calcom"
-                ? "J offers live times"
-                : "Booking link or live times";
-            return (
-              <Row
-                key={c.provider}
-                id={c.provider}
-                logo={<span className="os-si-mono">{c.provider === "calcom" ? "Cal" : "Cy"}</span>}
-                name={name}
-                sub={sub}
-                tone={c.connected ? (c.lastError ? "bad" : c.enabled ? "good" : "warn") : "off"}
-                status={c.connected ? (c.lastError ? "Needs attention" : c.enabled ? "Connected" : "Paused") : "Not connected"}
-                action={c.connected ? "Manage" : "Connect"}
-                canManage={canManage}
-              >
-                <CalendarCard view={c} setters={calendars.setters} canManage={canManage} now={now} embedded />
-              </Row>
-            );
-          })}
-        </div>
-        {calendars.sample ? <p className="os-si-note">Sample calendar (OS_MOCK).</p> : null}
-      </section>
-
-      <section className="os-si-group" aria-labelledby="si-crm">
-        <h2 id="si-crm">CRM and email</h2>
-        <div className="os-si-box">
           {ghl ? (
             <Row
               id="ghl"
@@ -203,42 +261,17 @@ export default function SettingsIntegrations({ instagram, dataos, views, calenda
               sub={`Syncs ${mapped.ghl} custom field${mapped.ghl === 1 ? "" : "s"}${ghl.connected ? "" : " · paused until token is added"}`}
               {...crmTone(ghl)}
               action={ghl.connected ? "Manage" : "Add token"}
-              primary={!ghl.connected}
               canManage={canManage}
             >
               <IntegrationCard view={ghl} fields={fields} canManage={canManage} now={now} embedded />
             </Row>
           ) : null}
-          {kit ? (
-            <Row
-              id="kit"
-              logo={<span className="os-si-mono">Kit</span>}
-              name="Kit"
-              sub={
-                kitTags.length ? (
-                  <span className="os-si-tags">
-                    Tags:
-                    {kitTags.map((t) => (
-                      <span key={t}>{t}</span>
-                    ))}
-                  </span>
-                ) : (
-                  `Syncs ${mapped.kit} custom field${mapped.kit === 1 ? "" : "s"}`
-                )
-              }
-              {...crmTone(kit)}
-              action={kit.connected ? "Manage" : "Connect"}
-              canManage={canManage}
-            >
-              <IntegrationCard view={kit} fields={fields} canManage={canManage} now={now} embedded />
-            </Row>
-          ) : null}
+          {others.map(calendarRow)}
         </div>
       </section>
 
       <p className="os-si-foot">
-        Last sync {lastSync ? `${shortAgo(lastSync, now)} ago` : "never"} ·{" "}
-        <Link href="/os/settings?tab=logs">View DM logs</Link>
+        Last sync {lastSync ? `${shortAgo(lastSync, now)} ago` : "never"} · <Link href="/os/settings?tab=logs">View DM logs</Link>
       </p>
     </div>
   );
