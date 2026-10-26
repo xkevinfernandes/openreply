@@ -103,6 +103,8 @@ export function memoryWorkflowStore(): MemoryWorkflowStore {
     async saveRun(run) {
       runs.set(run.id, clone(run));
       const k = key(run.instagramAccountId, run.igUserId);
+      // A re-keyed run (see engine.handleInbound) drops its old key.
+      for (const [other, id] of liveKeys) if (id === run.id && other !== k) liveKeys.delete(other);
       if (isLive(run.status)) liveKeys.set(k, run.id);
       else if (liveKeys.get(k) === run.id) liveKeys.delete(k);
     },

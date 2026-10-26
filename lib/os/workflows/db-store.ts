@@ -125,6 +125,7 @@ export const dbWorkflowStore: WorkflowStore = {
       where: { id: run.id },
       data: {
         status: toDbStatus(run.status),
+        igUserId: run.igUserId,
         currentNodeId: run.currentNodeId,
         waitUntil: run.waitUntil,
         waitingFor: run.waitingFor,

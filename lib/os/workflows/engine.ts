@@ -207,6 +207,19 @@ export class WorkflowEngine {
     const text = (ev.text ?? "").trim();
     const contact = await this.ports.contact(ev.workspaceId, ev.instagramAccountId, ev.igUserId, ev.storyReply ? { entryPath: "story_reply" } : undefined);
     let run = await this.store.liveRun(ev.instagramAccountId, ev.igUserId);
+    // Instagram can name the same person differently in comments and in DMs.
+    // A tap carries its run ("wf:<run>:<node>:<id>"): re-key that run to the
+    // DM-side id so their typed replies find it too.
+    if (!run && ev.tapPayload?.startsWith("wf:")) {
+      const byTap = await this.store.getRun(ev.tapPayload.split(":")[1] ?? "");
+      if (byTap && isLive(byTap.status) && byTap.instagramAccountId === ev.instagramAccountId && byTap.workspaceId === ev.workspaceId) {
+        console.info(`[OS Workflows] run ${byTap.id} re-keyed ${byTap.igUserId} → ${ev.igUserId} from a tap`);
+        byTap.igUserId = ev.igUserId;
+        if (contact) byTap.contactId = contact.id;
+        await this.store.saveRun(byTap);
+        run = byTap;
+      }
+    }
 
     // A keyword DM / story reply can start a workflow (E11) or, mid-run, add to it (E5/E7).
     if (text && !ev.tapPayload) {

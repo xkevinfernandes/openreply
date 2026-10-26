@@ -389,3 +389,22 @@ describe("Waitlist + questions: already-answered questions are skipped", () => {
     expect((lastSent(h, "ana").msg as QR).text).toMatch(/main thing you're working on/);
   });
 });
+
+describe("Waitlist + questions: Instagram ids differ between the comment and the DMs", () => {
+  it("the tap finds its run by payload, re-keys it, and typed replies follow", async () => {
+    const h = harness();
+    h.publish(waitlist());
+    await h.comment("ana_comment", "FOUNDER", { postId: "reel1" });
+    const run = (await h.run("ana_comment"))!;
+    expect(run).toBeTruthy();
+    // The tap arrives under the DM-side id.
+    await h.tap("ana", `wf:${run.id}:join:join`);
+    expect(text(lastSent(h, "ana").msg)).toMatch(/best email address/);
+    expect(await h.run("ana_comment")).toBeFalsy();
+    await h.dm("ana", "ana@example.com");
+    expect(field(h, "ana", "email")).toBe("ana@example.com");
+    expect(tagsOf(h, "ana")).toContain("waitlist-founder-engine");
+    expect(text(lastSent(h, "ana").msg)).toMatch(/You're on the early-access list/);
+  });
+
+});
