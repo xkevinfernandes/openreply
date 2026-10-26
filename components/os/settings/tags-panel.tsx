@@ -49,7 +49,7 @@ export default function TagsPanel({ board, canManage }: { board: TagBoard; canMa
         <header className="os-set-section-head os-tg-head">
           <div>
             <h2 id="os-tg-title">Tags</h2>
-            <p>Renaming updates every contact, view, broadcast and workflow. Kit keeps receiving the original name.</p>
+            <p>Renaming updates every contact, view, broadcast and workflow. Kit keeps the name it already received.</p>
           </div>
           {canManage ? (
             <button type="button" className="os-button primary" onClick={() => setOpen({ kind: "new" })}>

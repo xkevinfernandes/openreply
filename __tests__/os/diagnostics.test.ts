@@ -150,6 +150,17 @@ describe("Diagnostics reads", () => {
     fetchSpy.mockRestore();
   });
 
+  it("Details after a plain check still come back (the cache keeps them apart)", async () => {
+    vi.stubEnv("OS_MOCK", "1");
+    vi.stubEnv("NODE_ENV", "test");
+    vi.doMock("@/lib/workspace-access", () => ({ getCurrentWorkspaceContext: async () => ({ workspaceId: "ws-details", role: "OWNER" }) }));
+    const { GET } = await import("../../app/api/os/diagnostics/route");
+    await GET(new Request("http://localhost/api/os/diagnostics?only=queue&fresh=1"));
+    const body = await (await GET(new Request("http://localhost/api/os/diagnostics?only=queue&details=1"))).json();
+    expect(body.data.details.queueCounts).toEqual({ waiting: 0, active: 0, delayed: 0, failed: 0 });
+    vi.doUnmock("@/lib/workspace-access");
+  });
+
   it("the OS route refuses a caller with no workspace", async () => {
     vi.doMock("@/lib/workspace-access", () => ({ getCurrentWorkspaceContext: async () => null }));
     const { GET } = await import("../../app/api/os/diagnostics/route");

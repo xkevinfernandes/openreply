@@ -889,8 +889,22 @@
     grid-template-columns: 40px minmax(0, 1fr) auto;
   }
 
+  /* The status stays visible: under the name, the button beside both. */
+  .os-si-row .os-si-logo {
+    grid-row: 1 / span 2;
+  }
+
   .os-si-row .os-si-status {
-    display: none;
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    white-space: normal;
+  }
+
+  .os-si-row > .os-si-btn,
+  .os-si-row > .os-si-acts {
+    grid-column: 3;
+    grid-row: 1 / span 2;
   }
 
   .os-si-manage {

@@ -22,8 +22,10 @@ export function KitLogo() {
 /** The sponsor file, framed on its mark (the first 814 px of the 3867 x 814
  *  lockup) so it reads at tile size; the name sits beside it anyway. */
 export function ZernioLogo() {
+  // The mark is the file's first shape (x 0–611, y 182–802); the wordmark
+  // starts at x 805. The viewBox frames the mark alone, with a little air.
   return (
-    <svg viewBox="0 0 814 814" role="img" aria-label="Zernio" className="os-logo-zernio">
+    <svg viewBox="-45 142 700 700" role="img" aria-label="Zernio" className="os-logo-zernio">
       <image href="/brand/zernio-primary.svg" width="3867" height="814" />
     </svg>
   );

@@ -861,6 +861,20 @@
     font-weight: 600;
     letter-spacing: -0.02em;
   }
+
+  /* The section title above says it already ("Tags / Tags"). */
+  .os-sx-body .os-si-head h2,
+  .os-sx-body .os-tg-head h2,
+  .os-sx-body #os-set-logs {
+    display: none;
+  }
+
+  /* DM log filters wrap instead of running off the card. */
+  .os-sx-body .os-set-filter {
+    flex-wrap: wrap;
+    height: auto;
+    border-radius: 18px;
+  }
 }
 
 .os-set-reconnect span {
@@ -1046,8 +1060,8 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--tag-l-bg);
-  box-shadow: inset 0 0 0 1.5px var(--tag-l-fg);
+  /* Solid: the colour's strong shade, so it reads as a colour, not a ring. */
+  background: var(--tag-l-fg);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1056,8 +1070,7 @@
     color: var(--tag-d-fg);
   }
   :root:not([data-theme="light"]) .os .os-tg-swatch {
-    background: var(--tag-d-bg);
-    box-shadow: inset 0 0 0 1.5px var(--tag-d-fg);
+    background: var(--tag-d-fg);
   }
 }
 
@@ -1067,8 +1080,7 @@
 }
 
 :root[data-theme="dark"] .os .os-tg-swatch {
-  background: var(--tag-d-bg);
-  box-shadow: inset 0 0 0 1.5px var(--tag-d-fg);
+  background: var(--tag-d-fg);
 }
 
 .os-tg-name {
@@ -1151,20 +1163,18 @@
   stroke-width: 1.6;
 }
 
+/* Opens in the flow, under the button: the dialog grows to fit it, so it
+   never covers Create / Cancel and every colour shows without scrolling. */
 .os-tg-select-list {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  max-height: 280px;
-  overflow: auto;
-  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 2px;
+  margin: 4px 0 0;
   padding: 6px;
   list-style: none;
   border-radius: 14px;
   background: var(--card);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 6%), 0 16px 40px rgb(0 0 0 / 14%);
+  box-shadow: inset 0 0 0 1px var(--line);
   outline: none;
 }
 
@@ -1312,6 +1322,8 @@
 
 .os-si-logo[data-tile="brand"] {
   background: #ffffff;
+  /* White on a white card in light mode: a hairline keeps the tile's edge. */
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 
 .os .os-logo-zernio {
@@ -1354,7 +1366,13 @@
   .os-si-row > .os-si-btn,
   .os-si-row > .os-si-acts {
     grid-column: 2;
+    grid-row: auto;
     justify-self: start;
+  }
+
+  .os-si-row > .os-si-logo {
+    grid-row: 1 / span 3;
+    align-self: start;
   }
 }
 

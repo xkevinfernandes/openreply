@@ -156,13 +156,15 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
                 </tr>
               ) : (
                 <tr key={f.id}>
-                  <td>
+                  <td data-label="Field">
                     <span className="os-cf-name">
                       <strong>{f.label}</strong>
                     </span>
                   </td>
-                  <td className="os-cf-muted">{fieldTypeLabel(f.type)}</td>
-                  <td>
+                  <td className="os-cf-muted" data-label="Type">
+                    {fieldTypeLabel(f.type)}
+                  </td>
+                  <td data-label="Filled by">
                     <span className="os-cf-setters">
                       {setters
                         .filter((s) => f.usedBy.includes(s.id))
@@ -175,10 +177,10 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
                       {!f.usedBy.length ? <span className="os-cf-muted">You</span> : null}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Kit">
                     <MapButton value={f.kitField} disabled={!canManage} label={`Kit field for ${f.label}`} onClick={() => setEditing({ id: f.id, focus: "kit" })} />
                   </td>
-                  <td>
+                  <td data-label="GoHighLevel">
                     <MapButton value={f.ghlField} disabled={!canManage} label={`GoHighLevel field for ${f.label}`} onClick={() => setEditing({ id: f.id, focus: "ghl" })} />
                   </td>
                   <td className="os-cf-end">
