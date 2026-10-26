@@ -24,14 +24,17 @@ describe("Friday list → follow-up-friday tag", () => {
     expect(onFridayList({ tags: ["hot"] })).toBe(false);
   });
 
-  it("sample data: the legacy Friday flags carry the tag, one broadcast", async () => {
+  it("sample data: the legacy Friday flags carry the tag, the weekly row kept as a draft", async () => {
     const store = mockBroadcastStore();
     const tagged = await store.taggedContacts("ws-test", FOLLOW_UP_FRIDAY.tag);
     const ids = tagged.map((c) => c.contactId);
     // c1 maya, c6 lena, c8 sam, c10 dev had onFriday=true in the old sample
     for (const id of ["c1", "c6", "c8", "c10"]) expect(ids).toContain(id);
     const list = await store.list("ws-test");
-    expect(list.map((b) => b.key)).toEqual(["follow-up-friday"]);
-    expect(list[0].template).toContain("{first_name}");
+    const weekly = list.find((b) => b.key === "follow-up-friday")!;
+    expect(weekly.status).toBe("draft");
+    expect(weekly.sendDate).toBeNull();
+    expect(weekly.bubbles.some((b) => b.type === "text" && b.text.includes("{first_name}"))).toBe(true);
+    expect(weekly.bubbles.some((b) => b.type === "link" && b.url === null)).toBe(true);
   });
 });

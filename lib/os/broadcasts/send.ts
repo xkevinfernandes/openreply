@@ -1,17 +1,19 @@
 // Sending one broadcast message: the os-broadcast-send job at its time, or
 // "Send now" on the Follow-ups timeline. Everything is checked again here:
 //   - only an approved/scheduled message goes (nothing without Approve)
-//   - still tagged, not paused, not Personal/Pitches
+//   - still tagged (or on the fixed list), not archived, spam, paused, Personal/Pitches
+//   - nobody who wrote after their draft was made ("wrote since drafting")
+//   - nothing from a cancelled broadcast (queued jobs end stale)
 //   - Pause all holds it (the job re-checks in 15 min while the window lasts)
 //   - still inside their free 24h window (no HUMAN_AGENT broadcasts)
 //   - the daily cap, through lib/os/inbox.ts sendReply (every bubble counts)
 // The follow-up goes a few minutes later, unless they replied in between.
 
-import { stillInWindow, excludedReason } from "@/lib/os/broadcasts/audience";
+import { stillInWindow, excludedCode, excludedReason } from "@/lib/os/broadcasts/audience";
 import { enqueueBroadcastSend } from "@/lib/os/broadcasts/jobs";
 import { followupDelayMs, seededRng, windowBounds } from "@/lib/os/broadcasts/schedule";
 import { broadcastStore, type BroadcastStore } from "@/lib/os/broadcasts/store";
-import type { BroadcastContact, BroadcastSendJob } from "@/lib/os/broadcasts/types";
+import type { BroadcastContact, BroadcastSendJob, SkipReason } from "@/lib/os/broadcasts/types";
 import { capState, checkSend, SendBlockedError } from "@/lib/os/sending/cap";
 import { getSetterConfig } from "@/lib/os/setter/config";
 
@@ -54,11 +56,17 @@ export async function sendBroadcastPart(job: BroadcastSendJob, opts: { manual?: 
   const b = run ? await store.getById(run.broadcastId) : null;
   if (!run || !b) return { status: "stale", reason: "Run gone." };
   const workspaceId = m.workspaceId;
-  const fail = async (status: "skipped" | "failed" | "outside_window", reason: string): Promise<SendOutcome> => {
-    if (job.part === "main" && !opts.manual) await store.updateMessage(m.id, { status, error: reason });
-    else if (job.part === "followup") await store.updateMessage(m.id, { error: `Follow-up not sent: ${reason}` });
+  const { settle } = await import("@/lib/os/broadcasts/engine");
+  const fail = async (status: "skipped" | "failed" | "outside_window", reason: string, code: SkipReason): Promise<SendOutcome> => {
+    if (job.part === "main" && !opts.manual) {
+      await store.updateMessage(m.id, { status, error: reason, skipReason: code });
+      await settle(store, run, workspaceId);
+    } else if (job.part === "followup") await store.updateMessage(m.id, { error: `Follow-up not sent: ${reason}` });
     return { status, reason };
   };
+
+  // 0. A cancelled broadcast sends nothing more (follow-ups included).
+  if (b.status === "cancelled") return { status: "stale", reason: "Cancelled." };
 
   // 1. Approved, and the job is the one for its current time.
   if (job.part === "main") {
@@ -71,13 +79,17 @@ export async function sendBroadcastPart(job: BroadcastSendJob, opts: { manual?: 
 
   // 2. Still someone we broadcast to.
   const contact = await store.contact(workspaceId, m.contactId);
-  if (!contact) return fail("skipped", "Contact gone");
-  if (!contact.tags.includes(b.audienceTag)) return fail("skipped", "Left the audience");
+  if (!contact) return fail("skipped", "Contact gone", "contact_gone");
+  const member = b.audienceTagId ? contact.tags.some((t) => t.toLowerCase() === b.audienceTag.toLowerCase()) : b.contactIds.includes(contact.contactId);
+  if (!member) return fail("skipped", "Left the audience", "left_the_tag");
   const ex = excludedReason(contact);
-  if (ex) return fail("skipped", ex);
+  if (ex) return fail("skipped", ex, excludedCode(ex) ?? "paused");
   if (job.part === "followup" && m.sentAt && contact.theirLastAt && new Date(contact.theirLastAt) > new Date(m.sentAt)) {
-    return fail("skipped", "they replied");
+    return fail("skipped", "they replied", "wrote_since_drafting");
   }
+  // They wrote after the draft was made: it may not fit any more (Redraft).
+  // Migrated runs ("bc_<run id>", 20261027030000) finish exactly as they would have.
+  if (job.part === "main" && !b.id.startsWith("bc_") && inboundAfter(contact, run.createdAt)) return fail("skipped", "Wrote since drafting", "wrote_since_drafting");
 
   // 3. Pause all: hold, re-check later while the send window lasts.
   const bubbles = job.part === "main" ? m.bubbles : m.followupBubbles;
@@ -91,16 +103,16 @@ export async function sendBroadcastPart(job: BroadcastSendJob, opts: { manual?: 
       await enqueue({ messageId: m.id, part: job.part }, retry);
       return { status: "held", retryAt: retry, reason: "Pause all is on." };
     }
-    return fail("failed", "Pause all was on for the whole window");
+    return fail("failed", "Pause all was on for the whole window", "window_end");
   }
 
   // 4. The 24h window, right now. No HUMAN_AGENT.
-  if (!stillInWindow(contact.theirLastAt, now, getSetterConfig())) return fail("outside_window", "Their 24h window closed");
+  if (!stillInWindow(contact.theirLastAt, now, getSetterConfig())) return fail("outside_window", "Their 24h window closed", "their_window");
 
   // 5. The cap, for the whole part up front (sendReply checks each bubble too).
   if (checkSend(state, bubbles.length) === "cap") {
     if (opts.manual) return { status: "held", retryAt: null, reason: `Today's send cap is reached (${state.sentToday}/${state.cap}).` };
-    return fail("failed", "Daily send cap reached");
+    return fail("failed", "Daily send cap reached", "cap");
   }
 
   // 6. Out it goes, one bubble at a time; the link is its own bubble already.
@@ -109,23 +121,25 @@ export async function sendBroadcastPart(job: BroadcastSendJob, opts: { manual?: 
       await sendBubble(workspaceId, contact, text, `bm:${m.id}:${job.part}:${i}`);
     }
   } catch (err) {
-    const reason = err instanceof SendBlockedError ? err.message : err instanceof Error ? err.message : "Send failed";
-    if (job.part === "main") await store.updateMessage(m.id, { status: "failed", error: reason });
-    else await store.updateMessage(m.id, { error: `Follow-up not sent: ${reason}` });
+    const raw = err instanceof SendBlockedError ? err.message : err instanceof Error ? err.message : "Send failed";
+    const reason = /not connected/i.test(raw) ? "Instagram not connected" : raw;
+    if (job.part === "main") {
+      await store.updateMessage(m.id, { status: "failed", error: reason, skipReason: "failed" });
+      await settle(store, run, workspaceId);
+    } else await store.updateMessage(m.id, { error: `Follow-up not sent: ${reason}` });
     return { status: "failed", reason };
   }
 
   if (job.part === "followup") return { status: "sent", followupAt: null };
 
-  await store.updateMessage(m.id, { status: "sent", sentAt: now.toISOString(), error: null });
+  await store.updateMessage(m.id, { status: "sent", sentAt: now.toISOString(), error: null, skipReason: null });
   let followupAt: number | null = null;
   if (m.followupBubbles.length) {
     followupAt = now.getTime() + followupDelayMs(b.followupDelayMin, seededRng(`${m.id}:fu`));
     await enqueue({ messageId: m.id, part: "followup" }, followupAt);
   }
-  // The run is done when nothing is left to go.
-  const left = (await store.messages(run.id)).filter((x) => x.status === "scheduled" || x.status === "approved");
-  if (!left.length) await store.updateRun(run.id, { status: "done" });
+  // Sending once one is out; sent when nothing is left to go.
+  await settle(store, run, workspaceId);
   return { status: "sent", followupAt };
 }
 
@@ -134,4 +148,10 @@ export async function sendBroadcastJob(job: BroadcastSendJob): Promise<SendOutco
   const r = await sendBroadcastPart(job);
   console.log(`[OS Broadcasts] ${job.part} ${job.messageId}: ${r.status}${"reason" in r ? ` — ${r.reason}` : ""}`);
   return r;
+}
+
+/** Did they write after the draft was made (the run's drafts time)? */
+export function inboundAfter(c: Pick<BroadcastContact, "theirLastAt" | "lastInboundAt">, draftedAt: string): boolean {
+  const last = Math.max(c.theirLastAt ? Date.parse(c.theirLastAt) : 0, c.lastInboundAt ? Date.parse(c.lastInboundAt) : 0);
+  return last > Date.parse(draftedAt);
 }

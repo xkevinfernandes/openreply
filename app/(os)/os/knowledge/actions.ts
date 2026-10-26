@@ -269,6 +269,10 @@ export async function saveResource(input: ResourceForm): Promise<ActionResult & 
 export async function deleteResource(resourceId: string): Promise<ActionResult> {
   const workspaceId = await requireWorkspace();
   const result = await attempt(async () => {
+    // Refused while an unsent broadcast uses it as a link (Part C 024).
+    const { deleteBlockedBy, resourceBroadcastUse } = await import("@/lib/os/broadcasts/resources");
+    const blocked = deleteBlockedBy((await resourceBroadcastUse(workspaceId, [resourceId])).get(resourceId) ?? []);
+    if (blocked) throw new Error(blocked);
     const r = await prisma.resource.deleteMany({ where: { id: resourceId, workspaceId } });
     if (!r.count) throw new Error("That resource is gone. Refresh the page.");
   });

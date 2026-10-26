@@ -17,7 +17,6 @@ import {
 } from "@/lib/os/automations";
 import { campaignHandoffChoice, setterOnSet } from "@/lib/os/automations-handoff";
 import { openerSummaries } from "@/lib/os/experiments/data";
-import { nextRunDate } from "@/lib/os/home";
 import { catalogRowFromResource } from "@/lib/os/setter/kb";
 import { resolve } from "@/lib/os/setter/resources";
 
@@ -219,46 +218,40 @@ export interface BroadcastSummary {
   status: "needs_link" | "review" | "scheduled" | "done" | "off";
 }
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-/** Pure: a broadcast's state for its next run. */
-export function broadcastStatus(
-  b: { enabled: boolean; template?: string; windowDay: number; windowEnd: string; timezone: string },
-  runs: { runDate: string; status: string }[],
-  now: Date
-): BroadcastSummary["status"] {
-  // Saving this week's link is what starts a run, so a set-up broadcast needs one even while off.
-  if (!b.enabled && !b.template?.trim()) return "off";
-  const next = nextRunDate(b.windowDay, b.windowEnd, b.timezone, now);
-  const run = runs.find((r) => r.runDate === next.date);
-  if (!run) return "needs_link";
-  return run.status === "done" ? "done" : run.status === "scheduled" ? "scheduled" : "review";
+/** Pure: a one-off broadcast's status as the Campaigns tab's Broadcasts strip shows it. */
+export function broadcastStatus(b: { status: string; bubbles?: { type: string; url?: string | null }[] }): BroadcastSummary["status"] {
+  switch (b.status) {
+    case "drafting":
+    case "in_review":
+      return "review";
+    case "scheduled":
+    case "sending":
+      return "scheduled";
+    case "sent":
+      return "done";
+    case "draft":
+      return b.bubbles?.some((x) => x.type === "link" && !x.url) ? "needs_link" : "off";
+    default:
+      return "off";
+  }
 }
 
-/** Read-only list for the Campaigns tab; the builder is S5's /os/automations/broadcasts. */
-export async function listBroadcastSummaries(workspaceId: string, now = new Date()): Promise<BroadcastSummary[]> {
+/** Read-only list for the Campaigns tab; the builder is /os/automations/broadcasts. */
+export async function listBroadcastSummaries(workspaceId: string): Promise<BroadcastSummary[]> {
   // The store resolves the audience tag's name and reads OS_MOCK's memory too.
-  const { broadcastStore } = await import("@/lib/os/broadcasts/store");
-  const store = broadcastStore();
-  const list = await store.list(workspaceId).catch(() => []);
-  const out: BroadcastSummary[] = [];
-  for (const b of list) {
-    const runs = (await store.latestRuns(b.id, 4).catch(() => [])).map((r) => ({ runDate: r.runDate, status: r.status as string }));
-    out.push({
-      key: b.key,
-      name: b.name,
-      window: `${b.sendDate ? (DAYS[b.windowDay] ?? "?") : "No date"} ${b.windowStart}–${b.windowEnd}`,
-      audience: b.audienceTag,
-      status: broadcastStatus(b, runs, now),
-    });
-  }
-  return out;
+  const [{ broadcastStore }, { startLabel }] = await Promise.all([import("@/lib/os/broadcasts/store"), import("@/lib/os/broadcasts/oneoff")]);
+  const list = await broadcastStore()
+    .list(workspaceId)
+    .catch(() => []);
+  return list.slice(0, 5).map((b) => ({ key: b.key, name: b.name, window: startLabel(b), audience: b.audienceTag, status: broadcastStatus(b) }));
 }
 
 export async function automationTabCounts(workspaceId: string, campaignCount?: number) {
   const [campaigns, broadcasts] = await Promise.all([
     campaignCount ?? prisma.automation.count({ where: { workspaceId } }).then((n) => (n || !osMockEnabled() ? n : sampleRows(new Date()).length)).catch(() => 0),
-    prisma.broadcast.count({ where: { workspaceId } }).catch(() => 0),
+    osMockEnabled()
+      ? import("@/lib/os/broadcasts/store").then((m) => m.broadcastStore().list(workspaceId)).then((l) => l.length).catch(() => 0)
+      : prisma.broadcast.count({ where: { workspaceId } }).catch(() => 0),
   ]);
   return { campaigns, broadcasts };
 }

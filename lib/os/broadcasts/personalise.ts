@@ -244,3 +244,60 @@ export async function personaliseOne(i: PersonaliseInput, taken: string[], write
   const d = variantDraft(i, seed);
   return finish({ ...d, bubbles: [`${d.bubbles[0]}${d.bubbles[0].includes(first) ? "" : `, ${first}`}`, ...d.bubbles.slice(1)] });
 }
+
+// ---------------------------------------------------------------- 5 variations
+
+/** The prompt for "5 variations": J writes the text bubbles 5 ways, once. */
+export function buildVariationsPrompt(i: { texts: string[]; name: string; count: number }): string {
+  return [
+    `DRAFT KIND: broadcast variations`,
+    `BROADCAST: ${i.name}. Kevin is sending this to a list; people are spread across your versions.`,
+    `Write ${i.count} versions of Kevin's message below, each in his voice, same meaning and length, clearly different wording.`,
+    `Keep {first_name} where a name goes. Never add a link (links are sent on their own). No pitch, no call ask.`,
+    `Each version has exactly ${i.texts.length} bubble${i.texts.length === 1 ? "" : "s"}, matching Kevin's bubbles one for one.`,
+    ``,
+    `KEVIN'S BUBBLES:`,
+    ...i.texts.map((t, n) => `${n + 1}. ${t}`),
+    ``,
+    `Return JSON only: {"variations": [["bubble 1", "…"], …]}`,
+  ].join("\n");
+}
+
+/** Parse the model's variations; drops empties and links. */
+export function parseVariationsDraft(obj: unknown, count: number): string[][] {
+  const o = (obj && typeof obj === "object" ? obj : {}) as Record<string, unknown>;
+  const list = Array.isArray(o.variations) ? o.variations : [];
+  return list
+    .map((v) => (Array.isArray(v) ? v : typeof v === "string" ? splitLines(v) : []).filter((x): x is string => typeof x === "string").map(stripLinks).filter(Boolean))
+    .filter((v) => v.length)
+    .slice(0, count);
+}
+
+const VARIATION_OPENERS = ["", "hey {first_name}! ", "{first_name}, ", "yo {first_name}, ", "hi {first_name}, "];
+
+/** The deterministic 5 (no model, or the model fell short): Kevin's words, then small opener changes. */
+export function fallbackVariations(texts: string[], count: number): string[][] {
+  const out: string[][] = [];
+  for (let v = 0; v < count; v++) {
+    if (v === 0 || !texts.length) {
+      out.push([...texts]);
+      continue;
+    }
+    const [head, ...rest] = texts;
+    const bare = head.replace(/^(hey|hi|yo)\s+\{first_name\}[,!]?\s*/i, "").replace(/^\{first_name\}[,!]?\s*/i, "");
+    out.push([`${VARIATION_OPENERS[v % VARIATION_OPENERS.length]}${bare}`.trim(), ...rest]);
+  }
+  return out;
+}
+
+/** J writes the variations once; any shortfall is filled by the fallback. Never throws. */
+export async function writeVariations(texts: string[], name: string, write: DraftWriter | null, count: number): Promise<string[][]> {
+  const fallback = fallbackVariations(texts, count);
+  if (!write || !texts.length) return fallback;
+  try {
+    const got = parseVariationsDraft(await write(buildVariationsPrompt({ texts, name, count })), count);
+    return [...got, ...fallback.slice(got.length)].slice(0, count);
+  } catch {
+    return fallback;
+  }
+}

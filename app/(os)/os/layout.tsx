@@ -43,12 +43,13 @@ const THEME_SCRIPT = `try{var t=localStorage.getItem('theme');if(t==='light'||t=
 
 /** Sidebar counts. Cheap reads only; a failure just hides the number. */
 async function navCounts(workspaceId: string): Promise<Partial<Record<NavItem["key"], number>>> {
-  const [drafts, followups] = await Promise.all([
+  const [drafts, followups, automations] = await Promise.all([
     // Drafts waiting, never on spam or archived threads (dm-crm 012).
     inboxBadgeCount(workspaceId).catch(() => 0),
     followupsDue(workspaceId).catch(() => 0),
+    import("@/lib/os/broadcasts/engine").then((m) => m.inReviewCount(workspaceId)).catch(() => 0),
   ]);
-  return { inbox: drafts, followups };
+  return { inbox: drafts, followups, automations };
 }
 
 /** Sidebar foot: today's sends against the cap, and Pause all. */

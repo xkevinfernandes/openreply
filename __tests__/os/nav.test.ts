@@ -27,7 +27,7 @@ describe("nav", () => {
   });
 
   it("only Inbox and Follow-ups carry counts", () => {
-    expect([...BADGED].sort()).toEqual(["followups", "inbox"]);
+    expect([...BADGED].sort()).toEqual(["automations", "followups", "inbox"]);
   });
 });
 

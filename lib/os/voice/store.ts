@@ -227,8 +227,9 @@ export async function sendManualVoice(m: ManualVoice): Promise<void> {
       humanAgent: m.humanAgent,
       sendKey: sendId,
       contactId: m.contact.id,
-      // Kevin's own voice note from the composer: a human send.
+      // Kevin's own voice note from the composer: a human send, never held by Pause all or the cap.
       human: true,
+      fromComposer: true,
     });
     if (row) await prisma.voiceSend.update({ where: { id: row.id }, data: { status: "sent", messageId: r.messageId, sentAt: new Date() } });
     // A bank clip sent by hand counts as heard: J won't play it to them again.

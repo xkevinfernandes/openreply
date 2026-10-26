@@ -48,13 +48,13 @@ describe("trigger chips", () => {
 });
 
 describe("broadcast status", () => {
-  const b = { enabled: true, windowDay: 5, windowEnd: "15:00", timezone: "Europe/Luxembourg" };
-  const now = new Date("2026-10-19T08:00:00Z");
-  it("needs a link until this week's run exists", () => {
-    expect(broadcastStatus(b, [], now)).toBe("needs_link");
-    expect(broadcastStatus(b, [{ runDate: "2026-10-23", status: "review" }], now)).toBe("review");
-    expect(broadcastStatus(b, [{ runDate: "2026-10-23", status: "scheduled" }], now)).toBe("scheduled");
-    expect(broadcastStatus({ ...b, enabled: false }, [], now)).toBe("off");
-    expect(broadcastStatus({ ...b, enabled: false, template: "hey {first_name} {link}" }, [], now)).toBe("needs_link");
+  it("one-off statuses on the Campaigns strip", () => {
+    expect(broadcastStatus({ status: "draft", bubbles: [{ type: "link", url: null }] })).toBe("needs_link");
+    expect(broadcastStatus({ status: "draft", bubbles: [{ type: "text" }] })).toBe("off");
+    expect(broadcastStatus({ status: "in_review" })).toBe("review");
+    expect(broadcastStatus({ status: "drafting" })).toBe("review");
+    expect(broadcastStatus({ status: "sending" })).toBe("scheduled");
+    expect(broadcastStatus({ status: "sent" })).toBe("done");
+    expect(broadcastStatus({ status: "cancelled" })).toBe("off");
   });
 });

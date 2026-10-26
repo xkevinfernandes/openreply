@@ -143,15 +143,15 @@ export interface HomeTodo {
   href: string;
 }
 
-/** Broadcasts that need Kevin: a link for the next run, or drafts to review. */
+/** Broadcasts in review: "Broadcast ready to review · N drafts". */
 export async function broadcastTodos(workspaceId: string, now = new Date()): Promise<HomeTodo[]> {
-  // One source with Follow-ups: lib/os/broadcasts/engine.ts broadcastNeeds.
+  // One source with the Automations badge: lib/os/broadcasts/engine.ts broadcastNeeds.
   const { broadcastNeeds } = await import("@/lib/os/broadcasts/engine");
   const needs = await broadcastNeeds(workspaceId, { now });
   return needs.map((n) => ({
-    id: `broadcast:${n.key}:${n.kind}`,
-    label: n.kind === "link" ? "Add link for" : `Review ${n.count} ${n.count === 1 ? "draft" : "drafts"} for`,
-    strong: n.name,
+    id: `broadcast:${n.key}:review`,
+    label: "Broadcast ready to review ·",
+    strong: `${n.count} ${n.count === 1 ? "draft" : "drafts"}`,
     due: n.today ? "Today" : n.day,
     tone: n.today ? "warn" : "muted",
     href: n.href,

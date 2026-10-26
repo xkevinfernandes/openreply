@@ -104,7 +104,12 @@ function LeadMagnets({ rows }: { rows: ResourceView[] }) {
                           {s.name.trim().charAt(0).toUpperCase()}
                         </span>
                       ))}
-                      {!r.usedBy.length && <span className="kb-quiet">—</span>}
+                      {r.broadcasts.map((b) => (
+                        <Link key={b.key} href={`/os/automations/broadcasts/${b.key}`} className="kb-quiet" title={`Broadcast: ${b.name}`}>
+                          {b.name}
+                        </Link>
+                      ))}
+                      {!r.usedBy.length && !r.broadcasts.length && <span className="kb-quiet">—</span>}
                     </span>
                   </td>
                   <td className="kb-num">{r.sent}</td>

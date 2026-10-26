@@ -1,521 +1,953 @@
 "use client";
 
-// Follow-up Friday builder (board AutomationsB): Audience · Link · Message ·
-// Pacing on the left, J's personalised drafts on the right. Kevin approves,
-// edits or leaves out each draft; only approved ones get scheduled.
+// One broadcast (Friday board): a fixed list of five steps on one screen.
+// Start, Who, Messages and Personalise (each shows its summary, Edit opens
+// it), then Review: Make drafts, approve, edit, skip or Send myself, then
+// Send / Schedule. Styled like the workflow builder's cards, not its canvas.
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
+  approveAllAction,
   approveMessageAction,
-  audienceAction,
+  cancelAction,
+  duplicateAction,
   editMessageAction,
-  regenerateAction,
-  saveBroadcastAction,
-  scheduleAction,
-  setTimeAction,
+  extendEndAction,
+  includeAnywayAction,
+  makeDraftsAction,
+  newResourceAction,
+  newToUnsentAction,
+  redraftOneAction,
+  redraftWroteSinceAction,
+  reopenAction,
+  saveStepsAction,
+  sendAction,
   skipMessageAction,
   type ActionResult,
 } from "@/app/(os)/os/automations/broadcasts/actions";
-import { InfoTip, SetterMark } from "@/components/os/ui";
-import type { BuilderData, BuilderMessage } from "@/lib/os/broadcasts/engine";
-import { shortLink } from "@/lib/os/broadcasts/template";
+import { Pill } from "@/components/os/ui";
+import type { BroadcastPage, ReviewItem, StepsInput } from "@/lib/os/broadcasts/engine";
+import type { PickerResource } from "@/lib/os/broadcasts/resources";
+import type { BroadcastBubble, PersonaliseMode } from "@/lib/os/broadcasts/types";
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const SHOW_FIRST = 4;
-
-const I = {
-  tag: "M2.5 2.5h5.2l5.8 5.8-5.2 5.2-5.8-5.8V2.5ZM5.5 5.5h.01",
-  x: "M4.5 4.5l7 7M11.5 4.5l-7 7",
-  link: "M6.5 9.5 9.5 6.5M7 4.5l1-1a2.8 2.8 0 0 1 4 4l-1 1M9 11.5l-1 1a2.8 2.8 0 0 1-4-4l1-1",
-  play: "M1.8 5c0-1 .8-1.8 1.8-1.8h8.8c1 0 1.8.8 1.8 1.8v6c0 1-.8 1.8-1.8 1.8H3.6c-1 0-1.8-.8-1.8-1.8V5ZM6.8 6v4L10 8 6.8 6Z",
-  clock: "M8 13.8A5.8 5.8 0 1 0 8 2.2a5.8 5.8 0 0 0 0 11.6ZM8 4.8V8l2.2 1.4",
-  regen: "M13 8a5 5 0 1 1-1.5-3.6M13 2.5v2.5h-2.5",
-};
-
-function Svg({ d, size = 12 }: { d: string; size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={d} />
-    </svg>
-  );
-}
+type Act = (fn: () => Promise<ActionResult>, after?: (r: ActionResult) => void) => void;
 
 function useAct() {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ text: string; bad: boolean } | null>(null);
-  const act = (fn: () => Promise<ActionResult>, after?: () => void) =>
+  const act: Act = (fn, after) =>
     start(async () => {
       const r = await fn();
       setMsg(r.error ? { text: r.error, bad: true } : r.notice ? { text: r.notice, bad: false } : null);
-      if (!r.error) after?.();
-      router.refresh();
+      if (!r.error) after?.(r);
+      if (r.href) router.push(r.href);
+      else router.refresh();
     });
-  return { pending, msg, act, setMsg };
+  return { pending, msg, act };
 }
 
-function localTime(iso: string | null, tz: string): string {
-  if (!iso) return "";
-  return new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+/** Save a step; with drafts made, ask first and save again on yes. */
+function saveStep(act: Act, key: string, input: StepsInput, done: () => void) {
+  act(
+    () => saveStepsAction(key, input),
+    (r) => {
+      if (r.confirm) {
+        if (window.confirm(r.confirm)) act(() => saveStepsAction(key, input, true), done);
+        return;
+      }
+      done();
+    }
+  );
 }
 
-const STATUS_LABEL: Partial<Record<BuilderMessage["status"], string>> = {
-  approved: "Approved",
-  scheduled: "Scheduled",
-  sent: "Sent",
-  failed: "Failed",
-};
+const MODES: { mode: PersonaliseMode; name: string; sub: string }[] = [
+  { mode: "per_person", name: "Per person", sub: "J rewrites it for each person from your chat with them. Links stay as you set them." },
+  { mode: "variations", name: "5 variations", sub: "J writes 5 versions once; people are spread across them." },
+  { mode: "as_written", name: "As written", sub: "No rewriting; {first_name} filled in." },
+];
 
-function DraftCard({ m, data, act, pending }: { m: BuilderMessage; data: BuilderData; act: ReturnType<typeof useAct>["act"]; pending: boolean }) {
-  const key = data.broadcast.key;
-  const tz = data.broadcast.timezone;
+function shortUrl(u: string): string {
+  return u.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+}
+
+function Actions({ onCancel, onSave, pending, disabled }: { onCancel: () => void; onSave: () => void; pending: boolean; disabled?: boolean }) {
+  return (
+    <div className="os-bb-actions">
+      <button type="button" className="os-button" onClick={onCancel}>
+        Cancel
+      </button>
+      <button type="button" className="os-button primary" disabled={pending || disabled} onClick={onSave}>
+        Save
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- steps
+
+function Step({ n, label, summary, editing, canEdit, onEdit, children }: { n: number; label: string; summary: React.ReactNode; editing: boolean; canEdit: boolean; onEdit: () => void; children: React.ReactNode }) {
+  return (
+    <li className="os-bb-step">
+      <div className="os-bb-rail" aria-hidden="true">
+        <span className="os-bb-n">{n}</span>
+        <span className="os-bb-line" />
+      </div>
+      <div className="os-card os-bb-card">
+        <div className="os-bb-card-head">
+          <h2 className="os-bb-label">{label}</h2>
+          {canEdit && !editing ? (
+            <button type="button" className="os-bc-quiet" onClick={onEdit}>
+              Edit
+            </button>
+          ) : null}
+        </div>
+        {editing ? children : summary}
+      </div>
+    </li>
+  );
+}
+
+function StartStep({ data, act, pending, canEdit }: { data: BroadcastPage; act: Act; pending: boolean; canEdit: boolean }) {
+  const b = data.broadcast;
+  const [editing, setEditing] = useState(false);
+  const [mode, setMode] = useState(b.startMode);
+  const [end, setEnd] = useState(b.startMode === "now" ? b.windowEnd : data.start.defaultNowEnd);
+  const [date, setDate] = useState(b.sendDate ?? "");
+  const [from, setFrom] = useState(b.windowStart);
+  const [to, setTo] = useState(b.windowEnd);
+  const save = () =>
+    saveStep(act, b.key, mode === "now" ? { startMode: "now", windowEnd: end } : { startMode: "window", sendDate: date || null, windowStart: from, windowEnd: to }, () => setEditing(false));
+  return (
+    <Step
+      n={1}
+      label="Start"
+      editing={editing}
+      canEdit={canEdit}
+      onEdit={() => setEditing(true)}
+      summary={
+        <div className="os-bb-sum">
+          <span className="os-bb-strong">{b.startMode === "now" && !b.sendDate ? `From when you press Send until ${b.windowEnd} today` : data.start.label}</span>
+          <span className="os-bb-sub">{b.timezone} · nothing spills into the next day</span>
+        </div>
+      }
+    >
+      <div className="os-bb-form">
+        <div className="os-segmented" role="group" aria-label="When">
+          <button type="button" aria-pressed={mode === "now"} onClick={() => setMode("now")}>
+            Now
+          </button>
+          <button type="button" aria-pressed={mode === "window"} onClick={() => setMode("window")}>
+            Window
+          </button>
+        </div>
+        {mode === "now" ? (
+          <label className="os-bb-row">
+            <span className="os-bb-sub">From when you press Send until</span>
+            <input className="os-input os-bb-time" type="time" value={end} onChange={(e) => setEnd(e.target.value)} aria-label="End time today" />
+            <span className="os-bb-sub">today</span>
+          </label>
+        ) : (
+          <div className="os-bb-row">
+            <input className="os-input os-bb-date" type="date" value={date} min={data.start.today} onChange={(e) => setDate(e.target.value)} aria-label="Date" />
+            <input className="os-input os-bb-time" type="time" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Start" />
+            <span className="os-bb-sub">to</span>
+            <input className="os-input os-bb-time" type="time" value={to} onChange={(e) => setTo(e.target.value)} aria-label="End" />
+          </div>
+        )}
+        <span className="os-bb-sub">{b.timezone}</span>
+        <Actions onCancel={() => setEditing(false)} onSave={save} pending={pending} />
+      </div>
+    </Step>
+  );
+}
+
+function WhoStep({ data, tags, act, pending, canEdit }: { data: BroadcastPage; tags: { id: string; name: string }[]; act: Act; pending: boolean; canEdit: boolean }) {
+  const b = data.broadcast;
+  const [editing, setEditing] = useState(!b.audienceTagId && !b.contactIds.length && canEdit);
+  const [tagId, setTagId] = useState(b.audienceTagId ?? "");
+  const w = data.who;
+  return (
+    <Step
+      n={2}
+      label="Who"
+      editing={editing}
+      canEdit={canEdit}
+      onEdit={() => setEditing(true)}
+      summary={
+        <div className="os-bb-sum">
+          {w ? (
+            <>
+              <span className="os-bb-strong">
+                {w.fixed !== null ? (
+                  `${w.fixed} people from an earlier broadcast`
+                ) : (
+                  <>
+                    Tagged <span className="os-bcl-tag">{w.tag}</span> · {w.total} people
+                  </>
+                )}
+              </span>
+              {w.total ? (
+                <dl className="os-bb-who">
+                  {w.rows.map((r) => (
+                    <div key={r.label} data-main={r.main || undefined}>
+                      <dt>{r.label}</dt>
+                      <dd>{r.n}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <span className="os-bb-warn">No one has this tag</span>
+              )}
+            </>
+          ) : b.audienceTag ? (
+            <span className="os-bb-strong">
+              Tagged <span className="os-bcl-tag">{b.audienceTag}</span>
+            </span>
+          ) : b.contactIds.length ? (
+            <span className="os-bb-strong">{b.contactIds.length} people from an earlier broadcast</span>
+          ) : (
+            <span className="os-bb-sub">Pick a tag</span>
+          )}
+        </div>
+      }
+    >
+      <div className="os-bb-form">
+        <label className="os-bb-row">
+          <span className="os-bb-sub">Tagged</span>
+          <span className="os-select">
+            <select value={tagId} onChange={(e) => setTagId(e.target.value)} aria-label="Tag">
+              <option value="">Pick a tag</option>
+              {tags.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </span>
+        </label>
+        <Actions onCancel={() => setEditing(false)} onSave={() => saveStep(act, b.key, { audienceTagId: tagId }, () => setEditing(false))} pending={pending} disabled={!tagId} />
+      </div>
+    </Step>
+  );
+}
+
+function ResourcePicker({ resources, onPick, onClose }: { resources: PickerResource[]; onPick: (r: { id: string; name: string; link: string }) => void; onClose: () => void }) {
+  const [making, setMaking] = useState(false);
+  const [name, setName] = useState("");
+  const [link, setLink] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const router = useRouter();
+  return (
+    <div className="os-bb-picker os-well">
+      <div role="listbox" aria-label="Pick a resource" className="os-bb-picklist">
+        {resources.map((r) => (
+          <button
+            key={r.id}
+            type="button"
+            role="option"
+            aria-selected={false}
+            aria-disabled={!r.link}
+            className="os-bb-pick"
+            disabled={!r.link}
+            title={r.link ?? "Add a link first"}
+            onClick={() => r.link && onPick({ id: r.id, name: r.name, link: r.link })}
+          >
+            <span>{r.name}</span>
+            <span className="os-bb-sub">{r.link ? shortUrl(r.link) : "add a link first"}</span>
+          </button>
+        ))}
+      </div>
+      {making ? (
+        <div className="os-bb-newres">
+          <input className="os-input" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} aria-label="Resource name" />
+          <input className="os-input" placeholder="https://" type="url" required value={link} onChange={(e) => setLink(e.target.value)} aria-label="Resource link" />
+          {error ? <span className="os-bb-warn">{error}</span> : null}
+          <div className="os-bb-actions">
+            <button type="button" className="os-button" onClick={() => setMaking(false)}>
+              Back
+            </button>
+            <button
+              type="button"
+              className="os-button primary"
+              disabled={pending || !name.trim() || !link.trim()}
+              onClick={() =>
+                start(async () => {
+                  const r = await newResourceAction({ name, link });
+                  if (r.error || !r.resource) {
+                    setError(r.error ?? "Didn't save.");
+                    return;
+                  }
+                  onPick(r.resource);
+                  router.refresh();
+                })
+              }
+            >
+              Save and pick
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="os-bb-actions">
+          <button type="button" className="os-bc-quiet" onClick={() => setMaking(true)}>
+            + New resource
+          </button>
+          <button type="button" className="os-bc-quiet" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MessagesStep({ data, resources, act, pending, canEdit }: { data: BroadcastPage; resources: PickerResource[]; act: Act; pending: boolean; canEdit: boolean }) {
+  const b = data.broadcast;
+  const blank = !b.bubbles.some((x) => x.type === "link" || x.text.trim());
+  const [editing, setEditing] = useState((blank || data.emptyLink) && canEdit);
+  const [bubbles, setBubbles] = useState<BroadcastBubble[]>(b.bubbles.length ? b.bubbles : [{ type: "text", text: "" }]);
+  const [fuOn, setFuOn] = useState(Boolean(b.followupTemplate));
+  const [fu, setFu] = useState(b.followupTemplate ?? "");
+  const [delay, setDelay] = useState(b.followupDelayMin);
+  const [picking, setPicking] = useState<number | null>(null);
+  const set = (i: number, x: BroadcastBubble) => setBubbles((all) => all.map((y, j) => (j === i ? x : y)));
+  const move = (i: number, d: -1 | 1) =>
+    setBubbles((all) => {
+      const j = i + d;
+      if (j < 0 || j >= all.length) return all;
+      const out = [...all];
+      [out[i], out[j]] = [out[j], out[i]];
+      return out;
+    });
+  const remove = (i: number) => setBubbles((all) => all.filter((_, j) => j !== i));
+  const addLink = (open: boolean) => {
+    const at = bubbles.length;
+    setBubbles((all) => [...all, { type: "link", url: null, resourceId: null, label: null }]);
+    if (open) setPicking(at);
+  };
+  const save = () =>
+    saveStep(act, b.key, { bubbles: bubbles.filter((x) => x.type === "link" || x.text.trim()), followupTemplate: fuOn ? fu : null, followupDelayMin: delay }, () => setEditing(false));
+
+  return (
+    <Step
+      n={3}
+      label="Messages"
+      editing={editing}
+      canEdit={canEdit}
+      onEdit={() => setEditing(true)}
+      summary={
+        <div className="os-bb-sum">
+          <div className="os-bb-bubbles">
+            {b.bubbles.map((x, i) =>
+              x.type === "text" ? (
+                <div key={i} className="os-bb-bubble">
+                  {x.text}
+                </div>
+              ) : (
+                <div key={i} className="os-bb-bubble" data-link data-empty={!x.url || undefined}>
+                  {x.url ? (
+                    <>
+                      <span className="os-bb-strong">
+                        {x.label ?? shortUrl(x.url)}
+                        {x.resourceId ? <span className="os-bb-sub"> · resource</span> : null}
+                      </span>
+                      {x.label ? <span className="os-bb-sub">{shortUrl(x.url)}</span> : null}
+                    </>
+                  ) : (
+                    <span className="os-bb-warn">Pick a resource or link</span>
+                  )}
+                </div>
+              )
+            )}
+            {b.followupTemplate ? (
+              <div className="os-bb-bubble" data-followup>
+                <span className="os-bb-sub">Then, after {b.followupDelayMin} min:</span> {b.followupTemplate}
+              </div>
+            ) : null}
+          </div>
+          <span className="os-bb-sub">
+            {data.perPerson} {data.perPerson === 1 ? "message" : "messages"} per person
+          </span>
+        </div>
+      }
+    >
+      <div className="os-bb-form">
+        <ol className="os-bb-edit-list">
+          {bubbles.map((x, i) => (
+            <li key={i} className="os-bb-edit">
+              <div className="os-bb-edit-main">
+                {x.type === "text" ? (
+                  <textarea
+                    className="os-textarea"
+                    rows={Math.max(1, Math.ceil(x.text.length / 60))}
+                    value={x.text}
+                    placeholder="Hey {first_name}, …"
+                    aria-label={`Message ${i + 1}`}
+                    onChange={(e) => set(i, { type: "text", text: e.target.value })}
+                  />
+                ) : x.url ? (
+                  <div className="os-bb-bubble" data-link>
+                    <span className="os-bb-strong">{x.label ?? shortUrl(x.url)}</span>
+                    {x.label ? <span className="os-bb-sub">{shortUrl(x.url)}</span> : null}
+                  </div>
+                ) : (
+                  <div className="os-bb-linkfill">
+                    <button type="button" className="os-button" onClick={() => setPicking(picking === i ? null : i)}>
+                      Pick a resource
+                    </button>
+                    <input
+                      className="os-input"
+                      type="url"
+                      placeholder="or paste a link"
+                      aria-label="Paste a link"
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        if (v) set(i, { type: "link", url: v, resourceId: null, label: null });
+                      }}
+                    />
+                  </div>
+                )}
+                <span className="os-bb-tools">
+                  <button type="button" className="os-bc-quiet" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}>
+                    ↑
+                  </button>
+                  <button type="button" className="os-bc-quiet" aria-label="Move down" disabled={i === bubbles.length - 1} onClick={() => move(i, 1)}>
+                    ↓
+                  </button>
+                  {x.type === "link" && x.url ? (
+                    <button type="button" className="os-bc-quiet" onClick={() => set(i, { type: "link", url: null, resourceId: null, label: null })}>
+                      Change
+                    </button>
+                  ) : null}
+                  <button type="button" className="os-bc-quiet" aria-label="Remove" onClick={() => remove(i)}>
+                    ✕
+                  </button>
+                </span>
+              </div>
+              {picking === i ? (
+                <ResourcePicker
+                  resources={resources}
+                  onClose={() => setPicking(null)}
+                  onPick={(r) => {
+                    set(i, { type: "link", url: r.link, resourceId: r.id, label: r.name });
+                    setPicking(null);
+                  }}
+                />
+              ) : null}
+            </li>
+          ))}
+        </ol>
+        <div className="os-bb-row os-bb-adds">
+          <button type="button" className="os-button" onClick={() => setBubbles((all) => [...all, { type: "text", text: "" }])}>
+            + Message
+          </button>
+          <button type="button" className="os-button" onClick={() => addLink(true)}>
+            Pick a resource
+          </button>
+          <button type="button" className="os-button" onClick={() => addLink(false)}>
+            Paste a link
+          </button>
+          <button type="button" className="os-button" aria-pressed={fuOn} onClick={() => setFuOn((v) => !v)}>
+            Then, after N minutes…
+          </button>
+        </div>
+        {fuOn ? (
+          <div className="os-bb-fu">
+            <label className="os-bb-row">
+              <span className="os-bb-sub">Then, after</span>
+              <input className="os-input os-bb-num" type="number" min={1} max={240} value={delay} onChange={(e) => setDelay(Number(e.target.value))} aria-label="Minutes" />
+              <span className="os-bb-sub">minutes</span>
+            </label>
+            <textarea className="os-textarea" rows={1} value={fu} onChange={(e) => setFu(e.target.value)} aria-label="Follow-up" placeholder="no pressure, curious what you think" />
+          </div>
+        ) : null}
+        <Actions onCancel={() => setEditing(false)} onSave={save} pending={pending} />
+      </div>
+    </Step>
+  );
+}
+
+function PersonaliseStep({ data, setters, act, pending, canEdit }: { data: BroadcastPage; setters: { id: string; name: string; isDefault: boolean }[]; act: Act; pending: boolean; canEdit: boolean }) {
+  const b = data.broadcast;
+  const def = setters.find((s) => s.isDefault) ?? setters[0];
+  const current = setters.find((s) => s.id === b.setterId) ?? def;
+  const [editing, setEditing] = useState(false);
+  const [setterId, setSetterId] = useState(current?.id ?? "");
+  const [mode, setMode] = useState<PersonaliseMode>(b.personaliseMode);
+  const [vars, setVars] = useState(b.variations.map((v) => v.join("\n")));
+  const save = () =>
+    saveStep(
+      act,
+      b.key,
+      {
+        // The default stays "default" (null) unless another agent is picked.
+        setterId: b.setterId === null && setterId === def?.id ? null : setterId || null,
+        personaliseMode: mode,
+        ...(mode === "variations" && vars.length ? { variations: vars.map((v) => v.split("\n").map((x) => x.trim()).filter(Boolean)) } : {}),
+      },
+      () => setEditing(false)
+    );
+  const info = MODES.find((m) => m.mode === b.personaliseMode)!;
+  return (
+    <Step
+      n={4}
+      label="Personalise"
+      editing={editing}
+      canEdit={canEdit}
+      onEdit={() => setEditing(true)}
+      summary={
+        <div className="os-bb-sum">
+          <span className="os-bb-row">
+            <span className="os-bb-sub">Writes as</span>
+            <span className="os-bb-agent">
+              <span className="os-bb-agent-mark" aria-hidden="true">
+                {(current?.name ?? "J")[0]}
+              </span>
+              {current?.name ?? "J"}
+            </span>
+          </span>
+          <span className="os-bb-strong">{info.name}</span>
+          <span className="os-bb-sub">{info.sub}</span>
+          {b.personaliseMode === "variations" && b.variations.length ? (
+            <ol className="os-bb-vars">
+              {b.variations.map((v, i) => (
+                <li key={i}>{v.join(" / ")}</li>
+              ))}
+            </ol>
+          ) : null}
+        </div>
+      }
+    >
+      <div className="os-bb-form">
+        <label className="os-bb-row">
+          <span className="os-bb-sub">Writes as</span>
+          <span className="os-select">
+            <select value={setterId} onChange={(e) => setSetterId(e.target.value)} aria-label="Agent">
+              {setters.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                  {s.isDefault ? " (default)" : ""}
+                </option>
+              ))}
+            </select>
+          </span>
+        </label>
+        <div className="os-bb-modes" role="radiogroup" aria-label="How J personalises">
+          {MODES.map((m) => (
+            <button key={m.mode} type="button" role="radio" aria-checked={mode === m.mode} className="os-bb-mode" onClick={() => setMode(m.mode)}>
+              <span className="os-bb-strong">{m.name}</span>
+              <span className="os-bb-sub">{m.sub}</span>
+            </button>
+          ))}
+        </div>
+        {mode === "variations" && vars.length ? (
+          <div className="os-bb-varedit">
+            {vars.map((v, i) => (
+              <textarea key={i} className="os-textarea" rows={2} value={v} aria-label={`Variation ${i + 1}`} onChange={(e) => setVars((all) => all.map((x, j) => (j === i ? e.target.value : x)))} />
+            ))}
+          </div>
+        ) : null}
+        <Actions onCancel={() => setEditing(false)} onSave={save} pending={pending} />
+      </div>
+    </Step>
+  );
+}
+
+// ---------------------------------------------------------------- review
+
+function stateLabel(m: ReviewItem, tz: string): string | null {
+  switch (m.status) {
+    case "approved":
+      return "Approved";
+    case "scheduled":
+      return `Scheduled ${m.scheduledAt ? new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date(m.scheduledAt)) : ""}`;
+    case "sent":
+      return "Sent";
+    case "skipped":
+      return m.skipReason === "sent_by_kevin" ? "Sent by you" : "Skipped";
+    case "failed":
+      return "Failed";
+    case "outside_window":
+      return "Outside window";
+    default:
+      return null;
+  }
+}
+
+function DraftCard({ m, b, act, pending, locked }: { m: ReviewItem; b: BroadcastPage["broadcast"]; act: Act; pending: boolean; locked: boolean }) {
+  const [editing, setEditing] = useState(false);
   const [text, setText] = useState(m.text.join("\n"));
   const [fu, setFu] = useState(m.followupBubbles.join("\n"));
-  const locked = m.status === "sent" || m.status === "scheduled";
-  const save = () => {
-    if (text === m.text.join("\n") && fu === m.followupBubbles.join("\n")) return;
-    act(() => editMessageAction(key, m.id, { text, followup: fu }));
-  };
-  const time = localTime(m.scheduledAt, tz);
-  const fuWhen = data.broadcast.followupDelayMin >= 30 ? "+1 h" : "+3–8 min";
+  const sendMyself = m.conversationId ? `/os/inbox?c=${encodeURIComponent(m.conversationId)}&bm=${encodeURIComponent(m.id)}` : null;
+  const state = stateLabel(m, b.timezone);
   return (
-    <article className="os-bc-card" data-status={m.status}>
-      <header>
-        <span className="os-bc-av" aria-hidden="true">
+    <article className="os-bb-draft" data-status={m.status}>
+      <div className="os-bb-draft-head">
+        <span className="os-bb-av" aria-hidden="true">
           {m.initial}
         </span>
-        <span className="os-bc-who">
-          <span className="os-bc-handle">{m.handle}</span>
-          <span className="os-bc-ctx">{m.context}</span>
-        </span>
-        <label className="os-bc-time" title={`Planned send, change time for ${m.handle}`}>
-          <Svg d={I.clock} />
-          <span className="sr-only">Planned send time for {m.handle}</span>
-          <input
-            type="time"
-            defaultValue={time}
-            key={time}
-            disabled={locked || pending}
-            onBlur={(e) => {
-              if (e.target.value && e.target.value !== time) act(() => setTimeAction(key, m.id, e.target.value));
-            }}
-          />
-        </label>
-      </header>
-      <div className="os-bc-body">
-        <textarea
-          className="os-bc-ed"
-          aria-label={`Message to ${m.handle}`}
-          rows={Math.max(1, text.split("\n").length)}
-          value={text}
-          disabled={locked}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={save}
-        />
-        {data.run ? (
-          <span className="os-bc-link" title="Sent as its own message">
-            <Svg d={I.link} />
-            {shortLink(data.run.link ?? "")}
-          </span>
-        ) : null}
-        {m.followupBubbles.length || fu ? (
-          <>
-            <span className="os-bc-when">{fuWhen}</span>
-            <textarea
-              className="os-bc-ed"
-              aria-label={`Follow-up to ${m.handle}`}
-              rows={Math.max(1, fu.split("\n").length)}
-              value={fu}
-              disabled={locked}
-              onChange={(e) => setFu(e.target.value)}
-              onBlur={save}
-            />
-          </>
-        ) : null}
+        <span className="os-bb-strong">{m.handle}</span>
+        <span className="os-bb-sub">{m.why}</span>
+        {state ? <Pill tone={m.status === "sent" || m.status === "approved" ? "good" : m.status === "failed" ? "bad" : "neutral"}>{state}</Pill> : null}
       </div>
-      <footer>
-        {STATUS_LABEL[m.status] ? (
-          <span className="os-bc-state" data-status={m.status}>
-            {STATUS_LABEL[m.status]}
-            {m.status === "scheduled" ? ` ${time}` : ""}
-          </span>
-        ) : null}
-        {m.error ? (
-          <span className="os-bc-err" title={m.error}>
-            {m.error}
-          </span>
-        ) : null}
-        {m.edited ? <span className="os-bc-ctx">Edited</span> : null}
-        <span className="os-bc-grow" />
-        {m.status === "drafted" ? (
-          <>
-            <button type="button" className="os-bc-quiet" disabled={pending} onClick={() => act(() => regenerateAction(key, m.id))}>
-              Regenerate
-            </button>
-            <button type="button" className="os-bc-quiet" disabled={pending} onClick={() => act(() => skipMessageAction(key, m.id, true))}>
-              Leave out
-            </button>
-            <button type="button" className="os-button primary os-bc-approve" disabled={pending} onClick={() => act(() => approveMessageAction(key, m.id, true))}>
+      {editing ? (
+        <div className="os-bb-form">
+          <textarea className="os-textarea" rows={Math.max(2, text.split("\n").length)} value={text} onChange={(e) => setText(e.target.value)} aria-label={`Message to ${m.handle}`} />
+          {m.followupBubbles.length ? <textarea className="os-textarea" rows={1} value={fu} onChange={(e) => setFu(e.target.value)} aria-label={`Follow-up to ${m.handle}`} /> : null}
+          <Actions onCancel={() => setEditing(false)} onSave={() => act(() => editMessageAction(b.key, m.id, { text, followup: fu }), () => setEditing(false))} pending={pending} />
+        </div>
+      ) : (
+        <div className="os-bb-draft-body">
+          {m.text.map((t, i) => (
+            <p key={i}>{t}</p>
+          ))}
+          {m.links.map((l) => (
+            <p key={l} className="os-bb-link">
+              {shortUrl(l)}
+            </p>
+          ))}
+          {m.followupBubbles.map((t, i) => (
+            <p key={`f${i}`} className="os-bb-sub">
+              Then: {t}
+            </p>
+          ))}
+          {m.error && m.status !== "drafted" && m.status !== "approved" ? <p className="os-bb-warn">{m.error}</p> : null}
+        </div>
+      )}
+      {!locked && !editing && (m.status === "drafted" || m.status === "approved") ? (
+        <div className="os-bb-draft-acts">
+          {m.status === "drafted" ? (
+            <button type="button" className="os-button primary" disabled={pending} onClick={() => act(() => approveMessageAction(b.key, m.id, true))}>
               Approve
             </button>
-          </>
-        ) : m.status === "approved" || m.status === "scheduled" ? (
-          <button type="button" className="os-bc-quiet" disabled={pending} onClick={() => act(() => approveMessageAction(key, m.id, false))}>
-            {m.status === "scheduled" ? "Unschedule" : "Undo"}
+          ) : (
+            <button type="button" className="os-button" disabled={pending} onClick={() => act(() => approveMessageAction(b.key, m.id, false))}>
+              Undo
+            </button>
+          )}
+          <button type="button" className="os-button" disabled={pending} onClick={() => setEditing(true)}>
+            Edit
           </button>
-        ) : null}
-      </footer>
+          <button type="button" className="os-button" disabled={pending} onClick={() => act(() => skipMessageAction(b.key, m.id, true))}>
+            Skip
+          </button>
+          {b.personaliseMode === "per_person" && m.status === "drafted" ? (
+            <button type="button" className="os-bc-quiet" disabled={pending} onClick={() => act(() => redraftOneAction(b.key, m.id))}>
+              Regenerate
+            </button>
+          ) : null}
+          {sendMyself ? (
+            <Link href={sendMyself} className="os-bc-quiet os-bb-myself">
+              Send myself
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
+      {!locked && m.status === "skipped" && !m.skipReason ? (
+        <div className="os-bb-draft-acts">
+          <button type="button" className="os-bc-quiet" disabled={pending} onClick={() => act(() => skipMessageAction(b.key, m.id, false))}>
+            Put back
+          </button>
+        </div>
+      ) : null}
     </article>
   );
 }
 
-export default function BroadcastBuilder({ data }: { data: BuilderData }) {
+type Filter = "check" | "approved" | "skipped" | "all";
+
+function Review({ data, act, pending }: { data: BroadcastPage; act: Act; pending: boolean }) {
   const b = data.broadcast;
-  const { pending, msg, act } = useAct();
-  const [link, setLink] = useState(data.run?.link ?? b.link ?? "");
-  const [template, setTemplate] = useState(b.template.replace(/\n?\{link\}\n?/g, "\n").trim());
-  const [followupOn, setFollowupOn] = useState(Boolean(b.followupTemplate));
-  const [followup, setFollowup] = useState(b.followupTemplate ?? "");
-  const [delay, setDelay] = useState(b.followupDelayMin >= 30 ? 60 : 5);
-  const [day, setDay] = useState(b.windowDay);
-  const [from, setFrom] = useState(b.windowStart);
-  const [to, setTo] = useState(b.windowEnd);
-  const [allChips, setAllChips] = useState(false);
-  const [allDrafts, setAllDrafts] = useState(false);
-  const tpl = useRef<HTMLTextAreaElement>(null);
-  const draftsRef = useRef<HTMLElement>(null);
-
-  const input = (extra: { enabled?: boolean } = {}) => ({
-    link: link.trim() ? link.trim() : null,
-    template: `${template.trim()}\n{link}`,
-    followupOn,
-    followupTemplate: followupOn ? followup : null,
-    followupDelayMin: delay,
-    windowDay: day,
-    windowStart: from,
-    windowEnd: to,
-    ...extra,
-  });
-
-  const open = data.messages.filter((m) => m.status === "drafted" || m.status === "approved" || m.status === "scheduled" || m.status === "sent" || m.status === "failed");
-  const outside = data.messages.filter((m) => m.status === "outside_window");
-  const left = data.messages.filter((m) => m.status === "skipped");
-  const approved = data.messages.filter((m) => m.status === "approved").length;
-  const drafted = data.messages.filter((m) => m.status === "drafted").length;
-  const shown = allDrafts ? open : open.slice(0, SHOW_FIRST);
-  const chips = allChips ? data.audience.handles : data.audience.handles.slice(0, SHOW_FIRST);
-  const ticks = data.ticks;
-  const labels = data.hours;
-  const insertVar = (v: string) => {
-    const el = tpl.current;
-    if (!el) return setTemplate((t) => `${t}${v}`);
-    const s = el.selectionStart ?? template.length;
-    const e = el.selectionEnd ?? template.length;
-    setTemplate(template.slice(0, s) + v + template.slice(e));
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(s + v.length, s + v.length);
-    });
+  const review = data.review;
+  const inReview = b.status === "in_review";
+  const [filter, setFilter] = useState<Filter>(inReview ? "check" : "all");
+  const [hadOpen, setHadOpen] = useState(true);
+  const items = review?.items ?? [];
+  const open = items.filter((m) => !m.collapsed);
+  const had = items.filter((m) => m.collapsed);
+  const counts = {
+    check: open.filter((m) => m.status === "drafted").length,
+    approved: open.filter((m) => m.status === "approved").length,
+    skipped: open.filter((m) => m.status === "skipped").length,
   };
-  const primary = () => {
-    if (approved) return act(() => scheduleAction(b.key));
-    if (drafted) {
-      draftsRef.current?.querySelector<HTMLTextAreaElement>("article[data-status='drafted'] textarea")?.focus();
-      return;
-    }
-    act(() => saveBroadcastAction(b.key, input()));
-  };
+  const shown = open.filter((m) => (filter === "check" ? m.status === "drafted" : filter === "approved" ? m.status === "approved" : filter === "skipped" ? m.status === "skipped" : true));
+  const plan = review?.plan;
+  const notSentTotal = data.notSent.reduce((n, g) => n + g.people.length, 0);
+  const canMake = b.status === "draft" || (b.status === "cancelled" && !items.length);
 
   return (
-    <div className="os-bc">
-      <div className="os-bc-page">
-        <header className="os-bc-head">
-          <nav aria-label="Breadcrumb" className="os-bc-crumbs">
-            <Link href="/os/automations">Automations</Link> / <Link href="/os/automations/broadcasts">Broadcasts</Link>
-          </nav>
-          <div className="os-bc-titlerow">
-            <h1 className="os-title">{b.name}</h1>
-            <button
-              type="button"
-              className="os-bc-onoff"
-              aria-pressed={b.enabled}
-              title={b.enabled ? "On: click to turn off" : "Off: click to turn on"}
-              disabled={pending}
-              onClick={() => act(() => saveBroadcastAction(b.key, { enabled: !b.enabled }))}
-            >
-              <span className="os-bc-dot" data-on={b.enabled || undefined} />
-              {b.enabled ? "On" : "Off"} · {data.windowLabel}
-            </button>
+    <li className="os-bb-step os-bb-review">
+      <div className="os-bb-rail" aria-hidden="true">
+        <span className="os-bb-n">5</span>
+      </div>
+      <section className="os-card os-bb-card" aria-labelledby="bb-review">
+        <div className="os-bb-card-head">
+          <div>
+            <h2 id="bb-review" className="os-bb-label">
+              Review
+            </h2>
+            {review ? (
+              <p className="os-bb-sub">
+                {items.length} drafts · {counts.approved} approved · {counts.check} to check · {counts.skipped} skipped
+                {had.length ? ` · ${had.length} already had this link` : ""}
+              </p>
+            ) : null}
           </div>
-        </header>
+          {inReview && open.length ? (
+            <div className="os-segmented os-bb-filter" role="group" aria-label="Filter">
+              <button type="button" aria-pressed={filter === "check"} onClick={() => setFilter("check")}>
+                To check {counts.check}
+              </button>
+              <button type="button" aria-pressed={filter === "approved"} onClick={() => setFilter("approved")}>
+                Approved {counts.approved}
+              </button>
+              <button type="button" aria-pressed={filter === "skipped"} onClick={() => setFilter("skipped")}>
+                Skipped {counts.skipped}
+              </button>
+            </div>
+          ) : null}
+        </div>
 
-        {msg ? (
-          <div className="os-tl-msg" data-bad={msg.bad || undefined} role="status">
-            {msg.text}
+        {canMake ? (
+          <div className="os-bb-make">
+            <button type="button" className="os-button primary" disabled={pending || data.emptyLink || b.status === "cancelled" || data.who?.total === 0} onClick={() => act(() => makeDraftsAction(b.key))}>
+              Make drafts
+            </button>
+            {data.emptyLink ? <span className="os-bb-warn">Pick a resource or paste a link first.</span> : null}
+            {data.who?.total === 0 ? <span className="os-bb-warn">No one has this tag</span> : null}
           </div>
         ) : null}
-        {data.cap.pausedAll ? <div className="os-tl-msg" data-bad>Pause all is on. Nothing sends.</div> : null}
 
-        <div className="os-bc-cols">
-          <form
-            className="os-bc-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              act(() => saveBroadcastAction(b.key, input()));
-            }}
-          >
-            <fieldset className="os-bc-sec">
-              <legend>Audience</legend>
-              <div className="os-bc-stack">
-                <div className="os-bc-row">
-                  <span className="os-bc-tag">
-                    <Svg d={I.tag} />
-                    {b.audienceTag}
-                  </span>
-                  <span className="os-bc-num">{data.audience.count}</span>
-                  {data.audience.outside.length ? (
-                    <span className="os-bc-sub">
-                      {data.audience.eligible} in window
-                      <InfoTip label="Who is outside the window">
-                        Only people inside Instagram&apos;s 24h window get it. Outside: {data.audience.outside.map((o) => o.handle).join(", ")}. They&apos;re back in if they write before the send; Regenerate all re-checks.
-                      </InfoTip>
-                    </span>
-                  ) : null}
-                </div>
-                <ul aria-label="Contacts in this send" className="os-bc-chips">
-                  {chips.map((c) => (
-                    <li key={c.contactId} className="os-bc-chip">
-                      {c.handle}
-                      <button type="button" className="os-bc-x" aria-label={`Remove ${c.handle}`} disabled={pending} onClick={() => act(() => audienceAction(b.key, c.contactId, false))}>
-                        <Svg d={I.x} />
-                      </button>
-                    </li>
-                  ))}
-                  {data.audience.handles.length > SHOW_FIRST ? (
-                    <li>
-                      <button type="button" className="os-bc-more" onClick={() => setAllChips((v) => !v)}>
-                        {allChips ? "Less" : `+${data.audience.handles.length - SHOW_FIRST} more`}
-                      </button>
-                    </li>
-                  ) : null}
-                </ul>
-              </div>
-            </fieldset>
+        {data.drafting ? (
+          <p className="os-bb-progress" aria-live="polite">
+            Drafting {data.drafting.done} of {data.drafting.total} · you can leave this page
+          </p>
+        ) : null}
 
-            <fieldset className="os-bc-sec">
-              <legend>Link</legend>
-              <div className="os-bc-stack os-bc-stack-tight">
-                <label htmlFor="bc-link" className="sr-only">
-                  Link to send
-                </label>
-                <input id="bc-link" className="os-input" type="url" inputMode="url" value={link} placeholder="Paste any link" onChange={(e) => setLink(e.target.value)} />
-                {data.run ? (
-                  <span className="os-bc-sub os-bc-inline">
-                    <Svg d={I.play} />
-                    {shortLink(data.run.link ?? "")}
-                  </span>
+        {data.failedDrafts.length ? (
+          <div className="os-bb-failed os-well">
+            <span className="os-bb-strong">Couldn&apos;t draft {data.failedDrafts.length}</span>
+            {data.failedDrafts.map((m) => (
+              <div key={m.id} className="os-bb-row">
+                <span>{m.handle}</span>
+                <span className="os-bb-sub">{m.error}</span>
+                {inReview ? (
+                  <button type="button" className="os-bc-quiet" disabled={pending} onClick={() => act(() => redraftOneAction(b.key, m.id))}>
+                    Retry
+                  </button>
                 ) : null}
               </div>
-            </fieldset>
-
-            <fieldset className="os-bc-sec">
-              <legend>Message</legend>
-              <div className="os-bc-stack">
-                <div className="os-bc-stack os-bc-stack-tight">
-                  <label htmlFor="bc-msg" className="sr-only">
-                    Message template
-                  </label>
-                  <textarea id="bc-msg" ref={tpl} className="os-textarea os-bc-ta" rows={Math.max(1, template.split("\n").length)} value={template} onChange={(e) => setTemplate(e.target.value)} />
-                  <div className="os-bc-row os-bc-vars">
-                    <span className="os-bc-link" aria-label="Link, sent as its own message" title="Sent as its own message">
-                      <Svg d={I.link} />
-                      {"{link}"}
-                    </span>
-                    <button type="button" className="os-bc-var" onClick={() => insertVar("{first_name}")}>
-                      {"{first_name}"}
-                    </button>
-                  </div>
-                </div>
-                <div className="os-bc-stack os-bc-stack-tight os-bc-split">
-                  <div className="os-bc-row">
-                    <label className="os-bc-chk">
-                      <input type="checkbox" checked={followupOn} onChange={(e) => setFollowupOn(e.target.checked)} />
-                      <span className="os-bc-strong">Follow-up</span>
-                    </label>
-                    <label htmlFor="bc-delay" className="sr-only">
-                      Follow-up delay
-                    </label>
-                    <span className="os-select os-bc-small">
-                      <select id="bc-delay" value={delay} disabled={!followupOn} onChange={(e) => setDelay(Number(e.target.value))}>
-                        <option value={5}>3–8 min later</option>
-                        <option value={60}>1 h later</option>
-                      </select>
-                    </span>
-                  </div>
-                  <label htmlFor="bc-fu" className="sr-only">
-                    Follow-up template
-                  </label>
-                  <textarea id="bc-fu" className="os-textarea os-bc-ta" rows={1} value={followup} disabled={!followupOn} onChange={(e) => setFollowup(e.target.value)} />
-                </div>
-                <div className="os-bc-j">
-                  <div className="os-bc-row">
-                    <label className="os-bc-chk" title="Always on">
-                      <input type="checkbox" checked readOnly disabled />
-                      <span className="os-bc-strong os-bc-inline">
-                        <SetterMark name="J" />J personalises each
-                      </span>
-                    </label>
-                    <span className="os-bc-grow" />
-                    <InfoTip label="How J personalises">
-                      J rewrites your message for each person from what it knows about them and where the chat is: in a live thread it slides in (&quot;by the way, just did this video…&quot;), in a quiet one it opens warm (&quot;thought of you…&quot;). The link always goes on its own.
-                    </InfoTip>
-                  </div>
-                  <div className="os-bc-row os-bc-indent">
-                    <label className="os-bc-chk">
-                      <input type="checkbox" checked readOnly disabled />
-                      <span>Contact context</span>
-                    </label>
-                    <label className="os-bc-chk">
-                      <input type="checkbox" checked readOnly disabled />
-                      <span>Conversation state</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </fieldset>
-
-            <fieldset className="os-bc-sec os-bc-last">
-              <legend>Pacing</legend>
-              <div className="os-bc-stack">
-                <div className="os-bc-row">
-                  <span className="os-select os-bc-small">
-                    <select aria-label="Day" value={day} onChange={(e) => setDay(Number(e.target.value))}>
-                      {DAYS.map((d, i) => (
-                        <option key={d} value={i}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
-                  </span>
-                  <label htmlFor="bc-from" className="sr-only">
-                    From
-                  </label>
-                  <input id="bc-from" className="os-input os-bc-hm" type="time" value={from} onChange={(e) => setFrom(e.target.value)} />
-                  <span className="os-bc-sub">to</span>
-                  <label htmlFor="bc-to" className="sr-only">
-                    To
-                  </label>
-                  <input id="bc-to" className="os-input os-bc-hm" type="time" value={to} onChange={(e) => setTo(e.target.value)} />
-                </div>
-                <div className="os-bc-stack os-bc-stack-tight">
-                  <div className="os-bc-strip" role="img" aria-label={`Planned send times between ${b.windowStart} and ${b.windowEnd}`}>
-                    {ticks.map((p, i) => (
-                      <span key={i} className="os-bc-tick" style={{ left: `${p}%` }} />
-                    ))}
-                  </div>
-                  <div className="os-bc-hours">
-                    {labels.map((l) => (
-                      <span key={l}>{l}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="os-bc-stack os-bc-stack-tight">
-                  <label className="os-bc-chk" title="Always on: normal jitter, never on the minute">
-                    <input type="checkbox" checked readOnly disabled />
-                    <span>Random send times</span>
-                  </label>
-                  <label className="os-bc-chk" title="Always on: near-duplicates are rewritten">
-                    <input type="checkbox" checked readOnly disabled />
-                    <span>No two identical</span>
-                  </label>
-                  <label className="os-bc-chk" title="Always on: every bubble counts">
-                    <input type="checkbox" checked readOnly disabled />
-                    <span>Daily cap</span>
-                    <span className="os-bc-sub os-bc-num-sm">
-                      {data.cap.sentToday} / {data.cap.cap} today
-                    </span>
-                  </label>
-                </div>
-              </div>
-            </fieldset>
-            <button type="submit" hidden />
-          </form>
-
-          <aside className="os-bc-drafts" aria-labelledby="bc-dr" ref={draftsRef}>
-            <div className="os-bc-drafts-head">
-              <h2 id="bc-dr">
-                Drafts{" "}
-                <span className="os-bc-sub os-bc-num-sm">
-                  {open.length} of {data.audience.count}
-                </span>
-              </h2>
-              {data.run ? (
-                <button type="button" className="os-bc-btn-sm" disabled={pending} onClick={() => act(() => regenerateAction(b.key, null))}>
-                  <Svg d={I.regen} />
-                  Regenerate all
-                </button>
-              ) : null}
-            </div>
-            {!data.run ? <p className="os-bc-empty">Paste this week&apos;s link and save. J drafts one message per person.</p> : null}
-            {shown.map((m) => (
-              <DraftCard key={`${m.id}:${m.bubbles.join("|")}:${m.followupBubbles.join("|")}:${m.status}`} m={m} data={data} act={act} pending={pending} />
             ))}
-            {open.length > SHOW_FIRST ? (
-              <button type="button" className="os-bc-quiet os-bc-showmore" onClick={() => setAllDrafts((v) => !v)}>
-                {allDrafts ? "Show fewer" : `Show ${open.length - SHOW_FIRST} more`}
-              </button>
-            ) : null}
-            {outside.length ? (
-              <details className="os-bc-aside-list">
-                <summary>
-                  Outside window <span className="os-bc-num-sm">{outside.length}</span>
-                </summary>
-                <ul>
-                  {outside.map((m) => (
-                    <li key={m.id}>
-                      <span>{m.handle}</span>
-                      <span className="os-bc-sub">{m.error ?? "Outside the 24h window"}</span>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            ) : null}
-            {left.length ? (
-              <details className="os-bc-aside-list">
-                <summary>
-                  Left out <span className="os-bc-num-sm">{left.length}</span>
-                </summary>
-                <ul>
-                  {left.map((m) => (
-                    <li key={m.id}>
-                      <span>{m.handle}</span>
-                      <button type="button" className="os-bc-quiet" disabled={pending} onClick={() => act(() => skipMessageAction(b.key, m.id, false))}>
-                        Put back
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            ) : null}
-          </aside>
-        </div>
-      </div>
+          </div>
+        ) : null}
 
-      <footer className="os-bc-foot">
-        <span className="os-bc-sub os-bc-num-sm" aria-live="polite">
-          {pending ? "Working…" : `${data.audience.count} contacts${approved ? ` · ${approved} approved` : ""}`}
-        </span>
-        <div className="os-bc-row">
-          <button type="button" className="os-button" disabled={pending} onClick={() => act(() => saveBroadcastAction(b.key, input()))}>
-            Save
-          </button>
-          <button type="button" className="os-button primary" disabled={pending || (!approved && !drafted && !link.trim())} onClick={primary}>
-            {approved ? `Schedule ${approved} approved` : "Review drafts"}
-          </button>
+        {inReview && counts.check ? (
+          <div className="os-bb-row">
+            <button type="button" className="os-bc-quiet" disabled={pending} onClick={() => act(() => approveAllAction(b.key))}>
+              Approve all {counts.check}
+            </button>
+          </div>
+        ) : null}
+
+        <div className="os-bb-drafts">
+          {shown.map((m) => (
+            <DraftCard key={`${m.id}:${m.status}:${m.bubbles.join("|")}`} m={m} b={b} act={act} pending={pending} locked={!inReview} />
+          ))}
         </div>
-      </footer>
+
+        {had.length ? (
+          <div className="os-bb-had os-well">
+            <button type="button" className="os-bb-had-head" aria-expanded={hadOpen} onClick={() => setHadOpen((v) => !v)}>
+              <span>
+                Already had this link <span className="os-bb-sub">· {had.length} · not approved, won&apos;t send</span>
+              </span>
+              <span className="os-bb-sub">{hadOpen ? "Hide" : "Show"}</span>
+            </button>
+            {hadOpen
+              ? had.map((m) => (
+                  <div key={m.id} className="os-bb-row">
+                    <span>{m.handle}</span>
+                    <span className="os-bb-sub">{m.hadWhen}</span>
+                    {inReview ? (
+                      <button type="button" className="os-bc-quiet" disabled={pending} onClick={() => act(() => includeAnywayAction(b.key, m.id, true))}>
+                        Include anyway
+                      </button>
+                    ) : null}
+                  </div>
+                ))
+              : null}
+          </div>
+        ) : null}
+
+        {notSentTotal ? (
+          <div className="os-bb-notsent os-well">
+            <span className="os-bb-strong">{notSentTotal} approved, not sent</span>
+            {data.notSent.map((g) => (
+              <div key={g.reason} className="os-bb-row">
+                <span>{g.label}</span>
+                <span className="os-bb-sub">{g.people.map((p) => p.handle).join(", ")}</span>
+                {g.reason === "wrote_since_drafting" && b.status === "sent" ? (
+                  <button type="button" className="os-bc-quiet" disabled={pending} onClick={() => act(() => redraftWroteSinceAction(b.key))}>
+                    Redraft
+                  </button>
+                ) : null}
+              </div>
+            ))}
+            <div className="os-bb-actions">
+              <button type="button" className="os-button" disabled={pending} onClick={() => act(() => newToUnsentAction(b.key))}>
+                New broadcast to these {notSentTotal}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {!inReview && review && data.progress.sent + data.progress.cancelled + data.progress.scheduled ? (
+          <p className="os-bb-sub">
+            Sent {data.progress.sent}
+            {data.progress.scheduled ? ` · ${data.progress.scheduled} to go` : ""}
+            {data.progress.cancelled ? ` · cancelled ${data.progress.cancelled}` : ""}
+          </p>
+        ) : null}
+
+        {inReview && plan ? (
+          <div className="os-bb-sendbar">
+            <div className="os-bb-sum">
+              <span className="os-bb-sub">
+                {plan.figures.planned} messages planned · {plan.figures.left} left today
+              </span>
+              {b.startMode === "now" && plan.approved && !plan.figures.full ? (
+                <span className="os-bb-sub">
+                  About {plan.figures.fit} {plan.figures.fit === 1 ? "person fits" : "people fit"} before {b.windowEnd}
+                  {plan.figures.extendTo ? (
+                    <>
+                      {" · "}
+                      <button type="button" className="os-bc-quiet" disabled={pending} onClick={() => act(() => extendEndAction(b.key, plan.figures.extendTo!))}>
+                        Extend end time
+                      </button>
+                    </>
+                  ) : null}
+                </span>
+              ) : null}
+              {plan.warning ? <span className="os-bb-warn">{plan.warning}</span> : null}
+              {plan.blocked ? <span className="os-bb-warn">{plan.blocked}</span> : null}
+            </div>
+            <button type="button" className="os-button primary" disabled={pending || Boolean(plan.blocked)} onClick={() => act(() => sendAction(b.key))}>
+              {plan.label}
+            </button>
+          </div>
+        ) : null}
+      </section>
+    </li>
+  );
+}
+
+// ---------------------------------------------------------------- the page
+
+export default function BroadcastBuilder({
+  data,
+  setters,
+  tags,
+  resources,
+}: {
+  data: BroadcastPage;
+  setters: { id: string; name: string; isDefault: boolean }[];
+  tags: { id: string; name: string }[];
+  resources: PickerResource[];
+}) {
+  const b = data.broadcast;
+  const router = useRouter();
+  const { pending, msg, act } = useAct();
+  const [name, setName] = useState(b.name);
+  const canEdit = b.status === "draft" || b.status === "in_review" || (b.status === "cancelled" && !data.review);
+  const live = b.status === "scheduled" || b.status === "sending";
+
+  // Drafting runs in the background: refresh until it's done.
+  useEffect(() => {
+    if (b.status !== "drafting") return;
+    const t = window.setInterval(() => router.refresh(), 2000);
+    return () => window.clearInterval(t);
+  }, [b.status, router]);
+
+  // Remount the step forms when the saved broadcast changes.
+  const stamp = JSON.stringify([b.status, b.bubbles, b.audienceTagId, b.startMode, b.sendDate, b.windowStart, b.windowEnd, b.personaliseMode, b.variations, b.setterId, b.followupTemplate]);
+
+  return (
+    <div className="os-bb">
+      <header className="os-bb-head">
+        <div className="os-bb-titles">
+          <nav aria-label="Breadcrumb" className="os-bb-crumbs">
+            <Link href="/os/automations/broadcasts">Automations › Broadcasts</Link>
+          </nav>
+          <div className="os-bb-titlerow">
+            <input
+              className="os-bb-name os-title"
+              value={name}
+              aria-label="Broadcast name"
+              onChange={(e) => setName(e.target.value)}
+              onBlur={() => {
+                if (name.trim() && name !== b.name) act(() => saveStepsAction(b.key, { name }));
+              }}
+            />
+            <Pill tone={data.status.tone}>{data.status.label}</Pill>
+          </div>
+        </div>
+        <div className="os-bb-head-acts">
+          <button type="button" className="os-button" disabled={pending} onClick={() => act(() => duplicateAction(b.key))}>
+            Duplicate
+          </button>
+          {b.status === "cancelled" ? (
+            data.progress.sent === 0 && data.progress.cancelled === 0 ? (
+              <button type="button" className="os-button" disabled={pending} onClick={() => act(() => reopenAction(b.key))}>
+                Reopen
+              </button>
+            ) : null
+          ) : b.status !== "sent" ? (
+            <button
+              type="button"
+              className="os-button"
+              disabled={pending}
+              onClick={() => {
+                if (window.confirm(live ? "Cancel the rest of this broadcast? What's sent stays sent." : "Cancel this broadcast? Drafts are kept.")) act(() => cancelAction(b.key));
+              }}
+            >
+              Cancel broadcast
+            </button>
+          ) : null}
+        </div>
+      </header>
+
+      {msg ? (
+        <div className="os-tl-msg" data-bad={msg.bad || undefined} role="status">
+          {msg.text}
+        </div>
+      ) : null}
+
+      <ol className="os-bb-steps" key={stamp}>
+        <StartStep data={data} act={act} pending={pending} canEdit={canEdit} />
+        <WhoStep data={data} tags={tags} act={act} pending={pending} canEdit={canEdit} />
+        <MessagesStep data={data} resources={resources} act={act} pending={pending} canEdit={canEdit} />
+        <PersonaliseStep data={data} setters={setters} act={act} pending={pending} canEdit={canEdit} />
+        <Review data={data} act={act} pending={pending} />
+      </ol>
+
+      {data.earlier.length ? (
+        <section className="os-card os-bb-earlier" aria-labelledby="bb-earlier">
+          <h2 id="bb-earlier" className="os-bb-label">
+            Earlier sends
+          </h2>
+          <ul>
+            {data.earlier.map((e) => (
+              <li key={e.key}>
+                <Link href={`/os/automations/broadcasts/${e.key}`}>{e.name}</Link>
+                <span className="os-bb-sub">{e.date}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }
