@@ -100,12 +100,16 @@ export async function loadPipeline(workspaceId: string, selected: string | null)
   ]);
   let contacts: PipelineContact[];
   if (osMockEnabled()) {
+    // The same people, stages and call outcomes as the Pipeline board.
+    const { mockAttendance } = await import("@/lib/os/mock-attendance");
+    const { mockCrmState } = await import("@/lib/os/mock-crm");
     contacts = mockThreads()
-      .filter((t) => t.contact?.kind === "SALES")
-      .map((t) => ({ setterId: null, stage: t.contact!.stage, setterStage: t.contact!.setterStage ?? null, attendance: null }));
+      .filter((t) => t.contact?.kind === "SALES" && !mockCrmState(t.contact.id).archivedAt)
+      .map((t) => ({ setterId: null, stage: t.contact!.stage, setterStage: t.contact!.setterStage ?? null, attendance: mockAttendance(t.contact!.id) }));
   } else {
     const rows = await prisma.contact.findMany({
-      where: { workspaceId, kind: "SALES" },
+      // As the Pipeline board shows them: archived people aren't on it.
+      where: { workspaceId, kind: "SALES", archivedAt: null },
       select: { setterId: true, stage: true, setterStage: true, bookings: { select: { attendance: true }, orderBy: { start: "desc" }, take: 1 } },
       take: 5000,
     });

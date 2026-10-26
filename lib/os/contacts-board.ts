@@ -8,6 +8,7 @@ import type { FunnelStageLike } from "@/lib/os/funnel";
 import { mockContactExtras, mockThreads, osMockEnabled } from "@/lib/os/mock";
 import { MOCK_CARD_NOTES, MOCK_FOLLOWUPS, MOCK_SOURCES } from "@/lib/os/mock-contacts";
 import { MOCK_FIELD_COLUMNS, MOCK_SETTERS, mockRowExtras } from "@/lib/os/mock-contacts-crm";
+import { mockAttendance } from "@/lib/os/mock-attendance";
 import { mockCrmState } from "@/lib/os/mock-crm";
 import { wonAmounts } from "@/lib/os/won";
 import type { BookedCall } from "@/components/os/inbox/booked-call";
@@ -112,7 +113,7 @@ function mockContacts(drafts: Set<string>): ContactRow[] {
         note: MOCK_CARD_NOTES[t.contact.id] ?? x.notes,
         source: MOCK_SOURCES[t.contact.id] ?? null,
         followup: MOCK_FOLLOWUPS.has(t.contact.id),
-        attendance: t.contact.id === "c8" ? "NO_SHOW" : null,
+        attendance: mockAttendance(t.contact.id),
         ...mockRowExtras(t.contact.id),
         archivedAt: mockCrmState(t.contact.id).archivedAt,
         lastActivityAt: t.updatedTime,

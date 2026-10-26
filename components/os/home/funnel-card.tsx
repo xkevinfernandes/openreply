@@ -1,19 +1,19 @@
 "use client";
 
-// Home's funnel (dm-crm 031): the cohort left to right, count and drop per
-// step, people flowing through as dots that drop out where the funnel drops
+// Home's funnel (dm-crm 031): the cohort left to right, count and share of
+// the step before (worded as on the All · funnel board), people flowing through as dots that drop out where the funnel drops
 // (hidden under reduced motion), then "From this cohort" and "Closed in
 // period" in the workspace currency, and the wins still missing an amount.
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./home-funnel.css";
 import { markFunnelWon } from "@/app/(os)/os/pipeline/all/actions";
 import WonPicker from "@/components/os/contacts/won-picker";
 import { useFunnelWindow } from "@/components/os/pipeline/use-funnel-window";
-import { WindowSwitch } from "@/components/os/pipeline/window-switch";
 import { InfoTip } from "@/components/os/ui/info-tip";
 import { formatMoney } from "@/lib/os/money";
+import type { FunnelWindow } from "@/lib/os/crm-funnel";
 import { flowDots, windowFrom as windowStart, windowLabel as cohortLabel, type HomeFunnelData } from "@/lib/os/home-funnel-view";
 
 const heightOf = (max: number) => (n: number) => (max ? Math.max(14, Math.round((n / max) * 100)) : 14);
@@ -23,8 +23,12 @@ const lower = (label: string) => (/^[A-Z]{2}/.test(label) ? label : label.charAt
 
 const shortDate = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(iso));
 
-export function FunnelCard({ data, now }: { data: HomeFunnelData; now: string }) {
-  const [win, setWin] = useFunnelWindow();
+/** `window` is Home's one period switch; the All · funnel board opens on the same window. */
+export function FunnelCard({ data, now, window: win }: { data: HomeFunnelData; now: string; window: FunnelWindow }) {
+  const [stored, setStored] = useFunnelWindow();
+  useEffect(() => {
+    if (stored !== win) setStored(win);
+  }, [stored, win, setStored]);
   const [listOpen, setListOpen] = useState(false);
   const [filling, setFilling] = useState<string | null>(null);
   const router = useRouter();
@@ -49,7 +53,6 @@ export function FunnelCard({ data, now }: { data: HomeFunnelData; now: string })
             <InfoTip label="Who is counted">Sales and Unsorted only. Personal, Pitches, spam and imports are left out. Each step counts people who reached it or any later step.</InfoTip>
           </p>
         </div>
-        <WindowSwitch value={win} onChange={setWin} />
       </div>
 
       <div className="os-fn-scroll">
@@ -79,7 +82,7 @@ export function FunnelCard({ data, now }: { data: HomeFunnelData; now: string })
               <span className="bar" aria-hidden="true">
                 <span style={{ width: `${counts[0] ? Math.max(2, Math.round((s.count / counts[0]) * 100)) : 0}%` }} />
               </span>
-              <span className="drop">{i === 0 ? "in the window" : s.pctOfPrevious === null ? "—" : `−${100 - s.pctOfPrevious}% from ${lower(view.steps[i - 1].label)}`}</span>
+              <span className="drop">{i === 0 ? "in the window" : s.pctOfPrevious === null ? "—" : `${s.pctOfPrevious}% of ${lower(view.steps[i - 1].label)}`}</span>
             </li>
           ))}
         </ol>

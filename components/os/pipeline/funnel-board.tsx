@@ -7,7 +7,7 @@
 // Won (opens the picker) or Lost, through the stage writer.
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import "./funnel-board.css";
 import { markFunnelLost, markFunnelWon } from "@/app/(os)/os/pipeline/all/actions";
 import WonPicker from "@/components/os/contacts/won-picker";
@@ -15,14 +15,24 @@ import { useFunnelWindow } from "@/components/os/pipeline/use-funnel-window";
 import { WindowSwitch } from "@/components/os/pipeline/window-switch";
 import { formatMoney } from "@/lib/os/money";
 import { InfoTip } from "@/components/os/ui/info-tip";
-import type { FunnelBoardColumn } from "@/lib/os/crm-funnel";
+import type { FunnelBoardColumn, FunnelWindow } from "@/lib/os/crm-funnel";
 import { canDropOn, windowLabel as cohortLabel, type AllBoardData, type BoardCard } from "@/lib/os/home-funnel-view";
 
 /** Cards drawn per column; the rest is "+N more". */
 const SHOWN = 40;
 
-export function FunnelBoard({ data, currency }: { data: AllBoardData; currency: string }) {
-  const [win, setWin] = useFunnelWindow();
+export function FunnelBoard({ data, currency, urlWindow = null }: { data: AllBoardData; currency: string; urlWindow?: FunnelWindow | null }) {
+  const [stored, setStored] = useFunnelWindow();
+  const router = useRouter();
+  // The link wins (?window=), then the stored switch Home shares.
+  const win = urlWindow ?? stored;
+  useEffect(() => {
+    if (urlWindow && urlWindow !== stored) setStored(urlWindow);
+  }, [urlWindow, stored, setStored]);
+  const setWin = (w: FunnelWindow) => {
+    setStored(w);
+    router.replace(`/os/pipeline/all?window=${w}`, { scroll: false });
+  };
   const [archived, setArchived] = useState(false);
   const [drag, setDrag] = useState<{ id: string; from: FunnelBoardColumn } | null>(null);
   const [over, setOver] = useState<FunnelBoardColumn | null>(null);
@@ -30,7 +40,6 @@ export function FunnelBoard({ data, currency }: { data: AllBoardData; currency: 
   const [winning, setWinning] = useState<BoardCard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const router = useRouter();
 
   const columns = data.windows[win];
   const tip = cohortLabel(win);

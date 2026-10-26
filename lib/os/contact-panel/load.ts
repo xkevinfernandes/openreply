@@ -50,7 +50,16 @@ export async function loadContactPanel(workspaceId: string, contactId: string): 
 }
 
 async function loadPanelBase(workspaceId: string, contactId: string): Promise<ContactPanelData | null> {
-  if (osMockEnabled()) return mockContactPanel(contactId);
+  if (osMockEnabled()) {
+    const panel = mockContactPanel(contactId);
+    if (!panel) return null;
+    // The sample's call outcome, as the Pipeline board places them.
+    const { mockAttendance } = await import("@/lib/os/mock-attendance");
+    const { mockContact } = await import("@/lib/os/mock");
+    const c = mockContact(contactId)?.contact;
+    const attendance = mockAttendance(contactId);
+    return c && attendance ? { ...panel, stage: { ...panel.stage, column: columnFor({ stage: c.stage, setterStage: c.setterStage, attendance }, panel.stage.columns) } } : panel;
+  }
 
   const contact = await prisma.contact.findFirst({ where: { id: contactId, workspaceId } });
   if (!contact) return null;

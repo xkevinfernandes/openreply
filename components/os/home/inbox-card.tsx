@@ -5,13 +5,14 @@ import Link from "next/link";
 import "./home-funnel.css";
 import { InfoTip } from "@/components/os/ui/info-tip";
 import type { InboxCounts } from "@/lib/os/home-funnel-view";
+import { inboxStreamHref } from "@/lib/os/inbox-stream";
 
 export function InboxCard({ counts }: { counts: InboxCounts | null }) {
   const rows = counts
     ? [
-        { key: "unread", label: "Unread", n: counts.unread, href: "/os/inbox?filter=unread" },
-        { key: "drafts", label: "Drafts waiting", n: counts.draftsWaiting, href: "/os/inbox?filter=drafts" },
-        { key: "window", label: "Window closing", n: counts.windowClosing, href: "/os/inbox?filter=window", warn: counts.windowClosing > 0 },
+        { key: "unread", label: "Unread", n: counts.unread, href: inboxStreamHref({ filter: "unread" }) },
+        { key: "drafts", label: "Drafts waiting", n: counts.draftsWaiting, href: inboxStreamHref({ filter: "drafts" }) },
+        { key: "window", label: "Window closing", n: counts.windowClosing, href: inboxStreamHref({ filter: "closing" }), warn: counts.windowClosing > 0 },
       ]
     : [];
   return (
@@ -39,7 +40,7 @@ export function InboxCard({ counts }: { counts: InboxCounts | null }) {
           {counts.windowClosing ? (
             <p className="os-fn-window">
               {counts.windowClosing} wrote last and leave the 24-hour window within 4 hours ·{" "}
-              <Link href="/os/inbox?filter=window">Show them</Link>
+              <Link href={inboxStreamHref({ filter: "closing" })}>Show them</Link>
               <InfoTip label="About the window">Replies typed in the Instagram app can&apos;t be seen here, so a thread you answered there may still show.</InfoTip>
             </p>
           ) : null}

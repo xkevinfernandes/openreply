@@ -9,6 +9,7 @@ import {
   audienceOf,
   broadcastNeeds,
   cancelBroadcast,
+  createBroadcast,
   duplicateBroadcast,
   editMessage,
   includeAnyway,
@@ -21,6 +22,7 @@ import {
   reviewPlan,
   saveSteps,
   sendBroadcast,
+  wroteAgo,
   type EngineDeps,
 } from "@/lib/os/broadcasts/engine";
 import { onTheMinute, zonedInstant } from "@/lib/os/broadcasts/schedule";
@@ -343,6 +345,14 @@ describe("Start, Review and Send", () => {
     expect(msgs.find((m) => m.contactId === "tom")).toMatchObject({ status: "skipped", skipReason: "archived" });
   });
 
+  it("'new in Who since drafting' counts only people who'd get it now, not the archived or Personal ones", async () => {
+    const w = world([...five(), person("arch", "Archie", { archived: true }), person("pal", "Pal", { kind: "PERSONAL" })]);
+    await draftBroadcast(w.store, { personaliseMode: "as_written" });
+    await makeDrafts(WS, "fff-30-oct", w.deps());
+    await approveAll(WS, "fff-30-oct", w.deps());
+    expect(await sendBroadcast(WS, "fff-30-oct", w.deps())).toMatchObject({ ok: true, scheduled: 5, taggedSince: 0 });
+  });
+
   it("an edit keeps the link bubble and needs a fresh approve", async () => {
     const w = world(five());
     await draftBroadcast(w.store);
@@ -435,8 +445,23 @@ describe("Duplicate", () => {
     expect(await makeDrafts(WS, copy.key, w.deps())).toEqual({ ok: false, error: "Pick a resource or paste a link first." });
     const late = await duplicateBroadcast(WS, "fff-23-oct", { ...w.deps(), now: new Date("2026-10-30T15:30:00Z") });
     expect((await w.store.get(WS, (late as { key: string }).key))!.sendDate).toBe("2026-11-06");
-    const same = await duplicateBroadcast(WS, "fff-23-oct", { ...w.deps(), now: new Date("2026-10-30T08:00:00Z") });
-    expect((await w.store.get(WS, (same as { key: string }).key))!.sendDate).toBe(FRI);
+    // 30 Oct and 6 Nov already have one: the next free Friday, never a second on the same date.
+    const again = await duplicateBroadcast(WS, "fff-23-oct", { ...w.deps(), now: new Date("2026-10-30T08:00:00Z") });
+    const third = (await w.store.get(WS, (again as { key: string }).key))!;
+    expect(third).toMatchObject({ sendDate: "2026-11-13", name: "Follow-up Friday · 13 Nov" });
+
+    const fresh = world(five());
+    await draftBroadcast(fresh.store, { key: "fff-23-oct", name: "Follow-up Friday · 23 Oct", sendDate: "2026-10-23", status: "sent" });
+    const same = await duplicateBroadcast(WS, "fff-23-oct", { ...fresh.deps(), now: new Date("2026-10-30T08:00:00Z") });
+    expect((await fresh.store.get(WS, (same as { key: string }).key))!.sendDate).toBe(FRI);
+  });
+
+  it("a cancelled one doesn't hold its date", async () => {
+    const w = world(five());
+    await draftBroadcast(w.store, { key: "fff-23-oct", name: "Follow-up Friday · 23 Oct", sendDate: "2026-10-23", status: "sent" });
+    await draftBroadcast(w.store, { key: "fff-30-oct", name: "Follow-up Friday · 30 Oct", sendDate: FRI, status: "cancelled" });
+    const r = await duplicateBroadcast(WS, "fff-23-oct", w.deps());
+    expect((await w.store.get(WS, (r as { key: string }).key))!.sendDate).toBe(FRI);
   });
 
   it("a Now broadcast duplicates as Now with no date", async () => {
@@ -514,6 +539,37 @@ describe("what needs Kevin and the list", () => {
     const needs = await broadcastNeeds(WS, w.deps());
     expect(needs).toHaveLength(1);
     expect(needs[0]).toMatchObject({ key: "fff-30-oct", kind: "review", count: 5, href: "/os/automations/broadcasts/fff-30-oct" });
+  });
+
+  it("New broadcast reuses an untouched one; the list and counts never show it", async () => {
+    const w = world(five());
+    await draftBroadcast(w.store, { key: "real", name: "Real" });
+    const a = await createBroadcast(WS, w.deps());
+    const b = await createBroadcast(WS, w.deps());
+    expect(a).toEqual(b);
+    expect((await loadBroadcastList(WS, w.deps())).map((l) => l.key)).toEqual(["real"]);
+    await saveSteps(WS, (a as { key: string }).key, { name: "Webinar" }, {}, w.deps());
+    expect((await loadBroadcastList(WS, w.deps())).map((l) => l.key)).toContain((a as { key: string }).key);
+    const c = await createBroadcast(WS, w.deps());
+    expect(c).not.toEqual(a);
+  });
+
+  it("'drafts ready' leaves out the ones that already had the link", async () => {
+    const w = world(five());
+    await draftBroadcast(w.store, { personaliseMode: "as_written" });
+    await makeDrafts(WS, "fff-30-oct", w.deps());
+    const [first] = await runMessages(w, "fff-30-oct");
+    await w.store.updateMessage(first.id, { leftOutReason: "already_had_link" });
+    const page = (await loadBroadcast(WS, "fff-30-oct", w.deps()))!;
+    expect(page.status.label).toBe("In review · 4 drafts ready");
+    expect((await broadcastNeeds(WS, w.deps()))[0].count).toBe(4);
+  });
+
+  it("a draft says when they last wrote, not when we did", () => {
+    const now = new Date("2026-10-30T12:00:00Z");
+    expect(wroteAgo(null, now)).toBe("hasn't written yet");
+    expect(wroteAgo("2026-10-30T11:30:00Z", now)).toBe("wrote <1h ago");
+    expect(wroteAgo("2026-10-27T12:00:00Z", now)).toBe("wrote 3d ago");
   });
 
   it("the list is newest first, with status and messages", async () => {

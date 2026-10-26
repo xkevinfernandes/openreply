@@ -7,8 +7,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { isTypingTarget } from "@/components/os/keys";
+import { inboxStreamHref } from "@/lib/os/inbox-stream";
 
-const HREF = "/os/inbox?drafts=1";
+// The same URL as Home's "Drafts waiting" row and the inbox filter itself.
+const HREF = inboxStreamHref({ filter: "drafts" });
 
 export default function ReviewButton({ count }: { count: number }) {
   const router = useRouter();

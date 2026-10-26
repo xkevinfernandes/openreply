@@ -6,8 +6,10 @@ import {
   isBareKeyword,
   keywordTriggerEvents,
   outcomeRow,
+  parseHomePeriod,
   parsePeriod,
   periodStart,
+  sampleOutcomeCounts,
 } from "@/lib/os/metrics";
 
 const TZ = "Europe/Luxembourg";
@@ -186,5 +188,45 @@ describe("Home helpers", () => {
     ]);
     const nova = buildPipeline(setters, contacts, [], "nova").pipeline;
     expect(Object.fromEntries(nova.rows.map((r) => [r.key, r.count])).value).toBe(1);
+  });
+});
+
+describe("Home's one period switch", () => {
+  it("7d / 30d / 90d, 30d by default, old ?period=today lands on 7d", () => {
+    expect(parseHomePeriod(undefined)).toBe("30d");
+    expect(parseHomePeriod("7d")).toBe("7d");
+    expect(parseHomePeriod("90d")).toBe("90d");
+    expect(parseHomePeriod("today")).toBe("7d");
+    expect(parseHomePeriod("x")).toBe("30d");
+    const now = D("2026-10-26T12:00:00Z");
+    expect(periodStart("90d", now, TZ).toISOString()).toBe("2026-07-28T12:00:00.000Z");
+  });
+
+  it("the sample tiles count the same people as the funnel, never a step above the one before", () => {
+    const now = D("2026-10-26T12:00:00Z");
+    const c = (days: number, over: Partial<Parameters<typeof sampleOutcomeCounts>[0][number]> = {}) => ({
+      createdAt: new Date(now.getTime() - days * 86_400_000),
+      kind: "SALES",
+      spam: false,
+      spamOverride: null,
+      entryPath: "keyword_dm",
+      stage: "IN_CONVERSATION",
+      attendance: null,
+      events: new Set<string>(["conversation_started"]),
+      ...over,
+    });
+    const counts = sampleOutcomeCounts(
+      [
+        c(1),
+        c(2, { entryPath: "story_reply", events: new Set(["conversation_started", "offer_made", "call_booked"]), attendance: "SHOWED" }),
+        c(3, { events: new Set(), stage: "LEAD_MAGNET_SENT" }),
+        c(4, { kind: "PERSONAL" }),
+        c(5, { spam: true }),
+        c(40),
+      ],
+      D("2026-10-19T12:00:00Z"),
+      now
+    );
+    expect(counts).toEqual({ keyword_trigger: 3, conversation_started: 2, lead_magnet_sent: 2, offer_made: 1, call_booked: 1, showed: 1 });
   });
 });

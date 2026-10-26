@@ -46,8 +46,11 @@
   background: var(--card);
 }
 
+/* The table always fits its card (the Actions column must stay clickable);
+   the scroll is only a last resort. */
 .os-bcl-wrap {
   min-width: 0;
+  overflow-x: auto;
 }
 
 /* The table is the card: header 12/500 muted, rows 14 with a 1px line on top. */
@@ -79,7 +82,7 @@
 }
 
 .os-bcl-table td:first-child {
-  min-width: 190px;
+  min-width: 150px;
 }
 
 .os-bcl-name {
@@ -109,13 +112,27 @@
 .os-bcl-sub {
   font-variant-numeric: tabular-nums;
   color: var(--muted);
+}
+
+.os-bcl-table td[data-label="Sent"],
+.os-bcl-table td[data-label="Personalised"] {
   white-space: nowrap;
 }
 
-.os-bcl-table td.os-bcl-sub[data-label="Messages"] {
-  max-width: 220px;
+/* A cell can't be capped with max-width; the span inside can. */
+.os-bcl-clip {
+  display: block;
+  max-width: 13em;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Narrower desktops: Personalised is in the broadcast itself. */
+@media (max-width: 1350px) {
+  .os-bcl-table [data-col="personalised"] {
+    display: none;
+  }
 }
 
 .os-bcl-act {
@@ -127,8 +144,8 @@
   font-size: var(--fs-xs);
 }
 
-/* Phone: each row a small card; the headers become labels. */
-@media (max-width: 720px) {
+/* Phone and narrow windows: each row a small card; the headers become labels. */
+@media (max-width: 1150px) {
   .os-bcl-table,
   .os-bcl-table tbody,
   .os-bcl-table tr,
@@ -767,4 +784,15 @@
   .os-bb-tools {
     justify-content: flex-start;
   }
+}
+
+/* The in-app "are you sure" (Cancel broadcast, remaking drafts). */
+.os-bb-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 12px 16px;
+  border-radius: var(--radius-card);
 }

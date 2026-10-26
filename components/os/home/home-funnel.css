@@ -55,15 +55,17 @@
   left: 0;
   width: 6px;
   height: 6px;
-  margin: -3px 0 0 -3px;
+  /* Starts inside the shape (no half dot on the card's left edge) and stays
+     hidden until its delay is over. */
+  margin: -3px 0 0 0;
   border-radius: 999px;
   background: var(--card);
   opacity: 0;
-  animation: os-fn-flow var(--dur) linear var(--delay) infinite;
+  animation: os-fn-flow var(--dur) linear var(--delay) infinite both;
 }
 
 @keyframes os-fn-flow {
-  0% { left: 0%; opacity: 0; }
+  0% { left: 1%; opacity: 0; }
   6% { opacity: 0.95; }
   82% { opacity: 0.95; }
   100% { left: var(--end); opacity: 0; }

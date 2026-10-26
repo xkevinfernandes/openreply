@@ -37,5 +37,6 @@ export default async function BroadcastPage({ params }: { params: Promise<{ key:
     listPickerResources(workspaceId).catch(() => []),
   ]);
   if (!data) notFound();
-  return <BroadcastBuilder data={data} setters={setters} tags={tags} resources={resources} />;
+  // Keyed by broadcast: opening another one (Duplicate, New) starts fresh.
+  return <BroadcastBuilder key={data.broadcast.key} data={data} setters={setters} tags={tags} resources={resources} />;
 }

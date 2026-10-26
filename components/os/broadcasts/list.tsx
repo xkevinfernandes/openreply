@@ -16,11 +16,12 @@ function useGo() {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // New and Duplicate redirect on the server; only an error comes back.
   const go = (fn: () => Promise<ActionResult>) =>
     start(async () => {
       const r = await fn();
-      if (r.error) setError(r.error);
-      else if (r.href) router.push(r.href);
+      if (r?.error) setError(r.error);
+      else if (r?.href) router.push(r.href);
     });
   return { pending, error, go };
 }
@@ -58,7 +59,9 @@ export default function BroadcastList({ items, counts }: { items: BroadcastListI
                 <th scope="col">Date</th>
                 <th scope="col">To tag</th>
                 <th scope="col">Messages</th>
-                <th scope="col">Personalised</th>
+                <th scope="col" data-col="personalised">
+                  Personalised
+                </th>
                 <th scope="col">Status</th>
                 <th scope="col">Sent</th>
                 <th scope="col">
@@ -81,9 +84,11 @@ export default function BroadcastList({ items, counts }: { items: BroadcastListI
                     <span className="os-bcl-tag">{b.tag || "—"}</span>
                   </td>
                   <td data-label="Messages" className="os-bcl-sub">
-                    {b.messages}
+                    <span className="os-bcl-clip" title={b.messages}>
+                      {b.messages}
+                    </span>
                   </td>
-                  <td data-label="Personalised" className="os-bcl-sub">
+                  <td data-label="Personalised" data-col="personalised" className="os-bcl-sub">
                     {b.personalised}
                   </td>
                   <td data-label="Status">

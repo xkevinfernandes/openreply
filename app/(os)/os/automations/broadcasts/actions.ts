@@ -5,6 +5,7 @@
 // Pause all and the cap (lib/os/broadcasts/send.ts).
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import {
   approveAll,
@@ -66,20 +67,34 @@ async function run(key: string | undefined, fn: (w: string) => Promise<ActionRes
 }
 
 const href = (key: string) => `/os/automations/broadcasts/${key}`;
+
+/**
+ * Open a new or duplicated broadcast with a server redirect, so the address
+ * bar always shows the broadcast on screen (a client push after the action's
+ * refresh could leave the old URL). Outside run()'s try: redirect throws.
+ */
+async function openNext(r: ActionResult): Promise<ActionResult> {
+  if (r.href) redirect(r.href);
+  return r;
+}
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 export async function newBroadcastAction(): Promise<ActionResult> {
-  return run(undefined, async (w) => {
-    const r = await createBroadcast(w);
-    return r.ok ? { href: href(r.key) } : { error: r.error };
-  });
+  return openNext(
+    await run(undefined, async (w) => {
+      const r = await createBroadcast(w);
+      return r.ok ? { href: href(r.key) } : { error: r.error };
+    })
+  );
 }
 
 export async function duplicateAction(key: string): Promise<ActionResult> {
-  return run(key, async (w) => {
-    const r = await duplicateBroadcast(w, String(key));
-    return r.ok ? { href: href(r.key) } : { error: r.error };
-  });
+  return openNext(
+    await run(key, async (w) => {
+      const r = await duplicateBroadcast(w, String(key));
+      return r.ok ? { href: href(r.key) } : { error: r.error };
+    })
+  );
 }
 
 /** Save steps. With drafts made, a Who/Messages/Personalise change returns `confirm` first. */
@@ -94,7 +109,8 @@ export async function saveStepsAction(key: string, input: StepsInput, confirm = 
 export async function makeDraftsAction(key: string): Promise<ActionResult> {
   return run(key, async (w) => {
     const r = await makeDrafts(w, String(key));
-    return r.ok ? { notice: `Drafting ${r.total}. You can leave this page.` } : { error: r.error };
+    // The Review step shows the progress ("Drafting 2 of 6") until it's done.
+    return r.ok ? {} : { error: r.error };
   });
 }
 
@@ -148,7 +164,7 @@ export async function sendAction(key: string): Promise<ActionResult> {
       r.capped ? `${r.capped} over the cap` : null,
       r.outside ? `${r.outside} outside their window` : null,
       r.leftOut ? `${r.leftOut} left out` : null,
-      r.taggedSince ? `${r.taggedSince} tagged since, not included` : null,
+      r.taggedSince ? `${r.taggedSince} new in Who since drafting, not included` : null,
     ]
       .filter(Boolean)
       .join(", ");
@@ -182,15 +198,17 @@ export async function reopenAction(key: string): Promise<ActionResult> {
 export async function redraftWroteSinceAction(key: string): Promise<ActionResult> {
   return run(key, async (w) => {
     const r = await redraftWroteSince(w, String(key));
-    return r.ok ? { notice: `Redrafting ${r.total}.` } : { error: r.error };
+    return r.ok ? {} : { error: r.error };
   });
 }
 
 export async function newToUnsentAction(key: string): Promise<ActionResult> {
-  return run(key, async (w) => {
-    const r = await newBroadcastToUnsent(w, String(key));
-    return r.ok ? { href: href(r.key) } : { error: r.error };
-  });
+  return openNext(
+    await run(key, async (w) => {
+      const r = await newBroadcastToUnsent(w, String(key));
+      return r.ok ? { href: href(r.key) } : { error: r.error };
+    })
+  );
 }
 
 /** "+ New resource" from the picker: a resource with a link (required). */

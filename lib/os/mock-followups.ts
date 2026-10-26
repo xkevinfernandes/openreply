@@ -270,7 +270,7 @@ const SEED_LAST: Record<string, { their: number; ours: number }> = {
 const NOTES: Record<string, string> = {
   c1: "Gets 40-60 DMs a week, most are 'how much' or 'link?'",
   c2: "Agency owner, wants to hand inbound DMs to a setter",
-  c8: "Missed last week's call, about 40k a month right now",
+  c8: "About 40k a month right now, asked what the call covers",
 };
 
 const FRIDAY_BUBBLES = (url: string | null, resource = true): BroadcastBubble[] => [

@@ -211,7 +211,7 @@ export function funnelBoard(contacts: FunnelContact[], window: FunnelWindow, now
 /** Read the counted contacts the funnel and board need (cohort plus anyone won in the window). */
 export async function loadFunnelContacts(workspaceId: string, window: FunnelWindow, now = new Date()): Promise<FunnelContact[]> {
   const { osMockEnabled } = await import("@/lib/os/mock");
-  if (osMockEnabled()) return mockFunnelContacts(now);
+  if (osMockEnabled()) return mockFunnelContacts(workspaceId, now);
   const { prisma } = await import("@/lib/db/client");
   const { funnelOfJson } = await import("@/lib/os/stage-writer");
   const { wonDataOf } = await import("@/lib/os/events");
@@ -292,9 +292,13 @@ export async function loadFunnelContacts(workspaceId: string, window: FunnelWind
 }
 
 /** OS_MOCK: the sample contacts as funnel input (events follow their stage). */
-async function mockFunnelContacts(now: Date): Promise<FunnelContact[]> {
+async function mockFunnelContacts(workspaceId: string, now: Date): Promise<FunnelContact[]> {
   const { mockThreads } = await import("@/lib/os/mock");
   const { mockCrmState } = await import("@/lib/os/mock-crm");
+  const { mockAttendance } = await import("@/lib/os/mock-attendance");
+  const { wonAmounts } = await import("@/lib/os/won");
+  // The same Won amounts the Pipeline board and Contacts show.
+  const won = await wonAmounts(workspaceId, mockThreads().flatMap((t) => (t.contact?.stage === "WON" ? [t.contact.id] : [])));
   const columns = funnelColumns(null);
   const byStage: Record<string, string[]> = {
     NEW: [],
@@ -312,6 +316,9 @@ async function mockFunnelContacts(now: Date): Promise<FunnelContact[]> {
     const c = t.contact;
     if (!c) return [];
     const s = mockCrmState(c.id);
+    const attendance = mockAttendance(c.id);
+    const events = new Set(byStage[c.stage] ?? []);
+    if (attendance === "SHOWED") events.add("showed");
     return [
       {
         id: c.id,
@@ -325,12 +332,12 @@ async function mockFunnelContacts(now: Date): Promise<FunnelContact[]> {
         archivedAt: s.archivedAt ? new Date(s.archivedAt) : null,
         stage: c.stage,
         setterStage: c.setterStage ?? null,
-        attendance: c.id === "c8" ? "NO_SHOW" : null,
+        attendance,
         columns,
-        events: new Set(byStage[c.stage] ?? []),
+        events,
         loggedColumns: new Set<string>(),
-        wonAmount: c.stage === "WON" ? 1500 : null,
-        wonAt: c.stage === "WON" ? new Date(now.getTime() - 3 * DAY) : null,
+        wonAmount: c.stage === "WON" ? (won.get(c.id)?.amount ?? null) : null,
+        wonAt: c.stage === "WON" ? new Date(won.get(c.id)?.wonAt ?? now.getTime() - 3 * DAY) : null,
       } satisfies FunnelContact,
     ];
   });

@@ -244,6 +244,22 @@
   flex-direction: column;
 }
 
+/* Wide desktop: the stages in two columns (top to bottom, then the next
+   column) instead of one long, mostly empty list. */
+.os .os-home-main {
+  container-type: inline-size;
+}
+
+@container (min-width: 620px) {
+  .os .os-home-stages {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(var(--rows, 6), auto);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--gap);
+  }
+}
+
 .os .os-home-stage {
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr) 32px;

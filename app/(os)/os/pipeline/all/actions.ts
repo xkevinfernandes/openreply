@@ -5,7 +5,7 @@
 // updateContacts: the one stage writer, the won event's data, follow-ups and
 // integrations), so a move here is the same as a move anywhere else. The
 // Won picker is the offer-aware one (components/os/contacts/won-picker.tsx).
-// OS_MOCK only: Home's synthetic funnel people live in lib/os/mock-home.ts.
+// OS_MOCK: filled-in amounts are kept in lib/os/mock-home.ts.
 
 import { revalidatePath } from "next/cache";
 import { markContactsWon, updateContacts } from "@/app/(os)/os/contacts/actions";
@@ -25,36 +25,20 @@ function refresh() {
  * `wonAt` (mock sample only) keeps a filled-in win on its own date.
  */
 export async function markFunnelWon(contactId: string, offer: string, amount: number | string, wonAt?: string): Promise<MarkWonResult> {
-  if (osMockEnabled()) {
-    const m = await import("@/lib/os/mock-home");
-    const n = parsePrice(amount);
-    const at = wonAt ? new Date(wonAt) : new Date();
-    if (m.isMockHomeContact(contactId)) {
-      if (n === null) return { error: "Type the amount." };
-      m.recordMockFunnelMove(contactId, { stage: "WON", wonAmount: n, wonAt: at, offer });
-      refresh();
-      return { count: 1, refused: [] };
-    }
-    const r = await markContactsWon([contactId], offer, amount);
-    if (!r.error && n !== null) m.recordMockWonAmount(contactId, offer, n, at);
-    refresh();
-    return r;
-  }
   const r = await markContactsWon([contactId], offer, amount);
+  if (osMockEnabled() && !r.error) {
+    // The sample has no won event log: keep the amount (and a fill-in's date) here.
+    const n = parsePrice(amount);
+    if (n !== null) (await import("@/lib/os/mock-home")).recordMockWonAmount(contactId, offer, n, wonAt ? new Date(wonAt) : new Date());
+  }
   refresh();
   return r;
 }
 
 /** Drop on Lost (leaving Won clears the amount, in the writer). */
 export async function markFunnelLost(contactId: string): Promise<{ error?: string }> {
-  const mock = osMockEnabled() ? await import("@/lib/os/mock-home") : null;
-  if (mock?.isMockHomeContact(contactId)) {
-    mock.recordMockFunnelMove(contactId, { stage: "LOST", wonAmount: null, wonAt: null, offer: "" });
-    refresh();
-    return {};
-  }
   const r = await updateContacts([contactId], { type: "column", column: "lost" });
-  if (!r.error) mock?.recordMockFunnelMove(contactId, { stage: "LOST", wonAmount: null, wonAt: null, offer: "" });
+  if (osMockEnabled() && !r.error) (await import("@/lib/os/mock-home")).clearMockWonAmount(contactId);
   refresh();
   return r.error ? { error: r.error } : {};
 }
