@@ -21,6 +21,8 @@ interface ThreadHeadProps {
   /** Hours left in Meta's window after their last message (null: unknown). */
   windowHours: number | null;
   triage: { contactId: string; kind: ContactKind; suggestedKind: ContactKind } | null;
+  /** The inbox's thread actions (star, Mark unread, archive, spam, Contact). */
+  actions?: React.ReactNode;
 }
 
 const kindLabel = (k: ContactKind) => kindTabs.find((t) => t.kind === k)?.label ?? k;
@@ -28,7 +30,7 @@ const kindLabel = (k: ContactKind) => kindTabs.find((t) => t.kind === k)?.label 
 const GOOD_COLUMNS = new Set(["booked", "showed", "won"]);
 const stageTone = (key: string | null | undefined) => (key && GOOD_COLUMNS.has(key) ? "good" : key === "lost" ? "bad" : "neutral");
 
-export default function ThreadHead({ name, username, backHref, stage, stageKey, windowHours, triage }: ThreadHeadProps) {
+export default function ThreadHead({ name, username, backHref, stage, stageKey, windowHours, triage, actions }: ThreadHeadProps) {
   return (
     <header className="os-th-head">
       <Link href={backHref} className="os-th-back" aria-label="Back to threads">
@@ -55,6 +57,7 @@ export default function ThreadHead({ name, username, backHref, stage, stageKey, 
           {windowHours ? `${windowHours}h` : "Closed"}
         </span>
       ) : null}
+      {actions}
     </header>
   );
 }

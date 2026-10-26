@@ -6,6 +6,7 @@ import { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
 import { holdDraft, loadThreadData, sendReply, type ThreadData } from "@/lib/os/inbox";
+import { recordInbound } from "@/lib/os/inbox-crm";
 import { loadContactPanel } from "@/lib/os/contact-panel/load";
 import { dropOnColumn } from "@/lib/os/funnel";
 import { writeStage } from "@/lib/os/stage-writer";
@@ -160,6 +161,9 @@ export async function simulateTheirReply(conversationId: string, text: string, s
   const message = screenshot ? "[image attachment]" : text.trim();
   if (!message) return { error: "Write what they say first." };
   appendMockIncoming(conversationId, message, screenshot ? "image" : null);
+  // Same inbox write as the webhook: unread, un-archive, spam check.
+  const contactId = mockThreads().find((t) => t.conversationId === conversationId)?.contact?.id;
+  if (contactId) await recordInbound({ workspaceId: await requireWorkspace(), contactId, text: screenshot ? null : message });
   revalidatePath("/os/inbox");
   return {};
 }

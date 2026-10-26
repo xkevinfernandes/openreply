@@ -1,0 +1,350 @@
+/* inbox-stream.css: the one-stream inbox (dm-crm 009-014). Filters, unread
+   marks, star, row checkboxes, the sticky bulk bar, the thread's actions, the
+   window line above the composer and the contact sheet on narrow screens.
+   Tokens: os.css; shapes follow reel.css. Imported by the inbox page. */
+
+/* --- Filters ----------------------------------------------------------------- */
+
+.os-ix-list .os-ix-seg-tab {
+  padding: 0 10px;
+}
+
+.os-ix-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.os-ix-filter {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.os-ix-filter + .os-ix-filter {
+  flex-grow: 1.5;
+}
+
+.os-ix-filter select {
+  width: 100%;
+  height: 32px;
+  font-size: var(--fs-xs);
+}
+
+/* A picked filter reads as on: the ink pill like the picked tab. */
+.os-ix-filter[data-on="true"] select {
+  background-color: var(--ink);
+  color: var(--on-ink);
+  font-weight: 500;
+}
+
+/* --- Rows -------------------------------------------------------------------- */
+
+.os-ix-rows > li.os-ix-item {
+  position: relative;
+}
+
+.os-ix-rows > li.os-ix-item > .os-ix-check {
+  position: absolute;
+  top: 20px;
+  left: 6px;
+  z-index: 1;
+  margin: 0;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.os-ix-check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+/* The checkbox shows on hover, focus, or once anything is picked. */
+.os-ix-rows > li.os-ix-item:hover > .os-ix-check,
+.os-ix-rows > li.os-ix-item > .os-ix-check:focus-visible,
+.os-ix-list[data-picking="true"] .os-ix-rows > li.os-ix-item > .os-ix-check {
+  opacity: 1;
+}
+
+.os-ix-list[data-picking="true"] .os-ix-row,
+.os-ix-rows > li.os-ix-item:hover > .os-ix-row {
+  padding-left: 30px;
+}
+
+.os-ix-rows > li.os-ix-item[data-picked="true"] > .os-ix-row {
+  background: var(--well);
+}
+
+.os-ix-row[data-unread="true"] .os-ix-row-name {
+  font-weight: 700;
+}
+
+.os-ix-row[data-unread="true"] .os-ix-row-preview {
+  color: var(--ink);
+}
+
+.os-ix-unread-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ink);
+}
+
+.os-ix-unread-n {
+  flex: 0 0 auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.os-ix-star {
+  display: inline-flex;
+  color: var(--warn);
+}
+
+.os-ix-more {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.os-ix-rows > li.os-ix-more > * {
+  margin: 0;
+}
+
+.os-ix-drafts {
+  text-decoration: none;
+}
+
+/* --- Bulk bar (sticky at the bottom of the list) ----------------------------- */
+
+.os-ix-bulk {
+  --ctl: var(--well);
+  --ctl-hover: var(--tint-2);
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 8px 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-cover, 14px);
+  background: var(--card);
+  box-shadow: 0 -1px 0 var(--line), 0 8px 24px rgb(0 0 0 / 0.12);
+}
+
+.os-ix-bulk-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.os-ix-bulk-count strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.os-ix-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.os-ix-bulk-actions .os-select select,
+.os-ix-bulk-actions .os-button {
+  height: 32px;
+  font-size: var(--fs-xs);
+}
+
+.os-ix-bulk-actions .os-button {
+  padding: 0 12px;
+}
+
+.os-ix-bulk-msg {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.os-ix-bulk-msg[data-bad="true"] {
+  color: var(--bad-fg);
+}
+
+/* --- Thread actions (head) ---------------------------------------------------- */
+
+.os-ix-tacts {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.os-ix-tact[data-on="true"] {
+  color: var(--warn);
+}
+
+.os-ix-tmenu {
+  position: relative;
+}
+
+.os-ix-tmenu > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.os-ix-tmenu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.os-ix-tmenu-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border-radius: var(--radius, 10px);
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--line), 0 12px 32px rgb(0 0 0 / 0.14);
+}
+
+.os-ix-tmenu-list button {
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.os-ix-tmenu-list button:hover {
+  background: var(--tint);
+}
+
+.os-ix-tact-err {
+  font-size: var(--fs-xs);
+  color: var(--bad-fg);
+}
+
+/* Only where the panel pane is hidden. */
+.os-ix-contact-btn {
+  display: none;
+  height: 30px;
+  padding: 0 12px;
+  font-size: var(--fs-xs);
+}
+
+/* --- Window line (above the composer) ---------------------------------------- */
+
+.os-ix-window {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0 24px 8px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.os-ix-window-main {
+  color: var(--ink);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.os-ix-window[data-kind="human_agent"] .os-ix-window-main {
+  color: var(--warn);
+}
+
+.os-ix-window[data-kind="closed"] .os-ix-window-main {
+  color: var(--bad-fg);
+}
+
+/* --- Narrow screens ------------------------------------------------------------ */
+
+@media (max-width: 1180px) {
+  .os-ix-contact-btn {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Today's contact panel as a bottom sheet. */
+  .os-ix[data-sheet="open"] .os-ix-panel {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 90;
+    width: auto;
+    max-width: 560px;
+    height: min(85dvh, 760px);
+    margin: 0 auto;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    box-shadow: 0 -12px 40px rgb(0 0 0 / 0.25);
+  }
+
+  .os-ix[data-sheet="open"] .os-ix-panel .os-panel-resizer {
+    display: none;
+  }
+
+  .os-ix-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    border: 0;
+    background: rgb(0 0 0 / 0.35);
+    cursor: pointer;
+  }
+}
+
+@media (max-width: 760px) {
+  /* Touch: the checkbox is always there. */
+  .os-ix-rows > li.os-ix-item > .os-ix-check {
+    opacity: 1;
+  }
+
+  .os-ix-rows > li.os-ix-item > .os-ix-row {
+    padding-left: 30px;
+  }
+
+  .os-ix-bulk {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    z-index: 70;
+    margin: 0;
+  }
+
+  .os-ix-window {
+    margin: 0 12px 8px;
+  }
+
+  .os-th-head {
+    gap: 6px;
+  }
+}
