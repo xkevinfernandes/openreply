@@ -1,131 +1,100 @@
 "use client";
 
-// Contacts (ContactsA/D): Kanban by default (Table still there), filter
-// chips, and a panel that pushes in from the right; the board narrows
-// instead of being covered. The panel is F's ContactPanel with the shared
-// tabs. Every change shows at once and saves in the background; a failed
-// save puts the old value back and says so.
+// Contacts (dm-crm issues 017/018, Contacts board): a table of people. Saved
+// views shared by the workspace (one default), columns picked per view,
+// filters (tags by id), search, sort, 50 a page, bulk tag / Won / Lost /
+// archive, and today's contact panel pushing in from the right. The board
+// moved to Pipeline. Every change shows at once and saves in the background;
+// a failed save puts the old value back and says so.
 
+import Link from "next/link";
 import { useCallback, useMemo, useState, useTransition } from "react";
-import { loadPanel, updateContacts } from "@/app/(os)/os/contacts/actions";
-import type { ContactKind } from "@/app/generated/prisma/enums";
-import ActivityTab from "@/components/os/contact-panel/activity-tab";
-import DetailsTab from "@/components/os/contact-panel/details-tab";
-import ContactPanel from "@/components/os/contact-panel/panel";
-import PanelResizer from "@/components/os/contact-panel/resizer";
+import { updateContacts } from "@/app/(os)/os/contacts/actions";
 import BulkBar from "@/components/os/contacts/bulk-bar";
-import ContactsKanban from "@/components/os/contacts/contacts-kanban";
 import ContactsTable from "@/components/os/contacts/contacts-table";
-import { threadName } from "@/components/os/inbox/names";
+import FilterBar from "@/components/os/contacts/filter-bar";
+import PanelHost, { usePanel, type OpenPanel } from "@/components/os/contacts/panel-host";
+import ViewsBar from "@/components/os/contacts/views-bar";
+import WonPicker from "@/components/os/contacts/won-picker";
 import { useOsCommand } from "@/components/os/keys";
-import type { ContactDetailsData } from "@/lib/os/contact-panel/details";
-import type { ContactPanelData, PanelTab } from "@/lib/os/contact-panel/types";
+import { threadName } from "@/components/os/inbox/names";
+import type { PanelTab } from "@/lib/os/contact-panel/types";
 import type { ContactRow, SetterOption } from "@/lib/os/contacts-board";
 import type { ContactChange } from "@/lib/os/contacts-edit";
-import {
-  allSources,
-  allTags,
-  applyChangeLocally,
-  categoryOf,
-  emptyFilters,
-  filterContacts,
-  onSetter,
-  withCategory,
-  type ContactFilters,
-} from "@/lib/os/contacts-filter";
-import { dropOnColumn, funnelColumns } from "@/lib/os/funnel";
-import { kindTabs, stageLabels } from "@/lib/os/labels";
+import { allSources, allTags, applyChangeLocally } from "@/lib/os/contacts-filter";
+import { BUILT_IN_COLUMNS, EMPTY_FILTERS, PAGE_SIZE, queryContacts, queryContext, sameView, type ViewState } from "@/lib/os/contacts-view";
+import type { SavedViewRecord } from "@/lib/os/saved-views";
 
-type View = "table" | "kanban";
+export type { OpenPanel };
 
-export interface OpenPanel {
-  panel: ContactPanelData;
-  details: ContactDetailsData;
+export interface TagOption {
+  id: string;
+  name: string;
+  color: string;
 }
 
 interface Props {
   contacts: ContactRow[];
   setters: SetterOption[];
+  fieldColumns: { key: string; label: string }[];
+  tags: TagOption[];
+  views: SavedViewRecord[];
+  /** ?view=<id>, else the default. */
+  initialViewId?: string | null;
+  currency: string;
   truncated: boolean;
-  initialView: View;
   now: number;
   initialOpen?: OpenPanel | null;
   initialTab?: PanelTab;
-  /** ?setter= deep link. */
-  initialSetter?: string | null;
-  /** ?stage= deep link: the Kanban column to show first. */
-  focusColumn?: string | null;
 }
 
-const CATEGORY_OPTIONS: { value: ContactKind | ""; label: string }[] = [...kindTabs.map((k) => ({ value: k.kind, label: k.label })), { value: "", label: "Everyone" }];
-
-export default function ContactsScreen({ contacts, setters, truncated, initialView, now, initialOpen = null, initialTab = "chat", initialSetter = null, focusColumn = null }: Props) {
+export default function ContactsScreen(p: Props) {
   const [, startTransition] = useTransition();
-  const [rows, setRows] = useState(contacts);
-  const [seen, setSeen] = useState(contacts);
-  if (contacts !== seen) {
-    setSeen(contacts);
-    setRows(contacts);
+  const [rows, setRows] = useState(p.contacts);
+  const [seen, setSeen] = useState(p.contacts);
+  if (p.contacts !== seen) {
+    setSeen(p.contacts);
+    setRows(p.contacts);
   }
 
-  const defaultSetter = setters.find((s) => s.isDefault) ?? setters[0] ?? null;
-  const [view, setView] = useState<View>(initialView);
-  const [filters, setFilters] = useState<ContactFilters>(emptyFilters);
-  const [setterId, setSetterId] = useState<string>((initialSetter && setters.some((x) => x.id === initialSetter) ? initialSetter : null) ?? defaultSetter?.id ?? "");
+  const [views, setViews] = useState(p.views);
+  const startView = views.find((v) => v.id === p.initialViewId) ?? views.find((v) => v.isDefault) ?? views[0] ?? null;
+  const [viewId, setViewId] = useState<string | null>(startView?.id ?? null);
+  const [state, setState] = useState<ViewState>(startView?.state ?? { columns: ["name"], filters: EMPTY_FILTERS, sort: { key: "last", dir: "desc" } });
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
-  const [open, setOpen] = useState<OpenPanel | null>(initialOpen);
-  const [tab, setTab] = useState<PanelTab>(initialTab);
   const [status, setStatus] = useState<{ text: string; error?: boolean } | null>(null);
+  const [wonFor, setWonFor] = useState<string[] | null>(null);
+  const onError = useCallback((text: string) => setStatus({ text, error: true }), []);
+  const panel = usePanel(p.initialOpen ?? null, p.initialTab ?? "chat", onError);
 
-  const setter = setters.find((s) => s.id === setterId) ?? null;
-  const columns = useMemo(() => funnelColumns(setter?.funnel ?? null), [setter]);
-  const visible = useMemo(
-    () => filterContacts(rows, filters).filter((c) => !setterId || onSetter(c, setterId, defaultSetter?.id ?? null)),
-    [rows, filters, setterId, defaultSetter]
-  );
+  const current = views.find((v) => v.id === viewId) ?? null;
+  const edited = current ? !sameView(current.state, state) : false;
+  const ctx = useMemo(() => queryContext(p.setters, p.tags, p.now), [p.setters, p.tags, p.now]);
+  const result = useMemo(() => queryContacts(rows, state, query, page, ctx), [rows, state, query, page, ctx]);
   const sources = useMemo(() => allSources(rows), [rows]);
-  const tags = useMemo(() => allTags(rows), [rows]);
-  const selectedVisible = useMemo(() => visible.filter((c) => selected.has(c.id)), [visible, selected]);
-  const category = categoryOf(filters);
-  const categoryLabel = CATEGORY_OPTIONS.find((o) => o.value === category)?.label ?? "Everyone";
-  const filtered = filters.source !== "" || category !== "SALES" || setterId !== (defaultSetter?.id ?? "") || filters.query !== "";
-  const setterName = useCallback((id: string | null) => (id ? (setters.find((s) => s.id === id)?.name ?? "Setter") : (defaultSetter?.name ?? "Default")), [setters, defaultSetter]);
+  const selectedRows = useMemo(() => rows.filter((c) => selected.has(c.id)), [rows, selected]);
+  const tagColors = useMemo(() => new Map(p.tags.map((t) => [t.name, t.color])), [p.tags]);
+  const columnOptions = useMemo(
+    () => [...BUILT_IN_COLUMNS.map((c) => ({ key: c.key as string, label: c.label as string })), ...p.fieldColumns.map((f) => ({ key: `field:${f.key}`, label: f.label }))],
+    [p.fieldColumns]
+  );
 
-  function syncUrl(next: { view?: View; c?: string | null; tab?: PanelTab | null }) {
+  function changeState(next: ViewState) {
+    setState(next);
+    setPage(1);
+  }
+
+  function pickView(v: SavedViewRecord) {
+    setViewId(v.id);
+    setState(v.state);
+    setPage(1);
+    setSelected(new Set());
     const url = new URL(window.location.href);
-    if (next.view !== undefined) {
-      if (next.view === "kanban") url.searchParams.delete("view");
-      else url.searchParams.set("view", next.view);
-    }
-    if (next.c !== undefined) {
-      if (next.c) url.searchParams.set("c", next.c);
-      else url.searchParams.delete("c");
-    }
-    if (next.tab !== undefined) {
-      if (next.tab && next.tab !== "chat") url.searchParams.set("tab", next.tab);
-      else url.searchParams.delete("tab");
-    }
+    if (v.isDefault) url.searchParams.delete("view");
+    else url.searchParams.set("view", v.id);
     window.history.replaceState(null, "", url);
-  }
-
-  function chooseView(next: View) {
-    setView(next);
-    syncUrl({ view: next });
-  }
-
-  function openContact(id: string) {
-    if (open?.panel.contactId === id) return;
-    syncUrl({ c: id });
-    startTransition(async () => {
-      const r = await loadPanel(id);
-      if ("error" in r) setStatus({ text: r.error, error: true });
-      else setOpen(r);
-    });
-  }
-
-  function closePanel() {
-    setOpen(null);
-    syncUrl({ c: null, tab: null });
   }
 
   /** Show the change now, save it, and undo it on the screen if the save fails. */
@@ -151,73 +120,28 @@ export default function ContactsScreen({ contacts, setters, truncated, initialVi
     });
   }, []);
 
-  const moveTo = useCallback(
-    (id: string, columnKey: string, cols = columns) => {
-      const plan = dropOnColumn(columnKey, cols);
-      if ("error" in plan) {
-        setStatus({ text: plan.error, error: true });
-        return;
-      }
-      const c = rows.find((r) => r.id === id);
-      const who = c ? threadName(c.username, c.fullName) : "contact";
-      const label = cols.find((x) => x.key === columnKey)?.label ?? columnKey;
-      apply([id], "setterStage" in plan ? { type: "setterStage", setterStage: plan.setterStage } : { type: "stage", stage: plan.stage }, `Moved ${who} to ${label}.`);
-      setOpen((o) => (o && o.panel.contactId === id ? { ...o, panel: { ...o.panel, stage: { ...o.panel.stage, column: columnKey } } } : o));
-    },
-    [apply, columns, rows]
-  );
-
-  // The panel's stage pill speaks on the event bus (components/os/keys.ts).
+  // The panel's stage dropdown speaks on the event bus (components/os/keys.ts).
   useOsCommand("move-stage", (d) => {
-    if (!d.contactId || !d.stage) return;
-    const cols = open?.panel.contactId === d.contactId ? open.panel.stage.columns : columns;
-    moveTo(d.contactId, d.stage, cols);
+    const id = d.contactId;
+    if (!id || !d.stage) return;
+    const c = rows.find((r) => r.id === id);
+    apply([id], { type: "column", column: d.stage }, c ? `Moved ${threadName(c.username, c.fullName)}.` : undefined);
+    setTimeout(() => panel.reload(id), 400);
   });
 
-  function toggle(id: string, on?: boolean) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (on ?? !next.has(id)) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }
-
-  function bulk(change: ContactChange, done: string) {
-    apply(
-      selectedVisible.map((c) => c.id),
-      change,
-      done
-    );
-  }
-
-  const kindLabel = (k: ContactKind) => kindTabs.find((t) => t.kind === k)?.label ?? k;
-  const openId = open?.panel.contactId ?? null;
+  const n = selectedRows.length;
+  const ids = selectedRows.map((c) => c.id);
 
   return (
-    <div className="os-cx" data-panel={open ? "open" : undefined}>
+    <div className="os-cx os-cv" data-panel={panel.open ? "open" : undefined}>
       <section className="os-cx-main" aria-labelledby="os-cx-h">
         <header className="os-cx-head">
-          <h1 id="os-cx-h" className="os-title">Contacts</h1>
+          <h1 id="os-cx-h" className="os-title">
+            Contacts
+          </h1>
           <span className="os-cx-count">
-            {visible.length} {category ? `in ${categoryLabel}` : visible.length === 1 ? "contact" : "contacts"}
+            {result.total.toLocaleString("en-GB")} {result.total === 1 ? "person" : "people"}
           </span>
-          <div role="tablist" aria-label="View" className="os-cx-views">
-            <button type="button" role="tab" aria-selected={view === "kanban"} onClick={() => chooseView("kanban")}>
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <rect x="2" y="2.5" width="3.5" height="11" rx="1" />
-                <rect x="6.5" y="2.5" width="3.5" height="7" rx="1" />
-                <rect x="11" y="2.5" width="3" height="9" rx="1" />
-              </svg>
-              Kanban
-            </button>
-            <button type="button" role="tab" aria-selected={view === "table"} onClick={() => chooseView("table")}>
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M2 4h12M2 8h12M2 12h12" />
-              </svg>
-              Table
-            </button>
-          </div>
           <span className="os-cx-grow" />
           <label className="os-cx-search">
             <span className="sr-only">Search contacts</span>
@@ -225,163 +149,154 @@ export default function ContactsScreen({ contacts, setters, truncated, initialVi
               <circle cx="7" cy="7" r="4.5" />
               <path d="m10.5 10.5 3 3" />
             </svg>
-            <input type="search" placeholder="Search contacts" value={filters.query} onChange={(e) => setFilters((f) => ({ ...f, query: e.target.value }))} />
+            <input
+              type="search"
+              placeholder="Search name, username or email"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPage(1);
+              }}
+            />
           </label>
+          <Link href="/os/pipeline" className="os-button ghost os-cv-pipe">
+            Open pipeline
+          </Link>
         </header>
 
-        <div className="os-cx-chips" role="group" aria-label="Filters">
-          {setters.length ? (
-            <Chip label="Setter" value={setterId} onChange={setSetterId} mark={setter?.name ?? null}>
-              {setters.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </Chip>
-          ) : null}
-          <Chip label="Source" value={filters.source} onChange={(v) => setFilters((f) => ({ ...f, source: v }))}>
-            <option value="">Any</option>
-            {sources.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Chip>
-          <Chip label="Category" value={category} onChange={(v) => setFilters((f) => withCategory(f, v as ContactKind | ""))}>
-            {CATEGORY_OPTIONS.map((o) => (
-              <option key={o.label} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </Chip>
-          {filtered ? (
-            <button
-              type="button"
-              className="os-cx-clear"
-              onClick={() => {
-                setFilters(emptyFilters);
-                setSetterId(defaultSetter?.id ?? "");
-              }}
-            >
-              Clear
-            </button>
-          ) : null}
-          <span className="os-cx-grow" />
-          <span className="os-cx-legend">
-            <span className="os-cx-draft" aria-hidden="true" />
-            Draft waiting
-          </span>
-          <span className="os-cx-legend">
-            <svg className="os-cx-follow" viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M8 13.8A5.8 5.8 0 1 0 8 2.2a5.8 5.8 0 0 0 0 11.6ZM8 4.8V8l2.2 1.4" />
-            </svg>
-            Follow-up scheduled
-          </span>
-        </div>
+        <ViewsBar
+          views={views}
+          currentId={viewId}
+          state={state}
+          edited={edited}
+          onPick={pickView}
+          onReset={() => current && changeState(current.state)}
+          onViews={(next, savedId) => {
+            setViews(next);
+            const v = next.find((x) => x.id === (savedId ?? viewId)) ?? next.find((x) => x.isDefault) ?? null;
+            if (v) {
+              setViewId(v.id);
+              if (savedId || v.id !== viewId) setState(v.state);
+            }
+          }}
+          onStatus={setStatus}
+        />
 
-        {view === "table" ? (
-          <BulkBar
-            selectedCount={selectedVisible.length}
-            visibleCount={visible.length}
-            selectedTags={allTags(selectedVisible)}
-            tags={tags}
-            onStage={(stage) => bulk({ type: "stage", stage }, `Moved ${selectedVisible.length} to ${stageLabels[stage]}.`)}
-            onKind={(kind) => bulk({ type: "kind", kind }, `Marked ${selectedVisible.length} as ${kindLabel(kind)}.`)}
-            onAddTag={(tag) => bulk({ type: "addTag", tag }, `Tagged ${selectedVisible.length} “${tag}”.`)}
-            onRemoveTag={(tag) => bulk({ type: "removeTag", tag }, `Removed “${tag}” from ${selectedVisible.length}.`)}
-            onPause={(paused) => bulk({ type: "paused", paused }, paused ? `Paused J for ${selectedVisible.length}.` : `J is back on for ${selectedVisible.length}.`)}
-            onClear={() => setSelected(new Set())}
-          />
-        ) : null}
+        <FilterBar
+          state={state}
+          onChange={changeState}
+          tags={p.tags}
+          setters={p.setters}
+          sources={sources}
+          columnOptions={columnOptions}
+          stageColumns={ctx.columnsFor(state.filters.setter || ctx.defaultSetterId)}
+        />
+
+        <BulkBar
+          selectedCount={n}
+          archived={state.filters.archived}
+          tags={p.tags.map((t) => t.name)}
+          selectedTags={allTags(selectedRows)}
+          onAddTag={(tag) => apply(ids, { type: "addTag", tag }, `Tagged ${n} “${tag}”.`)}
+          onRemoveTag={(tag) => apply(ids, { type: "removeTag", tag }, `Removed “${tag}” from ${n}.`)}
+          onWon={() => setWonFor(ids)}
+          onLost={() => apply(ids, { type: "column", column: "lost" }, `Moved ${n} to Lost.`)}
+          onArchive={(archived) => {
+            apply(ids, { type: "archive", archived }, archived ? `Archived ${n}.` : `Restored ${n}.`);
+            setSelected(new Set());
+          }}
+          onClear={() => setSelected(new Set())}
+        />
 
         <p className="os-cx-status" role="status" aria-live="polite" data-error={status?.error ? "true" : undefined}>
           {status?.text ?? ""}
         </p>
-        {truncated ? <p className="os-cx-status">Showing the 2,000 most recent.</p> : null}
+        {p.truncated ? <p className="os-cx-status">Showing the 2,000 most recent.</p> : null}
 
         {rows.length === 0 ? (
-          <div className="os-empty">
-            <strong>No contacts yet</strong>
-          </div>
-        ) : visible.length === 0 ? (
+          <div className="os-cx-none">No contacts yet. They appear when someone DMs or comments.</div>
+        ) : result.total === 0 ? (
           <div className="os-cx-none">
-            No contacts match.{" "}
-            <button type="button" className="os-link" onClick={() => setFilters(emptyFilters)}>
-              Clear
+            {state.filters.archived ? "No archived contacts match." : "No contacts match."}{" "}
+            <button
+              type="button"
+              className="os-link"
+              onClick={() => {
+                changeState({ ...state, filters: EMPTY_FILTERS });
+                setQuery("");
+              }}
+            >
+              Clear filters
             </button>
           </div>
-        ) : view === "table" ? (
+        ) : (
           <div className="os-cx-table">
             <ContactsTable
-              rows={visible}
-              now={now}
+              rows={result.rows}
+              columns={state.columns}
+              columnOptions={columnOptions}
+              sort={state.sort}
+              onSort={(key) => changeState({ ...state, sort: { key, dir: state.sort.key === key && state.sort.dir === "desc" ? "asc" : "desc" } })}
+              ctx={ctx}
+              setters={p.setters}
+              tagColors={tagColors}
+              currency={p.currency}
+              now={p.now}
               selected={selected}
-              openId={openId}
-              showKind={filters.scope === "all"}
-              setterName={setterName}
-              hasSetters={setters.length > 0}
-              onToggle={toggle}
-              onSelectAll={(on) => setSelected(on ? new Set(visible.map((c) => c.id)) : new Set())}
-              onOpen={openContact}
-              onStage={(id, stage) => apply([id], { type: "stage", stage }, `Moved to ${stageLabels[stage]}.`)}
+              openId={panel.openId}
+              onToggle={(id, on) =>
+                setSelected((prev) => {
+                  const next = new Set(prev);
+                  if (on) next.add(id);
+                  else next.delete(id);
+                  return next;
+                })
+              }
+              onSelectAll={(on) =>
+                setSelected((prev) => {
+                  const next = new Set(prev);
+                  for (const c of result.rows) {
+                    if (on) next.add(c.id);
+                    else next.delete(c.id);
+                  }
+                  return next;
+                })
+              }
+              onOpen={(id) => panel.openId !== id && panel.show(id)}
             />
+            {result.pages > 1 ? (
+              <nav className="os-cv-pages" aria-label="Pages">
+                <button type="button" className="os-button ghost" disabled={result.page <= 1} onClick={() => setPage(result.page - 1)}>
+                  Previous
+                </button>
+                <span>
+                  {(result.page - 1) * PAGE_SIZE + 1}–{Math.min(result.page * PAGE_SIZE, result.total)} of {result.total.toLocaleString("en-GB")}
+                </span>
+                <button type="button" className="os-button ghost" disabled={result.page >= result.pages} onClick={() => setPage(result.page + 1)}>
+                  Next
+                </button>
+              </nav>
+            ) : null}
           </div>
-        ) : (
-          <ContactsKanban rows={visible} columns={columns} now={now} openId={openId} onOpen={openContact} onMove={(id, col) => moveTo(id, col)} focusKey={focusColumn} />
         )}
       </section>
 
-      {open ? (
-        <div
-          className="os-cx-panel"
-          onClickCapture={(e) => {
-            // The panel keeps its tab in local state: remember the last pick so
-            // the next contact opens on it, and put it in the URL.
-            const el = (e.target as HTMLElement).closest<HTMLElement>(".os-panel [role=tab]");
-            const label = el?.textContent?.trim().toLowerCase().replace(/[^a-z]/g, "") ?? "";
-            const key = (["chat", "details", "followups", "activity"] as const).find((k) => label.startsWith(k));
-            if (key) {
-              setTab(key);
-              syncUrl({ tab: key });
-            }
+      {panel.open ? <PanelHost open={panel.open} tab={panel.tab} onTab={panel.setTab} onClose={panel.close} /> : null}
+
+      {wonFor ? (
+        <WonPicker
+          contactIds={wonFor}
+          who={wonFor.length === 1 ? (rows.find((r) => r.id === wonFor[0])?.username ?? "them") : `${wonFor.length} people`}
+          onClose={() => setWonFor(null)}
+          onDone={(w) => {
+            const done = wonFor;
+            setWonFor(null);
+            setRows((r) => r.map((c) => (done.includes(c.id) ? { ...c, stage: "WON", won: { offer: w.offer, amount: w.amount } } : c)));
+            setStatus({ text: w.refused.length ? `Marked ${w.count} as Won. ${w.refused.length} couldn't move: ${w.refused[0]}` : `Marked ${w.count} as Won.` });
+            if (panel.openId && done.includes(panel.openId)) panel.reload(panel.openId);
           }}
-        >
-          <PanelResizer />
-          <button type="button" className="os-cx-close" aria-label="Close panel" title="Close panel" onClick={closePanel}>
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <path d="m4 4 8 8M12 4l-8 8" />
-            </svg>
-          </button>
-          <ContactPanel
-            key={open.panel.contactId}
-            data={open.panel}
-            tab={tab}
-            slots={{
-              details: <DetailsTab data={open.panel} details={open.details} />,
-              activity: <ActivityTab data={open.panel} />,
-            }}
-          />
-        </div>
+        />
       ) : null}
     </div>
-  );
-}
-
-function Chip({ label, value, onChange, mark, children }: { label: string; value: string; onChange: (v: string) => void; mark?: string | null; children: React.ReactNode }) {
-  return (
-    <label className="os-cx-chip" data-active={value ? "true" : undefined}>
-      {mark ? (
-        <span className="os-cx-chip-mark" aria-hidden="true">
-          {mark.charAt(0).toUpperCase()}
-        </span>
-      ) : null}
-      <span className="os-cx-chip-k">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
-        {children}
-      </select>
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <path d="m4.5 6.5 3.5 3.5 3.5-3.5" />
-      </svg>
-    </label>
   );
 }

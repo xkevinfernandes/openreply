@@ -18,6 +18,7 @@ import "./integrations.css";
 import "./automations.css";
 import "./settings.css";
 import "./contacts.css";
+import "./pipeline.css";
 import "./followups.css";
 import "./voice.css";
 import "./sequences.css";

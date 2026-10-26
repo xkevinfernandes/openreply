@@ -38,8 +38,9 @@ const tx: StageTx = {
     Object.assign(b, { attendance: data.attendance, attendanceSource: data.attendance ? data.source : null, attendanceAt: data.at?.toISOString() ?? null });
     return b.contactId;
   },
-  async clearWon() {
+  async clearWon(contactId) {
     // Sample won amounts live with the Won picker's own mock (no event log here).
+    (await import("@/lib/os/mock-contacts-crm")).mockClearWon(contactId);
   },
   async refusedSinceApplied(contactId) {
     const rows = mockStageLog(contactId);

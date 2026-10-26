@@ -16,12 +16,17 @@ import { bulkTagWrite, setFridayTag } from "@/lib/os/fields/write";
 import { fireContactEvent } from "@/lib/os/integrations/events";
 import type { SyncEvent } from "@/lib/os/integrations/mapping";
 import { mockContactExtras, osMockEnabled, updateMockContact, updateMockContactExtras } from "@/lib/os/mock";
+import { updateMockCrmState } from "@/lib/os/mock-crm";
 
 export type ContactChange =
   | { type: "stage"; stage: ContactStage }
   /** Dropped into a funnel column: J's stage hint. A contact sitting in an
    *  outcome (booked, won, lost…) goes back to In conversation. */
   | { type: "setterStage"; setterStage: string }
+  /** A board column through the move table (Pipeline drop, Move selected, Lost). Won goes through the Won picker. */
+  | { type: "column"; column: string }
+  /** Archive (hidden from Contacts and Pipeline unless filtered) or restore. */
+  | { type: "archive"; archived: boolean }
   | { type: "kind"; kind: ContactKind }
   | { type: "paused"; paused: boolean }
   /** On / off the Follow-up Friday list (Follow-ups screen). */
@@ -49,6 +54,7 @@ export function syncEventFor(change: ContactChange): SyncEvent | null {
   switch (change.type) {
     case "stage":
     case "setterStage":
+    case "column":
       return "stage_changed";
     case "kind":
       return "kind_changed";
@@ -82,6 +88,14 @@ export function planChange(change: ContactChange): { data: Data } | { tag: strin
       const hint = typeof change.setterStage === "string" ? change.setterStage.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_").slice(0, 40) : "";
       return hint ? { data: { setterStage: hint } } : { error: "Unknown column." };
     }
+    case "column": {
+      const col = typeof change.column === "string" ? change.column.trim().slice(0, 60) : "";
+      if (!col) return { error: "Unknown column." };
+      if (col === "won") return { error: "Mark Won from the Won picker." };
+      return { data: { column: col } };
+    }
+    case "archive":
+      return typeof change.archived === "boolean" ? { data: { archivedAt: change.archived ? new Date() : null } } : { error: "Archive needs on or off." };
     case "kind":
       if (!Object.values(ContactKind).includes(change.kind)) return { error: "Unknown kind." };
       // The user decided, so J's suggestion is done (same as the Inbox).
@@ -141,7 +155,7 @@ export async function editContacts(
   };
 
   // Stage moves: one at a time through the stage writer (move table, log, hook).
-  if (change.type === "stage" || change.type === "setterStage") {
+  if (change.type === "stage" || change.type === "setterStage" || change.type === "column") {
     const mine = osMockEnabled() ? list : (await db.contact.findMany({ where: { id: { in: list }, workspaceId }, select: { id: true, tags: true } })).map((r) => r.id);
     const refused: string[] = [];
     for (const contactId of mine) {
@@ -150,7 +164,10 @@ export async function editContacts(
           workspaceId,
           contactId,
           cause: "user",
-          change: change.type === "stage" ? { type: "stage", stage: change.stage } : { type: "column", column: (plan as { data: { setterStage: string } }).data.setterStage },
+          change:
+            change.type === "stage"
+              ? { type: "stage", stage: change.stage }
+              : { type: "column", column: change.type === "column" ? change.column : (plan as { data: { setterStage: string } }).data.setterStage },
         },
         { onStageChanged: hooks ? (info) => hooks.onStageChanged(info) : null }
       );
@@ -190,8 +207,9 @@ function editMock(ids: string[], plan: { data: Data } | { tag: string; op: "add"
       updateMockContactExtras(id, { tags: plan.op === "add" ? [...tags, plan.tag] : tags });
       continue;
     }
-    const { notes, email, fridayAddedAt: _added, ...rest } = plan.data as { notes?: string | null; email?: string | null } & Data;
+    const { notes, email, fridayAddedAt: _added, archivedAt, ...rest } = plan.data as { notes?: string | null; email?: string | null; archivedAt?: Date | null } & Data;
     void _added;
+    if (archivedAt !== undefined) updateMockCrmState(id, { archivedAt: archivedAt ? archivedAt.toISOString() : null });
     if (notes !== undefined || email !== undefined) updateMockContactExtras(id, { notes, email });
     if (Object.keys(rest).length) updateMockContact(id, rest);
   }

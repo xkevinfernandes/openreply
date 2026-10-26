@@ -14,7 +14,7 @@ import ChatTab from "@/components/os/contact-panel/chat-tab";
 import DetailsTab from "@/components/os/contact-panel/details-tab";
 import FollowupsTab from "@/components/os/contact-panel/followups-tab";
 import InspectSlot from "@/components/os/inspect/inspect-slot";
-import { emitOs } from "@/components/os/keys";
+import StageControl from "@/components/os/contact-panel/stage-control";
 import { RunLine } from "@/components/os/workflows/run-line";
 import { Avatar, SetterMark, Tabs } from "@/components/os/ui";
 import { PANEL_TABS, type ContactPanelData, type PanelTab } from "@/lib/os/contact-panel/types";
@@ -74,20 +74,7 @@ function PanelBody({ data, tab = "details", tabHref, slots = {}, hideTabs = [] }
         </div>
 
         <div className="os-panel-stage">
-          <label className="os-panel-pill">
-            <span className="sr-only">Stage</span>
-            <select
-              value={data.stage.column}
-              onChange={(e) => emitOs("move-stage", { contactId: data.contactId, stage: e.target.value })}
-              aria-label="Stage"
-            >
-              {data.stage.columns.map((c) => (
-                <option key={c.key} value={c.key} disabled={c.key === "no_show" && data.stage.column !== "no_show"}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <StageControl data={data} />
           {data.setter ? (
             <span className="os-panel-setter" title={`Setter: ${data.setter.name}`}>
               <SetterMark name={data.setter.name} title={`Setter: ${data.setter.name}`} />

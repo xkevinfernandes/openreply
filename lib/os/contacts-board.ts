@@ -7,6 +7,9 @@ import { prisma } from "@/lib/db/client";
 import type { FunnelStageLike } from "@/lib/os/funnel";
 import { mockContactExtras, mockThreads, osMockEnabled } from "@/lib/os/mock";
 import { MOCK_CARD_NOTES, MOCK_FOLLOWUPS, MOCK_SOURCES } from "@/lib/os/mock-contacts";
+import { MOCK_FIELD_COLUMNS, MOCK_SETTERS, mockRowExtras } from "@/lib/os/mock-contacts-crm";
+import { mockCrmState } from "@/lib/os/mock-crm";
+import { wonAmounts } from "@/lib/os/won";
 import type { BookedCall } from "@/components/os/inbox/booked-call";
 import { activeCalendar } from "@/lib/os/integrations/calendar/store";
 import { latestBookings } from "@/lib/os/setter/booking-store";
@@ -43,6 +46,15 @@ export interface ContactRow {
   followup?: boolean;
   /** Latest call's attendance (Showed / No-show columns). */
   attendance?: "SHOWED" | "NO_SHOW" | null;
+  createdAt?: string | null;
+  /** Archived contacts are hidden unless the Archived filter is on. */
+  archivedAt?: string | null;
+  /** Newest of their last message in or out. */
+  lastActivityAt?: string | null;
+  /** Custom field values by field key (table columns). */
+  fields?: Record<string, string>;
+  /** On Won: the offer and amount from the won event. */
+  won?: { offer: string; amount: number } | null;
 }
 
 export interface SetterOption {
@@ -56,6 +68,8 @@ export interface SetterOption {
 export interface ContactsData {
   contacts: ContactRow[];
   setters: SetterOption[];
+  /** Custom fields the table can show as columns ("field:<key>"). */
+  fieldColumns?: { key: string; label: string }[];
   /** True when the read hit the cap: the oldest contacts are not shown. */
   truncated: boolean;
 }
@@ -99,6 +113,9 @@ function mockContacts(drafts: Set<string>): ContactRow[] {
         source: MOCK_SOURCES[t.contact.id] ?? null,
         followup: MOCK_FOLLOWUPS.has(t.contact.id),
         attendance: t.contact.id === "c8" ? "NO_SHOW" : null,
+        ...mockRowExtras(t.contact.id),
+        archivedAt: mockCrmState(t.contact.id).archivedAt,
+        lastActivityAt: t.updatedTime,
       },
     ];
   });
@@ -155,6 +172,7 @@ async function cardExtras(workspaceId: string, rows: { id: string; igUserId: str
     followup: queued.has(r.id),
     attendance: attendance.get(r.id) ?? null,
     fieldNote: noteFromFields(byContact.get(r.id) ?? []),
+    fields: Object.fromEntries((byContact.get(r.id) ?? []).map((v) => [v.key, v.value])),
   });
 }
 
@@ -173,6 +191,24 @@ async function bookingsFor(workspaceId: string, ids: string[]): Promise<(id: str
   }
 }
 
+/** Custom fields as table columns (built-ins are columns of their own). */
+async function fieldColumnsOf(workspaceId: string): Promise<{ key: string; label: string }[]> {
+  try {
+    const rows = await prisma.customField.findMany({ where: { workspaceId, builtIn: false }, orderBy: [{ sortOrder: "asc" }, { label: "asc" }], select: { key: true, label: true } });
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
+async function withWon(workspaceId: string, rows: ContactRow[]): Promise<ContactRow[]> {
+  const won = await wonAmounts(workspaceId, rows.filter((r) => r.stage === "WON").map((r) => r.id));
+  return rows.map((r) => {
+    const w = won.get(r.id);
+    return w ? { ...r, won: { offer: w.offer, amount: w.amount } } : r;
+  });
+}
+
 async function withBookings(workspaceId: string, rows: ContactRow[]): Promise<ContactRow[]> {
   const of = await bookingsFor(workspaceId, rows.map((r) => r.id));
   return rows.map((r) => {
@@ -183,12 +219,13 @@ async function withBookings(workspaceId: string, rows: ContactRow[]): Promise<Co
 
 export async function listContacts(workspaceId: string): Promise<ContactsData> {
   if (osMockEnabled()) {
-    const [drafts, setters] = await Promise.all([draftContactIds(workspaceId), setterOptions(workspaceId).catch(() => [])]);
-    return { contacts: await withBookings(workspaceId, mockContacts(drafts)), setters, truncated: false };
+    const [drafts, setters, fieldColumns] = await Promise.all([draftContactIds(workspaceId), setterOptions(workspaceId).catch(() => []), fieldColumnsOf(workspaceId)]);
+    const rows = await withWon(workspaceId, await withBookings(workspaceId, mockContacts(drafts)));
+    return { contacts: rows, setters: setters.length ? setters : MOCK_SETTERS, truncated: false, fieldColumns: fieldColumns.length ? fieldColumns : MOCK_FIELD_COLUMNS };
   }
 
   // Drafts, contacts and setters at once; then the card extras and bookings at once.
-  const [drafts, rows, setters] = await Promise.all([
+  const [drafts, rows, setters, fieldColumns] = await Promise.all([
     draftContactIds(workspaceId),
     prisma.contact.findMany({
       where: { workspaceId },
@@ -213,26 +250,39 @@ export async function listContacts(workspaceId: string): Promise<ContactsData> {
         setterId: true,
         igUserId: true,
         instagramAccountId: true,
+        createdAt: true,
+        archivedAt: true,
+        lastInboundAt: true,
+        lastOutboundAt: true,
       },
     }),
     setterOptions(workspaceId),
+    fieldColumnsOf(workspaceId),
   ]);
   const kept = rows.slice(0, CONTACTS_CAP);
-  const [extra, bookings] = await Promise.all([
+  const [extra, bookings, won] = await Promise.all([
     cardExtras(workspaceId, kept).catch((err) => {
       console.error("[OS Contacts] card extras failed:", err instanceof Error ? err.message : err);
       return null;
     }),
     bookingsFor(workspaceId, kept.map((r) => r.id)),
+    wonAmounts(workspaceId, kept.map((r) => r.id)).catch(() => new Map<string, { offer: string; amount: number }>()),
   ]);
 
   return {
-    contacts: kept.map(({ igUserId, instagramAccountId, ...c }) => {
+    contacts: kept.map(({ igUserId, instagramAccountId, createdAt, archivedAt, lastInboundAt, lastOutboundAt, ...c }) => {
       const x = extra?.({ id: c.id, igUserId, instagramAccountId });
       const booking = bookings(c.id);
+      const w = won.get(c.id);
+      const last = [lastInboundAt, lastOutboundAt, c.lastMessageAt].filter((d): d is Date => Boolean(d)).sort((a, b) => b.getTime() - a.getTime())[0];
       return {
         ...c,
         lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
+        createdAt: createdAt.toISOString(),
+        archivedAt: archivedAt?.toISOString() ?? null,
+        lastActivityAt: last?.toISOString() ?? null,
+        fields: x?.fields ?? {},
+        won: c.stage === "WON" && w ? { offer: w.offer, amount: w.amount } : null,
         draftWaiting: drafts.has(c.id),
         note: c.notes?.split("\n")[0]?.slice(0, 120) || x?.fieldNote || null,
         source: x?.source ?? null,
@@ -243,5 +293,6 @@ export async function listContacts(workspaceId: string): Promise<ContactsData> {
     }),
     setters,
     truncated: rows.length > CONTACTS_CAP,
+    fieldColumns,
   };
 }
