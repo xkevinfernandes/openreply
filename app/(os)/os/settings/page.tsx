@@ -4,11 +4,12 @@ import { InstagramConnectNotice } from "@/components/instagram-connect-notice";
 import SettingsIntegrations from "@/components/os/integrations/settings-board";
 import DiagnosticsPanel from "@/components/os/settings/diagnostics-panel";
 import FieldsPanel from "@/components/os/settings/fields-panel";
-import { DisconnectButton, ZernioPanel } from "@/components/os/settings/instagram-panel";
+import { DisconnectButton, ReconnectBar, ZernioPanel } from "@/components/os/settings/instagram-panel";
 import LogsPanel from "@/components/os/settings/logs-panel";
 import SendingPanel from "@/components/os/settings/sending-panel";
+import SettingsNav from "@/components/os/settings/settings-nav";
+import TagsPanel from "@/components/os/settings/tags-panel";
 import WorkspacePanel from "@/components/os/settings/workspace-panel";
-import { ScrollPicked } from "@/components/os/ui/scroll-picked";
 import { prisma } from "@/lib/db/client";
 import { accountProblems } from "@/lib/os/automations";
 import { listCustomFields } from "@/lib/os/fields/store";
@@ -17,7 +18,9 @@ import { dataOsView } from "@/lib/os/integrations/dataos";
 import { isNativeFieldKey } from "@/lib/os/integrations/mapping";
 import { integrationsView } from "@/lib/os/integrations/view";
 import { osMockEnabled } from "@/lib/os/mock";
-import { parseSettingsTab, SETTINGS_TABS, settingsHref } from "@/lib/os/settings";
+import { parseSettingsTab, reconnectKind, SETTINGS_TABS, settingsHref } from "@/lib/os/settings";
+import { statusLines } from "@/lib/os/settings-status";
+import { loadTagBoard } from "@/lib/os/tags/board";
 import { getWorkspaceSettings } from "@/lib/os/workspace-settings";
 import { canManageWorkspace, getCurrentWorkspaceContext } from "@/lib/workspace-access";
 
@@ -46,9 +49,13 @@ async function InstagramTab({ workspaceId, canManage }: { workspaceId: string; c
   ]);
   const now = new Date();
   const ws = { zernioReady: Boolean(zernio?.webhookId), kitConnected: true };
+  const first = accounts[0] ?? null;
+  const problems = first ? accountProblems(first, ws, now) : [];
+  const fix = reconnectKind(problems);
 
   return (
     <div className="os-set-stack">
+      {fix && canManage ? <ReconnectBar problem={problems[0]} kind={fix} /> : null}
       <Suspense fallback={null}>
         <div className="os-upstream">
           <InstagramConnectNotice />
@@ -106,25 +113,27 @@ async function kitTags(workspaceId: string): Promise<string[]> {
 }
 
 async function IntegrationsTab({ workspaceId, canManage }: { workspaceId: string; canManage: boolean }) {
-  const [views, calendars, dataos, account, ws, fields, tags, zernio] = await Promise.all([
+  const [views, calendars, dataos, account, ws, fields, tags, zernio, zernioFull] = await Promise.all([
     integrationsView(workspaceId),
     calendarBoard(workspaceId),
     dataOsView(workspaceId),
     prisma.instagramAccount.findFirst({
       where: { workspaceId },
       orderBy: { connectedAt: "desc" },
-      select: { username: true, provider: true, tokenExpiresAt: true, webhookSubscribed: true, zernioAccountId: true, _count: { select: { automations: true } } },
+      select: { id: true, username: true, provider: true, tokenExpiresAt: true, webhookSubscribed: true, zernioAccountId: true, _count: { select: { automations: true } } },
     }),
     getWorkspaceSettings(workspaceId),
     listCustomFields(workspaceId),
     kitTags(workspaceId).catch(() => []),
     prisma.zernioConnection.findUnique({ where: { workspaceId }, select: { webhookId: true } }),
+    prisma.zernioConnection.findUnique({ where: { workspaceId }, select: { workspaceId: true } }),
   ]);
   const problem = account ? (accountProblems(account, { zernioReady: Boolean(zernio?.webhookId), kitConnected: true }, new Date())[0] ?? null) : null;
   const mock = !account && osMockEnabled();
   return (
     <SettingsIntegrations
-      instagram={{ username: account?.username ?? (mock ? "claudepreneur" : null), provider: account?.provider ?? (mock ? "ZERNIO" : null), problem, sendCap: ws.sendCapPerDay }}
+      instagram={{ id: account?.id ?? null, username: account?.username ?? (mock ? "claudepreneur" : null), provider: account?.provider ?? (mock ? "ZERNIO" : null), problem, sendCap: ws.sendCapPerDay }}
+      zernio={mock ? { configured: true, webhookReady: true } : { configured: Boolean(zernioFull), webhookReady: Boolean(zernio?.webhookId) }}
       dataos={dataos}
       views={views}
       calendars={calendars}
@@ -145,6 +154,10 @@ async function FieldsTab({ workspaceId, canManage }: { workspaceId: string; canM
   return <FieldsPanel fields={fields} setters={setters} canManage={canManage} />;
 }
 
+async function TagsTab({ workspaceId, canManage }: { workspaceId: string; canManage: boolean }) {
+  return <TagsPanel board={await loadTagBoard(workspaceId)} canManage={canManage} />;
+}
+
 async function WorkspaceTab({ workspaceId, workspaceName, canManage }: { workspaceId: string; workspaceName: string; canManage: boolean }) {
   const ws = await getWorkspaceSettings(workspaceId);
   return (
@@ -158,26 +171,31 @@ async function WorkspaceTab({ workspaceId, workspaceName, canManage }: { workspa
 export default async function SettingsPage({ searchParams }: PageProps) {
   const context = await getCurrentWorkspaceContext();
   if (!context) return null;
-  const tab = parseSettingsTab((await searchParams).tab);
+  const raw = (await searchParams).tab;
+  const tab = parseSettingsTab(raw);
   const canManage = canManageWorkspace(context.role);
   const ws = context.workspaceId;
+  const lines = await statusLines(ws);
+  const label = SETTINGS_TABS.find((t) => t.tab === tab)?.label ?? "Settings";
 
   return (
     <div className="os-sx">
       <h1 className="os-sx-title os-title">Settings</h1>
-      <div className="os-sx-layout">
-        <nav className="os-sx-nav" aria-label="Settings sections">
-          {SETTINGS_TABS.map((t) => (
-            <Link key={t.tab} href={settingsHref(t.tab)} aria-current={tab === t.tab ? "page" : undefined}>
-              {t.label}
-            </Link>
-          ))}
-        </nav>
-        <ScrollPicked row=".os-sx-nav" pick={tab} />
+      {/* Phone: /os/settings is the list; a row (?tab=) opens its section. */}
+      <div className="os-sx-layout" data-view={raw ? "section" : "list"}>
+        <SettingsNav items={SETTINGS_TABS.map((t) => ({ tab: t.tab, label: t.label, href: settingsHref(t.tab), line: lines[t.tab] }))} current={tab} />
         <div className="os-sx-body" data-tab={tab}>
+          <Link href="/os/settings" className="os-sx-back">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M10 3.5 5.5 8l4.5 4.5" />
+            </svg>
+            Settings
+          </Link>
+          <h2 className="os-sx-section-title">{label}</h2>
           {tab === "instagram" && <InstagramTab workspaceId={ws} canManage={canManage} />}
           {tab === "integrations" && <IntegrationsTab workspaceId={ws} canManage={canManage} />}
           {tab === "fields" && <FieldsTab workspaceId={ws} canManage={canManage} />}
+          {tab === "tags" && <TagsTab workspaceId={ws} canManage={canManage} />}
           {tab === "logs" && <LogsPanel />}
           {tab === "diagnostics" && <DiagnosticsPanel />}
           {tab === "workspace" && <WorkspaceTab workspaceId={ws} workspaceName={context.workspace.name} canManage={canManage} />}
