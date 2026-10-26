@@ -23,14 +23,7 @@ export const DEFAULT_SETTINGS: Omit<WorkspaceSettings, "workspaceId"> = {
 /** The currencies Settings › Workspace offers. */
 export const CURRENCIES = ["EUR", "USD", "GBP", "CHF", "CAD", "AUD"] as const;
 
-/** A won amount or offer price in the workspace currency, e.g. "€1,200". */
-export function formatMoney(amount: number, currency: string, locale = "en-GB"): string {
-  try {
-    return new Intl.NumberFormat(locale, { style: "currency", currency, maximumFractionDigits: amount % 1 ? 2 : 0 }).format(amount);
-  } catch {
-    return `${amount} ${currency}`;
-  }
-}
+export { formatMoney } from "@/lib/os/money";
 
 export const SEND_CAP_MAX = 500;
 
