@@ -58,7 +58,9 @@ export function matchTrigger(live: { wf: WorkflowDef; version: VersionDef }[], e
     if (!m.matched) continue;
     hits.push({ wf, version, keyword: normKeyword(m.matchedKeyword ?? t.data.keywords[0]), specific });
   }
-  hits.sort((a, b) => Number(b.specific) - Number(a.specific));
+  // A post-specific trigger first, then the longest keyword: "founder 3"
+  // belongs to FOUNDER 3, not to FOUNDER.
+  hits.sort((a, b) => Number(b.specific) - Number(a.specific) || b.keyword.length - a.keyword.length);
   return hits[0] ?? null;
 }
 

@@ -87,9 +87,11 @@ export async function workflowsFromWebhook(payload: unknown, accounts: Map<strin
     for (const c of comments) {
       const a = accounts.get(c.instagramId);
       if (!a) continue;
-      await quiet("comment", null, () =>
+      const out = await quiet("comment", null, () =>
         engine.handleComment({ workspaceId: a.workspaceId, instagramAccountId: a.id, igUserId: c.fromId, username: c.username, commentId: c.commentId, postId: c.postId, originalPostId: c.originalPostId, text: c.text })
       );
+      // One line per comment, so a comment that started nothing shows why.
+      if (out) console.info(`[OS Workflows] comment user=${c.fromId} text=${JSON.stringify(c.text.slice(0, 40))} → ${out.status}${"reason" in out && out.reason ? ` (${out.reason})` : ""}`);
     }
     for (const s of stories) {
       const a = accounts.get(s.instagramId);

@@ -422,3 +422,15 @@ describe("Waitlist + questions: someone who DMed you weeks ago", () => {
     expect(text(lastSent(h, "ana").msg)).toMatch(/best email address/);
   });
 });
+
+describe("Two workflows whose keywords overlap", () => {
+  it("'founder 3' goes to FOUNDER 3, not FOUNDER", async () => {
+    const h = harness();
+    h.publish(waitlist());
+    const g = waitlist();
+    (g.nodes.find((n) => n.type === "trigger")!.data as { keywords: string[] }).keywords = ["FOUNDER 3"];
+    const wf3 = h.publish(g);
+    await h.comment("ana", "founder 3", { postId: "reel1" });
+    expect((await h.run("ana"))!.workflowId).toBe(wf3.id);
+  });
+});
