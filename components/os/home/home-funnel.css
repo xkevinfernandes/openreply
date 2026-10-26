@@ -1,0 +1,294 @@
+/* Home's funnel and inbox tile (dm-crm 031). Scoped under .os; reel tokens. */
+
+.os .os-fn-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.os .os-fn-head p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+/* The shape: seven trapezoids, people flowing through as dots. */
+.os .os-fn-shape {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: center;
+  height: 180px;
+}
+
+.os .os-fn-seg {
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.os .os-fn-seg span {
+  width: 100%;
+  height: 100%;
+  background: var(--ink);
+  transition: clip-path 360ms var(--ease);
+}
+
+.os .os-fn-seg span[data-last] {
+  background: var(--sage);
+}
+
+.os .os-fn-dots {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.os .os-fn-dots i {
+  position: absolute;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 999px;
+  background: var(--card);
+  opacity: 0;
+  animation: os-fn-flow var(--dur) linear var(--delay) infinite;
+}
+
+@keyframes os-fn-flow {
+  0% { left: 0%; opacity: 0; }
+  6% { opacity: 0.95; }
+  82% { opacity: 0.95; }
+  100% { left: var(--end); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os .os-fn-dots { display: none; }
+  .os .os-fn-seg span { transition: none; }
+}
+
+.os .os-fn-steps {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.os .os-fn-steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-right: 10px;
+}
+
+.os .os-fn-steps .lbl,
+.os .os-fn-steps .drop {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.os .os-fn-steps .n {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.os .os-fn-steps .drop {
+  font-variant-numeric: tabular-nums;
+}
+
+.os .os-fn-steps .bar {
+  display: none;
+}
+
+.os .os-fn-empty,
+.os .os-fn-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.os .os-fn-empty {
+  font-size: var(--fs-sm);
+}
+
+/* Revenue: From this cohort (sage), Closed in period, the no-amount note. */
+.os .os-fn-money {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.os .os-fn-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--well);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+
+.os .os-fn-tile .lbl,
+.os .os-fn-tile .foot {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.os .os-fn-tile .n {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.os .os-fn-tile[data-feature] {
+  background: var(--sage);
+  color: var(--on-sage, var(--sage-text));
+}
+
+.os .os-fn-tile[data-feature] .lbl,
+.os .os-fn-tile[data-feature] .foot {
+  color: var(--sage-text);
+}
+
+.os .os-fn-missing {
+  justify-content: center;
+  cursor: pointer;
+}
+
+.os .os-fn-missing:hover {
+  background: var(--ctl-hover, var(--ctl));
+}
+
+.os .os-fn-pill {
+  align-self: flex-start;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.os .os-fn-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.os .os-fn-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--well);
+}
+
+/* Inbox tile rows. */
+.os .os-fn-inbox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.os .os-fn-inbox:hover {
+  background: var(--well);
+}
+
+.os .os-fn-inbox .n {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.os .os-fn-inbox .n[data-tone="warn"] {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.os .os-fn-inbox[data-zero] .lbl {
+  color: var(--muted);
+}
+
+.os .os-fn-window {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.os .os-fn-window a {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* 400px: the funnel turns vertical, one row per step with a bar. */
+@media (max-width: 640px) {
+  .os .os-fn-shape {
+    display: none;
+  }
+  .os .os-fn-steps {
+    margin: 0;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .os .os-fn-steps li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    padding: 0;
+  }
+  .os .os-fn-steps .n {
+    font-size: 17px;
+    grid-row: 1;
+    grid-column: 2;
+  }
+  .os .os-fn-steps .bar {
+    display: block;
+    grid-column: 1 / -1;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--well);
+    overflow: hidden;
+  }
+  .os .os-fn-steps .bar span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--ink);
+  }
+  .os .os-fn-steps li[data-last] .bar span {
+    background: var(--sage);
+  }
+  .os .os-fn-steps .drop {
+    grid-column: 1 / -1;
+  }
+}

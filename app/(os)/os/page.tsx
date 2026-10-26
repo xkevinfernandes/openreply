@@ -1,11 +1,16 @@
 // Home (Main board): greeting, "Review N drafts ⏎", the outcome row with
-// Today / 7d / 30d (campaigns, workflows and J), the Workflows row, the pipeline per setter, Yours to do and Setters.
+// Today / 7d / 30d (campaigns, workflows and J), the Workflows row, the
+// funnel with its 7/30/90 switch and revenue (dm-crm 031), the pipeline per
+// setter, the inbox counts, Yours to do and Setters.
 
 import Link from "next/link";
+import { FunnelCard } from "@/components/os/home/funnel-card";
+import { InboxCard } from "@/components/os/home/inbox-card";
 import ReviewButton from "@/components/os/home/review-button";
 import TodoCheck from "@/components/os/home/todo-check";
 import { auth, getCurrentWorkspaceId } from "@/lib/auth";
 import { broadcastTodos, greeting, homeDate, loadPipeline, workflowTodos, type HomeTodo } from "@/lib/os/home";
+import { loadHomeFunnel, loadInboxCounts } from "@/lib/os/home-funnel";
 import { loadOutcomes, parsePeriod, PERIODS, type OutcomeCell, type Period } from "@/lib/os/metrics";
 import type { WorkflowCell } from "@/lib/os/metrics-workflows";
 import { loadHomeFollowups } from "@/lib/os/sequences/view";
@@ -93,11 +98,13 @@ export default async function OsHome({ searchParams }: PageProps) {
   const tz = settings?.timezone ?? "Europe/Luxembourg";
   const first = session?.user?.name?.trim().split(/\s+/)[0];
 
-  const [outcomes, pipe, followups, broadcasts] = await Promise.all([
+  const [outcomes, pipe, followups, broadcasts, funnel, inbox] = await Promise.all([
     quiet("outcomes", loadOutcomes(workspaceId, period, tz, now), null),
     quiet("pipeline", loadPipeline(workspaceId, params.setter ?? null), null),
     quiet("follow-ups", loadHomeFollowups(workspaceId, now), null),
     quiet("broadcasts", Promise.all([broadcastTodos(workspaceId, now), workflowTodos(workspaceId, now)]).then((x) => x.flat()), [] as HomeTodo[]),
+    quiet("funnel", loadHomeFunnel(workspaceId, settings?.currency ?? "EUR", now), null),
+    quiet("inbox", loadInboxCounts(workspaceId, now), null),
   ]);
 
   const todos: TodoRow[] = [
@@ -184,6 +191,8 @@ export default async function OsHome({ searchParams }: PageProps) {
         </section>
       ) : null}
 
+      {funnel ? <FunnelCard data={funnel} now={now.toISOString()} /> : <p className="os-home-err">Funnel didn&apos;t load.</p>}
+
       <div className="os-home-cols">
         <section aria-labelledby="os-home-pipe" className="os-home-sec os-home-main">
           <div className="os-home-sechead">
@@ -219,6 +228,8 @@ export default async function OsHome({ searchParams }: PageProps) {
         </section>
 
         <div className="os-home-side">
+          <InboxCard counts={inbox} />
+
           <section aria-labelledby="os-home-todo" className="os-home-sec">
             <div className="os-home-sechead">
               <h2 id="os-home-todo" className="os-h2">Yours to do</h2>
