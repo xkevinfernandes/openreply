@@ -6,6 +6,7 @@ import { payloadHash } from "./hash";
 import { buildPayload, inScope, type ContactSnapshot, type SyncEvent, type SyncProviderId } from "./mapping";
 import { friendlyError } from "./provider";
 import * as db from "./store";
+import { kitNamesFor, kitTagNames, type KitTagLike } from "@/lib/os/tags/kit";
 
 export type SyncOutcome =
   | { status: "synced"; externalId: string | null }
@@ -20,9 +21,18 @@ export interface SyncDeps {
   getSyncState(contactId: string, provider: SyncProviderId): Promise<db.SyncStateRow | null>;
   recordSuccess: typeof db.recordSuccess;
   recordFailure: typeof db.recordFailure;
+  /** The workspace's managed tags with their Kit names (lib/os/tags/kit.ts).
+   *  Absent = tags go as they are (the pre-managed-tags behaviour). */
+  managedTags?(workspaceId: string): Promise<KitTagLike[]>;
 }
 
-const dbDeps: SyncDeps = db;
+const dbDeps: SyncDeps = {
+  ...db,
+  async managedTags(workspaceId) {
+    const { listTags } = await import("@/lib/os/tags/store");
+    return listTags(workspaceId);
+  },
+};
 
 export interface SyncJobInput {
   workspaceId: string;
@@ -43,9 +53,15 @@ export async function syncContact(input: SyncJobInput, deps: SyncDeps = dbDeps):
   if (!inScope(contact, config.mapping)) return { status: "skipped", reason: "not a sales contact" };
 
   const [log, state] = await Promise.all([deps.getSyncLog(contactId, provider), deps.getSyncState(contactId, provider)]);
-  const payload = buildPayload(contact, config.mapping, provider);
   const prefix = config.mapping.tags ? config.mapping.tagPrefix : null;
-  const removals = prefix == null ? [] : (state?.removeTags ?? []).map((t) => `${prefix}${t}`).filter((t) => !payload.tags.includes(t));
+  // Kit sees each managed tag under its Kit name(s), so a rename or merge here
+  // is never a removal there (dm-crm issue 006).
+  const managed = provider === "kit" && deps.managedTags ? await deps.managedTags(workspaceId).catch(() => null) : null;
+  const unprefix = (t: string) => (prefix && t.startsWith(prefix) ? t.slice(prefix.length) : t);
+  const snapshot = managed ? { ...contact, tags: kitTagNames(contact.tags, managed, (log?.pushedTags ?? []).map(unprefix)) } : contact;
+  const payload = buildPayload(snapshot, config.mapping, provider);
+  const wanted = managed ? (state?.removeTags ?? []).flatMap((t) => kitNamesFor(t, managed)) : (state?.removeTags ?? []);
+  const removals = prefix == null ? [] : [...new Set(wanted)].map((t) => `${prefix}${t}`).filter((t) => !payload.tags.includes(t));
   if (removals.length) payload.removeTags = removals;
   const prev = { externalId: log?.externalId ?? null, pushedTags: log?.pushedTags ?? [], pushedFields: state?.pushedFields ?? {}, pushedEmail: state?.pushedEmail ?? null };
   // Kit waits for an email (then everything collected so far goes at once);

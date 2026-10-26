@@ -1,0 +1,92 @@
+// DM CRM (part A, factory/dm-crm/prd.md): stage log, saved views, managed
+// tags. Our fork only; no relation to an upstream model.
+
+/// One row per change of board column, and one per refused move
+/// (lib/os/stage-writer.ts is the only writer). Not back-filled.
+model ContactStageLog {
+  id          String   @id @default(cuid())
+  workspaceId String
+  contactId   String
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  /// The contact's setter at the time (null = the account default).
+  setterId    String?
+  /// Board column keys (lib/os/funnel.ts columnFor): a setter stage key, or
+  /// booked | showed | no_show | won | lost. Null = no column known.
+  fromColumn  String?
+  toColumn    String
+  /// applied | refused
+  outcome     String
+  /// setter | user | booking | sequence | automation | import | migration
+  cause       String
+  /// Why a move was refused ("set from the booking", …).
+  reason      String?
+  at          DateTime @default(now())
+
+  @@index([contactId, at])
+  @@index([workspaceId, at])
+}
+
+/// A named Contacts view shared by the workspace. Exactly one default per
+/// workspace (kept by app code). Tag filters store tag ids.
+model SavedView {
+  id          String   @id @default(cuid())
+  workspaceId String
+  /// Which screen it belongs to; "contacts" for now.
+  scope       String   @default("contacts")
+  name        String
+  /// Column keys in order (built-in keys and custom field keys).
+  columns     Json     @default("[]")
+  /// ContactsViewFilters (tags by id, stage, setter, category, source, …).
+  filters     Json     @default("{}")
+  /// {key, dir}
+  sort        Json     @default("{}")
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, scope, name])
+  @@index([workspaceId, scope])
+}
+
+/// A managed tag. Contacts keep tag names (Contact.tags); a rename rewrites
+/// them in one transaction. lib/os/fields/write.ts is the only tag writer.
+model Tag {
+  id          String     @id @default(cuid())
+  workspaceId String
+  name        String
+  /// tagKey(name) (lib/os/tags/key.ts): lower case, separators collapsed to
+  /// "-". Variants that differ only in case, spaces or separators share it.
+  key         String
+  /// A key of the fixed palette (lib/os/tags/palette.ts).
+  color       String     @default("gray")
+  /// The name(s) Kit knows this tag by, primary first. Set once, never
+  /// changed by a rename or merge; extras stay only on contacts already pushed them.
+  kitNames    String[]
+  /// Read by name somewhere (J's freeze rules, Follow-up Friday…): can't be
+  /// renamed or deleted.
+  system      Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  aliases TagAlias[]
+
+  @@unique([workspaceId, key])
+  @@unique([workspaceId, name])
+}
+
+/// Every old name a tag has had (renames, merged variants), so an old name
+/// written by J, an import or an old workflow version lands on the tag.
+model TagAlias {
+  id          String   @id @default(cuid())
+  workspaceId String
+  tagId       String
+  tag         Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  name        String
+  /// tagKey(name)
+  key         String
+  createdAt   DateTime @default(now())
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId, key])
+  @@index([tagId])
+}

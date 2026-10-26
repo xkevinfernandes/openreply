@@ -12,7 +12,8 @@
     "db:migrate": "prisma migrate deploy",
     "worker": "tsx worker/dm-worker.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:migrations": "bash scripts/test-migrations.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

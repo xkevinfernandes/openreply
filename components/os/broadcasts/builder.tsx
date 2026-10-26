@@ -117,7 +117,7 @@ function DraftCard({ m, data, act, pending }: { m: BuilderMessage; data: Builder
         {data.run ? (
           <span className="os-bc-link" title="Sent as its own message">
             <Svg d={I.link} />
-            {shortLink(data.run.link)}
+            {shortLink(data.run.link ?? "")}
           </span>
         ) : null}
         {m.followupBubbles.length || fu ? (
@@ -314,7 +314,7 @@ export default function BroadcastBuilder({ data }: { data: BuilderData }) {
                 {data.run ? (
                   <span className="os-bc-sub os-bc-inline">
                     <Svg d={I.play} />
-                    {shortLink(data.run.link)}
+                    {shortLink(data.run.link ?? "")}
                   </span>
                 ) : null}
               </div>

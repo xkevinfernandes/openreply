@@ -237,29 +237,22 @@ export function broadcastStatus(
 
 /** Read-only list for the Campaigns tab; the builder is S5's /os/automations/broadcasts. */
 export async function listBroadcastSummaries(workspaceId: string, now = new Date()): Promise<BroadcastSummary[]> {
-  const list = await prisma.broadcast.findMany({
-    where: { workspaceId },
-    orderBy: { createdAt: "asc" },
-    select: { key: true, name: true, audienceTag: true, enabled: true, template: true, windowDay: true, windowStart: true, windowEnd: true, timezone: true, runs: { select: { runDate: true, status: true }, orderBy: { runDate: "desc" }, take: 4 } },
-  });
-  // OS_MOCK keeps runs in memory (lib/os/mock-followups.ts), like the builder.
-  if (osMockEnabled()) {
-    const { broadcastStore } = await import("@/lib/os/broadcasts/store");
-    const store = broadcastStore();
-    const mine = await store.list(workspaceId).catch(() => []);
-    for (const b of list) {
-      const m = mine.find((x) => x.key === b.key);
-      const run = m ? await store.getRun(m.id, nextRunDate(b.windowDay, b.windowEnd, b.timezone, now).date).catch(() => null) : null;
-      if (run) b.runs = [{ runDate: run.runDate, status: run.status }, ...b.runs];
-    }
+  // The store resolves the audience tag's name and reads OS_MOCK's memory too.
+  const { broadcastStore } = await import("@/lib/os/broadcasts/store");
+  const store = broadcastStore();
+  const list = await store.list(workspaceId).catch(() => []);
+  const out: BroadcastSummary[] = [];
+  for (const b of list) {
+    const runs = (await store.latestRuns(b.id, 4).catch(() => [])).map((r) => ({ runDate: r.runDate, status: r.status as string }));
+    out.push({
+      key: b.key,
+      name: b.name,
+      window: `${b.sendDate ? (DAYS[b.windowDay] ?? "?") : "No date"} ${b.windowStart}–${b.windowEnd}`,
+      audience: b.audienceTag,
+      status: broadcastStatus(b, runs, now),
+    });
   }
-  return list.map((b) => ({
-    key: b.key,
-    name: b.name,
-    window: `${DAYS[b.windowDay] ?? "?"} ${b.windowStart}–${b.windowEnd}`,
-    audience: b.audienceTag,
-    status: broadcastStatus(b, b.runs, now),
-  }));
+  return out;
 }
 
 export async function automationTabCounts(workspaceId: string, campaignCount?: number) {

@@ -2,7 +2,7 @@
 // legacy Friday flag (kept in step with the follow-up-friday tag) and the
 // OS_MOCK sample state the sequences read.
 
-import { fridayTags } from "@/lib/os/broadcasts/migrate";
+import { setFridayTag, type TagWriteDb } from "@/lib/os/fields/write";
 import { prisma } from "@/lib/db/client";
 import { appendMockMessage, mockThreads, osMockEnabled, updateMockContact } from "@/lib/os/mock";
 import { iso, newRecord, type SetterRecord } from "@/lib/os/setter/state";
@@ -81,7 +81,6 @@ export async function setFriday(workspaceId: string, contactIds: string[], on: b
     data: { onFriday: on, fridayAddedAt: on ? new Date() : null },
   });
   // Broadcasts read the follow-up-friday tag; keep it in step with the flag.
-  const rows = await prisma.contact.findMany({ where: { id: { in: contactIds }, workspaceId }, select: { id: true, tags: true } });
-  for (const row of rows) await prisma.contact.update({ where: { id: row.id }, data: { tags: fridayTags(row.tags, on) } });
+  await setFridayTag(prisma as unknown as TagWriteDb, workspaceId, contactIds, on);
   return { count: r.count };
 }

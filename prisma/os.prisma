@@ -80,6 +80,26 @@ model Contact {
   imported  Json?
 
   lastMessageAt DateTime?
+  // --- CRM (dm-crm part A). Read only by what Kevin sees (inbox, Home tile);
+  // the setter record stays the one source for every send decision.
+  /// Their last inbound DM (Zernio message-received webhook).
+  lastInboundAt      DateTime?
+  /// Our last successful send of any kind (stampSend, lib/os/send-stamp.ts).
+  lastOutboundAt     DateTime?
+  /// When Kevin last opened the thread here (or sent from it). Unread =
+  /// lastInboundAt later than this, or never opened.
+  lastOpenedAt       DateTime?
+  /// Kevin's own send, or a J draft Kevin approved (never automated sends).
+  /// A contact with one is never flagged as spam.
+  lastPersonalSendAt DateTime?
+  starred            Boolean   @default(false)
+  /// Set by the spam heuristic on inbound text (lib/os/spam).
+  spam               Boolean   @default(false)
+  /// Kevin's sticky override: true = spam, false = not spam, null = none.
+  /// The heuristic never changes a contact with an override.
+  spamOverride       Boolean?
+  /// Hidden from Contacts, Pipeline and Inbox while set; a new inbound clears it.
+  archivedAt         DateTime?
   /// When they last read our messages (message.read webhook, or readAt on the
   /// newest outgoing Zernio message). Drives "Seen" in the thread.
   seenAt        DateTime?
@@ -101,8 +121,11 @@ model Contact {
   followupsOff  Boolean        @default(false)
   followupSteps FollowupStep[]
   tasks         OsTask[]
+  stageLog      ContactStageLog[]
 
   @@unique([workspaceId, instagramAccountId, igUserId])
+  @@index([workspaceId, lastMessageAt])
+  @@index([workspaceId, archivedAt])
   @@index([workspaceId, kind])
   @@index([workspaceId, stage])
   @@index([workspaceId, onFriday])
@@ -741,6 +764,8 @@ model OsWorkspace {
   pausedAll     Boolean  @default(false)
   /// IANA zone the "today" of the cap and the Friday window are read in.
   timezone      String   @default("Europe/Luxembourg")
+  /// ISO 4217 code offer prices and won amounts are read in. No conversion.
+  currency      String   @default("EUR")
   updatedAt     DateTime @updatedAt
 }
 
@@ -894,45 +919,64 @@ model SetterDocRevision {
   @@index([docId, createdAt])
 }
 
-/// A recurring personalised send to a tagged audience (Follow-up Friday).
-/// Nothing sends without Kevin approving each message.
+/// One broadcast = one send (dm-crm slice 5): built as a draft, started by
+/// Kevin, kept as a record. Follow-up Friday is a new one each week, made with
+/// Duplicate. Nothing sends without Kevin approving each message.
 model Broadcast {
   id               String   @id @default(cuid())
   workspaceId      String
-  /// URL slug, e.g. follow-up-friday.
+  /// URL slug, unique per workspace. Migrated runs: <key>-<YYYY-MM-DD>.
   key              String
   name             String
-  audienceTag      String
-  /// This week's link (any URL), pasted by Kevin.
-  link             String?
-  /// Uses {first_name} and {link}.
+  /// The managed tag (Tag.id) the audience is read from. Null when the
+  /// audience is a fixed list (contactIds).
+  audienceTagId    String?
+  /// "New broadcast to these N": exactly these contacts, no tag.
+  contactIds       String[]
+  /// draft | drafting | in_review | scheduled | sending | sent | cancelled
+  status           String   @default("draft")
+  /// now | window
+  startMode        String   @default("window")
+  /// "YYYY-MM-DD" in timezone (window mode). Null for now mode and drafts.
+  sendDate         String?
+  /// BroadcastBubble[] (lib/os/broadcasts/types.ts): {type:"text", text} or
+  /// {type:"link", url, resourceId?}; a link bubble with url null still needs one.
+  bubbles          Json     @default("[]")
+  /// per_person | variations | as_written
+  personaliseMode  String   @default("per_person")
+  /// The 5 variations (string[][] of text bubbles), variations mode only.
+  variations       Json     @default("[]")
+  /// The broadcast this one was duplicated from. Migrated runs point at the
+  /// kept weekly row ("Earlier sends").
+  duplicatedFromId String?
+  /// Legacy: Kevin's words with {first_name}; bubbles is the source now.
   template         String   @default("")
   followupTemplate String?
   followupDelayMin Int      @default(5)
-  /// 0 = Sunday … 6 = Saturday, in timezone.
-  windowDay        Int      @default(5)
   /// "HH:MM"
   windowStart      String   @default("10:00")
   windowEnd        String   @default("15:00")
   timezone         String   @default("Europe/Luxembourg")
   setterId         String?
-  enabled          Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   runs BroadcastRun[]
 
   @@unique([workspaceId, key])
+  @@index([workspaceId, createdAt])
 }
 
-/// One week's run of a broadcast. status: drafting | review | scheduled | done.
+/// The one run of a broadcast (at most one per broadcast, kept by app code).
+/// status: drafting | review | scheduled | done.
 model BroadcastRun {
   id          String    @id @default(cuid())
   broadcastId String
   broadcast   Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
   /// "YYYY-MM-DD" in the broadcast timezone.
   runDate     String
-  link        String
+  /// Legacy weekly link; links live on the broadcast's bubbles now.
+  link        String?
   status      String    @default("drafting")
   createdAt   DateTime  @default(now())
 
@@ -957,6 +1001,14 @@ model BroadcastMessage {
   sentAt          DateTime?
   error           String?
   reasoning       String?
+  /// Link guard: "already_had_link" (drafted, collapsed and unapproved in Review).
+  leftOutReason   String?
+  /// Kevin un-collapsed a left-out draft ("include anyway").
+  includedAnyway  Boolean      @default(false)
+  /// Why it was skipped: sent_by_kevin | cancelled | left_the_tag | wrote_since_drafting | ...
+  skipReason      String?
+  /// Links in what Kevin sent himself ("Send myself"), for the link guard.
+  sentLinks       String[]
 
   @@unique([runId, contactId])
   @@index([workspaceId, status])

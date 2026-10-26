@@ -3,6 +3,7 @@
 // history first, then the contact is marked dirty so the CRMs get one batched
 // push 30s after the last write (lib/os/integrations/queue.ts).
 import { prisma } from "@/lib/db/client";
+import { fridayTags } from "@/lib/os/broadcasts/migrate";
 import { normalizeTag } from "@/lib/os/contacts-filter";
 import { coerceFieldValue, decideWrite, isLocked, storedSource, type CurrentValue, type MergeReason, type WriteSource } from "@/lib/os/fields/merge";
 import type { CustomFieldType } from "@/lib/os/fields/types";
@@ -142,6 +143,11 @@ export async function writeField(input: WriteFieldInput, deps: WriteDeps = dbWri
 }
 
 // --- Tags ---------------------------------------------------------------------
+// The one writer of Contact.tags (dm-crm slice 2). Every name is resolved to
+// a managed tag first (lib/os/tags/store.ts: current name, variant, old name;
+// created only when none matches), so `Not-Now` written by J, an import or an
+// old workflow version lands on `not_now`. __tests__/os/tag-writer-scan.test.ts
+// fails if any other module writes contact tags.
 
 export interface TagDeps {
   tags(workspaceId: string, contactId: string): Promise<string[] | null>;
@@ -149,6 +155,16 @@ export interface TagDeps {
   /** Remember a removal to carry out in each CRM; null = forget it (re-added). */
   pendingRemoval(workspaceId: string, contactId: string, tag: string, remove: boolean): Promise<void>;
   markDirty(e: { workspaceId: string; contactId: string; event: SyncEvent }): Promise<void>;
+  /** The managed tag's name for a written name; create = make one when none
+   *  matches. Absent = the name as written (tests, sandbox). */
+  resolve?(workspaceId: string, name: string, create: boolean): Promise<string | null>;
+}
+
+/** The managed name for a written tag name (resolved, created on add). */
+export async function managedTagName(workspaceId: string, name: string, create: boolean): Promise<string | null> {
+  const { ensureTag, resolveTag } = await import("@/lib/os/tags/store");
+  const t = create ? await ensureTag(workspaceId, name) : await resolveTag(workspaceId, name);
+  return t?.name ?? null;
 }
 
 const PROVIDERS = ["kit", "ghl"] as const;
@@ -174,6 +190,7 @@ export const dbTagDeps: TagDeps = {
     }
   },
   markDirty,
+  resolve: managedTagName,
 };
 
 export interface TagInput {
@@ -186,9 +203,10 @@ export interface TagInput {
 
 /** Add a tag (CRMs get it added; tags there are add-only). */
 export async function addTag(input: TagInput, deps: TagDeps = dbTagDeps): Promise<{ changed: boolean } | { error: string }> {
-  const tag = normalizeTag(input.tag);
-  if (!tag) return { error: "Name the tag." };
+  const written = normalizeTag(input.tag);
+  if (!written) return { error: "Name the tag." };
   if (input.sandbox) return { changed: true };
+  const tag = deps.resolve ? ((await deps.resolve(input.workspaceId, written, true)) ?? written) : written;
   const tags = await deps.tags(input.workspaceId, input.contactId);
   if (!tags) return { error: "That contact is gone. Refresh." };
   await deps.pendingRemoval(input.workspaceId, input.contactId, tag, false);
@@ -200,9 +218,10 @@ export async function addTag(input: TagInput, deps: TagDeps = dbTagDeps): Promis
 
 /** Remove a tag on purpose: the only way a tag is removed in Kit / GoHighLevel. */
 export async function removeTag(input: TagInput, deps: TagDeps = dbTagDeps): Promise<{ changed: boolean } | { error: string }> {
-  const tag = normalizeTag(input.tag);
-  if (!tag) return { error: "Name the tag." };
+  const written = normalizeTag(input.tag);
+  if (!written) return { error: "Name the tag." };
   if (input.sandbox) return { changed: true };
+  const tag = deps.resolve ? ((await deps.resolve(input.workspaceId, written, false)) ?? written) : written;
   const tags = await deps.tags(input.workspaceId, input.contactId);
   if (!tags) return { error: "That contact is gone. Refresh." };
   await deps.pendingRemoval(input.workspaceId, input.contactId, tag, true);
@@ -214,6 +233,96 @@ export async function removeTag(input: TagInput, deps: TagDeps = dbTagDeps): Pro
 /** They said stop in the DM: tag them `stopped`. Never unsubscribes them from email (Q-F2). */
 export function markStopped(workspaceId: string, contactId: string, deps: TagDeps = dbTagDeps) {
   return addTag({ workspaceId, contactId, tag: "stopped", source: "system" }, deps);
+}
+
+// --- Bulk and list-wide tag writes ---------------------------------------------
+// Same writer, many contacts: the Contacts bulk bar, the Friday list, a tag
+// rename or delete in Settings, imports.
+
+type Where = Record<string, unknown>;
+
+/** The slice of a Prisma client the bulk helpers use (tests pass a fake). */
+export interface TagWriteDb {
+  contact: {
+    updateMany(args: { where: Where; data: Record<string, unknown> }): Promise<{ count: number }>;
+    findMany(args: { where: Where; select: { id: true; tags: true } }): Promise<{ id: string; tags: string[] }[]>;
+  };
+}
+
+/**
+ * Add or remove one tag on many contacts, workspace-scoped, each row written
+ * with its own new list. Returns the ids that changed. The name is resolved
+ * to its managed tag against the real database (a test db gets it as written).
+ */
+export async function bulkTagWrite(
+  db: TagWriteDb,
+  workspaceId: string,
+  ids: string[],
+  name: string,
+  op: "add" | "remove",
+  opts: { resolve?: boolean } = {}
+): Promise<string[]> {
+  const real = db === (prisma as unknown);
+  const tag = real && opts.resolve !== false ? ((await managedTagName(workspaceId, name, op === "add")) ?? name) : name;
+  const rows = await db.contact.findMany({
+    where: { id: { in: ids }, workspaceId, ...(op === "add" ? { NOT: { tags: { has: tag } } } : { tags: { has: tag } }) },
+    select: { id: true, tags: true },
+  });
+  const changed: string[] = [];
+  for (const row of rows) {
+    const tags = op === "add" ? [...row.tags, tag] : row.tags.filter((t) => t !== tag);
+    const r = await db.contact.updateMany({ where: { id: row.id, workspaceId }, data: { tags } });
+    if (r.count) changed.push(row.id);
+  }
+  // A removal made here is on purpose: the CRMs remove it too (they're add-only otherwise).
+  if (real) for (const id of changed) await dbTagDeps.pendingRemoval(workspaceId, id, tag, op === "remove");
+  return changed;
+}
+
+/** On / off the Follow-up Friday list: the tag the broadcast audience reads. */
+export async function setFridayTag(db: TagWriteDb, workspaceId: string, ids: string[], on: boolean): Promise<void> {
+  for (const row of await db.contact.findMany({ where: { id: { in: ids }, workspaceId }, select: { id: true, tags: true } })) {
+    const next = fridayTags(row.tags, on);
+    if (next.length === row.tags.length && next.every((t, i) => t === row.tags[i])) continue;
+    await db.contact.updateMany({ where: { id: row.id, workspaceId }, data: { tags: next } });
+  }
+}
+
+/** A transaction client's slice for list-wide rewrites. */
+interface TagTx {
+  $executeRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<number>;
+}
+
+/** Tag rename: every contact carrying the old name gets the new one (one
+ *  statement; order kept, no duplicate if they already had the new name). */
+export async function renameTagOnContacts(tx: TagTx, workspaceId: string, from: string, to: string): Promise<number> {
+  return tx.$executeRaw`
+    UPDATE "Contact"
+    SET "tags" = CASE WHEN ${to} = ANY("tags") THEN array_remove("tags", ${from}) ELSE array_replace("tags", ${from}, ${to}) END
+    WHERE "workspaceId" = ${workspaceId} AND ${from} = ANY("tags")`;
+}
+
+/** Tag delete: gone from every contact. */
+export async function removeTagFromAllContacts(tx: TagTx, workspaceId: string, name: string): Promise<number> {
+  return tx.$executeRaw`UPDATE "Contact" SET "tags" = array_remove("tags", ${name}) WHERE "workspaceId" = ${workspaceId} AND ${name} = ANY("tags")`;
+}
+
+/**
+ * Imports: the contact's tags become exactly these names, each resolved to
+ * its managed tag (variants and old names merge). No CRM removal is queued:
+ * an import never removes a tag on purpose.
+ */
+export async function replaceContactTags(workspaceId: string, contactId: string, names: string[], opts: { sync?: boolean } = {}): Promise<string[]> {
+  const out: string[] = [];
+  for (const n of names) {
+    const written = normalizeTag(n);
+    if (!written) continue;
+    const name = (await managedTagName(workspaceId, written, true)) ?? written;
+    if (!out.includes(name)) out.push(name);
+  }
+  await prisma.contact.updateMany({ where: { id: contactId, workspaceId }, data: { tags: out } });
+  if (opts.sync !== false) await markDirty({ workspaceId, contactId, event: "tags_changed" });
+  return out;
 }
 
 export { isLocked };

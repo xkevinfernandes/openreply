@@ -12,8 +12,10 @@ import type {
   BroadcastMessageView,
   BroadcastRunStatus,
   BroadcastRunView,
+  BroadcastStatus,
   BroadcastView,
 } from "@/lib/os/broadcasts/types";
+import { BROADCAST_STATUSES, bubblesLink, parseBubbles } from "@/lib/os/broadcasts/types";
 
 export type BroadcastPatch = Partial<Omit<BroadcastView, "id" | "key">>;
 
@@ -52,44 +54,104 @@ export interface BroadcastStore {
   setTag(workspaceId: string, contactId: string, tag: string, on: boolean): Promise<void>;
 }
 
+/** A Broadcast row as Prisma returns it, plus its audience tag's name. */
 type BroadcastRow = {
   id: string;
-  workspaceId: string;
   key: string;
   name: string;
-  audienceTag: string;
-  link: string | null;
+  audienceTagId: string | null;
+  contactIds: string[];
+  status: string;
+  startMode: string;
+  sendDate: string | null;
+  bubbles: unknown;
+  personaliseMode: string;
+  variations: unknown;
+  duplicatedFromId: string | null;
   template: string;
   followupTemplate: string | null;
   followupDelayMin: number;
-  windowDay: number;
   windowStart: string;
   windowEnd: string;
   timezone: string;
   setterId: string | null;
-  enabled: boolean;
 };
 
-export function broadcastView(b: BroadcastRow): BroadcastView {
+function weekdayOf(date: string | null): number {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return 5;
+  return new Date(`${date}T12:00:00Z`).getUTCDay();
+}
+
+const asStatus = (v: string): BroadcastStatus => ((BROADCAST_STATUSES as readonly string[]).includes(v) ? (v as BroadcastStatus) : "draft");
+
+export function broadcastView(b: BroadcastRow, audienceTag = ""): BroadcastView {
+  const bubbles = parseBubbles(b.bubbles);
+  const status = asStatus(b.status);
   return {
     id: b.id,
     key: b.key,
     name: b.name,
-    audienceTag: b.audienceTag,
-    link: b.link,
+    audienceTag,
+    audienceTagId: b.audienceTagId,
+    contactIds: b.contactIds ?? [],
+    status,
+    startMode: b.startMode === "now" ? "now" : "window",
+    sendDate: b.sendDate,
+    bubbles,
+    personaliseMode: b.personaliseMode === "variations" || b.personaliseMode === "as_written" ? b.personaliseMode : "per_person",
+    variations: Array.isArray(b.variations) ? (b.variations as unknown[]).map((v) => (Array.isArray(v) ? v.map(String) : [])) : [],
+    duplicatedFromId: b.duplicatedFromId,
+    link: bubblesLink(bubbles),
     template: b.template,
     followupTemplate: b.followupTemplate,
     followupDelayMin: b.followupDelayMin,
-    windowDay: b.windowDay,
+    windowDay: weekdayOf(b.sendDate),
     windowStart: b.windowStart,
     windowEnd: b.windowEnd,
     timezone: b.timezone,
     setterId: b.setterId,
-    enabled: b.enabled,
+    enabled: status !== "draft" && status !== "cancelled",
   };
 }
 
-function runView(r: { id: string; broadcastId: string; runDate: string; link: string; status: string; createdAt: Date }): BroadcastRunView {
+/** Tag names by id for a few broadcasts (the audience is stored by id). */
+async function tagNames(ids: (string | null)[]): Promise<Map<string, string>> {
+  const want = [...new Set(ids.filter((v): v is string => !!v))];
+  if (!want.length) return new Map();
+  const rows = await prisma.tag.findMany({ where: { id: { in: want } }, select: { id: true, name: true } });
+  return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+async function views<T extends BroadcastRow>(rows: T[]): Promise<(BroadcastView & { workspaceId?: string })[]> {
+  const names = await tagNames(rows.map((r) => r.audienceTagId));
+  return rows.map((r) => broadcastView(r, r.audienceTagId ? (names.get(r.audienceTagId) ?? "") : ""));
+}
+
+/** A view patch as columns: the legacy derived fields write through to the
+ *  new shape (link → the link bubble) or are dropped (windowDay, enabled). */
+async function broadcastData(workspaceId: string, id: string, patch: BroadcastPatch): Promise<Record<string, unknown>> {
+  const { audienceTag, link, windowDay: _day, enabled: _on, bubbles, variations, ...rest } = patch;
+  void _day;
+  void _on;
+  const data: Record<string, unknown> = { ...rest };
+  if (bubbles !== undefined) data.bubbles = bubbles;
+  if (variations !== undefined) data.variations = variations;
+  if (link !== undefined && bubbles === undefined) {
+    const cur = await prisma.broadcast.findFirst({ where: { id, workspaceId }, select: { bubbles: true } });
+    const list = parseBubbles(cur?.bubbles);
+    const i = list.findIndex((b) => b.type === "link");
+    if (i >= 0) list[i] = { type: "link", url: link, resourceId: null };
+    else list.push({ type: "link", url: link, resourceId: null });
+    data.bubbles = list;
+  }
+  if (audienceTag !== undefined && patch.audienceTagId === undefined) {
+    const { resolveTag } = await import("@/lib/os/tags/store");
+    data.audienceTagId = audienceTag ? ((await resolveTag(workspaceId, audienceTag))?.id ?? null) : null;
+  }
+  return data;
+}
+
+function runView(r: { id: string; broadcastId: string; runDate: string; link: string | null; status: string; createdAt: Date }): BroadcastRunView {
   return { id: r.id, broadcastId: r.broadcastId, runDate: r.runDate, link: r.link, status: r.status as BroadcastRunStatus, createdAt: r.createdAt.toISOString() };
 }
 
@@ -181,19 +243,19 @@ async function loadContacts(where: { workspaceId: string; id?: string; tags?: { 
 
 const dbStore: BroadcastStore = {
   async list(workspaceId) {
-    return (await prisma.broadcast.findMany({ where: { workspaceId }, orderBy: { createdAt: "asc" } })).map(broadcastView);
+    return views(await prisma.broadcast.findMany({ where: { workspaceId }, orderBy: { createdAt: "asc" } }));
   },
   async get(workspaceId, key) {
     const b = await prisma.broadcast.findUnique({ where: { workspaceId_key: { workspaceId, key } } });
-    return b ? broadcastView(b) : null;
+    return b ? (await views([b]))[0] : null;
   },
   async getById(id) {
     const b = await prisma.broadcast.findUnique({ where: { id } });
-    return b ? { ...broadcastView(b), workspaceId: b.workspaceId } : null;
+    return b ? { ...(await views([b]))[0], workspaceId: b.workspaceId } : null;
   },
   async update(workspaceId, id, patch) {
-    await prisma.broadcast.updateMany({ where: { id, workspaceId }, data: patch });
-    return broadcastView(await prisma.broadcast.findUniqueOrThrow({ where: { id } }));
+    await prisma.broadcast.updateMany({ where: { id, workspaceId }, data: await broadcastData(workspaceId, id, patch) });
+    return (await views([await prisma.broadcast.findUniqueOrThrow({ where: { id } })]))[0];
   },
   async getRun(broadcastId, runDate) {
     const r = await prisma.broadcastRun.findUnique({ where: { broadcastId_runDate: { broadcastId, runDate } } });
@@ -245,17 +307,15 @@ const dbStore: BroadcastStore = {
     return rows.map((m) => ({ ...messageView(m), runId: m.runId, runDate: m.run.runDate, broadcastKey: m.run.broadcast.key, broadcastName: m.run.broadcast.name }));
   },
   async taggedContacts(workspaceId, tag) {
+    if (!tag) return [];
     return loadContacts({ workspaceId, tags: { has: tag } });
   },
   async contact(workspaceId, contactId) {
     return (await loadContacts({ workspaceId, id: contactId }))[0] ?? null;
   },
   async setTag(workspaceId, contactId, tag, on) {
-    const c = await prisma.contact.findFirst({ where: { id: contactId, workspaceId }, select: { tags: true } });
-    if (!c) return;
-    const has = c.tags.includes(tag);
-    if (has === on) return;
-    await prisma.contact.update({ where: { id: contactId }, data: { tags: on ? [...c.tags, tag] : c.tags.filter((t) => t !== tag) } });
+    const { addTag, removeTag } = await import("@/lib/os/fields/write");
+    await (on ? addTag : removeTag)({ workspaceId, contactId, tag, source: "kevin" });
   },
 };
 

@@ -26,17 +26,19 @@ export async function loadFollowupsHeader(workspaceId: string, now = new Date())
     prisma.broadcast
       .findUnique({
         where: { workspaceId_key: { workspaceId, key: FRIDAY_KEY } },
-        select: { key: true, name: true, enabled: true, windowDay: true, windowStart: true, windowEnd: true, timezone: true },
+        select: { key: true, name: true, status: true, sendDate: true, windowStart: true, windowEnd: true, timezone: true },
       })
       .catch(() => null),
   ]);
   let fri: FollowupsHeader["friday"] = null;
   if (friday) {
-    const next = nextRunDate(friday.windowDay, friday.windowEnd, friday.timezone, now);
+    // One-off broadcasts (dm-crm slice 5): the kept weekly draft has no date;
+    // the header still points at it and at the next Friday.
+    const next = nextRunDate(5, friday.windowEnd, friday.timezone, now);
     fri = {
       name: friday.name,
       href: `/os/automations/broadcasts/${friday.key}`,
-      on: friday.enabled,
+      on: friday.status !== "draft" && friday.status !== "cancelled",
       when: `${runLabel(next.date, next.today)}, ${friday.windowStart}`,
     };
   }

@@ -338,7 +338,7 @@ export async function draftRun(
         contact: e.contact,
         template: b.template,
         followupTemplate: b.followupTemplate,
-        link: run.link,
+        link: run.link ?? "",
         at,
         recent: await c.recent(workspaceId, e.contact.contactId),
         avoid: taken.slice(-12),
