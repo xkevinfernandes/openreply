@@ -30,6 +30,7 @@ import {
 import { Pill } from "@/components/os/ui";
 import type { BroadcastPage, ReviewItem, StepsInput } from "@/lib/os/broadcasts/engine";
 import type { PickerResource } from "@/lib/os/broadcasts/resources";
+import { serialQueue, stepStamps } from "@/lib/os/broadcasts/builder-state";
 import { NOT_SENT_REASONS, SKIP_LABEL, type BroadcastBubble, type PersonaliseMode } from "@/lib/os/broadcasts/types";
 
 type Act = (fn: () => Promise<ActionResult>, after?: (r: ActionResult) => void) => void;
@@ -42,17 +43,35 @@ const AskContext = createContext<Ask>(() => {});
 function useAct() {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [, startQuiet] = useTransition();
   const [msg, setMsg] = useState<{ text: string; bad: boolean } | null>(null);
-  const act: Act = (fn, after) =>
-    start(async () => {
-      // Duplicate / New broadcast redirect on the server: nothing comes back.
-      const r = (await fn()) ?? {};
-      setMsg(r.error ? { text: r.error, bad: true } : r.notice ? { text: r.notice, bad: false } : null);
-      if (!r.error) after?.(r);
-      if (r.href) router.push(r.href);
-      else router.refresh();
-    });
-  return { pending, msg, setMsg, act };
+  // Every save goes through one queue, in the order it was made.
+  const [enqueue] = useState(serialQueue);
+  const runWith =
+    (begin: typeof start): Act =>
+    (fn, after) =>
+      void enqueue(
+        () =>
+          new Promise<void>((done) =>
+            begin(async () => {
+              try {
+                // Duplicate / New broadcast redirect on the server: nothing comes back.
+                const r = (await fn()) ?? {};
+                setMsg(r.error ? { text: r.error, bad: true } : r.notice ? { text: r.notice, bad: false } : null);
+                if (!r.error) after?.(r);
+                if (r.href) router.push(r.href);
+                else router.refresh();
+              } finally {
+                done();
+              }
+            })
+          )
+      );
+  const act = runWith(start);
+  // The rename (saved on blur) never disables buttons: a click that blurred the
+  // name still lands, and its save runs after the rename.
+  const actQuiet = runWith(startQuiet);
+  return { pending, msg, setMsg, act, actQuiet };
 }
 
 /** Save a step; with drafts made, ask first and save again on yes. */
@@ -931,7 +950,7 @@ export default function BroadcastBuilder({
 }) {
   const b = data.broadcast;
   const router = useRouter();
-  const { pending, msg, setMsg, act } = useAct();
+  const { pending, msg, setMsg, act, actQuiet } = useAct();
   const [name, setName] = useState(b.name);
   const [asking, setAsking] = useState<Question | null>(null);
   // A notice belongs to the moment it was made: a new status clears it.
@@ -950,8 +969,12 @@ export default function BroadcastBuilder({
     return () => window.clearInterval(t);
   }, [b.status, router]);
 
-  // Remount the step forms when the saved broadcast changes.
-  const stamp = JSON.stringify([b.status, b.bubbles, b.audienceTagId, b.startMode, b.sendDate, b.windowStart, b.windowEnd, b.personaliseMode, b.variations, b.setterId, b.followupTemplate]);
+  // Each step's form remounts only when its own saved fields change, so saving
+  // one step never throws away unsaved typing in another.
+  const stamps = stepStamps(b);
+  const saveName = () => {
+    if (name.trim() && name !== b.name) actQuiet(() => saveStepsAction(b.key, { name }));
+  };
 
   return (
     <div className="os-bb">
@@ -966,9 +989,10 @@ export default function BroadcastBuilder({
               value={name}
               aria-label="Broadcast name"
               onChange={(e) => setName(e.target.value)}
-              onBlur={() => {
-                if (name.trim() && name !== b.name) act(() => saveStepsAction(b.key, { name }));
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
               }}
+              onBlur={saveName}
             />
             <Pill tone={data.status.tone}>{data.status.label}</Pill>
           </div>
@@ -1012,11 +1036,11 @@ export default function BroadcastBuilder({
       ) : null}
 
       <AskContext.Provider value={setAsking}>
-        <ol className="os-bb-steps" key={stamp}>
-          <StartStep data={data} act={act} pending={pending} canEdit={canEdit} />
-          <WhoStep data={data} tags={tags} act={act} pending={pending} canEdit={canEdit} />
-          <MessagesStep data={data} resources={resources} act={act} pending={pending} canEdit={canEdit} />
-          <PersonaliseStep data={data} setters={setters} act={act} pending={pending} canEdit={canEdit} />
+        <ol className="os-bb-steps">
+          <StartStep key={stamps.start} data={data} act={act} pending={pending} canEdit={canEdit} />
+          <WhoStep key={stamps.who} data={data} tags={tags} act={act} pending={pending} canEdit={canEdit} />
+          <MessagesStep key={stamps.messages} data={data} resources={resources} act={act} pending={pending} canEdit={canEdit} />
+          <PersonaliseStep key={stamps.personalise} data={data} setters={setters} act={act} pending={pending} canEdit={canEdit} />
           <Review data={data} act={act} pending={pending} />
         </ol>
       </AskContext.Provider>
