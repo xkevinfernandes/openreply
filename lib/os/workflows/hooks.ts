@@ -172,6 +172,8 @@ export async function workflowInbound(ev: { workspaceId: string; instagramAccoun
   if (!enabled()) return { consumed: false };
   return quiet("inbound", { consumed: false }, async () => {
     const r = await workflowEngine().handleInbound(ev);
+    // One line per tap, so a tap that finds no run shows why.
+    if (ev.tapPayload) console.info(`[OS Workflows] tap user=${ev.igUserId} payload=${ev.tapPayload.slice(0, 80)} run=${r.runId ?? "none"} consumed=${r.consumed}${r.outcome ? ` outcome=${r.outcome.status}` : ""}`);
     return { consumed: r.consumed };
   });
 }
