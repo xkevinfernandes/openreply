@@ -1,8 +1,9 @@
 "use client";
 
-// Settings › Custom fields (SettingsFields board). One global list; each field
-// has a type, a GoHighLevel field, a Kit field and the setters that fill it
-// (ticked in each setter's Knowledge base). First name and Email are built in.
+// Settings › Fields (Fields canvas): the built-in fields every contact has
+// (Instagram handle, plus the built-in rows: name, email), then the custom
+// fields. Each custom field has a type, the setters that fill it (ticked in
+// each setter's Knowledge base), a Kit field and a GoHighLevel field.
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -53,21 +54,78 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
     />
   );
 
+  const builtIns = fields.filter((f) => f.builtIn);
+  const custom = fields.filter((f) => !f.builtIn);
+
   return (
     <div className="os-cf">
+      <section className="os-set-section" aria-labelledby="os-fd-built">
+        <header className="os-set-section-head">
+          <h2 id="os-fd-built">Built in</h2>
+          <p>Every contact has these. They can&apos;t be renamed or deleted.</p>
+        </header>
+        <ul className="os-fd-builtin">
+          <li>
+            <strong>Instagram handle</strong>
+            <small>From Instagram. Tied to their Instagram ID, so a changed handle stays the same person.</small>
+            <span className="os-fd-chips">
+              <span className="os-fd-chip">Handle</span>
+              <span className="os-fd-chip">Unique key</span>
+            </span>
+          </li>
+          {!builtIns.length ? (
+            <>
+              <li>
+                <strong>Name</strong>
+                <small>From their Instagram profile</small>
+                <span className="os-fd-chips">
+                  <span className="os-fd-chip">Text</span>
+                </span>
+              </li>
+              <li>
+                <strong>Email</strong>
+                <small>Captured in the DM or from a lead magnet</small>
+                <span className="os-fd-chips">
+                  <span className="os-fd-chip">Email</span>
+                </span>
+              </li>
+            </>
+          ) : null}
+          {builtIns.map((f) =>
+            editing?.id === f.id ? (
+              <li key={f.id}>{editor(f)}</li>
+            ) : (
+              <li key={f.id}>
+                <strong>{f.label}</strong>
+                <small>{builtInHow(f.key)}</small>
+                <span className="os-fd-chips">
+                  <span className="os-fd-chip">{fieldTypeLabel(f.type)}</span>
+                  {f.kitField ? <span className="os-fd-chip">Synced to Kit</span> : null}
+                  {canManage ? (
+                    <button type="button" className="os-cf-more" aria-label={`Kit and GoHighLevel fields for ${f.label}`} onClick={() => setEditing({ id: f.id, focus: "kit" })}>
+                      <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M3.5 8h.01M8 8h.01M12.5 8h.01" />
+                      </svg>
+                    </button>
+                  ) : null}
+                </span>
+              </li>
+            )
+          )}
+        </ul>
+      </section>
+
       <div className="os-cf-head">
         <h2>Custom fields</h2>
-        <span className="os-cf-sub">
-          {fields.length} fields · shared by every setter
-        </span>
-        <InfoTip label="About custom fields">Setters tick which fields they fill in their Knowledge base. Values sync to the mapped GoHighLevel and Kit fields.</InfoTip>
+        <span className="os-cf-sub">Yours to shape. J fills the ones it can from the conversation.</span>
+        <InfoTip label="About custom fields">Setters tick which fields they fill in their Knowledge base. Values sync to the mapped Kit and GoHighLevel fields.</InfoTip>
         <span className="os-cf-grow" />
         {canManage ? (
           <button type="button" className="os-cf-btn primary" onClick={() => setEditing({ id: "new", focus: "label" })} disabled={editing?.id === "new"}>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M8 3.5v9M3.5 8h9" />
             </svg>
-            Add field
+            New field
           </button>
         ) : null}
       </div>
@@ -82,24 +140,16 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
             <tr>
               <th scope="col">Field</th>
               <th scope="col">Type</th>
-              <th scope="col">
-                <span className="os-cf-prov">
-                  <span className="os-cf-logo">GHL</span>GoHighLevel field
-                </span>
-              </th>
-              <th scope="col">
-                <span className="os-cf-prov">
-                  <span className="os-cf-logo">Kit</span>Kit field
-                </span>
-              </th>
-              <th scope="col">Used by setters</th>
+              <th scope="col">Filled by</th>
+              <th scope="col">Kit</th>
+              <th scope="col">GoHighLevel</th>
               <th scope="col">
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
           <tbody>
-            {fields.map((f) =>
+            {custom.map((f) =>
               editing?.id === f.id ? (
                 <tr key={f.id} className="os-cf-editing">
                   <td colSpan={6}>{editor(f)}</td>
@@ -109,16 +159,9 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
                   <td>
                     <span className="os-cf-name">
                       <strong>{f.label}</strong>
-                      {f.builtIn ? <span className="os-cf-badge">Built-in</span> : null}
                     </span>
                   </td>
                   <td className="os-cf-muted">{fieldTypeLabel(f.type)}</td>
-                  <td>
-                    <MapButton value={f.ghlField} disabled={!canManage} label={`GoHighLevel field for ${f.label}`} onClick={() => setEditing({ id: f.id, focus: "ghl" })} />
-                  </td>
-                  <td>
-                    <MapButton value={f.kitField} disabled={!canManage} label={`Kit field for ${f.label}`} onClick={() => setEditing({ id: f.id, focus: "kit" })} />
-                  </td>
                   <td>
                     <span className="os-cf-setters">
                       {setters
@@ -129,7 +172,14 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
                             {s.name}
                           </span>
                         ))}
+                      {!f.usedBy.length ? <span className="os-cf-muted">You</span> : null}
                     </span>
+                  </td>
+                  <td>
+                    <MapButton value={f.kitField} disabled={!canManage} label={`Kit field for ${f.label}`} onClick={() => setEditing({ id: f.id, focus: "kit" })} />
+                  </td>
+                  <td>
+                    <MapButton value={f.ghlField} disabled={!canManage} label={`GoHighLevel field for ${f.label}`} onClick={() => setEditing({ id: f.id, focus: "ghl" })} />
                   </td>
                   <td className="os-cf-end">
                     {canManage ? (
@@ -143,6 +193,13 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
                 </tr>
               )
             )}
+            {!custom.length && editing?.id !== "new" ? (
+              <tr>
+                <td colSpan={6} className="os-cf-muted">
+                  No custom fields yet.
+                </td>
+              </tr>
+            ) : null}
             {editing?.id === "new" ? (
               <tr className="os-cf-editing">
                 <td colSpan={6}>{editor(null)}</td>
@@ -153,6 +210,13 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
       </div>
     </div>
   );
+}
+
+/** Where a built-in field's value comes from. */
+function builtInHow(key: string): string {
+  if (/email/i.test(key)) return "Captured in the DM or from a lead magnet";
+  if (/name/i.test(key)) return "From their Instagram profile";
+  return "Every contact has it";
 }
 
 function MapButton({ value, label, disabled, onClick }: { value: string | null; label: string; disabled: boolean; onClick: () => void }) {

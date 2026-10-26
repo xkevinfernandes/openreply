@@ -5,7 +5,8 @@
 export const SETTINGS_TABS = [
   { tab: "instagram", label: "Instagram account" },
   { tab: "integrations", label: "Integrations" },
-  { tab: "fields", label: "Custom fields" },
+  { tab: "fields", label: "Fields" },
+  { tab: "tags", label: "Tags" },
   { tab: "logs", label: "DM logs" },
   { tab: "diagnostics", label: "Diagnostics" },
   { tab: "workspace", label: "Workspace" },
@@ -13,8 +14,10 @@ export const SETTINGS_TABS = [
 
 export type SettingsTab = (typeof SETTINGS_TABS)[number]["tab"];
 
+/** Always carries ?tab=, so on a phone a row opens its section (the bare
+ *  /os/settings is the list there; on a wide screen it shows Instagram). */
 export function settingsHref(tab: SettingsTab): string {
-  return tab === "instagram" ? "/os/settings" : `/os/settings?tab=${tab}`;
+  return `/os/settings?tab=${tab}`;
 }
 
 export function parseSettingsTab(value: string | null | undefined): SettingsTab {
@@ -102,4 +105,61 @@ export function ago(ms: number | null): string {
   const h = Math.round(m / 60);
   if (h < 48) return `${h} h ago`;
   return `${Math.round(h / 24)} days ago`;
+}
+
+// --- The section list's status lines (one line under each name) -------------
+
+/** Shown while a slow status line is still loading (filled in client-side). */
+export const STATUS_PENDING = "…";
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+export function instagramStatus(a: { username: string | null; problem: string | null }): string {
+  if (!a.username) return "Not connected";
+  return a.problem ?? `@${a.username} · connected`;
+}
+
+export function integrationsStatus(connected: string[]): string {
+  return connected.length ? connected.join(", ") : "None connected";
+}
+
+export function fieldsStatus(builtIn: number, custom: number): string {
+  return `${builtIn} built in · ${custom} custom`;
+}
+
+export function tagsStatus(total: number, system: number): string {
+  return `${plural(total, "tag")} · ${system} system`;
+}
+
+export function logsStatus(today: number): string {
+  return `${plural(today, "message")} today`;
+}
+
+export function diagnosticsStatus(problems: number): string {
+  return problems ? plural(problems, "problem") : "Everything's running";
+}
+
+export const WORKSPACE_STATUS = "Timezone, send cap";
+
+/** A value, or null when it took longer than ms (the line shows "…"). */
+export async function withCap<T>(work: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), ms);
+  });
+  try {
+    return await Promise.race([work.catch(() => null), late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// --- Instagram › Reconnect ----------------------------------------------------
+
+/** Which fix the one Reconnect button runs: a token/link problem goes through
+ *  Zernio's connect flow; a webhook-only problem repairs the webhook. */
+export function reconnectKind(problems: string[]): "connect" | "webhook" | null {
+  if (!problems.length) return null;
+  const webhook = (p: string) => /webhook/i.test(p);
+  return problems.every(webhook) ? "webhook" : "connect";
 }

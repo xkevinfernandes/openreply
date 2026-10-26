@@ -3,16 +3,19 @@ import { cleanBaseUrl } from "../../lib/os/integrations/dataos";
 import { parseSettingsTab, SETTINGS_TABS, settingsHref } from "../../lib/os/settings";
 
 describe("settings tabs", () => {
-  it("has the six sub-tabs in board order", () => {
-    expect(SETTINGS_TABS.map((t) => t.label)).toEqual(["Instagram account", "Integrations", "Custom fields", "DM logs", "Diagnostics", "Workspace"]);
+  it("has the seven sections in canvas order", () => {
+    expect(SETTINGS_TABS.map((t) => t.label)).toEqual(["Instagram account", "Integrations", "Fields", "Tags", "DM logs", "Diagnostics", "Workspace"]);
+    expect(SETTINGS_TABS.map((t) => t.tab)).toEqual(["instagram", "integrations", "fields", "tags", "logs", "diagnostics", "workspace"]);
   });
 
   it("parses ?tab= and builds links", () => {
     expect(parseSettingsTab("integrations")).toBe("integrations");
     expect(parseSettingsTab("fields")).toBe("fields");
+    expect(parseSettingsTab("tags")).toBe("tags");
     expect(parseSettingsTab("nope")).toBe("instagram");
     expect(parseSettingsTab(undefined)).toBe("instagram");
-    expect(settingsHref("instagram")).toBe("/os/settings");
+    // Always ?tab=: on a phone, bare /os/settings is the list.
+    expect(settingsHref("instagram")).toBe("/os/settings?tab=instagram");
     expect(settingsHref("integrations")).toBe("/os/settings?tab=integrations");
   });
 
