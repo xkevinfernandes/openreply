@@ -10,7 +10,7 @@ export function KbTabs({ active, settersHref = "/os/knowledge" }: { active: "set
       <Link href={settersHref} aria-current={active === "setters" ? "page" : undefined}>
         Setters
       </Link>
-      <Link href="/os/knowledge/resources" aria-current={active === "resources" ? "page" : undefined}>
+      <Link href="/os/resources" aria-current={active === "resources" ? "page" : undefined}>
         Resources
       </Link>
     </nav>

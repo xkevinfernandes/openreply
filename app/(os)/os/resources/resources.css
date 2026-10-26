@@ -1,0 +1,431 @@
+/* Resources (/os/resources, Resources canvas), in the reel look: white
+   radius-20 cards on the stone, pill filters with the picked one in ink. */
+
+.os-rs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.os-rs .os-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.os-rs-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.os-rs-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.os-rs-pill:hover {
+  background: var(--well);
+}
+
+.os-rs-pill[aria-selected="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.os-rs-count {
+  font-size: var(--fs-xs);
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.os-rs-note {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.os-rs-card {
+  --ctl: var(--well);
+  --ctl-hover: var(--tint-2);
+  padding: 8px 20px;
+  border-radius: var(--radius-card);
+  background: var(--card);
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.os-rs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.os-rs-table[data-busy] {
+  opacity: 0.7;
+}
+
+.os-rs-table th {
+  padding: 10px 8px;
+  text-align: left;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.os-rs-table td {
+  padding: 12px 8px;
+  border-top: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.os-rs-table tr[data-dragging] td {
+  opacity: 0.5;
+}
+
+.os-rs-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.os-rs-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.os-rs-name strong {
+  font-weight: 500;
+}
+
+.os-rs-kind {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--neutral-bg, var(--well));
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.os-rs-link {
+  color: var(--muted);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.os-rs-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.os-rs-nolink {
+  color: var(--warn);
+}
+
+.os-rs-muted {
+  color: var(--muted);
+}
+
+.os-rs-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.os-rs-chip {
+  font-size: var(--fs-xs);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--well);
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.os-rs-chip:hover {
+  background: var(--tint-2);
+}
+
+.os-rs-chip[data-kind="sequences"] {
+  color: var(--muted);
+}
+
+.os-rs-act {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.os-rs-grip-cell {
+  width: 28px;
+}
+
+.os-rs-grip {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: grab;
+}
+
+.os-rs-grip svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.os-rs-empty {
+  color: var(--muted);
+}
+
+.os-rs-emptycard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 20px;
+}
+
+.os-rs-emptycard p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.os-rs-sec-head {
+  padding: 12px 0 4px;
+}
+
+.os-rs-sec-head h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.os-rs-sec-head p {
+  margin: 2px 0 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.os-rs-docs {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 8px;
+}
+
+.os-rs-docs li + li {
+  border-top: 1px solid var(--line);
+}
+
+.os-rs-docs a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.os-rs-doc-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.os-rs-doc-text strong {
+  font-weight: 500;
+}
+
+.os-rs-doc-text span,
+.os-rs-doc-used {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.os-rs-entries summary {
+  padding: 12px 0;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.os-rs-entries ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.os-rs-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--well);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.os-rs-blockers {
+  margin: 0;
+  padding-left: 18px;
+}
+
+/* The add/edit sheet: a dialog on the right; full screen on a phone. */
+.os-rs-sheet {
+  margin: auto;
+  --ctl: var(--well);
+  --ctl-hover: var(--tint-2);
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  box-sizing: border-box;
+  padding: 24px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 20%);
+  overflow: auto;
+}
+
+.os-rs-sheet::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+
+.os-rs-form h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+
+.os-rs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.os-rs-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.os-rs-grid label > span,
+.os-rs-agents legend {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.os-rs-wide {
+  grid-column: 1 / -1;
+}
+
+.os-rs-agents {
+  margin: 16px 0 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+}
+
+.os-rs-agents legend {
+  margin-bottom: 6px;
+}
+
+.os-rs-agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.os-rs-del {
+  margin-right: auto;
+}
+
+@media (max-width: 560px) {
+  .os-rs-sheet {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .os-rs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .os-rs-card {
+    padding: 4px 16px;
+  }
+
+  .os-rs-table thead {
+    display: none;
+  }
+
+  .os-rs-table,
+  .os-rs-table tbody,
+  .os-rs-table tr,
+  .os-rs-table td {
+    display: block;
+  }
+
+  .os-rs-table tr {
+    position: relative;
+    padding: 12px 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .os-rs-table tbody tr:first-child {
+    border-top: 0;
+  }
+
+  .os-rs-table td {
+    padding: 2px 0;
+    border: 0;
+    text-align: left;
+  }
+
+  .os-rs-table td[data-label="Sent"]::before {
+    content: "Sent ";
+    color: var(--muted);
+  }
+
+  .os-rs-act {
+    position: absolute;
+    top: 8px;
+    right: 0;
+  }
+
+  .os-rs-grip-cell {
+    padding-bottom: 4px;
+  }
+}
