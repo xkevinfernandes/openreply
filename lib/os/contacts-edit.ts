@@ -7,15 +7,15 @@
 // with the same events (stage_changed, kind_changed, tags_changed). One
 // updateMany per bulk action instead of one setContactStage call per row.
 
-import { fridayTags } from "@/lib/os/broadcasts/migrate";
 import { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { prisma } from "@/lib/db/client";
-import { normalizeTag, OUTCOME_STAGES, parseEmail } from "@/lib/os/contacts-filter";
+import { normalizeTag, parseEmail } from "@/lib/os/contacts-filter";
 import { osEventHooks, type OsEventHooks } from "@/lib/os/events-hooks";
-import { dbTagDeps } from "@/lib/os/fields/write";
+import { writeStage } from "@/lib/os/stage-writer";
+import { bulkTagWrite, setFridayTag } from "@/lib/os/fields/write";
 import { fireContactEvent } from "@/lib/os/integrations/events";
 import type { SyncEvent } from "@/lib/os/integrations/mapping";
-import { mockContact, mockContactExtras, osMockEnabled, updateMockContact, updateMockContactExtras } from "@/lib/os/mock";
+import { mockContactExtras, osMockEnabled, updateMockContact, updateMockContactExtras } from "@/lib/os/mock";
 
 export type ContactChange =
   | { type: "stage"; stage: ContactStage }
@@ -122,7 +122,9 @@ export async function editContacts(
   db: ContactsEditDb = prisma as unknown as ContactsEditDb,
   fire: FireEvent = fireContactEvent,
   // OsEvents (won) only against the real database; tests pass their own db.
-  hooks: Pick<OsEventHooks, "onStageChanged"> | null = db === (prisma as unknown) ? osEventHooks : null
+  hooks: Pick<OsEventHooks, "onStageChanged"> | null = db === (prisma as unknown) ? osEventHooks : null,
+  /** The one stage writer (tests pass a fake). */
+  write: typeof writeStage = writeStage
 ): Promise<EditResult> {
   const list = cleanIds(ids);
   if (!list) return { error: "Pick at least one contact." };
@@ -130,50 +132,54 @@ export async function editContacts(
   const plan = planChange(change);
   if ("error" in plan) return { error: plan.error };
 
-  if (osMockEnabled()) return { count: editMock(list, plan) };
-
   const event = syncEventFor(change);
   const changed: string[] = [];
   const done = async (count: number): Promise<EditResult> => {
     // Never throws (fireContactEvent catches); one event per changed contact.
     if (event) for (const contactId of changed) await fire({ workspaceId, contactId, event });
-    if (change.type === "stage" && hooks) for (const contactId of changed) await hooks.onStageChanged({ workspaceId, contactId, stage: change.stage });
     return { count };
   };
+
+  // Stage moves: one at a time through the stage writer (move table, log, hook).
+  if (change.type === "stage" || change.type === "setterStage") {
+    const mine = osMockEnabled() ? list : (await db.contact.findMany({ where: { id: { in: list }, workspaceId }, select: { id: true, tags: true } })).map((r) => r.id);
+    const refused: string[] = [];
+    for (const contactId of mine) {
+      const r = await write(
+        {
+          workspaceId,
+          contactId,
+          cause: "user",
+          change: change.type === "stage" ? { type: "stage", stage: change.stage } : { type: "column", column: (plan as { data: { setterStage: string } }).data.setterStage },
+        },
+        { onStageChanged: hooks ? (info) => hooks.onStageChanged(info) : null }
+      );
+      if (r.status === "applied") changed.push(contactId);
+      else if (r.status === "refused") refused.push(r.reason);
+    }
+    if (!changed.length && refused.length) return { error: refused[0] };
+    return done(changed.length);
+  }
+
+  if (osMockEnabled()) return { count: editMock(list, plan) };
 
   if ("data" in plan) {
     // Which ids are really this workspace's, so only those raise CRM events.
     const mine = event ? (await db.contact.findMany({ where: { id: { in: list }, workspaceId }, select: { id: true, tags: true } })).map((r) => r.id) : list;
     if (!mine.length) return { count: 0 };
     const r = await db.contact.updateMany({ where: { id: { in: mine }, workspaceId }, data: plan.data });
-    if (change.type === "setterStage") {
-      await db.contact.updateMany({ where: { id: { in: mine }, workspaceId, stage: { in: OUTCOME_STAGES } }, data: { stage: "IN_CONVERSATION" } });
-    }
     if (change.type === "friday") {
       // Broadcasts read the follow-up-friday tag, not the legacy flag.
-      for (const row of await db.contact.findMany({ where: { id: { in: mine }, workspaceId }, select: { id: true, tags: true } })) {
-        await db.contact.updateMany({ where: { id: row.id, workspaceId }, data: { tags: fridayTags(row.tags, change.on) } });
-      }
+      await setFridayTag(db, workspaceId, mine, change.on);
     }
     changed.push(...mine);
     return done(r.count);
   }
 
-  // Tags: only rows that need the change, each written with its own new list.
-  const rows = await db.contact.findMany({
-    where: { id: { in: list }, workspaceId, ...(plan.op === "add" ? { NOT: { tags: { has: plan.tag } } } : { tags: { has: plan.tag } }) },
-    select: { id: true, tags: true },
-  });
-  let count = 0;
-  for (const row of rows) {
-    const tags = plan.op === "add" ? [...row.tags, plan.tag] : row.tags.filter((t) => t !== plan.tag);
-    const r = await db.contact.updateMany({ where: { id: row.id, workspaceId }, data: { tags } });
-    count += r.count;
-    if (r.count) changed.push(row.id);
-  }
-  // A removal made here is on purpose: the CRMs remove it too (they're add-only otherwise).
-  if (plan.op === "remove" && db === (prisma as unknown)) for (const id of changed) await dbTagDeps.pendingRemoval(workspaceId, id, plan.tag, true);
-  if (plan.op === "add" && db === (prisma as unknown)) for (const id of changed) await dbTagDeps.pendingRemoval(workspaceId, id, plan.tag, false);
+  // Tags: only rows that need the change, through the one tag writer.
+  const tagged = await bulkTagWrite(db, workspaceId, list, plan.tag, plan.op);
+  changed.push(...tagged);
+  const count = tagged.length;
   return done(count);
 }
 
@@ -187,10 +193,6 @@ function editMock(ids: string[], plan: { data: Data } | { tag: string; op: "add"
     const { notes, email, fridayAddedAt: _added, ...rest } = plan.data as { notes?: string | null; email?: string | null } & Data;
     void _added;
     if (notes !== undefined || email !== undefined) updateMockContactExtras(id, { notes, email });
-    if ("setterStage" in rest) {
-      const stage = mockContact(id)?.contact.stage;
-      if (stage && OUTCOME_STAGES.includes(stage)) rest.stage = "IN_CONVERSATION";
-    }
     if (Object.keys(rest).length) updateMockContact(id, rest);
   }
   return ids.length;

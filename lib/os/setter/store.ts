@@ -219,7 +219,11 @@ const dbStore: SetterStore = {
     await sendReply(contact.workspaceId, contact.igUserId, text, { humanAgent, conversationId: contact.conversationId, source: "setter" });
   },
   async setSetterStage(contactId, stage) {
-    await prisma.contact.update({ where: { id: contactId }, data: { setterStage: stage } });
+    // J's stage hint, through the one stage writer (cause setter).
+    const c = await prisma.contact.findUnique({ where: { id: contactId }, select: { workspaceId: true } });
+    if (!c) return;
+    const { writeStage } = await import("@/lib/os/stage-writer");
+    await writeStage({ workspaceId: c.workspaceId, contactId, cause: "setter", change: { type: "setterStage", setterStage: stage } });
   },
 };
 

@@ -10,7 +10,9 @@
 
 import { readFileSync } from "node:fs";
 import type { Prisma } from "@/app/generated/prisma/client";
+import type { ContactStage } from "@/app/generated/prisma/enums";
 import { prisma } from "@/lib/db/client";
+import { importWrites } from "@/lib/os/import/writes";
 import {
   type ExistingContact,
   type ImportedMeta,
@@ -147,21 +149,25 @@ async function main() {
       t.add(`created as ${cur!.kind}`);
       t.add(`created at ${cur!.stage}`);
       if (apply) {
-        await prisma.contact.create({
+        const { stage, tags, setterStage, ...rest } = patch as { stage?: ContactStage; tags?: string[]; setterStage?: string } & Record<string, unknown>;
+        const made = await prisma.contact.create({
           data: {
             ...key,
-            ...(patch as Prisma.ContactUncheckedCreateInput),
+            ...(rest as Prisma.ContactUncheckedCreateInput),
             imported: patch.imported as Prisma.InputJsonValue,
           },
         });
+        await importWrites(target.workspaceId, made.id, { stage, tags, setterStage });
       }
     } else if (changed.size) {
       t.add("updated", `${label}: ${[...changed].join(", ")}`);
       if (apply) {
+        const { stage, tags, setterStage, ...rest } = patch as { stage?: ContactStage; tags?: string[]; setterStage?: string } & Record<string, unknown>;
         await prisma.contact.update({
           where: { id: row!.id },
-          data: { ...(patch as Prisma.ContactUncheckedUpdateInput), imported: patch.imported as Prisma.InputJsonValue },
+          data: { ...(rest as Prisma.ContactUncheckedUpdateInput), imported: patch.imported as Prisma.InputJsonValue },
         });
+        await importWrites(target.workspaceId, row!.id, { stage, tags, setterStage });
       }
     } else {
       t.add("unchanged");

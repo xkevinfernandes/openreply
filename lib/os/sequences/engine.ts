@@ -259,8 +259,10 @@ async function setStage(contact: SetterContact, stage: "SHOWED") {
     updateMockContact(contact.id, { stage });
     return;
   }
-  const r = await prisma.contact.updateMany({ where: { id: contact.id, workspaceId: contact.workspaceId, stage: { not: stage } }, data: { stage } });
-  if (r.count) await fireContactEvent({ workspaceId: contact.workspaceId, contactId: contact.id, event: "stage_changed" });
+  // Through the one stage writer: showing up is the booking's outcome (cause booking).
+  const { writeStage } = await import("@/lib/os/stage-writer");
+  const r = await writeStage({ workspaceId: contact.workspaceId, contactId: contact.id, cause: "booking", change: { type: "stage", stage } });
+  if (r.status === "applied") await fireContactEvent({ workspaceId: contact.workspaceId, contactId: contact.id, event: "stage_changed" });
 }
 
 function clip(s: string | null | undefined, n = 240): string | null {

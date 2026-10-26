@@ -106,3 +106,70 @@ export async function countEvents(
     },
   });
 }
+
+// --- Won amount and offer (dm-crm: Won picker, revenue) ---------------------------
+// Stored in the data of the contact's one won event (dedupeKey won:<contactId>),
+// no new table. The stage-changed hook and the metrics back-fill create that
+// event with skipDuplicates, so they never overwrite data already there.
+
+export interface WonData {
+  /** The offer they bought (a setter's structured offer name, or typed). */
+  offer: string;
+  /** In the workspace currency (OsWorkspace.currency). */
+  amount: number;
+  /** When this win happened (the event's own time is fixed at the first win). */
+  wonAt: string;
+}
+
+/** The won data in an event's data, or null when there is no amount. */
+export function wonDataOf(data: unknown): WonData | null {
+  if (!data || typeof data !== "object") return null;
+  const d = data as Record<string, unknown>;
+  const amount = typeof d.amount === "number" ? d.amount : typeof d.amount === "string" && d.amount.trim() ? Number(d.amount) : NaN;
+  if (!Number.isFinite(amount)) return null;
+  return { offer: typeof d.offer === "string" ? d.offer : "", amount, wonAt: typeof d.wonAt === "string" ? d.wonAt : "" };
+}
+
+/** The slice of a Prisma client (or transaction) the won data uses. */
+export interface WonDb {
+  osEvent: {
+    findUnique(args: { where: { dedupeKey: string }; select: { id: true; data: true } }): Promise<{ id: string; data: unknown } | null>;
+    create(args: { data: object }): Promise<unknown>;
+    update(args: { where: { id: string }; data: { data: object } }): Promise<unknown>;
+  };
+}
+
+const KEEP = (data: unknown): Record<string, unknown> => (data && typeof data === "object" && !Array.isArray(data) ? { ...(data as Record<string, unknown>) } : {});
+
+/**
+ * Marking Won records the offer and amount: creates the contact's won event
+ * with them, or adds them to the one already there. Always writes wonAt.
+ */
+export async function setWonData(
+  input: { workspaceId: string; contactId: string; setterId?: string | null; offer: string; amount: number; wonAt?: Date },
+  db: WonDb = prisma as unknown as WonDb
+): Promise<WonData> {
+  const wonAt = (input.wonAt ?? new Date()).toISOString();
+  const won: WonData = { offer: input.offer.trim(), amount: input.amount, wonAt };
+  const key = eventKey("won", input.contactId);
+  const cur = await db.osEvent.findUnique({ where: { dedupeKey: key }, select: { id: true, data: true } });
+  if (cur) await db.osEvent.update({ where: { id: cur.id }, data: { data: { ...KEEP(cur.data), ...won } } });
+  else
+    await db.osEvent.create({
+      data: { workspaceId: input.workspaceId, contactId: input.contactId, setterId: input.setterId ?? null, kind: "won", dedupeKey: key, at: new Date(wonAt), data: won },
+    });
+  return won;
+}
+
+/** Leaving Won clears the amount and offer (the event stays as history). */
+export async function clearWonData(contactId: string, db: WonDb = prisma as unknown as WonDb): Promise<boolean> {
+  const cur = await db.osEvent.findUnique({ where: { dedupeKey: eventKey("won", contactId) }, select: { id: true, data: true } });
+  if (!cur) return false;
+  const data = KEEP(cur.data);
+  if (!("amount" in data) && !("offer" in data) && !("wonAt" in data)) return false;
+  delete data.amount;
+  delete data.offer;
+  delete data.wonAt;
+  await db.osEvent.update({ where: { id: cur.id }, data: { data } });
+  return true;
+}

@@ -80,22 +80,30 @@ describe("contacts kanban (funnel columns)", () => {
     expect(groupByColumn([moved], columns).get("qualify")?.length).toBe(1);
   });
 
-  it("writes the hint and resets outcome stages, workspace-scoped", async () => {
-    const calls: { where: Record<string, unknown>; data?: Record<string, unknown> }[] = [];
+  it("a drop into a funnel column goes through the stage writer as Kevin's move, workspace-scoped", async () => {
     const db: ContactsEditDb = {
       contact: {
-        updateMany: async ({ where, data }) => {
-          calls.push({ where, data });
-          return { count: 1 };
-        },
-        findMany: async () => [{ id: "a", tags: [] }],
+        updateMany: async () => ({ count: 1 }),
+        findMany: async ({ where }) => ((where.workspaceId === "w1" ? [{ id: "a", tags: [] }] : []) as { id: string; tags: string[] }[]),
       },
     };
+    const writes: unknown[] = [];
     const fired: string[] = [];
-    await editContacts("w1", ["a"], { type: "setterStage", setterStage: "qualify" }, db, async (e) => void fired.push(e.event), null);
-    expect(calls[0]).toMatchObject({ where: { id: { in: ["a"] }, workspaceId: "w1" }, data: { setterStage: "qualify" } });
-    expect(calls[1]).toMatchObject({ where: { id: { in: ["a"] }, workspaceId: "w1", stage: { in: ["CALL_BOOKED", "SHOWED", "WON", "LOST", "NOT_QUALIFIED"] } }, data: { stage: "IN_CONVERSATION" } });
+    const write = (async (input: unknown) => {
+      writes.push(input);
+      return { status: "applied", from: "open", to: "qualify", stage: "IN_CONVERSATION", logged: true };
+    }) as unknown as Parameters<typeof editContacts>[6];
+    await editContacts("w1", ["a"], { type: "setterStage", setterStage: "qualify" }, db, async (e) => void fired.push(e.event), null, write);
+    expect(writes).toEqual([{ workspaceId: "w1", contactId: "a", cause: "user", change: { type: "column", column: "qualify" } }]);
     expect(fired).toEqual(["stage_changed"]);
+  });
+
+  it("a refused move is an error and fires nothing", async () => {
+    const db: ContactsEditDb = { contact: { updateMany: async () => ({ count: 1 }), findMany: async () => [{ id: "a", tags: [] }] } };
+    const fired: string[] = [];
+    const write = (async () => ({ status: "refused", from: "booked", to: "qualify", reason: "Change the booking instead." })) as unknown as Parameters<typeof editContacts>[6];
+    expect(await editContacts("w1", ["a"], { type: "setterStage", setterStage: "qualify" }, db, async (e) => void fired.push(e.event), null, write)).toEqual({ error: "Change the booking instead." });
+    expect(fired).toEqual([]);
   });
 });
 

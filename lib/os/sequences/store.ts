@@ -282,10 +282,9 @@ const dbStore: SequenceStore = {
     };
   },
   async setAttendance(workspaceId, bookingId, attendance, source, at) {
-    await prisma.booking.updateMany({
-      where: { id: bookingId, workspaceId },
-      data: { attendance, attendanceSource: attendance ? source : null, attendanceAt: attendance ? at : null },
-    });
+    // Through the one stage writer (cause booking): attendance moves the card.
+    const { writeAttendance } = await import("@/lib/os/stage-writer");
+    await writeAttendance({ workspaceId, bookingId, attendance, source, at });
   },
   async createTask(input) {
     const t = await prisma.osTask.upsert({

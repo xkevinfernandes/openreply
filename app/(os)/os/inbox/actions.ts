@@ -5,10 +5,10 @@ import { revalidatePath } from "next/cache";
 import { ContactKind, ContactStage } from "@/app/generated/prisma/enums";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
-import { osEventHooks } from "@/lib/os/events-hooks";
 import { holdDraft, loadThreadData, sendReply, type ThreadData } from "@/lib/os/inbox";
 import { loadContactPanel } from "@/lib/os/contact-panel/load";
 import { dropOnColumn } from "@/lib/os/funnel";
+import { writeStage } from "@/lib/os/stage-writer";
 import { pendingDrafts } from "@/lib/os/setter/service";
 import type { DraftView } from "@/lib/os/setter/store";
 import { draftBlockedReason } from "@/components/os/inbox/categories";
@@ -31,11 +31,9 @@ async function requireWorkspace() {
 type ContactPatch = {
   kind?: ContactKind;
   kindSource?: string;
-  stage?: ContactStage;
   suggestedKind?: ContactKind | null;
   suggestedReason?: string | null;
   suggestedConfidence?: number | null;
-  tags?: string[];
 };
 
 async function updateContact(contactId: string, data: ContactPatch, event?: SyncEvent) {
@@ -60,13 +58,18 @@ export async function setContactKind(contactId: string, kind: ContactKind) {
   await syncFollowupsQuietly(contactId);
 }
 
-export async function setContactStage(contactId: string, stage: ContactStage) {
+export async function setContactStage(contactId: string, stage: ContactStage): Promise<{ error?: string }> {
   if (!Object.values(ContactStage).includes(stage)) throw new Error("Unknown stage.");
-  await updateContact(contactId, { stage }, "stage_changed");
-  if (!osMockEnabled()) await osEventHooks.onStageChanged({ workspaceId: await requireWorkspace(), contactId, stage });
+  const workspaceId = await requireWorkspace();
+  // Kevin's move, through the one stage writer (move table, log, stage-changed hook).
+  const r = await writeStage({ workspaceId, contactId, cause: "user", change: { type: "stage", stage } });
+  if (r.status === "refused" || r.status === "missing") return { error: r.reason };
+  if (r.status === "applied" && !osMockEnabled()) await fireContactEvent({ workspaceId, contactId, event: "stage_changed" });
   // Showed on the board = they came to the call: Kevin's voice-note task.
-  if (stage === "SHOWED") await markAttendance(await requireWorkspace(), contactId, "SHOWED").catch(() => null);
+  if (stage === "SHOWED") await markAttendance(workspaceId, contactId, "SHOWED").catch(() => null);
+  revalidatePath("/os/inbox");
   revalidatePath("/os/follow-ups");
+  return {};
 }
 
 export async function sendInboxMessage(
@@ -290,12 +293,10 @@ export async function moveContactStage(contactId: string, column: string): Promi
   if (!panel) return { error: "That contact is gone. Refresh the page." };
   const drop = dropOnColumn(column, panel.stage.columns);
   if ("error" in drop) return { error: drop.error };
-  if ("stage" in drop) {
-    await setContactStage(contactId, drop.stage);
-    return {};
-  }
-  if (osMockEnabled()) updateMockContact(contactId, { setterStage: drop.setterStage });
-  else await prisma.contact.updateMany({ where: { id: contactId, workspaceId }, data: { setterStage: drop.setterStage } });
+  if ("stage" in drop) return setContactStage(contactId, drop.stage);
+  const r = await writeStage({ workspaceId, contactId, cause: "user", change: { type: "column", column: column } });
+  if (r.status === "refused" || r.status === "missing") return { error: r.reason };
+  if (r.status === "applied" && !osMockEnabled()) await fireContactEvent({ workspaceId, contactId, event: "stage_changed" });
   revalidatePath("/os/inbox");
   revalidatePath("/os/contacts");
   return {};

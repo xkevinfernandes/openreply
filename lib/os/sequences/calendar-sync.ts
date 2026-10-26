@@ -17,6 +17,7 @@ import { iso, logEvent, type SetterRecord } from "@/lib/os/setter/state";
 import { setterStore } from "@/lib/os/setter/store";
 import { CALCOM_TRIGGERS, CALENDLY_EVENTS, type CalendarEvent } from "@/lib/os/sequences/calendar-events";
 import { markAttendance, syncFollowupsQuietly } from "@/lib/os/sequences/engine";
+import { writeAttendance, writeStage } from "@/lib/os/stage-writer";
 
 export interface ApplyResult {
   status: "ignored" | "unmatched" | "created" | "updated" | "cancelled" | "attendance";
@@ -86,10 +87,12 @@ export async function applyCalendarEvent(workspaceId: string, provider: Calendar
         start,
         end,
         ...(b.status === "LINK_SENT" || b.status === "CANCELLED" ? { status: "BOOKED", cancelledAt: null } : {}),
-        ...(moved && b.status !== "LINK_SENT" ? { rescheduledAt: now, attendance: null, attendanceAt: null, attendanceSource: null } : {}),
+        ...(moved && b.status !== "LINK_SENT" ? { rescheduledAt: now } : {}),
         ...(ev.timezone && b.status === "LINK_SENT" ? { timezone: ev.timezone } : {}),
       },
     });
+    // A moved call's attendance is reset, through the one stage writer (cause booking).
+    if (moved && b.status !== "LINK_SENT" && b.attendance) await writeAttendance({ workspaceId, bookingId: b.id, attendance: null, at: now });
     await updateRecord(workspaceId, b.contactId, (rec) => {
       if (rec.booking) rec.booking = { ...rec.booking, phase: rec.booking.phase === "link_sent" ? "booked" : rec.booking.phase, start: iso(start), booking_id: b!.id };
       logEvent(rec, now, `booking:${moved ? "moved" : "seen"}:${provider}`);
@@ -120,8 +123,8 @@ export async function applyCalendarEvent(workspaceId: string, provider: Calendar
     },
   });
   if (!LATE_STAGES.includes(contact.stage)) {
-    await prisma.contact.update({ where: { id: contact.id }, data: { stage: "CALL_BOOKED" } });
-    await fireContactEvent({ workspaceId, contactId: contact.id, event: "stage_changed" });
+    const r = await writeStage({ workspaceId, contactId: contact.id, cause: "booking", change: { type: "stage", stage: "CALL_BOOKED" }, at: now });
+    if (r.status === "applied") await fireContactEvent({ workspaceId, contactId: contact.id, event: "stage_changed" });
   }
   await syncFollowupsQuietly(contact.id, { workspaceId });
   await (await import("@/lib/os/workflows/hooks")).workflowBooked(contact.id);

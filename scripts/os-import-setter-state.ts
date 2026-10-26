@@ -13,7 +13,9 @@
 
 import { readFileSync } from "node:fs";
 import type { Prisma } from "@/app/generated/prisma/client";
+import type { ContactStage } from "@/app/generated/prisma/enums";
 import { prisma } from "@/lib/db/client";
+import { importWrites } from "@/lib/os/import/writes";
 import {
   type ExistingContact,
   type ImportedMeta,
@@ -122,17 +124,22 @@ async function main() {
       record: rec as unknown as Prisma.InputJsonValue,
       ...nextAction(rec),
     };
-    await prisma.$transaction(async (tx) => {
+    // Stage, J's hint and tags go through the one stage and tag writers after
+    // the row exists (cause import); everything else as before.
+    const { stage, tags, setterStage, ...plain } = contactData as { stage?: ContactStage; tags?: string[]; setterStage?: string } & Record<string, unknown>;
+    const contactId = await prisma.$transaction(async (tx) => {
       const contact = row
         ? changed.length || decision === "create" || decision === "update"
-          ? await tx.contact.update({ where: { id: row.id }, data: contactData as Prisma.ContactUncheckedUpdateInput })
+          ? await tx.contact.update({ where: { id: row.id }, data: plain as Prisma.ContactUncheckedUpdateInput })
           : row
         : await tx.contact.create({
-            data: { ...scope, igUserId, ...(contactData as Omit<Prisma.ContactUncheckedCreateInput, "workspaceId" | "instagramAccountId" | "igUserId">) },
+            data: { ...scope, igUserId, ...(plain as Omit<Prisma.ContactUncheckedCreateInput, "workspaceId" | "instagramAccountId" | "igUserId">) },
           });
       if (decision === "create") await tx.setterState.create({ data: { contactId: contact.id, ...stateData } });
       else if (decision === "update") await tx.setterState.update({ where: { contactId: contact.id }, data: stateData });
+      return contact.id;
     });
+    await importWrites(target.workspaceId, contactId, { stage, tags, setterStage });
   }
 
   t.print(apply ? "Applied:" : "Would do (dry run; --apply to write):", verbose);

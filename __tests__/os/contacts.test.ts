@@ -121,9 +121,18 @@ describe("contact edits", () => {
 
   it("scopes every write to the workspace and syncs only this workspace's contacts", async () => {
     const { db, calls, fire, fired } = fakeDb();
-    expect(await editContacts("w1", ["a", "b", "a", "foreign"], { type: "stage", stage: "QUALIFIED" }, db, fire)).toEqual({ count: 2 });
+    // Stage changes go through the one stage writer, one contact at a time.
+    const writes: { contactId: string; cause: string; change: unknown }[] = [];
+    const write = (async (input: { contactId: string; cause: string; change: unknown }) => {
+      writes.push({ contactId: input.contactId, cause: input.cause, change: input.change });
+      return { status: "applied", from: "open", to: "qualify", stage: "QUALIFIED", logged: true };
+    }) as unknown as Parameters<typeof editContacts>[6];
+    expect(await editContacts("w1", ["a", "b", "a", "foreign"], { type: "stage", stage: "QUALIFIED" }, db, fire, null, write)).toEqual({ count: 2 });
     expect(calls[0]).toMatchObject({ op: "findMany", where: { id: { in: ["a", "b", "foreign"] }, workspaceId: "w1" } });
-    expect(calls[1]).toMatchObject({ op: "updateMany", where: { id: { in: ["a", "b"] }, workspaceId: "w1" }, data: { stage: "QUALIFIED" } });
+    expect(writes).toEqual([
+      { contactId: "a", cause: "user", change: { type: "stage", stage: "QUALIFIED" } },
+      { contactId: "b", cause: "user", change: { type: "stage", stage: "QUALIFIED" } },
+    ]);
     expect(fired).toEqual([
       { workspaceId: "w1", contactId: "a", event: "stage_changed" },
       { workspaceId: "w1", contactId: "b", event: "stage_changed" },

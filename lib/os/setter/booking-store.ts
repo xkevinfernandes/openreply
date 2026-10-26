@@ -103,10 +103,10 @@ const dbBookings: BookingStore = {
     if (target && target.status !== "CONFIRMED") {
       await prisma.booking.update({ where: { id: target.id }, data: { status: "CONFIRMED", confirmedAt: at } });
     }
-    await prisma.contact.updateMany({
-      where: { id: contact.id, workspaceId: contact.workspaceId },
-      data: { stage: "CALL_BOOKED", setterStage: "booked", ...(target ? { email: target.email.toLowerCase() } : {}) },
-    });
+    if (target) await prisma.contact.updateMany({ where: { id: contact.id, workspaceId: contact.workspaceId }, data: { email: target.email.toLowerCase() } });
+    // Stage through the one stage writer (cause booking): same values as before.
+    const { writeStage } = await import("@/lib/os/stage-writer");
+    await writeStage({ workspaceId: contact.workspaceId, contactId: contact.id, cause: "booking", change: { type: "stage", stage: "CALL_BOOKED", setterStage: "booked" }, at });
     await fireContactEvent({ workspaceId: contact.workspaceId, contactId: contact.id, event: "stage_changed" });
     if (target) await osEventHooks.onBooking({ workspaceId: contact.workspaceId, contactId: contact.id, bookingId: target.id, at });
   },
