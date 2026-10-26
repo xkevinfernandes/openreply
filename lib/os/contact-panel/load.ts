@@ -5,6 +5,7 @@
 import type { ContactKind } from "@/app/generated/prisma/enums";
 import { prisma } from "@/lib/db/client";
 import { nextFollowupLine } from "@/lib/os/contact-panel/followups";
+import { panelStageExtras } from "@/lib/os/contact-panel/stage";
 import type { ContactPanelData, PanelField, PanelKeyword } from "@/lib/os/contact-panel/types";
 import { columnFor, funnelColumns, type FunnelStageLike } from "@/lib/os/funnel";
 import { mockContactPanel, osMockEnabled } from "@/lib/os/mock";
@@ -37,7 +38,18 @@ export function keyFields(
   });
 }
 
+/** The panel with the stage dropdown's allowed moves and the won amount. */
 export async function loadContactPanel(workspaceId: string, contactId: string): Promise<ContactPanelData | null> {
+  const panel = await loadPanelBase(workspaceId, contactId);
+  if (!panel) return null;
+  const extras = await panelStageExtras(workspaceId, contactId).catch((err) => {
+    console.error("[OS Panel] stage targets failed:", err instanceof Error ? err.message : err);
+    return null;
+  });
+  return extras ? { ...panel, stage: { ...panel.stage, ...extras } } : panel;
+}
+
+async function loadPanelBase(workspaceId: string, contactId: string): Promise<ContactPanelData | null> {
   if (osMockEnabled()) return mockContactPanel(contactId);
 
   const contact = await prisma.contact.findFirst({ where: { id: contactId, workspaceId } });

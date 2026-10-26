@@ -3,6 +3,15 @@
 // follow-ups S5) through their own sub-loaders.
 import type { ContactKind } from "@/app/generated/prisma/enums";
 import type { FunnelColumn } from "@/lib/os/funnel";
+import type { MoveTarget } from "@/lib/os/move-table";
+
+/** What the stage dropdown may offer now, and the won offer (dm-crm 020). */
+export interface PanelStageExtras {
+  /** One per column: allowed or why not (lib/os/move-table.ts moveTargets). */
+  targets: MoveTarget[];
+  /** On Won: the offer and the formatted amount (null amount = not filled in). */
+  won: { offer: string; amount: string | null } | null;
+}
 
 export const PANEL_TABS = [
   { key: "chat", label: "Chat" },
@@ -54,7 +63,7 @@ export interface ContactPanelData {
   kind: ContactKind;
   setter: { id: string | null; name: string } | null;
   /** The pill: the setter's funnel columns and where they sit. */
-  stage: { column: string; columns: FunnelColumn[] };
+  stage: { column: string; columns: FunnelColumn[] } & Partial<PanelStageExtras>;
   fields: PanelField[];
   keywords: PanelKeyword[];
   nextFollowup: PanelFollowup | null;

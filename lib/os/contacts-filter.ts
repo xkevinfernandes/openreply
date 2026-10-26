@@ -162,6 +162,11 @@ export function applyChangeLocally(rows: ContactRow[], ids: string[], change: Co
         return { ...c, stage: change.stage };
       case "setterStage":
         return { ...c, setterStage: change.setterStage, stage: OUTCOME_STAGES.includes(c.stage) ? "IN_CONVERSATION" : c.stage, attendance: null };
+      case "column":
+        if (change.column === "lost") return { ...c, stage: "LOST", won: null };
+        return OUTCOME_STAGES.includes(c.stage) && change.column !== "won" ? { ...c, setterStage: change.column, stage: "IN_CONVERSATION", won: null } : { ...c, setterStage: change.column };
+      case "archive":
+        return { ...c, archivedAt: change.archived ? new Date().toISOString() : null };
       case "kind":
         return { ...c, kind: change.kind };
       case "paused":

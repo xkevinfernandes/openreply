@@ -1,30 +1,38 @@
 "use client";
 
+// The Contacts table (dm-crm issue 017): the view's columns in order, sort
+// by any column header, a checkbox per row, a click opens the panel. At
+// 400px each row stacks (name, stage, last activity) with its checkbox.
+
 import { useEffect, useRef } from "react";
-import type { ContactStage } from "@/app/generated/prisma/enums";
 import Avatar from "@/components/os/inbox/avatar";
 import { initialSource, threadName } from "@/components/os/inbox/names";
-import type { ContactRow } from "@/lib/os/contacts-board";
-import { entryLabels, kindTabs, shortAgo, stageLabels, stageOrder } from "@/lib/os/labels";
-
-// The stage as a status pill: good once a call is booked, bad when lost,
-// neutral for everything on the way.
-const GOOD_STAGES = new Set<ContactStage>(["CALL_BOOKED", "SHOWED", "WON"]);
-const stageTone = (s: ContactStage) => (GOOD_STAGES.has(s) ? "good" : s === "LOST" ? "bad" : "neutral");
+import type { ContactRow, SetterOption } from "@/lib/os/contacts-board";
+import { sourceOf } from "@/lib/os/contacts-filter";
+import { lastActivity, stageKeyOf, type QueryContext, type ViewSort } from "@/lib/os/contacts-view";
+import { kindTabs, shortAgo } from "@/lib/os/labels";
+import { formatMoney } from "@/lib/os/money";
 
 interface Props {
   rows: ContactRow[];
+  columns: string[];
+  columnOptions: { key: string; label: string }[];
+  sort: ViewSort;
+  onSort: (key: string) => void;
+  ctx: QueryContext;
+  setters: SetterOption[];
+  /** Tag name → palette key. */
+  tagColors: Map<string, string>;
+  currency: string;
   now: number;
   selected: Set<string>;
   openId: string | null;
-  showKind: boolean;
-  hasSetters: boolean;
-  setterName: (id: string | null) => string;
-  onToggle: (id: string, on?: boolean) => void;
+  onToggle: (id: string, on: boolean) => void;
   onSelectAll: (on: boolean) => void;
   onOpen: (id: string) => void;
-  onStage: (id: string, stage: ContactStage) => void;
 }
+
+const stageTone = (key: string) => (key === "won" || key === "showed" || key === "booked" ? "good" : key === "lost" || key === "no_show" ? "bad" : "neutral");
 
 export default function ContactsTable(p: Props) {
   const all = p.rows.length > 0 && p.rows.every((c) => p.selected.has(c.id));
@@ -34,24 +42,85 @@ export default function ContactsTable(p: Props) {
     if (head.current) head.current.indeterminate = some;
   }, [some]);
 
-  if (!p.rows.length) return null;
+  const cols = p.columns.filter((k) => p.columnOptions.some((o) => o.key === k));
+  const label = (k: string) => p.columnOptions.find((o) => o.key === k)?.label ?? k;
+  const setterName = (id: string | null) => p.setters.find((s) => s.id === (id ?? p.ctx.defaultSetterId))?.name ?? "—";
+
+  function cell(c: ContactRow, key: string) {
+    const name = threadName(c.username, c.fullName);
+    switch (key) {
+      case "name":
+        return (
+          <button type="button" className="os-ct-who" onClick={() => p.onOpen(c.id)}>
+            <Avatar src={c.avatarUrl} username={initialSource(c.username, c.fullName)} size={28} />
+            <span className="who-text">
+              <span className="name">{name}</span>
+              {c.fields?.business ? <span className="sub">{c.fields.business}</span> : c.username && c.fullName ? <span className="sub">{c.fullName}</span> : null}
+            </span>
+            {c.archivedAt ? <span className="chip quiet">Archived</span> : null}
+          </button>
+        );
+      case "email":
+        return c.email ? <span className="os-cv-ellipsis">{c.email}</span> : <span className="muted">—</span>;
+      case "stage": {
+        const k = stageKeyOf(c, p.ctx);
+        const lbl = p.ctx.columnsFor(c.setterId ?? p.ctx.defaultSetterId).find((x) => x.key === k)?.label ?? k;
+        return (
+          <span className="os-pill" data-tone={stageTone(k)} title={k === "won" && c.won ? `${c.won.offer} · ${formatMoney(c.won.amount, p.currency)}` : undefined}>
+            {lbl}
+          </span>
+        );
+      }
+      case "setter":
+        return <span className="muted">{setterName(c.setterId)}</span>;
+      case "category":
+        return <span className="muted">{kindTabs.find((k) => k.kind === c.kind)?.label ?? c.kind}</span>;
+      case "source":
+        return <span className="muted">{sourceOf(c)}</span>;
+      case "tags":
+        return (
+          <span className="os-ct-tags">
+            {c.tags.length ? (
+              c.tags.map((t) => (
+                <span key={t} className="os-cv-tag" data-color={p.tagColors.get(t) ?? "gray"}>
+                  {t}
+                </span>
+              ))
+            ) : (
+              <span className="muted">—</span>
+            )}
+          </span>
+        );
+      case "last":
+        return <span className="muted">{shortAgo(lastActivity(c), p.now) || "—"}</span>;
+      case "created":
+        return <span className="muted">{c.createdAt ? new Date(c.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—"}</span>;
+      default: {
+        const v = key.startsWith("field:") ? c.fields?.[key.slice(6)] : undefined;
+        return v ? <span className="os-cv-ellipsis">{v}</span> : <span className="muted">—</span>;
+      }
+    }
+  }
 
   return (
     <div className="os-ct-table-wrap">
-      <table className="os-ct-table">
+      <table className="os-ct-table os-cv-table">
         <thead>
           <tr>
             <th className="check">
-              <input ref={head} type="checkbox" aria-label="Select all shown" checked={all} onChange={(e) => p.onSelectAll(e.target.checked)} />
+              <input ref={head} type="checkbox" aria-label="Select all on this page" checked={all} onChange={(e) => p.onSelectAll(e.target.checked)} />
             </th>
-            <th className="contact">Contact</th>
-            {p.showKind && <th className="kind">Kind</th>}
-            <th className="stage">Stage</th>
-            <th className="j">J</th>
-            <th className="entry">Entry</th>
-            <th className="tags">Tags</th>
-            {p.hasSetters && <th className="setter">Setter</th>}
-            <th className="when">Last message</th>
+            {cols.map((k) => {
+              const on = p.sort.key === k;
+              return (
+                <th key={k} data-col={k} aria-sort={on ? (p.sort.dir === "asc" ? "ascending" : "descending") : undefined}>
+                  <button type="button" className="os-cv-sort" onClick={() => p.onSort(k)}>
+                    {label(k)}
+                    {on ? <span aria-hidden="true">{p.sort.dir === "asc" ? " ↑" : " ↓"}</span> : null}
+                  </button>
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -62,43 +131,14 @@ export default function ContactsTable(p: Props) {
                 <td className="check">
                   <input type="checkbox" aria-label={`Select ${name}`} checked={p.selected.has(c.id)} onChange={(e) => p.onToggle(c.id, e.target.checked)} />
                 </td>
-                <td className="contact">
-                  <button type="button" className="os-ct-who" onClick={() => p.onOpen(c.id)}>
-                    <Avatar src={c.avatarUrl} username={initialSource(c.username, c.fullName)} size={28} />
-                    <span className="who-text">
-                      <span className="name">{name}</span>
-                      {c.username && c.fullName && <span className="sub">{c.fullName}</span>}
-                    </span>
-                    {c.draftWaiting && (
-                      <span className="os-ct-dot" title="Draft from J waiting">
-                        <span className="sr-only">Draft from J waiting</span>
-                      </span>
-                    )}
-                  </button>
-                </td>
-                {p.showKind && <td className="kind muted">{kindTabs.find((k) => k.kind === c.kind)?.label}</td>}
-                <td className="stage">
-                  <span className="os-select os-ct-inline-select" data-tone={stageTone(c.stage)}>
-                    <select aria-label={`Stage for ${name}`} value={c.stage} onChange={(e) => p.onStage(c.id, e.target.value as ContactStage)}>
-                      {stageOrder.map((s) => (
-                        <option key={s} value={s}>
-                          {stageLabels[s]}
-                        </option>
-                      ))}
-                    </select>
-                  </span>
-                </td>
-                <td className="j muted">
-                  {c.paused ? <span className="chip flag">Paused</span> : c.setterStage ? <span className="cap">{c.setterStage}</span> : "—"}
-                </td>
-                <td className="entry">{c.entryPath ? <span className="chip">{entryLabels[c.entryPath] ?? c.entryPath}</span> : <span className="muted">—</span>}</td>
-                <td className="tags">
-                  <span className="os-ct-tags">
-                    {c.tags.length ? c.tags.map((t) => <span key={t} className="chip quiet">{t}</span>) : <span className="muted">—</span>}
-                  </span>
-                </td>
-                {p.hasSetters && <td className="setter muted">{p.setterName(c.setterId)}</td>}
-                <td className="when muted">{shortAgo(c.lastMessageAt, p.now) || "—"}</td>
+                {cols.map((k) => (
+                  <td key={k} data-col={k} onClick={k === "name" ? undefined : () => p.onOpen(c.id)}>
+                    {cell(c, k)}
+                  </td>
+                ))}
+                {/* 400px: the stacked row always shows stage and last activity. */}
+                {!cols.includes("stage") ? <td data-col="stage" className="os-cv-phone-only">{cell(c, "stage")}</td> : null}
+                {!cols.includes("last") ? <td data-col="last" className="os-cv-phone-only">{cell(c, "last")}</td> : null}
               </tr>
             );
           })}
