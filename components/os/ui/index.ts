@@ -8,3 +8,5 @@ export { IconButton } from "@/components/os/ui/icon-button";
 export { EmptyState } from "@/components/os/ui/empty-state";
 export { ScrollPicked, useScrollPicked } from "@/components/os/ui/scroll-picked";
 export { Avatar, AvatarRail, type AvatarProps, type RailItem } from "@/components/os/ui/avatar-rail";
+export { default as BulkBar, type BulkBarProps } from "@/components/os/ui/bulk-bar";
+export { Toast, useToast, type ToastMessage } from "@/components/os/ui/toast";

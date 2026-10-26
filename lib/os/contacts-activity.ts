@@ -3,6 +3,10 @@
 import { prisma } from "@/lib/db/client";
 import { mockContactPanel, osMockEnabled } from "@/lib/os/mock";
 import { mockFieldValues, mockLeadMagnets } from "@/lib/os/mock-contacts";
+import { mockCurrency } from "@/lib/os/mock-crm";
+import { mockWonData } from "@/lib/os/mock-contacts-crm";
+import { wonDataOf } from "@/lib/os/events";
+import { formatMoney } from "@/lib/os/money";
 
 export type ActivityKind =
   | "keyword"
@@ -36,6 +40,13 @@ const EVENT_LABEL: Record<string, { kind: ActivityKind; label: string }> = {
   won: { kind: "won", label: "Won" },
 };
 
+/** The Won row's detail from the won event's data: "1:1 Mentorship · €6,000". */
+export function wonDetail(data: unknown, currency: string): string | null {
+  const w = wonDataOf(data);
+  if (!w) return null;
+  return `${w.offer ? `${w.offer} · ` : ""}${formatMoney(w.amount, currency)}`;
+}
+
 /** Newest first, ties broken by id so the order is stable. */
 export function sortActivity(items: ActivityItem[]): ActivityItem[] {
   return [...items].sort((a, b) => b.at.localeCompare(a.at) || a.id.localeCompare(b.id));
@@ -56,6 +67,9 @@ function mockActivity(contactId: string): ActivityItem[] {
     const label = panel?.fields.find((f) => f.key === key)?.label ?? key;
     items.push({ id: `f-${key}`, kind: "field", label: `Filled ${label}`, detail: v.value, at: v.at, by: "J" });
   }
+  const won = mockWonData(contactId);
+  const wonAt = typeof won?.wonAt === "string" ? won.wonAt : null;
+  if (won && wonAt) items.push({ id: "won", kind: "won", label: "Won", detail: wonDetail(won, mockCurrency()), at: wonAt, by: null });
   return sortActivity(items);
 }
 
@@ -78,6 +92,7 @@ export async function loadContactActivity(workspaceId: string, contactId: string
   const resourceIds = events.map((e) => (e.data as { resourceId?: string } | null)?.resourceId).filter((v): v is string => Boolean(v));
   const resources = resourceIds.length ? await prisma.resource.findMany({ where: { id: { in: resourceIds } }, select: { id: true, name: true } }) : [];
   const setterName = (id: string | null) => setters.find((s) => s.id === id)?.name ?? null;
+  const currency = events.some((e) => e.kind === "won") ? await (await import("@/lib/os/won")).workspaceCurrency(workspaceId) : "EUR";
 
   const items: ActivityItem[] = [];
   for (const e of events) {
@@ -89,7 +104,7 @@ export async function loadContactActivity(workspaceId: string, contactId: string
       id: e.id,
       kind: meta.kind,
       label: meta.label,
-      detail: resourceId ? (resources.find((r) => r.id === resourceId)?.name ?? null) : null,
+      detail: e.kind === "won" ? wonDetail(e.data, currency) : resourceId ? (resources.find((r) => r.id === resourceId)?.name ?? null) : null,
       at: e.at.toISOString(),
       by: setterName(e.setterId),
     });

@@ -15,7 +15,7 @@ import { INBOX_LIST_COOKIE, neighbourHref, streamRows } from "@/components/os/in
 import InboxBulkBar from "@/components/os/inbox/bulk-bar";
 import { ResortPitches, TriageBar, TriageSuggestion } from "@/components/os/inbox/triage";
 import { useOsCommand } from "@/components/os/keys";
-import { Avatar, AvatarRail, EmptyState, InfoTip } from "@/components/os/ui";
+import { Avatar, AvatarRail, EmptyState, InfoTip, Toast, useToast } from "@/components/os/ui";
 import { FailDot, useFailedRuns } from "@/components/os/workflows/run-line";
 import { CATEGORY_FILTERS, STATUS_FILTERS, inboxStreamHref, type InboxParams, type StatusFilter, type StreamThread } from "@/lib/os/inbox-stream";
 import { isUnsure } from "@/lib/os/triage-copy";
@@ -58,6 +58,7 @@ export default function InboxList({ threads, counts, params, selected, now, draf
   const [collapsed, setCollapsed] = useState(initial);
   const [shown, setShown] = useState(PAGE);
   const [picked, setPicked] = useState<Set<string>>(new Set());
+  const toaster = useToast();
   const rows = useMemo(() => streamRows(threads, { params, query, draftContactIds, selected, now }), [threads, params, query, draftContactIds, selected, now]);
   const visible = rows.slice(0, shown);
   const byId = useMemo(() => new Map(threads.map((t) => [t.conversationId, t])), [threads]);
@@ -264,12 +265,15 @@ export default function InboxList({ threads, counts, params, selected, now, draf
       {picked.size ? (
         <InboxBulkBar
           ids={pickedIds}
+          oneName={pickedIds.length === 1 ? (rows.find((r) => r.contactId === pickedIds[0])?.name ?? null) : null}
+          toast={toaster.show}
           filter={params.filter}
           allPicked={allPicked}
           onAll={(on) => setPicked(on ? new Set(visible.flatMap((r) => (r.contactId ? [r.contactId] : []))) : new Set())}
           onDone={() => setPicked(new Set())}
         />
       ) : null}
+      <Toast toast={toaster.toast} onHide={toaster.hide} />
     </section>
   );
 }

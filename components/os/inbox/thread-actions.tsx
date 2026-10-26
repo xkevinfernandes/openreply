@@ -58,7 +58,8 @@ export default function ThreadActions({ contactId, starred: initialStar, archive
         {starIcon(starred)}
       </button>
       <details className="os-ix-tmenu">
-        <summary className="os-ix-iconbtn" aria-label="More" title="More">
+        <summary className="os-ix-iconbtn" aria-label="Thread actions" title="Thread actions">
+          <span className="sr-only">Thread actions</span>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <circle cx="3.5" cy="8" r="1.3" />
             <circle cx="8" cy="8" r="1.3" />

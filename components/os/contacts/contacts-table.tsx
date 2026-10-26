@@ -68,9 +68,18 @@ export default function ContactsTable(p: Props) {
         return (
           <span className="os-pill" data-tone={stageTone(k)} title={k === "won" && c.won ? `${c.won.offer} · ${formatMoney(c.won.amount, p.currency)}` : undefined}>
             {lbl}
+            {k === "won" && c.won ? ` · ${formatMoney(c.won.amount, p.currency)}` : null}
           </span>
         );
       }
+      case "won":
+        return c.won ? (
+          <span className="os-cv-ellipsis" title={c.won.offer}>
+            {formatMoney(c.won.amount, p.currency)}
+          </span>
+        ) : (
+          <span className="muted">—</span>
+        );
       case "setter":
         return <span className="muted">{setterName(c.setterId)}</span>;
       case "category":

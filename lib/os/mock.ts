@@ -35,7 +35,7 @@ const seedPeople: MockPerson[] = [
     contact: { id: "c7", kind: "PITCHES", kindSource: "triage", stage: "NEW", entryPath: null, setterStage: null, paused: false, ...untriaged } },
   { conversationId: "m8", igUserId: "108", username: "sam.creates", fullName: "Sam Ortega", preview: "about 40k a month right now", hours: 50,
     contact: { id: "c8", kind: "SALES", kindSource: "entry", stage: "QUALIFIED", entryPath: "keyword_dm", setterStage: "qualify", paused: false, ...untriaged, ...friday } },
-  { conversationId: "m9", igUserId: "109", username: "nora.coaching", fullName: "Nora Lind", preview: "just paid, so excited", hours: 120,
+  { conversationId: "m9", igUserId: "109", username: "nora.coaching", fullName: "Nora Lind", preview: "just paid, so excited", hours: 260, // older than a week: "Recent" leaves her out
     contact: { id: "c9", kind: "SALES", kindSource: "entry", stage: "WON", entryPath: "comment", setterStage: "booked", paused: true, ...untriaged } },
   { conversationId: "m10", igUserId: "110", username: "dev.hobby", preview: "just curious tbh, not running anything", hours: 200,
     contact: { id: "c10", kind: "SALES", kindSource: "entry", stage: "NOT_QUALIFIED", entryPath: "story_reply", setterStage: "qualify", paused: false, ...untriaged, ...friday } },
@@ -287,7 +287,7 @@ const panelExtras: Record<string, MockPanelExtras> = {
       { key: "first_name", label: "First name", value: "Maya", byJ: true },
       { key: "email", label: "Email", value: null, byJ: false },
       { key: "business", label: "Business", value: "Notion template shop", byJ: true },
-      { key: "monthly_revenue", label: "Revenue", value: "~$4k/mo", byJ: true },
+      { key: "monthly_revenue", label: "Monthly revenue", value: "~$4k/mo", byJ: true },
       { key: "their_goal", label: "Goal", value: "Automate repeat DMs", byJ: true },
       { key: "their_challenge", label: "Blocker", value: "DMs eat her mornings", byJ: true },
       { key: "timezone", label: "Timezone", value: null, byJ: false },

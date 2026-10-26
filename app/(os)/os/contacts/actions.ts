@@ -15,7 +15,7 @@ import { markAttendance, syncFollowupsQuietly } from "@/lib/os/sequences/engine"
 import type { ViewState } from "@/lib/os/contacts-view";
 import { deleteView, listViews, renameView, saveView, saveViewAs, setDefaultView, type SavedViewRecord } from "@/lib/os/saved-views";
 import { stageHistory } from "@/lib/os/stage-writer";
-import { markWon, undoWon, wonPickerData, type MarkWonResult } from "@/lib/os/won";
+import { markWon, promoteToSales, undoWon, wonPickerData, type MarkWonResult } from "@/lib/os/won";
 import type { WonPickerData } from "@/lib/os/won-offers";
 
 /** Follow-ups follow the change: paused / out of Sales stops them, Showed
@@ -127,14 +127,19 @@ function afterStageWrite() {
   revalidatePath("/os");
 }
 
-/** Mark Won: one offer and amount, applied to each contact. */
-export async function markContactsWon(contactIds: string[], offer: string, amount: number | string): Promise<MarkWonResult> {
+/** Mark Won: one offer and amount, applied to each contact. `amount` null =
+ *  Won with no amount (Kevin picked "No amount"). Non-sales contacts move to Sales. */
+export async function markContactsWon(contactIds: string[], offer: string, amount: number | string | null): Promise<MarkWonResult> {
   const workspaceId = await getCurrentWorkspaceId();
   if (!workspaceId) return { error: "Sign in again." };
   try {
     const ids = Array.isArray(contactIds) ? contactIds : [];
-    const r = await markWon(workspaceId, ids, { offer, amount });
-    if (!r.error) {
+    const r = await markWon(workspaceId, ids, amount === null ? { noAmount: true } : { offer, amount });
+    if (r.error === undefined) {
+      r.promoted = await promoteToSales(workspaceId, r.moved ?? []).catch((err) => {
+        console.error("[OS Contacts] won → sales failed:", err);
+        return [];
+      });
       if (!osMockEnabled()) for (const id of ids.slice(0, 100)) await fireContactEvent({ workspaceId, contactId: id, event: "stage_changed" });
       await followupsAfter(workspaceId, ids, { type: "column", column: "won" });
       afterStageWrite();
@@ -144,6 +149,25 @@ export async function markContactsWon(contactIds: string[], offer: string, amoun
     console.error("[OS Contacts] won failed:", err);
     return { error: "That didn't save. Try again." };
   }
+}
+
+/** The toast's Undo after a Won: each back off Won, and the ones Won put on
+ *  Sales back in their old category. */
+export async function undoContactsWon(contactIds: string[], promoted: { id: string; kind: string }[] = []): Promise<{ count: number }> {
+  const workspaceId = await getCurrentWorkspaceId();
+  if (!workspaceId) return { count: 0 };
+  let count = 0;
+  for (const id of (Array.isArray(contactIds) ? contactIds : []).slice(0, 2000)) {
+    const r = await undoContactWon(id).catch(() => ({ error: "x" }));
+    if ("ok" in r) count++;
+  }
+  const kinds = ["PERSONAL", "PITCHES", "UNSORTED"] as const;
+  for (const kind of kinds) {
+    const ids = (Array.isArray(promoted) ? promoted : []).filter((p) => p?.kind === kind).map((p) => p.id);
+    if (ids.length) await editContacts(workspaceId, ids, { type: "kind", kind }).catch(() => null);
+  }
+  afterStageWrite();
+  return { count };
 }
 
 export async function undoContactWon(contactId: string): Promise<{ ok: true } | { error: string }> {

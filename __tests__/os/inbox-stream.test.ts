@@ -14,6 +14,7 @@ import {
   matchesStatus,
   parseInboxParams,
   sortStream,
+  unreadCount,
   unreadMark,
   windowClosing,
   windowDisplay,
@@ -22,7 +23,7 @@ import {
 } from "@/lib/os/inbox-stream";
 import { inboundPatch, type InboundState } from "@/lib/os/inbox-crm";
 import { isSpam, looksLikeScam, shouldFlagSpam } from "@/lib/os/spam";
-import { streamRows } from "@/components/os/inbox/categories";
+import { draftBlockedReason, streamRows } from "@/components/os/inbox/categories";
 
 const H = 3600_000;
 const NOW = Date.parse("2026-10-26T12:00:00Z");
@@ -303,5 +304,29 @@ describe("on sample data (OS_MOCK)", () => {
     const t = await editContacts("w", ["c8", "c3"], { type: "addTag", tag: "hot" });
     expect(t.error).toBeUndefined();
     expect(mockContactExtras("c8").tags).toContain("hot");
+  });
+});
+
+describe("nav badge and row badges (walkthrough fixes)", () => {
+  it("the Inbox badge is the Unread filter's count, not drafts", () => {
+    const unread = thread({ lastInboundAt: ago(1) });
+    const read = thread({ lastInboundAt: ago(5), lastOpenedAt: ago(1) });
+    const spam = thread({ lastInboundAt: ago(1), spam: true });
+    const archived = thread({ lastInboundAt: ago(1), archivedAt: ago(2) });
+    const all = [unread, read, spam, archived];
+    expect(unreadCount(all, NOW)).toBe(1);
+    expect(unreadCount(all, NOW)).toBe(filterCounts(all, "any", ctx([read.contact!.id])).unread);
+  });
+
+  it("a lead on Lost shows no Draft badge", () => {
+    const lost = thread({}, {});
+    lost.contact!.stage = "LOST";
+    const rows = streamRows([lost], { params: parseInboxParams({}), draftContactIds: [lost.contact!.id], selected: null, now: NOW });
+    expect(rows[0].draft).toBe(false);
+  });
+
+  it("a spam thread says spam, not Pitches", () => {
+    expect(draftBlockedReason({ kind: "PITCHES", paused: false }, true)).toMatch(/spam/);
+    expect(draftBlockedReason({ kind: "PITCHES", paused: false })).toMatch(/Pitches/);
   });
 });

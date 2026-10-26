@@ -56,6 +56,35 @@ export default function ViewsBar(p: Props) {
           </button>
         ))}
       </div>
+      {/* Right by the pills, so it reads as "this view's" options. */}
+      {current && !naming ? (
+        <span className="os-select os-cv-more">
+          <select
+            aria-label={`More for ${current.name}`}
+            value=""
+            disabled={pending}
+            onChange={(e) => {
+              const v = e.target.value;
+              e.target.value = "";
+              if (v === "default") run(() => setDefaultContactView(current.id), `${current.name} is the default.`);
+              if (v === "rename") {
+                setNaming("rename");
+                setName(current.name);
+              }
+              if (v === "delete" && window.confirm(`Delete the view “${current.name}” for everyone?`)) run(() => deleteContactView(current.id), `Deleted “${current.name}”.`);
+            }}
+          >
+            <option value="">View options</option>
+            <option value="default" disabled={current.isDefault}>
+              Make default
+            </option>
+            <option value="rename">Rename</option>
+            <option value="delete" disabled={current.isDefault}>
+              {current.isDefault ? "Delete (not the default)" : "Delete"}
+            </option>
+          </select>
+        </span>
+      ) : null}
       {p.edited ? <span className="os-cv-edited">Edited</span> : null}
       <span className="os-cx-grow" />
       {naming ? (
@@ -90,34 +119,6 @@ export default function ViewsBar(p: Props) {
           >
             + Save view
           </button>
-          {current ? (
-            <span className="os-select os-cv-more">
-              <select
-                aria-label={`More for ${current.name}`}
-                value=""
-                disabled={pending}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  e.target.value = "";
-                  if (v === "default") run(() => setDefaultContactView(current.id), `${current.name} is the default.`);
-                  if (v === "rename") {
-                    setNaming("rename");
-                    setName(current.name);
-                  }
-                  if (v === "delete" && window.confirm(`Delete the view “${current.name}” for everyone?`)) run(() => deleteContactView(current.id), `Deleted “${current.name}”.`);
-                }}
-              >
-                <option value="">View…</option>
-                <option value="default" disabled={current.isDefault}>
-                  Make default
-                </option>
-                <option value="rename">Rename</option>
-                <option value="delete" disabled={current.isDefault}>
-                  Delete{current.isDefault ? " (pick another default first)" : ""}
-                </option>
-              </select>
-            </span>
-          ) : null}
         </>
       )}
     </div>

@@ -84,7 +84,7 @@ function DetailsBody({ data, details, onChange }: { data: ContactPanelData; deta
     <div className="os-cd">
       <section className="os-cd-sec" aria-labelledby="cd-fields">
         <h2 id="cd-fields">
-          Fields<span className="os-cd-n">{details.filled}/{details.fields.length}</span>
+          Fields{details.fields.length ? <span className="os-cd-n">{details.filled}/{details.fields.length}</span> : null}
           <span className="os-cd-grow" />
           <Link href="/os/settings?tab=fields" className="os-cd-icon" aria-label="Manage fields" title="Manage fields">
             <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -295,7 +295,7 @@ function SyncChip({ s, contactId, onSync }: { s: DetailsSync; contactId: string;
     <span className="os-cd-chip" data-state={s.state} title={s.detail ?? undefined}>
       <i />
       <span>{s.name}</span>
-      <span className="os-cd-date">{s.state === "synced" ? syncedAgo(s.at, now) : "Waiting"}</span>
+      <span className="os-cd-date">{s.state === "synced" ? syncedAgo(s.at, now) : "Not synced yet"}</span>
       <button type="button" aria-label={`Sync ${s.name} now`} title="Sync now" disabled={pending} onClick={sync}>
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <path d="M13 8a5 5 0 0 1-8.6 3.5M3 8a5 5 0 0 1 8.6-3.5M11.5 2v2.7H8.8M4.5 14v-2.7h2.7" />
@@ -341,7 +341,7 @@ function KitTags({ contactId, tags, subscribed, onTags, onError }: { contactId: 
   return (
     <section className="os-cd-sec" aria-labelledby="cd-kit">
       <h2 id="cd-kit">
-        Kit tags
+        Tags
         {subscribed ? <span className="os-cd-sub" title="Subscribed" aria-label="Subscribed" role="img" /> : null}
       </h2>
       <div className="os-cd-tags">

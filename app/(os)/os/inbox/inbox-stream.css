@@ -16,13 +16,11 @@
   min-width: 0;
 }
 
+/* Both pills share the row; neither shrinks below its own label
+   ("Category" was cut to "Categor" when the info icon showed). */
 .os-ix-filter {
   flex: 1 1 0;
-  min-width: 0;
-}
-
-.os-ix-filter + .os-ix-filter {
-  flex-grow: 1.5;
+  min-width: 108px;
 }
 
 .os-ix-filter select {

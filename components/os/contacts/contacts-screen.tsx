@@ -9,8 +9,7 @@
 
 import Link from "next/link";
 import { useCallback, useMemo, useState, useTransition } from "react";
-import { updateContacts } from "@/app/(os)/os/contacts/actions";
-import BulkBar from "@/components/os/contacts/bulk-bar";
+import { undoContactsWon, updateContacts } from "@/app/(os)/os/contacts/actions";
 import ContactsTable from "@/components/os/contacts/contacts-table";
 import FilterBar from "@/components/os/contacts/filter-bar";
 import PanelHost, { usePanel, type OpenPanel } from "@/components/os/contacts/panel-host";
@@ -18,10 +17,11 @@ import ViewsBar from "@/components/os/contacts/views-bar";
 import WonPicker from "@/components/os/contacts/won-picker";
 import { useOsCommand } from "@/components/os/keys";
 import { threadName } from "@/components/os/inbox/names";
+import { BulkBar, Toast, useToast, type ToastMessage } from "@/components/os/ui";
 import type { PanelTab } from "@/lib/os/contact-panel/types";
 import type { ContactRow, SetterOption } from "@/lib/os/contacts-board";
 import type { ContactChange } from "@/lib/os/contacts-edit";
-import { allSources, allTags, applyChangeLocally } from "@/lib/os/contacts-filter";
+import { allSources, applyChangeLocally } from "@/lib/os/contacts-filter";
 import { BUILT_IN_COLUMNS, EMPTY_FILTERS, PAGE_SIZE, queryContacts, queryContext, sameView, type ViewState } from "@/lib/os/contacts-view";
 import type { SavedViewRecord } from "@/lib/os/saved-views";
 
@@ -66,6 +66,7 @@ export default function ContactsScreen(p: Props) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [status, setStatus] = useState<{ text: string; error?: boolean } | null>(null);
   const [wonFor, setWonFor] = useState<string[] | null>(null);
+  const toaster = useToast();
   const onError = useCallback((text: string) => setStatus({ text, error: true }), []);
   const panel = usePanel(p.initialOpen ?? null, p.initialTab ?? "chat", onError);
 
@@ -97,28 +98,46 @@ export default function ContactsScreen(p: Props) {
     window.history.replaceState(null, "", url);
   }
 
-  /** Show the change now, save it, and undo it on the screen if the save fails. */
-  const apply = useCallback((ids: string[], change: ContactChange, done?: string) => {
-    if (!ids.length) return;
-    let before: ContactRow[] = [];
-    setRows((r) => {
-      before = r;
-      return applyChangeLocally(r, ids, change);
-    });
-    setStatus(done ? { text: done } : null);
-    startTransition(async () => {
-      let error: string | undefined;
-      try {
-        error = (await updateContacts(ids, change)).error;
-      } catch {
-        error = "That didn't save. Try again.";
-      }
-      if (error) {
-        setRows(before);
-        setStatus({ text: error, error: true });
-      }
-    });
-  }, []);
+  const { show: showToast } = toaster;
+  /** Show the change now, save it, and undo it on the screen if the save fails.
+   *  `done` goes in the toast (with Undo when the change can be taken back). */
+  const apply = useCallback(
+    (ids: string[], change: ContactChange, done?: string | ToastMessage) => {
+      if (!ids.length) return;
+      let before: ContactRow[] = [];
+      setRows((r) => {
+        before = r;
+        return applyChangeLocally(r, ids, change);
+      });
+      setStatus(null);
+      if (done) showToast(typeof done === "string" ? { text: done } : done);
+      startTransition(async () => {
+        let error: string | undefined;
+        try {
+          error = (await updateContacts(ids, change)).error;
+        } catch {
+          error = "That didn't save. Try again.";
+        }
+        if (error) {
+          setRows(before);
+          showToast({ text: error, bad: true });
+        }
+      });
+    },
+    [showToast]
+  );
+
+  /** Undo Won for each (back to Booked when there's a booking, else in conversation). */
+  const undoWins = useCallback(
+    (ids: string[], before: ContactRow[], promoted: { id: string; kind: string }[]) =>
+      startTransition(async () => {
+        await undoContactsWon(ids, promoted).catch(() => null);
+        const was = new Map(before.map((c) => [c.id, c]));
+        setRows((r) => r.map((c) => (ids.includes(c.id) && was.get(c.id) ? was.get(c.id)! : c)));
+        showToast({ text: `Undid Won for ${ids.length}.` });
+      }),
+    [showToast]
+  );
 
   // The panel's stage dropdown speaks on the event bus (components/os/keys.ts).
   useOsCommand("move-stage", (d) => {
@@ -193,16 +212,25 @@ export default function ContactsScreen(p: Props) {
         />
 
         <BulkBar
-          selectedCount={n}
+          className="os-cv-bulk"
+          count={n}
+          all={{ checked: result.rows.length > 0 && result.rows.every((c) => selected.has(c.id)), onChange: (on) => setSelected(on ? new Set(result.rows.map((c) => c.id)) : new Set()) }}
           archived={state.filters.archived}
           tags={p.tags.map((t) => t.name)}
-          selectedTags={allTags(selectedRows)}
-          onAddTag={(tag) => apply(ids, { type: "addTag", tag }, `Tagged ${n} “${tag}”.`)}
-          onRemoveTag={(tag) => apply(ids, { type: "removeTag", tag }, `Removed “${tag}” from ${n}.`)}
+          selectedTags={selectedRows.map((c) => c.tags)}
+          onAddTag={(tag) => {
+            const fresh = selectedRows.filter((c) => !c.tags.includes(tag)).map((c) => c.id);
+            apply(ids, { type: "addTag", tag }, { text: `Tagged ${n} “${tag}”.`, undo: () => apply(fresh, { type: "removeTag", tag }, `Took “${tag}” off again.`) });
+          }}
+          onRemoveTag={(tag) => {
+            const had = selectedRows.filter((c) => c.tags.includes(tag)).map((c) => c.id);
+            apply(ids, { type: "removeTag", tag }, { text: `Removed “${tag}” from ${had.length}.`, undo: () => apply(had, { type: "addTag", tag }, `Put “${tag}” back.`) });
+          }}
           onWon={() => setWonFor(ids)}
           onLost={() => apply(ids, { type: "column", column: "lost" }, `Moved ${n} to Lost.`)}
           onArchive={(archived) => {
-            apply(ids, { type: "archive", archived }, archived ? `Archived ${n}.` : `Restored ${n}.`);
+            const list = ids;
+            apply(list, { type: "archive", archived }, { text: archived ? `Archived ${n}.` : `Restored ${n}.`, undo: () => apply(list, { type: "archive", archived: !archived }, archived ? "Restored." : "Archived again.") });
             setSelected(new Set());
           }}
           onClear={() => setSelected(new Set())}
@@ -282,6 +310,7 @@ export default function ContactsScreen(p: Props) {
       </section>
 
       {panel.open ? <PanelHost open={panel.open} tab={panel.tab} onTab={panel.setTab} onClose={panel.close} /> : null}
+      <Toast toast={toaster.toast} onHide={toaster.hide} />
 
       {wonFor ? (
         <WonPicker
@@ -290,9 +319,14 @@ export default function ContactsScreen(p: Props) {
           onClose={() => setWonFor(null)}
           onDone={(w) => {
             const done = wonFor;
+            const before = rows.filter((c) => done.includes(c.id));
             setWonFor(null);
-            setRows((r) => r.map((c) => (done.includes(c.id) ? { ...c, stage: "WON", won: { offer: w.offer, amount: w.amount } } : c)));
-            setStatus({ text: w.refused.length ? `Marked ${w.count} as Won. ${w.refused.length} couldn't move: ${w.refused[0]}` : `Marked ${w.count} as Won.` });
+            setSelected(new Set());
+            setRows((r) => r.map((c) => (done.includes(c.id) ? { ...c, kind: "SALES", stage: "WON", won: w.amount !== null && w.offer !== null ? { offer: w.offer, amount: w.amount } : null } : c)));
+            showToast({
+              text: w.refused.length ? `Marked ${w.count} as Won. ${w.refused.length} couldn't move: ${w.refused[0]}` : `Marked ${w.count} as Won${w.amount === null ? " with no amount" : ""}.`,
+              undo: () => undoWins(done, before, w.promoted),
+            });
             if (panel.openId && done.includes(panel.openId)) panel.reload(panel.openId);
           }}
         />

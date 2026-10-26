@@ -69,7 +69,7 @@ export function inboxListView(
   const columns = opts.columns ?? funnelColumns(null);
   const label = new Map(columns.map((c) => [c.key, c.label]));
   const kindOf = (t: InboxThread): ContactKind => t.contact?.kind ?? "UNSORTED";
-  const hasDraft = (t: InboxThread) => Boolean(t.contact && drafts.has(t.contact.id) && t.contact.kind === "SALES");
+  const hasDraft = (t: InboxThread) => Boolean(t.contact && drafts.has(t.contact.id) && t.contact.kind === "SALES" && t.contact.stage !== "LOST");
 
   const categories = kindTabs.map((k) => {
     const mine = threads.filter((t) => kindOf(t) === k.kind);
@@ -106,9 +106,11 @@ export function neighbourHref(rows: Pick<InboxRow, "current" | "href">[], dir: 1
   return next?.href ?? null;
 }
 
-/** Why J can't draft for this contact, or null. Pitches never get drafts. */
-export function draftBlockedReason(c: { kind: string; paused: boolean; suggestedKind?: string | null } | null | undefined): string | null {
+/** Why J can't draft for this contact, or null. Spam and Pitches never get
+ *  drafts; spam says so first (a spam thread lives under Spam, not Pitches). */
+export function draftBlockedReason(c: { kind: string; paused: boolean; suggestedKind?: string | null } | null | undefined, spam = false): string | null {
   if (!c) return "Not a contact yet.";
+  if (spam) return "Marked as spam. J doesn't draft here.";
   if (c.kind === "PITCHES") return "J never drafts in Pitches.";
   if (c.kind === "PERSONAL" && c.suggestedKind === "SALES") return "Looks like sales. Move them to Sales first.";
   if (c.kind !== "SALES") return "J drafts for Sales only.";
@@ -146,7 +148,8 @@ export function streamRows(
       preview: t.preview || "No preview",
       time: shortAgo(t.updatedTime, opts.now),
       stage: t.contact?.kind === "SALES" ? (label.get(columnFor({ stage: t.contact.stage, setterStage: t.contact.setterStage }, columns)) ?? null) : null,
-      draft: Boolean(t.contact && drafts.has(t.contact.id)),
+      // A lead on Lost is done: J's leftover draft isn't work waiting.
+      draft: Boolean(t.contact && drafts.has(t.contact.id) && t.contact.stage !== "LOST"),
       note: note(t),
       href: inboxStreamHref(opts.params, t.conversationId),
       current: t.conversationId === opts.selected,

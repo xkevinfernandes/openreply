@@ -6,11 +6,13 @@ import { planChange } from "../../lib/os/contacts-edit";
 import { DEFAULT_VIEW, EMPTY_FILTERS, PAGE_SIZE, parseViewState, queryContacts, queryContext, sameView, type ViewState } from "../../lib/os/contacts-view";
 import type { WonDb } from "../../lib/os/events";
 import { funnelColumns } from "../../lib/os/funnel";
-import { allowedKeys, boardLanes, boardRedirect, cardTargets, moveLocally, pickSetter, selectionTargets } from "../../lib/os/pipeline-board";
+import { allowedKeys, boardLanes, boardRedirect, cardTargets, dragPlan, moveLocally, pickSetter, SEVERAL_WON_LOST, selectionTargets } from "../../lib/os/pipeline-board";
 import { deleteView, listViews, memorySavedViews, saveView, saveViewAs, setDefaultView } from "../../lib/os/saved-views";
 import type { StageWriteResult, writeStage } from "../../lib/os/stage-writer";
 import { decideMove } from "../../lib/os/move-table";
-import { markWon, undoWon } from "../../lib/os/won";
+import { markWon, promoteToSales, undoWon } from "../../lib/os/won";
+import { bulkTagMenu } from "../../lib/os/bulk-tags";
+import { wonDetail } from "../../lib/os/contacts-activity";
 import { offersFromSetter, parsePrice, validateWonChoice } from "../../lib/os/won-offers";
 
 const row = (over: Partial<ContactRow>): ContactRow => ({
@@ -106,7 +108,7 @@ describe("marking Won", () => {
     const { db, rows } = fakeWon({ "won:a": { source: "hook" } });
     const { write, calls } = fakeWriter({});
     const r = await markWon("ws", ["a", "b"], { offer: "Accelerator", amount: 3600 }, { won: db, write });
-    expect(r).toEqual({ count: 2, refused: [] });
+    expect(r).toEqual({ count: 2, refused: [], moved: ["a", "b"] });
     expect(calls.map((c) => [c.contactId, c.cause, c.change])).toEqual([
       ["a", "user", { type: "column", column: "won" }],
       ["b", "user", { type: "column", column: "won" }],
@@ -122,6 +124,28 @@ describe("marking Won", () => {
     expect(await markWon("ws", ["a"], { offer: "X", amount: 1 }, { won: db, write })).toEqual({ error: "Nope." });
     expect(rows.size).toBe(0);
     expect(await markWon("ws", ["a"], { offer: "", amount: 1 }, { won: db, write })).toEqual({ error: "Pick or type the offer." });
+  });
+
+  it("No amount: moves to Won without touching the won data", async () => {
+    const { db, rows } = fakeWon();
+    const { write, calls } = fakeWriter({});
+    expect(await markWon("ws", ["a"], { noAmount: true }, { won: db, write })).toEqual({ count: 1, refused: [], moved: ["a"] });
+    expect(calls).toHaveLength(1);
+    expect(rows.size).toBe(0);
+  });
+
+  it("Won puts non-sales contacts on Sales (so Pipeline and revenue count them), and leaves Sales alone", async () => {
+    const set: string[][] = [];
+    const kinds = async () => new Map([["a", "UNSORTED"], ["b", "SALES"], ["c", "PERSONAL"]]);
+    const moved = await promoteToSales("ws", ["a", "b", "c", "gone"], { kinds, setSales: async (_ws, ids) => void set.push(ids) });
+    expect(moved).toEqual([{ id: "a", kind: "UNSORTED" }, { id: "c", kind: "PERSONAL" }]);
+    expect(set).toEqual([["a", "c"]]);
+    expect(await promoteToSales("ws", ["b"], { kinds, setSales: async () => { throw new Error("not called"); } })).toEqual([]);
+  });
+
+  it("Activity's Won row shows the offer and amount from the won event", () => {
+    expect(wonDetail({ offer: "1:1 Mentorship", amount: 6000, wonAt: "x" }, "EUR")).toMatch(/1:1 Mentorship · €6,000/);
+    expect(wonDetail({ source: "hook" }, "EUR")).toBeNull();
   });
 
   it("Undo Won is the writer's user operation", async () => {
@@ -306,5 +330,32 @@ describe("pipeline board", () => {
     const a = planChange({ type: "archive", archived: true });
     expect("data" in a && a.data.archivedAt instanceof Date).toBe(true);
     expect(planChange({ type: "archive", archived: false })).toEqual({ data: { archivedAt: null } });
+  });
+});
+
+describe("bulk bar tag menu", () => {
+  it("adds what isn't on everyone, removes what's on anyone (no duplicate names otherwise)", () => {
+    const m = bulkTagMenu(["hot", "agency", "client"], [["hot", "agency"], ["hot"]]);
+    expect(m.add).toEqual(["agency", "client"]);
+    expect(m.remove).toEqual(["agency", "hot"]);
+    expect(bulkTagMenu(["hot"], [[]])).toEqual({ add: ["hot"], remove: [] });
+  });
+});
+
+describe("pipeline drag", () => {
+  const a = row({ id: "a", setterStage: "qualify" });
+  const b = row({ id: "b", setterStage: "open" });
+  it("one card drags alone with its own targets", () => {
+    const plan = dragPlan(a, [b], columns);
+    expect(plan.ids).toEqual(["a"]);
+    expect(plan.targets).toEqual(cardTargets(a, columns));
+  });
+  it("a ticked card drags every ticked card, to Won or Lost only, with a reason elsewhere", () => {
+    const plan = dragPlan(a, [a, b], columns);
+    expect(plan.ids).toEqual(["a", "b"]);
+    const allowed = plan.targets.filter((t) => t.allowed).map((t) => t.key);
+    expect(allowed.sort()).toEqual(["lost", "won"]);
+    expect(plan.targets.find((t) => t.key === "open")).toMatchObject({ allowed: false, reason: SEVERAL_WON_LOST });
+    expect(plan.targets).toHaveLength(columns.length);
   });
 });

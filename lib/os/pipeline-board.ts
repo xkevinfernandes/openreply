@@ -62,6 +62,29 @@ export function selectionTargets(cards: ContactRow[], columns: FunnelColumn[]): 
   });
 }
 
+export const SEVERAL_WON_LOST = "Several cards go to Won or Lost only.";
+
+/**
+ * What a drag carries. Grabbing a ticked card while others are ticked drags
+ * them all, and they go to Won or Lost only (like "Move selected…"); any
+ * other card drags alone. Every column gets allowed or a reason, so a drop
+ * on a closed column can say why.
+ */
+export function dragPlan(grabbed: ContactRow, picked: ContactRow[], columns: FunnelColumn[]): { ids: string[]; targets: MoveTarget[] } {
+  const group = picked.length > 1 && picked.some((c) => c.id === grabbed.id);
+  if (!group) return { ids: [grabbed.id], targets: cardTargets(grabbed, columns) };
+  const endTargets = new Map(selectionTargets(picked, columns).map((t) => [t.key, t]));
+  const here = columnOfCard(grabbed, columns);
+  return {
+    ids: picked.map((c) => c.id),
+    targets: columns.map(
+      (c) =>
+        endTargets.get(c.key) ??
+        (c.key === here ? { key: c.key, label: c.label, allowed: false, reason: "Here now" } : { key: c.key, label: c.label, allowed: false, reason: SEVERAL_WON_LOST })
+    ),
+  };
+}
+
 export function isBookingColumn(key: string): boolean {
   return BOOKING_COLUMNS.includes(key);
 }

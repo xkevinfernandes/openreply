@@ -264,7 +264,7 @@ async function ConversationPane({ workspaceId, list, selected: selectedP, panel:
         conversationId={selected.conversationId}
         who={selected.username ? `@${selected.username}` : name}
         draft={draft}
-        draftBlockedReason={draftBlockedReason(contact)}
+        draftBlockedReason={draftBlockedReason(contact, crm ? isSpam(crm.crm) : false)}
         setterName={thread?.extras.setterName ?? panel?.setter?.name ?? "J"}
         resources={resources}
         voiceClips={voiceClips}
