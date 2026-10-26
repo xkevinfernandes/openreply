@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { loadProviderFields, saveMapping, type IntegrationActionResult } from "@/app/(os)/os/integrations/actions";
 import { editField } from "@/app/(os)/os/settings/actions";
 import type { ContactStage } from "@/app/generated/prisma/enums";
@@ -81,11 +81,16 @@ export function FieldSelect({ value, onChange, label, fields, fieldsError, provi
       />
     );
   }
-  const known = fields.customFields.some((f) => f.ref === value);
+  // A target typed by hand ("business type", "Business_Type") is the same Kit
+  // field: match on the key or the label, ignoring case, spaces and _ / -.
+  const norm = (x: string) => x.toLowerCase().replace(/[\s_-]+/g, "");
+  const match = value ? fields.customFields.find((f) => f.ref === value) ?? fields.customFields.find((f) => norm(f.ref) === norm(value) || norm(f.label) === norm(value)) : undefined;
+  const known = Boolean(match);
   return (
+    <FixTarget value={value ?? null} match={match?.ref} onChange={onChange}>
     <label className="os-select">
       <span className="sr-only">{`${label}: ${name} field`}</span>
-      <select value={value ?? ""} onChange={(e) => onChange(e.target.value || null)}>
+      <select value={match?.ref ?? value ?? ""} onChange={(e) => onChange(e.target.value || null)}>
         <option value="">Don&apos;t send</option>
         {fields.customFields.map((f) => (
           <option key={f.ref} value={f.ref}>
@@ -95,7 +100,16 @@ export function FieldSelect({ value, onChange, label, fields, fieldsError, provi
         {value && !known && <option value={value}>{value} (not found)</option>}
       </select>
     </label>
+    </FixTarget>
   );
+}
+
+/** Rewrites a hand-typed target to the provider's real key once the list loads. */
+function FixTarget({ value, match, onChange, children }: { value: string | null; match: string | undefined; onChange: (v: string | null) => void; children: ReactNode }) {
+  useEffect(() => {
+    if (match && value !== match) onChange(match);
+  }, [match, value, onChange]);
+  return <>{children}</>;
 }
 
 export default function MappingEditor({ provider, initial, fields: customFields, onSaved }: Props) {

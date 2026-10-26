@@ -83,3 +83,20 @@ describe("saving a pick", () => {
     expect(err).toBe("Business: That field is gone. Refresh.");
   });
 });
+
+describe("a hand-typed Kit target", () => {
+  it("'business type' matches Kit's business_type instead of showing (not found)", () => {
+    const html = renderToStaticMarkup(
+      h(FieldSelect, {
+        value: "business type",
+        onChange: () => {},
+        label: "Business",
+        provider: "kit",
+        fieldsError: null,
+        fields: { customFields: [{ ref: "business_type", label: "business_type" }, { ref: "revenue", label: "revenue" }], pipelines: [] },
+      })
+    );
+    expect(html).not.toContain("not found");
+    expect(html).toMatch(/<option value="business_type" selected="">/);
+  });
+});
