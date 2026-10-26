@@ -61,7 +61,27 @@ export const authConfig = {
   secret: process.env.NEXTAUTH_SECRET,
 } satisfies NextAuthConfig;
 
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+const nextAuth = NextAuth(authConfig);
+export const { handlers, signIn, signOut } = nextAuth;
+
+// With OS_MOCK=1 (local dev only, never production) a visitor with no session
+// is signed in as a local test user, so the mock OS opens without a magic link.
+const MOCK_USER = { id: "os-mock-user", email: "mock@dm-os.local", name: "Kevin" };
+
+async function mockSession() {
+  await prisma.user.upsert({ where: { id: MOCK_USER.id }, update: {}, create: MOCK_USER });
+  await ensureWorkspaceForUser(MOCK_USER.id, MOCK_USER.email);
+  return { user: MOCK_USER, expires: new Date(Date.now() + 86400_000).toISOString() };
+}
+
+export const auth = (async (...args: unknown[]) => {
+  if (args.length > 0) return (nextAuth.auth as (...a: unknown[]) => unknown)(...args);
+  const session = await nextAuth.auth();
+  if (!session && process.env.OS_MOCK === "1" && process.env.NODE_ENV !== "production") {
+    return mockSession();
+  }
+  return session;
+}) as typeof nextAuth.auth;
 
 export async function getCurrentUserId(): Promise<string | null> {
   const session = await auth();
