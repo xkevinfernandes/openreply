@@ -348,3 +348,44 @@ describe("quick replies: parts", () => {
     expect(parseMessageEvents(z!)[0]).toMatchObject({ messageText: "Not sure", quickReplyPayload: "wf:r1:q2:unsure" });
   });
 });
+
+describe("Waitlist + questions: already-answered questions are skipped", () => {
+  it("all three already filled: just the confirmation, no questions", async () => {
+    const h = harness();
+    h.publish(waitlist());
+    for (const [k, v] of [["business", "Coach"], ["monthly_revenue", "$20K+"], ["their_challenge", "Getting leads"]]) h.fields.set(`c_ana:${k}`, v);
+    await h.comment("ana", "FOUNDER", { postId: "reel1" });
+    const run = (await h.run("ana"))!;
+    await h.tap("ana", `wf:${run.id}:join:join`);
+    await h.dm("ana", "ana@example.com");
+    expect(text(lastSent(h, "ana").msg)).toMatch(/You're on the early-access list/);
+    expect(text(lastSent(h, "ana").msg)).not.toMatch(/Want to help me out/);
+    const done = (await h.run("ana"))!;
+    expect(done).toMatchObject({ status: "completed", currentNodeId: "end_known" });
+    expect(tagsOf(h, "ana")).toContain("waitlist-founder-engine");
+    expect(field(h, "ana", "business")).toBe("Coach");
+  });
+
+  it("revenue already filled: asks what they do, skips revenue, asks the blocker", async () => {
+    const h = harness();
+    h.publish(waitlist());
+    h.fields.set("c_ana:monthly_revenue", "$5K–$10K");
+    const id = await toRole(h);
+    expect((lastSent(h, "ana").msg as QR).text).toMatch(/what do you do/);
+    await h.tap("ana", `wf:${id}:q_role:consultant`);
+    expect((lastSent(h, "ana").msg as QR).text).toMatch(/biggest thing holding/);
+    await h.tap("ana", `wf:${id}:q_blocker:leads`);
+    expect(field(h, "ana", "monthly_revenue")).toBe("$5K–$10K");
+    expect(tagsOf(h, "ana")).toContain("qual-complete");
+    expect(text(lastSent(h, "ana").msg)).toMatch(/Amazing, thanks/);
+  });
+
+  it("only the blocker missing: straight to the blocker after Sure", async () => {
+    const h = harness();
+    h.publish(waitlist());
+    h.fields.set("c_ana:business", "Agency owner");
+    h.fields.set("c_ana:monthly_revenue", "Under $5K");
+    await toRole(h);
+    expect((lastSent(h, "ana").msg as QR).text).toMatch(/biggest thing holding/);
+  });
+});

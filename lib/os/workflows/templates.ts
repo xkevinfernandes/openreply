@@ -91,7 +91,9 @@ export function templateGraph(id: TemplateId, opts: { keyword?: string; resource
 /**
  * Waitlist + questions (first used for the Founder Engine mini-series):
  * join → email → on the waitlist → three quick-reply questions, never
- * mandatory. No answer ends the run Quiet and they stay on the waitlist.
+ * mandatory, and each is skipped when its field is already filled (all three
+ * filled: just the confirmation). No answer ends the run Quiet and they stay
+ * on the waitlist.
  * Finishing tags qual-complete. Revenue $5K+ options are marked qualifies, so
  * By reel counts them; the Revenue field stays the source of truth, no tag.
  * No email (refused, or wrong twice) ends the run before "you're on the list".
@@ -143,39 +145,51 @@ function waitlistGraph(keyword: string): WorkflowGraph {
           { op: "set_field", key: "lead_magnet", value: "Founder Engine Mini-Series" },
         ],
       }),
-      node("listed", "message", 5, {
+      // Already answered all three (an earlier waitlist, J, an import): just confirm.
+      node("all_role", "condition", 5, { rule: { kind: "field_set", value: "business" } }),
+      node("all_rev", "condition", 6, { rule: { kind: "field_set", value: "monthly_revenue" } }, -260),
+      node("all_blk", "condition", 7, { rule: { kind: "field_set", value: "their_challenge" } }, -260),
+      node("listed_only", "message", 8, {
+        bubbles: [{ kind: "text", text: "You're on the early-access list! ✅ Keep an eye out for a confirmation email.\n\nI'll send you an update on the mini-series within the next 14 days." }],
+      }, -260),
+      node("end_known", "end", 9, {}, -260),
+      node("listed", "message", 6, {
         bubbles: [
           {
             kind: "buttons",
-            text: "You're on the early-access list! ✅ Keep an eye out for a confirmation email.\n\nQuick one — I've got three questions that take less than 20 seconds.\n\nYour answers will help me tailor the free resources I'm building for you.\n\nWant to help me out?",
+            text: "You're on the early-access list! ✅ Keep an eye out for a confirmation email.\n\nQuick one — I've got a couple of questions that take less than 20 seconds.\n\nYour answers will help me tailor the free resources I'm building for you.\n\nWant to help me out?",
             buttons: [
               { id: "sure", label: "Sure" },
               { id: "later", label: "Maybe later" },
             ],
           },
         ],
-      }),
-      node("later", "end", 6, {}, 340),
-      node("q_role", "message", 6, {
+      }, 120),
+      node("later", "end", 7, {}, 420),
+      // Each question is skipped when its field is already filled.
+      node("has_role", "condition", 7, { rule: { kind: "field_set", value: "business" } }, 120),
+      node("q_role", "message", 8, {
         bubbles: [{ kind: "quick_replies", text: "First up, what do you do?", options: role, saveTo: "business" }],
-      }),
-      node("ask_role", "ask", 7, { question: "Got it! What is it that you do?", saveTo: "business", validate: "text" }, 300),
-      node("q_revenue", "message", 8, {
+      }, 120),
+      node("ask_role", "ask", 9, { question: "Got it! What is it that you do?", saveTo: "business", validate: "text" }, 420),
+      node("has_rev", "condition", 10, { rule: { kind: "field_set", value: "monthly_revenue" } }, 120),
+      node("q_revenue", "message", 11, {
         bubbles: [{ kind: "quick_replies", text: "Roughly how much revenue is your business currently generating per month?", options: revenue, saveTo: "monthly_revenue" }],
-      }),
-      node("q_blocker", "message", 9, {
+      }, 120),
+      node("has_blk", "condition", 12, { rule: { kind: "field_set", value: "their_challenge" } }, 120),
+      node("q_blocker", "message", 13, {
         bubbles: [{ kind: "quick_replies", text: "And what's the biggest thing holding your business back right now?", options: blocker, saveTo: "their_challenge" }],
-      }),
-      node("complete", "action", 10, { ops: [{ op: "add_tag", key: "qual-complete" }] }),
-      node("wrapup", "message", 11, {
+      }, 120),
+      node("complete", "action", 14, { ops: [{ op: "add_tag", key: "qual-complete" }] }, 120),
+      node("wrapup", "message", 15, {
         bubbles: [
           {
             kind: "text",
             text: "Amazing, thanks! ✅\n\nThat helps me make sure the resources I create are actually useful.\n\nKeep an eye on your inbox — I'll send you an update on the mini-series within the next 14 days.",
           },
         ],
-      }),
-      node("end", "end", 12, {}),
+      }, 120),
+      node("end", "end", 16, {}, 120),
     ],
     edges: [
       edge("trigger", "next", "join"),
@@ -184,17 +198,28 @@ function waitlistGraph(keyword: string): WorkflowGraph {
       // On the waitlist only once there's an email.
       edge("has_email", "yes", "waitlist"),
       edge("has_email", "no", "no_email"),
-      edge("waitlist", "next", "listed"),
-      edge("listed", "button:sure", "q_role"),
+      edge("waitlist", "next", "all_role"),
+      edge("all_role", "yes", "all_rev"),
+      edge("all_role", "no", "listed"),
+      edge("all_rev", "yes", "all_blk"),
+      edge("all_rev", "no", "listed"),
+      edge("all_blk", "yes", "listed_only"),
+      edge("all_blk", "no", "listed"),
+      edge("listed_only", "next", "end_known"),
+      edge("listed", "button:sure", "has_role"),
       edge("listed", "button:later", "later"),
-      edge("q_role", "reply:coach", "q_revenue"),
-      edge("q_role", "reply:consultant", "q_revenue"),
-      edge("q_role", "reply:agency", "q_revenue"),
+      edge("has_role", "yes", "has_rev"),
+      edge("has_role", "no", "q_role"),
+      ...role.filter((o) => o.id !== "other").map((o) => edge("q_role", `reply:${o.id}`, "has_rev")),
       edge("q_role", "reply:other", "ask_role"),
       // Typed, matched nothing twice: what they typed is already saved.
-      edge("q_role", "other", "q_revenue"),
-      edge("ask_role", "next", "q_revenue"),
-      ...revenue.map((o) => edge("q_revenue", `reply:${o.id}`, "q_blocker")),
+      edge("q_role", "other", "has_rev"),
+      edge("ask_role", "next", "has_rev"),
+      edge("has_rev", "yes", "has_blk"),
+      edge("has_rev", "no", "q_revenue"),
+      ...revenue.map((o) => edge("q_revenue", `reply:${o.id}`, "has_blk")),
+      edge("has_blk", "yes", "complete"),
+      edge("has_blk", "no", "q_blocker"),
       // "other" on the last two isn't connected: it follows the first option.
       ...blocker.map((o) => edge("q_blocker", `reply:${o.id}`, "complete")),
       edge("complete", "next", "wrapup"),
