@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 
 export interface TabItem {
   key: string;
@@ -19,10 +20,45 @@ interface TabsProps {
   size?: "sm" | "md";
 }
 
-/** Underlined tab row (Inbox categories, panel tabs, Settings sub-nav). */
+/** Tab row: a pill track (--card on the stone, --well in a card), the picked
+ * tab an ink pill. Follow-ups, Automations, broadcasts, the contact panel. */
 export function Tabs({ tabs, value, ariaLabel, onChange, hrefFor, size = "md" }: TabsProps) {
+  const row = useRef<HTMLDivElement>(null);
+
+  // A row wider than its column scrolls inside the track (never the page).
+  // Keep the picked tab in view, and mark which edges have more tabs past
+  // them so the CSS can fade that edge (data-fade="start|end|both").
+  useEffect(() => {
+    const el = row.current;
+    if (!el) return;
+    const mark = () => {
+      const more = el.scrollWidth - el.clientWidth;
+      const start = el.scrollLeft > 1;
+      const end = more > 1 && el.scrollLeft < more - 1;
+      const fade = start && end ? "both" : start ? "start" : end ? "end" : "";
+      if (fade) el.dataset.fade = fade;
+      else delete el.dataset.fade;
+    };
+    const on = el.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (on && el.scrollWidth > el.clientWidth) {
+      const left = on.offsetLeft - el.offsetLeft;
+      const right = left + on.offsetWidth;
+      if (left < el.scrollLeft || right > el.scrollLeft + el.clientWidth) {
+        el.scrollLeft = Math.max(0, right - el.clientWidth + 24);
+      }
+    }
+    mark();
+    el.addEventListener("scroll", mark, { passive: true });
+    const ro = new ResizeObserver(mark);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", mark);
+      ro.disconnect();
+    };
+  }, [value, tabs.length]);
+
   return (
-    <div className="os-tabs" role="tablist" aria-label={ariaLabel} data-size={size}>
+    <div ref={row} className="os-tabs" role="tablist" aria-label={ariaLabel} data-size={size}>
       {tabs.map((t) => {
         const selected = t.key === value;
         const inner = (

@@ -22,7 +22,6 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  border-right: 1px solid var(--line);
 }
 
 .os-ix-list-head {
@@ -40,9 +39,7 @@
 
 .os-ix-title h1 {
   margin: 0;
-  font-size: 20px;
   font-weight: 600;
-  letter-spacing: -0.01em;
 }
 
 .os-ix-title-side {
@@ -57,7 +54,7 @@
   gap: 6px;
   font-size: var(--fs-xs);
   font-weight: 500;
-  color: var(--mark);
+  color: var(--warn);
   font-variant-numeric: tabular-nums;
 }
 
@@ -68,7 +65,7 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 4px;
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -83,11 +80,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 4px;
-  color: var(--ghost);
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
 }
 
 .os-ix-search:focus-within {
@@ -104,12 +101,29 @@
   background: transparent;
 }
 
+/* The native clear button is blue; draw it as a muted x (mask, so it takes
+   the token colour). */
+.os-ix-search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background-color: var(--muted);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='m4.5 4.5 7 7m0-7-7 7'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='m4.5 4.5 7 7m0-7-7 7'/%3E%3C/svg%3E") center / contain no-repeat;
+  cursor: pointer;
+}
+
+.os-ix-search input::-webkit-search-cancel-button:hover {
+  background-color: var(--ink);
+}
+
 .os-ix-seg {
   display: flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 4px;
-  background: var(--tint);
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--ctl);
 }
 
 .os-ix-seg-tab {
@@ -120,7 +134,7 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  border-radius: 3px;
+  border-radius: 999px;
   font-size: var(--fs-xs);
   color: var(--muted);
   text-decoration: none;
@@ -128,14 +142,15 @@
 }
 
 .os-ix-seg-tab[aria-selected="true"] {
-  background: var(--paper);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
-  color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
   font-weight: 500;
 }
 
+/* A pending count is neutral, not "good"; the picked tab inherits on-ink. */
+/* A tab's count is drafts waiting: "decide this", so amber. */
 .os-ix-seg-n {
-  color: var(--mark);
+  color: var(--warn);
   font-variant-numeric: tabular-nums;
 }
 
@@ -144,29 +159,31 @@
   min-height: 0;
   overflow-y: auto;
   margin: 0;
-  padding: 0;
+  padding: 0 8px 8px;
   list-style: none;
 }
 
-.os-ix-rows > li {
-  border-bottom: 1px solid var(--line);
+.os-ix-rows > li + li {
+  margin-top: 2px;
 }
 
 .os-ix-row {
   display: flex;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 12px;
+  border-radius: var(--radius-cover);
   color: var(--ink);
   text-decoration: none;
+  transition: background-color 120ms ease;
 }
 
 .os-ix-row:hover {
   background: var(--tint);
 }
 
-.os-ix-row[aria-current="page"] {
-  background: var(--tint);
-  box-shadow: inset 2px 0 0 var(--ink);
+.os-ix-row[aria-current="page"],
+.os-ix-row[aria-current="page"]:hover {
+  background: var(--well);
 }
 
 .os-ix-row-body {
@@ -193,8 +210,8 @@
 }
 
 .os-ix-row-time {
-  font-size: 11px;
-  color: var(--ghost);
+  font-size: var(--fs-xs);
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -213,29 +230,36 @@
 }
 
 .os-ix-stage {
-  height: 18px;
-  padding: 0 6px;
+  height: 22px;
+  padding: 0 10px;
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  font-size: 11px;
-  color: var(--muted);
+  border: 0;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+
+/* On the picked row (--well) the neutral pill would vanish: lift it to the card. */
+.os-ix-row[aria-current="page"] .os-ix-stage {
+  background: var(--card);
 }
 
 .os-ix-draft {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
-  color: var(--mark);
+  color: var(--warn);
 }
 
 .os-ix-note,
 .os-ix-unread {
-  font-size: 11px;
-  color: var(--ghost);
+  font-size: var(--fs-xs);
+  color: var(--muted);
 }
 
 .os-ix-unread {
@@ -244,13 +268,21 @@
 }
 
 .os-ix-empty {
-  padding: 24px 16px;
-  color: var(--ghost);
-  border: 0 !important;
+  padding: 24px 8px;
+}
+
+.os-ix-empty .os-empty-state-title {
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+
+.os-ix-empty .os-empty-state-body {
+  font-size: var(--fs-sm);
+  color: var(--muted);
 }
 
 .os-ix-rows > li > :not(.os-ix-row) {
-  margin: 0 16px 10px 58px;
+  margin: 0 12px 10px 54px;
 }
 
 /* Collapsed: the avatar rail (InboxA2). */
@@ -262,7 +294,6 @@
   gap: 8px;
   min-height: 0;
   padding: 16px 0;
-  border-right: 1px solid var(--line);
   overflow-y: auto;
 }
 
@@ -272,13 +303,18 @@
 }
 
 .os-ix-rail .os-ix-drafts {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   gap: 4px;
   padding-bottom: 4px;
 }
 
 .os-ix-rail .os-avatar-rail {
   padding: 0;
+}
+
+/* The rail's dot marks a draft waiting: amber, like the row marker. */
+.os-ix-rail .os-avatar-rail-dot {
+  background: var(--warn);
 }
 
 /* --- Conversation ------------------------------------------------------------ */
@@ -297,7 +333,7 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  color: var(--ghost);
+  color: var(--muted);
 }
 
 .os-ix-placeholder strong {
@@ -311,10 +347,10 @@
   bottom: 24px;
   z-index: 40;
   margin: 0;
-  padding: 8px 12px;
-  border-radius: 4px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
   background: var(--bad-bg);
-  color: var(--bad);
+  color: var(--bad-fg);
   box-shadow: var(--shadow);
   cursor: pointer;
 }
@@ -327,7 +363,6 @@
   align-items: center;
   gap: 10px;
   padding: 0 24px;
-  border-bottom: 1px solid var(--line);
 }
 
 .os-th-back {
@@ -353,22 +388,34 @@ a.os-th-name:hover {
   align-items: center;
   height: 20px;
   padding: 0 8px;
-  border-radius: 10px;
-  background: var(--mark-bg);
-  color: var(--mark);
-  font-size: 11px;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  font-size: var(--fs-xs);
   font-weight: 500;
   white-space: nowrap;
+}
+
+/* R1-5: the contacts table's map. Green once a call is booked, red when lost,
+   neutral on the way. */
+.os-th-stage[data-tone="good"] {
+  background: var(--good-bg);
+  color: var(--good-fg);
+}
+
+.os-th-stage[data-tone="bad"] {
+  background: var(--bad-bg);
+  color: var(--bad-fg);
 }
 
 .os-th-triage {
   display: inline-flex;
   align-items: center;
   height: 22px;
-  border-radius: 11px;
+  border-radius: 999px;
   background: var(--warn-bg);
-  color: var(--warn);
-  font-size: 11px;
+  color: var(--warn-fg);
+  font-size: var(--fs-xs);
   font-weight: 500;
 }
 
@@ -408,11 +455,13 @@ a.os-th-name:hover {
   flex-direction: column;
 }
 
+/* R1-6: a solid card band behind the Earlier pill, then a short fade, so a
+   message scrolls under the pill instead of showing half-faded beside it. */
 .os-th-fade {
   position: absolute;
   inset: 0 0 auto;
   height: 56px;
-  background: linear-gradient(180deg, var(--paper) 30%, rgb(255 255 255 / 0));
+  background: linear-gradient(180deg, var(--card) 0 48px, transparent 56px);
   z-index: 1;
   pointer-events: none;
 }
@@ -426,14 +475,14 @@ a.os-th-name:hover {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 24px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--paper);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  height: 26px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--well);
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
   color: var(--muted);
   cursor: pointer;
 }
@@ -464,12 +513,18 @@ a.os-th-name:hover {
   padding: 0 24px 16px;
 }
 
+/* R1-6: the oldest message clears the card band at the top (the list sits at
+   the bottom when it is short, so this only shows on a long thread). */
+.os-th > .os-th-scroll > .os-th-list {
+  padding-top: 48px;
+}
+
 .os-th-time {
   align-self: center;
   padding: 12px 0 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
-  color: var(--ghost);
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -516,9 +571,9 @@ a.os-th-name:hover {
 }
 
 .os-th-bubble {
-  padding: 8px 12px;
-  border-radius: 18px;
-  background: #efefef;
+  padding: 9px 14px;
+  border-radius: var(--radius-card);
+  background: var(--well);
   color: var(--ink);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -541,7 +596,7 @@ a.os-th-name:hover {
 }
 
 .os-th-ctx {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
@@ -553,8 +608,8 @@ a.os-th-name:hover {
 
 .os-th-story-bar {
   width: 3px;
-  border-radius: 2px;
-  background: #dbdbdb;
+  border-radius: 999px;
+  background: var(--line);
 }
 
 .os-th-story-card {
@@ -568,10 +623,16 @@ a.os-th-name:hover {
   gap: 2px;
   padding: 8px;
   overflow: hidden;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #d6d6d6 0%, #8c8c8c 100%);
-  color: #ffffff;
+  border-radius: var(--radius-cover);
+  background: var(--well);
+  color: var(--ink);
   text-decoration: none;
+}
+
+/* Over a real picture the caption sits on the photo's own dark scrim. */
+.os-th-story-card[data-has-thumb] {
+  /* fixed white on the scrim in both themes; --on-photo once the shell has it */
+  color: var(--on-photo, var(--on-sage));
 }
 
 .os-th-story-card img {
@@ -596,7 +657,7 @@ a.os-th-name:hover {
 }
 
 .os-th-story-meta {
-  font-size: 10px;
+  font-size: 11px;
   opacity: 0.85;
 }
 
@@ -616,18 +677,18 @@ a.os-th-name:hover {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  border-radius: 18px;
-  background: #efefef;
+  border-radius: var(--radius-cover);
+  background: var(--well);
   color: var(--ink);
-  --btn-bg: var(--paper);
-  --btn-bg-hover: rgb(255 255 255 / 0.6);
+  --btn-bg: var(--card);
+  --btn-bg-hover: var(--tint-2);
 }
 
 .os-th-buttons[data-mine] {
   background: var(--ink);
   color: var(--on-ink);
-  --btn-bg: rgb(255 255 255 / 0.12);
-  --btn-bg-hover: rgb(255 255 255 / 0.2);
+  --btn-bg: color-mix(in srgb, var(--on-ink) 12%, transparent);
+  --btn-bg-hover: color-mix(in srgb, var(--on-ink) 20%, transparent);
 }
 
 .os-th-buttons-img {
@@ -635,8 +696,8 @@ a.os-th-name:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f0f0f0;
-  color: var(--ghost);
+  background: var(--tint-2);
+  color: var(--muted);
 }
 
 .os-th-buttons-img img {
@@ -693,8 +754,8 @@ a.os-th-buttons-btn:hover {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
-  color: var(--ghost);
+  font-size: var(--fs-xs);
+  color: var(--muted);
 }
 
 /* Shared reel / post */
@@ -702,8 +763,8 @@ a.os-th-buttons-btn:hover {
   width: 208px;
   max-width: 100%;
   overflow: hidden;
-  border-radius: 18px;
-  background: #efefef;
+  border-radius: var(--radius-cover);
+  background: var(--well);
   color: var(--ink);
   text-decoration: none;
   display: flex;
@@ -721,7 +782,7 @@ a.os-th-buttons-btn:hover {
 
 .os-th-share-media {
   height: 260px;
-  background: linear-gradient(180deg, #cfcfcf 0%, #7d7d7d 100%);
+  background: var(--tint-2);
 }
 
 .os-th-share-media[data-kind="post"] {
@@ -743,8 +804,8 @@ a.os-th-buttons-btn:hover {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  border-radius: 18px;
-  background: #efefef;
+  border-radius: var(--radius-cover);
+  background: var(--well);
   color: var(--ink);
   text-decoration: none;
 }
@@ -767,13 +828,11 @@ a.os-th-buttons-btn:hover {
   flex-direction: column;
   gap: 2px;
   padding: 8px 12px 10px;
-  border-top: 1px solid rgb(17 17 17 / 0.08);
-  background: #e4e4e4;
+  background: var(--tint-2);
 }
 
 .os-th-link[data-mine] .os-th-link-card {
-  border-top-color: rgb(255 255 255 / 0.14);
-  background: #262626;
+  background: color-mix(in srgb, var(--on-ink) 12%, var(--ink));
 }
 
 .os-th-link-title {
@@ -781,8 +840,8 @@ a.os-th-buttons-btn:hover {
 }
 
 .os-th-link-domain {
-  font-size: 11px;
-  opacity: 0.6;
+  font-size: var(--fs-xs);
+  opacity: 0.7;
 }
 
 /* Voice note */
@@ -804,8 +863,8 @@ a.os-th-buttons-btn:hover {
   gap: 10px;
   height: 40px;
   padding: 0 14px 0 6px;
-  border-radius: 20px;
-  background: #efefef;
+  border-radius: 999px;
+  background: var(--well);
 }
 
 .os-th-voice-wrap[data-mine] .os-th-voice {
@@ -844,7 +903,7 @@ a.os-th-buttons-btn:hover {
 
 .os-th-wave > span {
   width: 2px;
-  border-radius: 1px;
+  border-radius: 999px;
   background: currentColor;
   opacity: 0.62;
 }
@@ -890,7 +949,7 @@ a.os-th-buttons-btn:hover {
   display: block;
   max-width: 240px;
   max-height: 320px;
-  border-radius: 18px;
+  border-radius: var(--radius-cover);
 }
 
 .os-th-photo-ph {
@@ -903,8 +962,8 @@ a.os-th-buttons-btn:hover {
   justify-content: center;
   gap: 6px;
   padding: 12px;
-  border-radius: 18px;
-  background: #efefef;
+  border-radius: var(--radius-cover);
+  background: var(--well);
   color: var(--muted);
   font-size: var(--fs-xs);
   text-align: center;
@@ -929,45 +988,41 @@ a.os-th-buttons-btn:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--paper);
-  border-radius: 10px;
-  background: #efefef;
+  border: 2px solid var(--card);
+  border-radius: 999px;
+  background: var(--well);
   font-size: 11px;
 }
 
 .os-th-react[data-heart] {
-  color: #ff3040;
+  color: var(--bad);
 }
 
 .os-th-foot {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
-  color: var(--ghost);
+  font-size: var(--fs-xs);
+  color: var(--muted);
 }
 
-.os-th-foot .os-setter-mark {
-  width: 14px;
-  height: 14px;
-  font-size: 8px;
-}
-
+/* B-11: the lead-magnet chip is a neutral pill. */
 .os-th-lm {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 20px;
-  padding: 0 7px;
-  border: 1px solid var(--line-strong);
-  border-radius: 10px;
-  font-size: 11px;
-  color: var(--ink);
+  height: 22px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  font-size: var(--fs-xs);
+  color: var(--neutral-fg);
 }
 
 .os-th-edited {
-  font-size: 11px;
-  color: var(--ghost);
+  font-size: var(--fs-xs);
+  color: var(--muted);
 }
 
 /* --- The one composer -------------------------------------------------------- */
@@ -978,26 +1033,44 @@ a.os-th-buttons-btn:hover {
 }
 
 .os-cmp {
-  border: 1px solid var(--line-strong);
-  border-radius: 4px;
-  background: var(--paper);
-}
-
-.os-cmp:focus-within {
-  border-color: rgb(17 17 17 / 0.34);
+  --ctl: var(--card);
+  --ctl-hover: var(--tint-2);
+  container: os-cmp / inline-size;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--well);
 }
 
 .os-cmp-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   min-height: 24px;
   padding: 6px 8px 0 12px;
 }
 
+/* R1-4: whole items wrap, never a word per line. */
+.os-cmp-head > * {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* A narrow composer keeps the draft head on one line: Write my own goes
+   icon-only (its text stays the accessible name). */
+@container os-cmp (max-width: 380px) {
+  .os-cmp-head > .os-cmp-inspect ~ .os-cmp-text-btn {
+    width: 26px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+    font-size: 0;
+  }
+}
+
 .os-cmp-status {
-  font-size: 11px;
-  color: var(--ghost);
+  font-size: var(--fs-xs);
+  color: var(--muted);
 }
 
 .os-cmp-sp {
@@ -1011,9 +1084,9 @@ a.os-th-buttons-btn:hover {
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 4px;
+  border-radius: 999px;
   background: transparent;
-  color: var(--ghost);
+  color: var(--muted);
   cursor: pointer;
 }
 
@@ -1025,28 +1098,28 @@ a.os-th-buttons-btn:hover {
 .os-cmp-flag {
   display: inline-flex;
   align-items: center;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: 9px;
-  background: var(--tint);
-  font-size: 11px;
-  color: var(--muted);
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  font-size: var(--fs-xs);
+  color: var(--neutral-fg);
   white-space: nowrap;
 }
 
 .os-cmp-flag[data-tone="warn"] {
   background: var(--warn-bg);
-  color: var(--warn);
+  color: var(--warn-fg);
 }
 
 .os-cmp-text-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 24px;
-  padding: 0 8px;
+  height: 26px;
+  padding: 0 10px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 999px;
   background: transparent;
   font: inherit;
   font-size: var(--fs-xs);
@@ -1055,7 +1128,7 @@ a.os-th-buttons-btn:hover {
 }
 
 .os-cmp-text-btn:hover:not(:disabled) {
-  background: var(--tint);
+  background: var(--card);
   color: var(--ink);
 }
 
@@ -1070,9 +1143,10 @@ a.os-th-buttons-btn:hover {
   flex-direction: column;
   gap: 2px;
   margin: 8px 12px 0;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--card);
   font-size: var(--fs-xs);
   color: var(--muted);
 }
@@ -1086,7 +1160,7 @@ a.os-th-buttons-btn:hover {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
+  gap: 6px;
   max-height: 40vh;
   overflow-y: auto;
   padding: 8px 12px 10px;
@@ -1101,12 +1175,12 @@ a.os-th-buttons-btn:hover {
   box-sizing: border-box;
   min-width: 4ch;
   max-width: 80%;
-  min-height: 34px;
+  min-height: 36px;
   margin: 0;
-  padding: 7px 11px;
+  padding: 8px 13px;
   border: 1px solid transparent;
-  border-radius: 18px;
-  background: var(--tint);
+  border-radius: var(--radius-card);
+  background: var(--card);
   font: inherit;
   line-height: 1.45;
   color: var(--ink);
@@ -1116,25 +1190,34 @@ a.os-th-buttons-btn:hover {
 }
 
 .os-cmp-bubble[data-draft] {
-  background: var(--mark-bg);
-  border: 1px dashed var(--mark);
+  background: var(--card);
 }
 
-.os-cmp-bubble[data-draft]:focus {
-  border-style: solid;
+.os-cmp-bubble:focus {
+  border-color: var(--ink);
+}
+
+/* Own mode: plain lines in the well, split by a 10px gap, no separator. */
+.os-cmp[data-mode="own"] .os-cmp-bubbles {
+  gap: 10px;
 }
 
 .os-cmp[data-mode="own"] .os-cmp-bubble {
   max-width: none;
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: transparent;
   padding: 4px 0;
   min-height: 24px;
 }
 
-.os-cmp[data-mode="own"] .os-cmp-bubble + .os-cmp-bubble {
-  border-top: 1px dashed var(--line-strong);
-  border-radius: 0;
+.os-cmp[data-mode="own"] .os-cmp-bubble:focus {
+  border-color: transparent;
+}
+
+/* Own mode's line has no border of its own, so the well shows focus,
+   the same 1px ink line every other input gets. */
+.os-cmp[data-mode="own"]:has(.os-cmp-bubble:focus) {
+  box-shadow: inset 0 0 0 1px var(--ink);
 }
 
 .os-cmp-error,
@@ -1154,9 +1237,18 @@ a.os-th-buttons-btn:hover {
 .os-cmp-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 10px 10px;
+}
+
+/* B-06: in a narrow composer the key hints go first, so the bar stays one
+   row and "Approve & send" never breaks. */
+@container os-cmp (max-width: 440px) {
+  .os-cmp-send .os-kbd,
+  .os-cmp-btn .os-kbd {
+    display: none;
+  }
 }
 
 .os-cmp-send,
@@ -1166,11 +1258,13 @@ a.os-th-buttons-btn:hover {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 30px;
-  border-radius: 4px;
+  height: 32px;
+  border-radius: var(--radius);
   font: inherit;
   cursor: pointer;
-  transition: transform 100ms ease;
+  transition:
+    transform 100ms ease,
+    background-color 120ms ease;
 }
 
 .os-cmp-send:active:not(:disabled),
@@ -1180,11 +1274,13 @@ a.os-th-buttons-btn:hover {
 }
 
 .os-cmp-send {
+  flex: none;
   padding: 0 14px;
   border: 0;
   background: var(--ink);
   color: var(--on-ink);
-  font-weight: 500;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .os-cmp-send .os-kbd {
@@ -1196,22 +1292,32 @@ a.os-th-buttons-btn:hover {
 
 .os-cmp-btn {
   padding: 0 12px;
-  border: 1px solid var(--line-strong);
-  background: var(--paper);
+  border: 0;
+  background: var(--card);
   color: var(--ink);
+  white-space: nowrap;
+}
+
+.os-cmp-btn:hover:not(:disabled) {
+  background: var(--tint-2);
 }
 
 .os-cmp-btn .os-kbd {
   border: 0;
   background: transparent;
-  color: var(--ghost);
+  color: var(--muted);
 }
 
 .os-cmp-icon {
-  width: 30px;
-  border: 1px solid var(--line-strong);
-  background: var(--paper);
+  width: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--card);
   color: var(--ink);
+}
+
+.os-cmp-icon:hover:not(:disabled) {
+  background: var(--tint-2);
 }
 
 .os-cmp-icon[data-spin] svg {
@@ -1224,7 +1330,13 @@ a.os-th-buttons-btn:hover {
   }
 }
 
-.os-cmp-send:disabled,
+/* Disabled primary: a muted card, like every other primary (reel.css). */
+.os-cmp-send:disabled {
+  background: var(--card);
+  color: var(--muted);
+  cursor: default;
+}
+
 .os-cmp-btn:disabled,
 .os-cmp-icon:disabled,
 .os-cmp-ghost:disabled,
@@ -1234,13 +1346,13 @@ a.os-th-buttons-btn:hover {
 }
 
 .os-cmp-ghost {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 4px;
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -1249,7 +1361,7 @@ a.os-th-buttons-btn:hover {
 .os-cmp-ghost:hover:not(:disabled),
 .os-cmp-ghost[aria-pressed="true"],
 .os-cmp-ghost[aria-expanded="true"] {
-  background: var(--tint);
+  background: var(--card);
   color: var(--ink);
 }
 
@@ -1262,21 +1374,23 @@ a.os-th-buttons-btn:hover {
   right: 0;
   bottom: calc(100% + 6px);
   z-index: 10;
-  min-width: 200px;
+  min-width: 220px;
   margin: 0;
-  padding: 4px;
+  padding: 6px;
   list-style: none;
-  border: 1px solid var(--line-strong);
-  border-radius: 4px;
-  background: var(--paper);
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
   box-shadow: var(--shadow);
 }
 
 .os-cmp-menu button {
   width: 100%;
-  padding: 6px 8px;
+  min-height: 36px;
+  padding: 8px 12px;
   border: 0;
-  border-radius: 3px;
+  border-radius: var(--radius);
+  color: var(--ink);
   background: transparent;
   font: inherit;
   text-align: left;
@@ -1307,7 +1421,6 @@ a.os-th-buttons-btn:hover {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--line);
 }
 
 /* --- Chat tab (Contacts push panel) ------------------------------------------- */
@@ -1345,7 +1458,7 @@ a.os-th-buttons-btn:hover {
 
 .os-chat-loading {
   margin: 24px 16px;
-  color: var(--ghost);
+  color: var(--muted);
 }
 
 /* --- Narrow screens ------------------------------------------------------------ */
@@ -1374,7 +1487,6 @@ a.os-th-buttons-btn:hover {
 
   .os-ix-list {
     flex: 1 1 auto;
-    border-right: 0;
   }
 
   .os-th-back {
@@ -1395,5 +1507,22 @@ a.os-th-buttons-btn:hover {
 
   .os-cmp-wrap {
     margin: 0 12px 12px;
+  }
+}
+
+@media (max-width: 860px) {
+  .os-main:has(.os-ix) {
+    padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .os-ix {
+    height: calc(100dvh - var(--bar-h) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 36px);
+    gap: 12px;
+  }
+
+  .os-ix-list,
+  .os-ix-conv,
+  .os-ix-rail {
+    border-radius: var(--radius-card);
   }
 }

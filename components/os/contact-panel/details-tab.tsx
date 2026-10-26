@@ -358,6 +358,8 @@ function KitTags({ contactId, tags, subscribed, onTags, onError }: { contactId: 
             className="os-cd-tag-input"
             autoFocus
             value={draft}
+            placeholder="Add a tag"
+            onFocus={(e) => e.currentTarget.scrollIntoView({ block: "nearest" })}
             aria-label="New tag"
             onChange={(e) => setDraft(e.target.value)}
             onBlur={add}

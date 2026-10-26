@@ -23,12 +23,16 @@
   list-style: none;
 }
 
+/* One sequence: an inner well in the knowledge card, no outline. */
 .os-seq {
+  --ctl: var(--card);
+  --ctl-hover: var(--tint-2);
   display: grid;
   gap: 10px;
   padding: 12px 14px;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: var(--radius);
+  background: var(--well);
 }
 
 .os-seq-head {
@@ -69,8 +73,8 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--tint);
-  color: var(--faint);
+  background: var(--card);
+  color: var(--muted);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }

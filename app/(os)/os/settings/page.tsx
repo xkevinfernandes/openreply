@@ -8,6 +8,7 @@ import { DisconnectButton, ZernioPanel } from "@/components/os/settings/instagra
 import LogsPanel from "@/components/os/settings/logs-panel";
 import SendingPanel from "@/components/os/settings/sending-panel";
 import WorkspacePanel from "@/components/os/settings/workspace-panel";
+import { ScrollPicked } from "@/components/os/ui/scroll-picked";
 import { prisma } from "@/lib/db/client";
 import { accountProblems } from "@/lib/os/automations";
 import { listCustomFields } from "@/lib/os/fields/store";
@@ -163,7 +164,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 
   return (
     <div className="os-sx">
-      <h1 className="os-sx-title">Settings</h1>
+      <h1 className="os-sx-title os-title">Settings</h1>
       <div className="os-sx-layout">
         <nav className="os-sx-nav" aria-label="Settings sections">
           {SETTINGS_TABS.map((t) => (
@@ -172,6 +173,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
             </Link>
           ))}
         </nav>
+        <ScrollPicked row=".os-sx-nav" pick={tab} />
         <div className="os-sx-body" data-tab={tab}>
           {tab === "instagram" && <InstagramTab workspaceId={ws} canManage={canManage} />}
           {tab === "integrations" && <IntegrationsTab workspaceId={ws} canManage={canManage} />}

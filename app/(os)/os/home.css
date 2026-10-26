@@ -3,29 +3,32 @@
 .os .os-home {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-6);
-  max-width: 1120px;
+  gap: var(--gap);
+  max-width: 1280px;
   font-size: var(--fs-sm);
 }
 
 .os .os-home-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--sp-4);
   flex-wrap: wrap;
 }
 
-.os .os-home-head h1 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+/* The h1 is .os-title (os.css). The period switch sits in the header, on
+   the stone, beside the one call to action. */
+.os .os-home-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .os .os-home-head p {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   color: var(--muted);
+  font-size: var(--fs-body);
 }
 
 .os .os-home-review {
@@ -47,8 +50,11 @@
 .os .os-home-sec {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
+  gap: 14px;
   min-width: 0;
+  padding: 22px 24px;
+  border-radius: var(--radius-card);
+  background: var(--card);
 }
 
 .os .os-home-sechead {
@@ -57,12 +63,6 @@
   justify-content: space-between;
   gap: var(--sp-3);
   flex-wrap: wrap;
-}
-
-.os .os-home-sechead h2 {
-  margin: 0;
-  font-size: var(--fs-sm);
-  font-weight: 600;
 }
 
 .os .os-home-more {
@@ -77,21 +77,21 @@
 /* Segmented links: period and setter switchers. */
 .os .os-home-seg {
   display: flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: var(--radius);
-  background: var(--tint);
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--ctl);
 }
 
 .os .os-home-seg a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 26px;
-  padding: 0 12px;
-  border-radius: 3px;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
   color: var(--muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   text-decoration: none;
   transition: background 120ms var(--ease), color 120ms var(--ease);
 }
@@ -101,23 +101,22 @@
 }
 
 .os .os-home-seg a[aria-current="page"] {
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
   font-weight: 500;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
 }
 
 .os .os-home-av {
   flex: none;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: var(--tint-2);
   color: var(--ink);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -132,24 +131,37 @@
   font-size: 11px;
 }
 
-/* Outcome row */
+/* Outcome tiles: the stat row under the header. White tiles on the stone,
+   label above a 28/600 number, foot below. Exactly one sage tile (Calls
+   booked, data-feature). */
+.os .os-home-tiles {
+  min-width: 0;
+}
+
 .os .os-home-outcomes {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow: hidden;
+  /* 130px, not the 170px default: seven tiles fit one row at 1440. */
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--gap);
 }
 
 .os .os-home-outcomes li {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 14px 16px;
-  box-shadow: 1px 0 0 var(--line);
+  min-width: 0;
+  padding: 20px 22px;
+  border-radius: var(--radius-card);
+  background: var(--card);
+}
+
+.os .os-home-outcomes .lbl,
+.os .os-home-outcomes .pct {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .os .os-home-outcomes .lbl {
@@ -159,33 +171,57 @@
 }
 
 .os .os-home-outcomes .n {
-  font-size: 28px;
+  margin-top: 8px;
+  font-size: var(--fs-stat);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
+  letter-spacing: -0.022em;
+  line-height: 1.15;
 }
 
 .os .os-home-outcomes .pct {
+  margin-top: 6px;
   font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
   color: var(--muted);
+}
+
+.os .os-home-outcomes li[data-feature] {
+  background: var(--sage);
+  /* --on-sage is the brand's white number on sage; until os.css has it the
+     light sage text stands in. */
+  color: var(--on-sage, var(--sage-text));
+}
+
+.os .os-home-outcomes li[data-feature] .lbl,
+.os .os-home-outcomes li[data-feature] .pct {
+  color: var(--sage-text);
+}
+
+@media (max-width: 640px) {
+  .os .os-home-outcomes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .os .os-home-outcomes li {
+    padding: 16px 18px;
+  }
 }
 
 .os .os-home-err,
 .os .os-home-none {
   margin: 0;
   padding: 12px 14px;
-  border: 1px solid var(--line);
   border-radius: var(--radius);
   color: var(--muted);
+  background: var(--well);
 }
 
 /* Two columns: pipeline | to do + setters */
 .os .os-home-cols {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-6);
+  gap: var(--gap);
 }
 
 .os .os-home-main {
@@ -197,7 +233,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-5);
+  gap: var(--gap);
 }
 
 .os .os-home-box {
@@ -206,12 +242,6 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-
-.os .os-home-box > * + * {
-  border-top: 1px solid var(--line);
 }
 
 .os .os-home-stage {
@@ -219,14 +249,15 @@
   grid-template-columns: 96px minmax(0, 1fr) 32px;
   align-items: center;
   gap: var(--sp-3);
-  padding: 9px 14px;
+  padding: 9px 12px;
   color: var(--ink);
   text-decoration: none;
+  border-radius: 14px;
 }
 
 .os .os-home-stage:hover,
 .os .os-home-setter:hover {
-  background: var(--paper-2);
+  background: var(--well);
 }
 
 .os .os-home-stage .lbl {
@@ -234,16 +265,16 @@
 }
 
 .os .os-home-stage .track {
-  height: 6px;
-  border-radius: 3px;
-  background: var(--tint);
+  height: 10px;
+  border-radius: 999px;
+  background: var(--well);
   overflow: hidden;
 }
 
 .os .os-home-stage .track span {
   display: block;
   height: 100%;
-  border-radius: 3px;
+  border-radius: 999px;
   background: var(--ink);
 }
 
@@ -265,17 +296,15 @@
 }
 
 .os .os-home-todos input[type="checkbox"] {
+  flex: none;
   margin: 0;
-  accent-color: var(--ink);
 }
 
-.os .os-home-todo-dot {
-  flex: none;
-  width: 13px;
-  height: 13px;
-  box-sizing: border-box;
-  border: 1px solid var(--line-strong);
-  border-radius: 3px;
+/* A row ticked elsewhere (call attendance, a broadcast link): the shared
+   checkbox, shown at full strength; the row's link is the action. */
+.os .os-home-todos .os-home-todo-dot:disabled {
+  opacity: 1;
+  cursor: default;
 }
 
 .os .os-home-todos .lbl {
@@ -312,6 +341,7 @@
   padding: 10px 14px;
   color: var(--ink);
   text-decoration: none;
+  border-radius: 14px;
 }
 
 .os .os-home-setter .name {
@@ -332,6 +362,11 @@
   color: var(--muted);
 }
 
-.os .os-home-setter .meta[data-tone="mark"] {
-  color: var(--mark);
+.os .os-home-setter .meta[data-tone="warn"] {
+  color: var(--warn);
+}
+
+.os .os-home-seg a[aria-current="page"] .os-home-av {
+  background: var(--on-ink);
+  color: var(--ink);
 }

@@ -59,20 +59,25 @@ export function SetterBar({ id, name, setters, query = "", active = "knowledge" 
           ))}
           <NewSetter setters={setters} compact />
         </div>
-        <div className="kb-grow" />
-        <a href={`/os/knowledge/${id}/export`} className="kb-btn" download>
-          <KbIcon name="download" />
-          Download .md
-        </a>
-        <SetterChatToggle />
-        {active === "knowledge" && (
-          <Link href={`/os/knowledge/${id}/sandbox`} className="kb-btn kb-btn-p">
-            <KbIcon name="play" />
-            Test in sandbox
-          </Link>
-        )}
       </header>
-      <KbTabs active="setters" settersHref={`/os/knowledge/${id}`} />
+      {/* Setters · Resources with the actions on the same row: the setter bar
+          above stays one row even with the chat open (R2-5). */}
+      <div className="kb-subbar">
+        <KbTabs active="setters" settersHref={`/os/knowledge/${id}`} />
+        <div className="kb-bar-acts">
+          <a href={`/os/knowledge/${id}/export`} className="kb-btn kb-btn-dl" download>
+            <KbIcon name="download" />
+            Download .md
+          </a>
+          <SetterChatToggle />
+          {active === "knowledge" && (
+            <Link href={`/os/knowledge/${id}/sandbox`} className="kb-btn kb-btn-p">
+              <KbIcon name="play" />
+              Test in sandbox
+            </Link>
+          )}
+        </div>
+      </div>
     </>
   );
 }

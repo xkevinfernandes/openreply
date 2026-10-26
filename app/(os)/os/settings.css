@@ -1,19 +1,26 @@
 /* DM OS: Settings (Instagram, DM logs, Diagnostics, Workspace). Sections are
-   hairline cards; tables follow the Review Room list. OpenReply components we
+   reel cards (white, radius 20, no border); tables keep row dividers only. OpenReply components we
    reuse (the Zernio card, the connect notice) sit in .os-upstream and are
    restyled here. */
 
 .os-set-stack {
   display: grid;
-  gap: var(--sp-5);
-  max-width: 920px;
+  gap: var(--gap);
+  max-width: 860px;
+}
+
+/* An upstream slot that renders nothing must not take a grid gap: it pushed
+   the Instagram tab 20px below the tab list (F-04). */
+.os-set-stack > .os-upstream:empty {
+  display: none;
 }
 
 .os-set-section {
-  max-width: 920px;
-  padding: 18px 20px 20px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  max-width: 860px;
+  box-sizing: border-box;
+  padding: 22px 24px;
+  border: 0;
+  border-radius: var(--radius-card);
   background: var(--card);
 }
 
@@ -104,8 +111,9 @@
   padding: 12px 0;
 }
 
+/* List rows, not a table: no hairlines, a little air between them. */
 .os-set-item + .os-set-item {
-  border-top: 1px solid var(--line);
+  margin-top: 8px;
 }
 
 .os-set-item-text {
@@ -151,8 +159,8 @@
   grid-template-columns: minmax(0, 1fr) 130px auto;
   gap: var(--sp-2);
   margin-top: var(--sp-4);
-  padding-top: var(--sp-4);
-  border-top: 1px solid var(--line);
+  padding-top: 0;
+  border-top: 0;
 }
 
 .os-set-invite .os-select select {
@@ -186,7 +194,7 @@
 }
 
 .os-set-tablewrap {
-  margin: 0 -20px;
+  margin: 0 -24px;
   overflow-x: auto;
   transition: opacity 160ms ease;
 }
@@ -218,12 +226,12 @@
 
 .os-set-table th:first-child,
 .os-set-table td:first-child {
-  padding-left: 20px;
+  padding-left: 24px;
 }
 
 .os-set-table th:last-child,
 .os-set-table td:last-child {
-  padding-right: 20px;
+  padding-right: 24px;
 }
 
 .os-set-table tbody tr + tr td {
@@ -280,9 +288,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 12px 12px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  padding: 14px 14px 14px 20px;
+  border: 0;
+  border-radius: var(--radius-card);
   background: var(--card);
   font-weight: 500;
 }
@@ -305,8 +313,7 @@
 
 .os-set-verdict[data-tone="warn"] {
   background: var(--warn-bg);
-  border-color: transparent;
-  color: var(--warn);
+  color: var(--warn-fg);
 }
 
 .os-set-verdict[data-tone="warn"] i {
@@ -315,8 +322,7 @@
 
 .os-set-verdict[data-tone="bad"] {
   background: var(--bad-bg);
-  border-color: transparent;
-  color: var(--bad);
+  color: var(--bad-fg);
 }
 
 .os-set-verdict[data-tone="bad"] i {
@@ -329,7 +335,7 @@
 }
 
 .os-set-stat-word {
-  font-size: 20px;
+  font-size: var(--fs-stat);
 }
 
 .os-set-stat-sub {
@@ -387,10 +393,13 @@
 
 /* --- OpenReply components, restyled ---------------------------------------- */
 
+/* U-01: the upstream sponsor block is a reel card. section.* outranks the
+   generic [class*="rounded"] rule below. */
+.os .os-upstream section.zernio-sponsor,
 .os .os-upstream .zernio-sponsor {
-  padding: 18px 20px 20px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  padding: 22px 24px;
+  border: 0;
+  border-radius: var(--radius-card);
   background: var(--card);
   color: var(--ink);
   font-family: var(--font);
@@ -423,30 +432,42 @@
 
 .os .os-upstream .zernio-sponsor input,
 .os .os-upstream .zernio-sponsor select {
-  height: var(--control-h);
-  padding: 0 10px;
-  border: 1px solid var(--line-strong);
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--card);
+  background-color: var(--ctl);
+  color: var(--ink);
   font: inherit;
   font-size: var(--fs-body);
+}
+
+/* Colour only on the select, so the shared chevron survives. */
+.os .os-upstream .zernio-sponsor select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  background-image: var(--chevron);
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
 }
 
 .os .os-upstream .zernio-sponsor input:focus,
 .os .os-upstream .zernio-sponsor select:focus {
   outline: none;
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px var(--tint-2);
+  box-shadow: none;
 }
 
 .os .os-upstream .zernio-sponsor button {
   display: inline-flex;
   align-items: center;
-  height: var(--control-h);
-  padding: 0 14px;
-  border: 1px solid var(--line-strong);
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
   border-radius: var(--radius);
-  background: var(--card);
+  background: var(--ctl);
   color: var(--ink);
   font: 500 var(--fs-sm) / 1 var(--font);
   cursor: pointer;
@@ -456,7 +477,7 @@
 }
 
 .os .os-upstream .zernio-sponsor button:hover:not(:disabled) {
-  background: var(--tint);
+  background: var(--ctl-hover);
 }
 
 .os .os-upstream .zernio-sponsor button:active:not(:disabled) {
@@ -494,16 +515,33 @@
 }
 
 @media (max-width: 760px) {
-  .os-set-section {
-    padding: 16px;
+  .os-set-section,
+  .os .os-upstream section.zernio-sponsor {
+    padding: 18px;
   }
 
   .os-set-tablewrap {
-    margin: 0 -16px;
+    margin: 0 -18px;
+  }
+
+  .os-set-table th:first-child,
+  .os-set-table td:first-child {
+    padding-left: 18px;
+  }
+
+  .os-set-table th:last-child,
+  .os-set-table td:last-child {
+    padding-right: 18px;
   }
 
   .os-set-item {
     flex-wrap: wrap;
+    row-gap: var(--sp-2);
+  }
+
+  /* The name and meta take the full row; status and action sit under it. */
+  .os-set-item-text {
+    flex: 1 1 100%;
   }
 
   .os-set-invite {
@@ -533,18 +571,16 @@
 
 .os-sx-title {
   margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
 }
 
 .os-sx-layout {
   display: flex;
-  gap: 32px;
+  gap: var(--gap);
   flex-wrap: wrap;
   align-items: flex-start;
 }
 
+/* The tab list: pills like the knowledge tree, the picked one in ink. */
 .os-sx-nav {
   flex: 0 0 200px;
   display: flex;
@@ -555,12 +591,13 @@
 .os-sx-nav a {
   display: flex;
   align-items: center;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: var(--radius);
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
   text-decoration: none;
   color: var(--ink);
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .os-sx-nav a:hover {
@@ -578,8 +615,12 @@
   max-width: 860px;
 }
 
-.os-sx-body[data-tab="fields"] {
-  max-width: 980px;
+/* Custom fields share the 860 column. The table scrolls inside its own box;
+   its .sr-only children were escaping the unpositioned scroll box and
+   widened the page at 400px. */
+.os-sx-body .os-cf-wrap {
+  position: relative;
+  max-width: 100%;
 }
 
 .os-set-section-head h2 {
@@ -604,11 +645,12 @@
 }
 
 .os-send-form input {
-  height: var(--control-h);
+  height: 36px;
   width: 180px;
-  padding: 0 10px;
-  border: 1px solid var(--line-strong);
+  padding: 0 14px;
+  border: 1px solid var(--line);
   border-radius: var(--radius);
+  background-color: var(--ctl);
   font: inherit;
   font-size: var(--fs-sm);
   color: var(--ink);
@@ -626,10 +668,13 @@
 
 .os-send-ok {
   font-size: var(--fs-xs);
-  color: var(--mark);
+  color: var(--good);
   align-self: center;
 }
 
+/* Phone: the tab list is a pill track that scrolls inside the gutter, with a
+   fade on whichever edge has more behind it (R2-7); the picked tab is scrolled into view on
+   load (ScrollPicked) (F-13). */
 @media (max-width: 860px) {
   .os-sx-layout {
     gap: 16px;
@@ -637,12 +682,44 @@
 
   .os-sx-nav {
     flex: 1 1 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     flex-direction: row;
     overflow-x: auto;
     gap: 4px;
+    padding: 4px;
+    border-radius: 999px;
+    background: var(--card);
+    scrollbar-width: none;
+  }
+
+  /* Fade only the edges with more behind them (ScrollPicked sets data-more;
+     same 28px fade as the phone nav in os.css). */
+  .os-sx-nav[data-more="right"] {
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+  }
+
+  .os-sx-nav[data-more="left"] {
+    -webkit-mask-image: linear-gradient(to right, transparent, black 28px);
+    mask-image: linear-gradient(to right, transparent, black 28px);
+  }
+
+  .os-sx-nav[data-more="both"] {
+    -webkit-mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
+  }
+
+  .os-sx-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .os-sx-nav a {
     flex: none;
+    height: 32px;
+  }
+
+  .os-sx-body {
+    flex-basis: 100%;
   }
 }

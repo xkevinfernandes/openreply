@@ -255,6 +255,41 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Keep the picked step in view: once the inspector has opened (beside the
+  // canvas, or as the phone's bottom sheet), pan so the node sits in the
+  // part of the canvas that is still showing.
+  useEffect(() => {
+    if (!selected) return;
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => {
+        const canvasEl = document.querySelector(".wf-canvas");
+        const nodeEl = document.querySelector(`.wf-canvas .react-flow__node[data-id="${CSS.escape(selected)}"]`);
+        if (!canvasEl || !nodeEl) return;
+        const canvas = canvasEl.getBoundingClientRect();
+        const box = nodeEl.getBoundingClientRect();
+        const sheetEl = document.querySelector<HTMLElement>(".wf-insp");
+        const sheet = sheetEl && getComputedStyle(sheetEl).position === "fixed" ? sheetEl.getBoundingClientRect() : null;
+        const bottom = sheet ? Math.min(canvas.bottom, sheet.top) : canvas.bottom;
+        const pad = 24;
+        // A sheet that covers the whole canvas leaves nowhere to pan to.
+        if (bottom - canvas.top < 80) return;
+        if (box.left >= canvas.left + pad && box.right <= canvas.right - pad && box.top >= canvas.top + pad && box.bottom <= bottom - pad) return;
+        const vp = rf.getViewport();
+        const dx = (canvas.left + canvas.right) / 2 - (box.left + box.right) / 2;
+        // A node taller than the room left keeps its head in view.
+        const room = bottom - canvas.top;
+        const dy = box.height + pad * 2 > room ? canvas.top + pad - box.top : (canvas.top + bottom) / 2 - (box.top + box.bottom) / 2;
+        const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        void rf.setViewport({ x: vp.x + dx, y: vp.y + dy, zoom: vp.zoom }, { duration: still ? 0 : 260 });
+      });
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
+  }, [selected, rf]);
+
   // ---------------------------------------------------------------- view
   const nodes: StepNodeType[] = useMemo(
     () =>
@@ -466,9 +501,10 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
             defaultEdgeOptions={{ type: "default" }}
             proOptions={{ hideAttribution: true }}
           >
-            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgb(17 17 17 / 0.08)" />
+            {/* Colours come from the --xy-* tokens in workflows.css, so both themes work. */}
+            <Background variant={BackgroundVariant.Dots} gap={24} size={2} />
             <Controls showInteractive={false} position="bottom-left" />
-            <MiniMap position="bottom-right" pannable zoomable nodeColor="rgb(17 17 17 / 0.14)" nodeStrokeWidth={0} maskColor="rgb(247 247 245 / 0.7)" ariaLabel="Minimap" />
+            <MiniMap position="bottom-right" pannable zoomable nodeStrokeWidth={0} ariaLabel="Minimap" />
           </ReactFlow>
 
           <div className="wf-tools">
@@ -520,6 +556,7 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
           ) : null}
         </section>
 
+        {selectedNode ? <div className="wf-insp-scrim" aria-hidden="true" onClick={() => setSelected(null)} /> : null}
         {selectedNode ? (
           <Inspector
             key={selectedNode.id}

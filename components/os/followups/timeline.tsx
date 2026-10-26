@@ -136,7 +136,7 @@ function Todo({ items, act, pending }: { items: TodoItem[]; act: (fn: Act) => vo
             {t.kind === "task" ? (
               <input type="checkbox" id={t.id} aria-label="Done" disabled={pending} onChange={() => act(() => completeTask(t.taskId!))} />
             ) : (
-              <span className="os-tl-todo-mark" aria-hidden="true" />
+              <input type="checkbox" className="os-tl-todo-mark" disabled aria-hidden="true" tabIndex={-1} />
             )}
             <label htmlFor={t.kind === "task" ? t.id : undefined} className="os-tl-todo-text">
               {t.lead} {t.strong ? <strong>{t.strong}</strong> : null} {t.tail}
@@ -208,7 +208,7 @@ export default function FollowupsTimeline({ data, tab, source, header }: { data:
     <div className="os-tl">
       <header className="os-tl-head">
         <div className="os-tl-title">
-          <h1>Follow-ups</h1>
+          <h1 className="os-title">Follow-ups</h1>
           <InfoTip label="What shows here">Everything scheduled to go out: setter sequences (defined in Knowledge bases) and broadcasts (defined in Automations). Nothing sends without your approve.</InfoTip>
         </div>
         <div className="os-tl-actions">

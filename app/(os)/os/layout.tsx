@@ -29,10 +29,16 @@ import "./broadcasts.css";
 import "./home.css";
 import "./jbrain.css";
 import "./palette.css";
+// The reel look's shapes go last (branding: README.md + tokens.css).
+import "./reel.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata = { title: "DM OS" };
+
+/** The theme pick (sidebar foot), applied before the first paint so dark
+ * never flashes light. Same key as ContentOS and the portal. */
+const THEME_SCRIPT = `try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}`;
 
 /** Sidebar counts. Cheap reads only; a failure just hides the number. */
 async function navCounts(workspaceId: string): Promise<Partial<Record<NavItem["key"], number>>> {
@@ -73,6 +79,7 @@ export default async function OsLayout({ children }: { children: React.ReactNode
 
   return (
     <div className={`os ${inter.variable}`} style={{ "--os-panel-w": `${panelWidth}px` } as React.CSSProperties}>
+      <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       <OsShell workspaceName={workspace.name} instagramUsername={account?.username ?? (osMockEnabled() ? "claudepreneur" : null)} counts={counts} sends={sends} sidebar={sidebar}>
         {children}
       </OsShell>

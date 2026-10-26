@@ -279,7 +279,7 @@ function Episodes({ rows }: { rows: ResourceView[] }) {
 function EntryPaths({ rows }: { rows: ResourceView[] }) {
   const [open, setOpen] = useState<string | null>(null);
   return (
-    <details className="kb-res-sec kb-entries">
+    <details className="kb-res-sec kb-entries" open>
       <summary>
         Entry paths <span className="kb-quiet">{rows.length}</span>
       </summary>

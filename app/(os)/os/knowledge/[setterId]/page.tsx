@@ -11,6 +11,7 @@ import { osMockEnabled } from "@/lib/os/mock";
 import { correctionPair } from "@/lib/os/setter/knowledge/corrections";
 import { isDocKey } from "@/lib/os/setter/knowledge/docs";
 import { listVoiceClips, type VoiceClipView } from "@/lib/os/voice/clips";
+import { ScrollPicked } from "@/components/os/ui/scroll-picked";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +73,7 @@ export default async function SetterPage({ params, searchParams }: { params: Pro
           <SetterBar id={view.id} name={view.name} setters={view.setters} query={query} />
           <div className="kb-body">
             <SetterTree view={view} sel={sel} />
+            <ScrollPicked row=".kb-tree" pick={query} />
             {pane}
           </div>
         </div>

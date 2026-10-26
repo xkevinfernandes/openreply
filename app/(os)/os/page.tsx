@@ -29,14 +29,41 @@ function href(period: Period, setter: string | null) {
   return s ? `/os?${s}` : "/os";
 }
 
-function Outcomes({ cells, label }: { cells: (OutcomeCell | WorkflowCell)[]; label?: string }) {
+// Short tile labels so seven tiles fit one row at desktop width; the full
+// step name stays in the tile's title.
+const SHORT: Partial<Record<OutcomeCell["kind"], string>> = {
+  keyword_trigger: "Triggers",
+  conversation_started: "Conversations",
+  lead_magnet_sent: "Lead magnets",
+  offer_made: "Offers made",
+};
+
+// The foot names the step the % is taken from, in one short word.
+const FOOT: Partial<Record<OutcomeCell["kind"], string>> = {
+  keyword_trigger: "triggers",
+  conversation_started: "chats",
+  lead_magnet_sent: "magnets",
+  offer_made: "offers",
+  call_booked: "calls",
+  showed: "shows",
+};
+
+// The one sage tile on Home: the outcome the setter exists for.
+const FEATURE: OutcomeCell["kind"] = "call_booked";
+
+type Cell = OutcomeCell | WorkflowCell;
+const kindOf = (c: Cell) => ("kind" in c ? c.kind : null);
+const shortOf = (c: Cell) => (kindOf(c) && SHORT[kindOf(c)!]) || c.label;
+const footOf = (c: Cell) => (kindOf(c) && FOOT[kindOf(c)!]) || c.label.toLowerCase();
+
+function Outcomes({ cells, label }: { cells: Cell[]; label?: string }) {
   return (
     <ol className="os-home-outcomes" aria-label={label}>
-      {cells.map((c) => (
-        <li key={"kind" in c ? c.kind : c.key}>
-          <span className="lbl">{c.label}</span>
+      {cells.map((c, i) => (
+        <li key={kindOf(c) ?? (c as WorkflowCell).key} data-feature={kindOf(c) === FEATURE || undefined} title={c.pct === null || i === 0 ? c.label : `${c.label}: ${c.pct}% of ${cells[i - 1].label.toLowerCase()}`}>
+          <span className="lbl">{shortOf(c)}</span>
           <span className="n">{c.n.toLocaleString("en-GB")}</span>
-          <span className="pct">{c.pct === null ? "—" : `${c.pct}%`}</span>
+          <span className="pct">{c.pct === null ? "—" : i > 0 ? `${c.pct}% of ${footOf(cells[i - 1])}` : `${c.pct}%`}</span>
         </li>
       ))}
     </ol>
@@ -123,18 +150,13 @@ export default async function OsHome({ searchParams }: PageProps) {
     <div className="os-home">
       <header className="os-home-head">
         <div>
-          <h1>
+          <h1 className="os-title">
             {greeting(now, tz)}
             {first ? `, ${first}` : ""}
           </h1>
           <p>{homeDate(now, tz)}</p>
         </div>
-        <ReviewButton count={pipe?.draftsWaiting ?? 0} />
-      </header>
-
-      <section aria-labelledby="os-home-out" className="os-home-sec">
-        <div className="os-home-sechead">
-          <h2 id="os-home-out">Outcomes</h2>
+        <div className="os-home-actions">
           <nav className="os-home-seg" aria-label="Period">
             {PERIODS.map((p) => (
               <Link key={p.key} href={href(p.key, params.setter ?? null)} aria-current={p.key === period ? "page" : undefined} scroll={false}>
@@ -142,7 +164,11 @@ export default async function OsHome({ searchParams }: PageProps) {
               </Link>
             ))}
           </nav>
+          <ReviewButton count={pipe?.draftsWaiting ?? 0} />
         </div>
+      </header>
+
+      <section aria-label="Outcomes" className="os-home-tiles">
         {outcomes ? <Outcomes cells={outcomes.cells} label="Campaigns, workflows and J" /> : <p className="os-home-err">Numbers didn&apos;t load.</p>}
       </section>
 
@@ -161,7 +187,7 @@ export default async function OsHome({ searchParams }: PageProps) {
       <div className="os-home-cols">
         <section aria-labelledby="os-home-pipe" className="os-home-sec os-home-main">
           <div className="os-home-sechead">
-            <h2 id="os-home-pipe">Pipeline by stage</h2>
+            <h2 id="os-home-pipe" className="os-h2">Pipeline by stage</h2>
             {pipe && pipe.pipeline.setters.length > 1 ? (
               <nav className="os-home-seg" aria-label="Setter">
                 {pipe.pipeline.setters.map((s) => (
@@ -195,7 +221,7 @@ export default async function OsHome({ searchParams }: PageProps) {
         <div className="os-home-side">
           <section aria-labelledby="os-home-todo" className="os-home-sec">
             <div className="os-home-sechead">
-              <h2 id="os-home-todo">Yours to do</h2>
+              <h2 id="os-home-todo" className="os-h2">Yours to do</h2>
               <Link href="/os/follow-ups" className="os-home-more">
                 All follow-ups
               </Link>
@@ -204,7 +230,7 @@ export default async function OsHome({ searchParams }: PageProps) {
               <ul className="os-home-box os-home-todos">
                 {todos.map((t) => (
                   <li key={t.id}>
-                    {t.taskId ? <TodoCheck taskId={t.taskId} label={`Done: ${t.name}`} /> : <span className="os-home-todo-dot" aria-hidden="true" />}
+                    {t.taskId ? <TodoCheck taskId={t.taskId} label={`Done: ${t.name}`} /> : <input type="checkbox" className="os-home-todo-dot" aria-hidden="true" tabIndex={-1} disabled />}
                     {t.href ? (
                       <Link href={t.href} className="lbl">
                         {t.label}
@@ -225,7 +251,7 @@ export default async function OsHome({ searchParams }: PageProps) {
 
           <section aria-labelledby="os-home-setters" className="os-home-sec">
             <div className="os-home-sechead">
-              <h2 id="os-home-setters">Setters</h2>
+              <h2 id="os-home-setters" className="os-h2">Setters</h2>
               <Link href="/os/knowledge" className="os-home-more">
                 Knowledge bases
               </Link>
@@ -241,7 +267,7 @@ export default async function OsHome({ searchParams }: PageProps) {
                     <span> · {s.open} open</span>
                   </span>
                   {s.drafts ? (
-                    <span className="meta" data-tone="mark">
+                    <span className="meta" data-tone="warn">
                       {s.drafts} draft{s.drafts === 1 ? "" : "s"}
                     </span>
                   ) : (

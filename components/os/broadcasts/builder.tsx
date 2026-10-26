@@ -236,7 +236,7 @@ export default function BroadcastBuilder({ data }: { data: BuilderData }) {
             <Link href="/os/automations">Automations</Link> / <Link href="/os/automations/broadcasts">Broadcasts</Link>
           </nav>
           <div className="os-bc-titlerow">
-            <h1>{b.name}</h1>
+            <h1 className="os-title">{b.name}</h1>
             <button
               type="button"
               className="os-bc-onoff"
@@ -328,11 +328,11 @@ export default function BroadcastBuilder({ data }: { data: BuilderData }) {
                     Message template
                   </label>
                   <textarea id="bc-msg" ref={tpl} className="os-textarea os-bc-ta" rows={Math.max(1, template.split("\n").length)} value={template} onChange={(e) => setTemplate(e.target.value)} />
-                  <span className="os-bc-link" aria-label="Link, sent as its own message" title="Sent as its own message">
-                    <Svg d={I.link} />
-                    {"{link}"}
-                  </span>
-                  <div className="os-bc-row">
+                  <div className="os-bc-row os-bc-vars">
+                    <span className="os-bc-link" aria-label="Link, sent as its own message" title="Sent as its own message">
+                      <Svg d={I.link} />
+                      {"{link}"}
+                    </span>
                     <button type="button" className="os-bc-var" onClick={() => insertVar("{first_name}")}>
                       {"{first_name}"}
                     </button>

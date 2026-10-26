@@ -2,40 +2,95 @@
    Screens: inbox.css (list, thread, composer, J drafts, J triage) and
    knowledge.css (setters, editor, resources, sandbox).
 
-   The look is Kevin's Review Room (Production tools/review_room.html, the
-   B-roll flow), itself Marketing OS's: black and white, Inter, 4px corners,
-   hairlines, an ink-filled active nav, status as a dot and a word, feedback
-   on press. Colour only where it means something: the green mark for work
-   waiting on you (a draft from J), amber for "decide this", red for errors.
+   The look is the reel look, Kevin's default for every app
+   (Cursor Repos/branding: README.md + tokens.css), the same as ContentOS and
+   the client portal: warm stone ground, white cards floating on it (radius 20,
+   no border, no shadow), pill controls with the picked one in ink, big
+   tabular numbers with the label above. Radii are 999 / 20 / 14 / 12 / 8 only.
+   Colour only where it means something: green good (and work waiting on you,
+   a draft from J), amber "decide this", red errors, sage the page's one
+   feature tile, yellow the one starred thing. Light and dark: the system's,
+   unless a pick is kept in localStorage.theme (the sidebar foot switch).
    Everything is scoped under .os so the upstream OpenReply pages keep theirs.
+   reel.css loads last and reshapes the older blocks onto the cards.
 
    Motion: press = scale .97 in 100ms; surfaces ease on cubic-bezier(.2,.8,.2,1)
    (critically damped, no overshoot); the phone drawer moves on the iOS sheet
    curve. Reduced motion keeps fades and drops travel. */
 
+/* The stone ground, defined once on the root so the page behind .os
+   (html/body, overscroll) and .os --bg read the same token. */
+:root:has(.os) {
+  --os-stone: #e6e5de;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):has(.os) {
+    --os-stone: #161615;
+  }
+}
+:root[data-theme="dark"]:has(.os) {
+  --os-stone: #161615;
+}
+
 .os {
-  --ink: #111111;
-  --paper: #ffffff;
-  --paper-2: #f7f7f5;
+  /* the reel palette (branding/tokens.css) */
+  --bg: var(--os-stone);
   --card: #ffffff;
-  --tint: rgb(17 17 17 / 0.04);
-  --tint-2: rgb(17 17 17 / 0.07);
-  --line: rgb(17 17 17 / 0.07);
-  --line-strong: rgb(17 17 17 / 0.14);
-  --muted: rgb(17 17 17 / 0.62);
-  --faint: rgb(17 17 17 / 0.6);
-  --ghost: rgb(17 17 17 / 0.34);
+  --well: #f5f4f0;
+  --ink: #111111;
   --on-ink: #ffffff;
-  --mark: #4f8160;
-  --mark-bg: #ecf1ed;
+  --line: #e4e3dd;
+  --dash: #9a9990;
+  --bar: #c9c8c0;
+  --sage: #3f5e4c;
+  --sage-text: #d9e4dc;
+  /* the number on a sage tile: white in both themes (branding .stat.is-picked);
+     --on-ink can't serve, it turns dark in dark mode */
+  --on-sage: #ffffff;
+  --like: #ffdf56;
+  --good: #2f8a5b;
+  --good-bg: #e3f1e8;
+  --good-fg: #1f5e3d;
+  --neutral-bg: #f1efe8;
+  --neutral-fg: #34332f;
   --warn: #9a6a00;
-  --warn-bg: #fbf4e2;
-  --bad: #b42318;
-  --bad-bg: #fdf0ee;
-  --good: var(--mark);
+  --warn-bg: #fbf1dc;
+  --bad: #c1291d;
+  --bad-bg: #fbe3e1;
+  --bad-fg: #8a2b25;
+  --muted: #5a5953;
+  /* Instagram's own bubble greys, for the thread and phone previews. */
+  --ig-them: #efefef;
+  --ig-them-2: #dbdbdb;
+  --scrim: color-mix(in srgb, var(--ink) 35%, transparent);
+  --warn-fg: #7a5210; /* warn pill text (tokens.css --warn-pill-fg) */
+  /* Glyphs drawn in the theme's ink / on-ink, swapped in dark. */
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23111111' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4.5 6.5 3.5 3.5 3.5-3.5'/%3E%3C/svg%3E");
+  --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 8.2 2.6 2.6L12 5.4'/%3E%3C/svg%3E");
+  --dash-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M4.5 8h7'/%3E%3C/svg%3E");
+  /* Context surfaces: a control (button, input, select, tab track,
+     checkbox) is --card on the stone and --well inside a card. Every card
+     sets --ctl: var(--well) (reel.css "Context surfaces"); a well inside a
+     card sets it back to --card. */
+  --ctl: var(--card);
+  --ctl-hover: var(--well);
+  --frost: color-mix(in srgb, var(--bg) 86%, transparent);
+
+  /* the older names, onto the reel */
+  --paper: var(--card);
+  --paper-2: var(--well);
+  --tint: color-mix(in srgb, var(--ink) 4%, transparent);
+  --tint-2: color-mix(in srgb, var(--ink) 7%, transparent);
+  --line-strong: color-mix(in srgb, var(--ink) 14%, transparent);
+  --faint: var(--muted);
+  --ghost: color-mix(in srgb, var(--ink) 40%, transparent);
+  --mark: var(--good);
+  --mark-bg: var(--good-bg);
   --stage: #0b0b0b;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.08);
-  --shadow-lg: 0 1px 2px rgb(0 0 0 / 0.06), 0 16px 40px rgb(0 0 0 / 0.14);
+  /* Cards never carry a shadow; these are for menus and pop-ups only. */
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 1px 2px rgb(0 0 0 / 0.06), 0 16px 40px rgb(0 0 0 / 0.16);
+  --pop-shadow: var(--shadow-lg); /* tokens.css's name for the same thing */
 
   /* legacy names kept for anything still reading them */
   --accent: var(--ink);
@@ -44,11 +99,11 @@
   --ink-8: var(--tint-2);
 
   --fs-h1: 24px;
-  --fs-h2: 15px;
+  --fs-h2: 17px;
   --fs-body: 14px;
   --fs-sm: 13px;
   --fs-xs: 12px;
-  --fs-stat: 26px;
+  --fs-stat: 28px;
 
   --sp-1: 4px;
   --sp-2: 8px;
@@ -58,11 +113,16 @@
   --sp-6: 24px;
   --sp-8: 32px;
   --sp-10: 40px;
-  --radius: 4px;
+  --radius: 12px; /* controls; cards are --radius-card */
+  --radius-card: 20px;
+  --radius-cover: 14px;
+  --radius-sm: 8px;
   --r: var(--radius);
   --control-h: 32px;
   --bar-h: 0px; /* no top bar on desktop; the phone bar sets 52px */
-  --sidebar-w: 224px;
+  --sidebar-w: 216px;
+  --page-pad: 24px;
+  --gap: 20px;
 
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
@@ -72,7 +132,7 @@
   --mono: ui-monospace, "SF Mono", Menlo, monospace;
 
   min-height: 100dvh;
-  background: var(--paper);
+  background: var(--bg);
   color: var(--ink);
   font-family: var(--font);
   font-size: var(--fs-body);
@@ -82,7 +142,103 @@
   color-scheme: light;
 }
 
+/* Dark: the system's unless Light was picked; an explicit Dark always wins. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .os {
+    --bg: var(--os-stone);
+    --card: #232322;
+    --well: #2d2d2b;
+    --ink: #ececea;
+    --on-ink: #111111;
+    --line: #353532;
+    --dash: #6b6a64;
+    --bar: #45453f;
+    --sage: #4a6b57;
+    --sage-text: #e4ede7;
+    --good: #5cc98a;
+    --good-bg: #1e3528;
+    --good-fg: #8ee0b0;
+    /* Not the brand's #2d2d2b (= --well): a neutral pill vanished on any well. */
+    --neutral-bg: color-mix(in srgb, var(--ink) 12%, var(--card));
+    --neutral-fg: #d6d5cf;
+    --warn: #f2b84b;
+    --warn-bg: #3a2f18;
+    --bad: #f2786b;
+    --bad-bg: #3a2220;
+    --bad-fg: #f5a39a;
+    --muted: #a3a29c;
+    --scrim: rgb(0 0 0 / 0.55);
+    --warn-fg: #f2c877;
+    --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ececea' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4.5 6.5 3.5 3.5 3.5-3.5'/%3E%3C/svg%3E");
+    --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23111111' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 8.2 2.6 2.6L12 5.4'/%3E%3C/svg%3E");
+    --dash-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23111111' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M4.5 8h7'/%3E%3C/svg%3E");
+    --ig-them: #262626;
+    --ig-them-2: #363636;
+    --shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px rgb(0 0 0 / 0.4);
+    --shadow-lg: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 16px 40px rgb(0 0 0 / 0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] .os {
+  --bg: var(--os-stone);
+  --card: #232322;
+  --well: #2d2d2b;
+  --ink: #ececea;
+  --on-ink: #111111;
+  --line: #353532;
+  --dash: #6b6a64;
+  --bar: #45453f;
+  --sage: #4a6b57;
+  --sage-text: #e4ede7;
+  --good: #5cc98a;
+  --good-bg: #1e3528;
+  --good-fg: #8ee0b0;
+  /* Not the brand's #2d2d2b (= --well): a neutral pill vanished on any well. */
+  --neutral-bg: color-mix(in srgb, var(--ink) 12%, var(--card));
+  --neutral-fg: #d6d5cf;
+  --warn: #f2b84b;
+  --warn-bg: #3a2f18;
+  --bad: #f2786b;
+  --bad-bg: #3a2220;
+  --bad-fg: #f5a39a;
+  --muted: #a3a29c;
+  --scrim: rgb(0 0 0 / 0.55);
+  --warn-fg: #f2c877;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ececea' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4.5 6.5 3.5 3.5 3.5-3.5'/%3E%3C/svg%3E");
+  --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23111111' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 8.2 2.6 2.6L12 5.4'/%3E%3C/svg%3E");
+  --dash-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23111111' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M4.5 8h7'/%3E%3C/svg%3E");
+  --ig-them: #262626;
+  --ig-them-2: #363636;
+  --shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 16px 40px rgb(0 0 0 / 0.5);
+  color-scheme: dark;
+}
+
+/* Focus: one ring, never two. Things you press (buttons, pills, tabs,
+   rows, checkboxes) get a 2px ink outline on keyboard focus. Text fields
+   and selects get an ink border and no outline (see "Inputs"). */
 .os :focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Note: :is() takes its most specific argument, so this lands at (0,6,1)
+   and beats any plain "select:focus-visible { outline }" rule. A borderless
+   field inside a pill must ring the pill with :has() instead (below, and
+   .os-panel-pill in panel.css). */
+.os :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), textarea, select, [contenteditable]):focus-visible {
+  outline: none;
+}
+
+/* ...and every text field or select shows that ink border, not just the
+   .os-input family. :where keeps this at (0,2,0) so a screen that hides the
+   border on purpose (the own-mode composer line) still wins. */
+.os :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), textarea, select):focus {
+  border-color: var(--ink);
+}
+
+/* A borderless select inside a pill (filter chips) rings the pill. */
+.os .os-cx-chip:has(select:focus-visible) {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
@@ -96,7 +252,12 @@
   white-space: nowrap;
 }
 
-.os svg {
+/* Icons only: a 15px stroked glyph. Not React Flow's own svgs (the dot
+   ground, the edges, the minimap, the zoom controls; icons inside a node
+   still count) and not an svg whose width attribute says it is
+   bigger than an icon (sketches, charts). :where keeps this at .os svg's
+   specificity so a screen's `.os-x svg` still sizes its icons. */
+.os svg:where(:not([class*="react-flow"], .react-flow__edges > svg, .react-flow__controls *)):where(:not([width]), [width="10"], [width="11"], [width="12"], [width="13"], [width="14"], [width="15"], [width="16"], [width="17"], [width="18"], [width="20"], [width="22"], [width="24"]) {
   width: 15px;
   height: 15px;
   stroke: currentColor;
@@ -113,7 +274,7 @@
   min-width: 18px;
   height: 18px;
   padding: 0 4px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--tint-2);
   color: var(--muted);
   font: 500 11px/1 var(--font);
@@ -128,7 +289,7 @@
   gap: 6px;
   height: var(--control-h);
   padding: 0 14px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--card);
   color: var(--ink);
@@ -228,7 +389,7 @@
   gap: 5px;
   height: 20px;
   padding: 0 7px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--tint-2);
   color: var(--muted);
   font-size: var(--fs-xs);
@@ -240,7 +401,7 @@
 .os .chip.quiet {
   background: transparent;
   color: var(--faint);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  box-shadow: none;
 }
 
 /* Something waiting on you: the brand mark. */
@@ -260,7 +421,7 @@
 
 .os .chip.flag {
   background: var(--warn-bg);
-  color: var(--warn);
+  color: var(--warn-fg);
 }
 
 /* Inputs */
@@ -269,7 +430,7 @@
 .os-textarea,
 .os-select select {
   width: 100%;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--card);
   color: var(--ink);
@@ -310,7 +471,7 @@
 .os-input:hover,
 .os-textarea:hover,
 .os-select select:hover {
-  border-color: rgb(17 17 17 / 0.24);
+  border-color: color-mix(in srgb, var(--ink) 24%, transparent);
 }
 
 .os-input:focus,
@@ -318,7 +479,7 @@
 .os-select select:focus {
   outline: none;
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px var(--tint-2);
+  box-shadow: none;
 }
 
 .os-select {
@@ -332,10 +493,11 @@
   font-size: var(--fs-sm);
   appearance: none;
   cursor: pointer;
-  /* a hairline chevron, drawn in ink */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23111' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4.5 6.5 3.5 3.5 3.5-3.5'/%3E%3C/svg%3E");
+  /* A hairline chevron in ink. Set background-COLOR only on a select:
+     the shorthand wipes the chevron (A-01). Dark swaps --chevron. */
+  background-image: var(--chevron);
   background-repeat: no-repeat;
-  background-position: right 8px center;
+  background-position: right 12px center;
   background-size: 14px;
 }
 
@@ -347,10 +509,10 @@
 /* Segmented control (Review Room .seg): a tinted track, the choice lifts. */
 .os-segmented {
   display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: var(--radius);
-  background: var(--tint-2);
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--ctl);
   max-width: 100%;
 }
 
@@ -362,7 +524,7 @@
   height: 26px;
   padding: 0 11px;
   border: 0;
-  border-radius: 3px;
+  border-radius: 8px;
   background: transparent;
   color: var(--muted);
   font: 500 var(--fs-sm) / 1 var(--font);
@@ -380,11 +542,9 @@
 }
 
 .os-segmented button[aria-pressed="true"] {
-  background: var(--card);
-  color: var(--ink);
-  box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.08),
-    0 0 0 1px var(--line);
+  background: var(--ink);
+  color: var(--on-ink);
+  box-shadow: none;
 }
 
 .os-segmented button:disabled {
@@ -403,8 +563,8 @@
   border: 0;
   border-radius: 999px;
   padding: 0;
-  background: var(--tint-2);
-  box-shadow: inset 0 0 0 1px var(--line);
+  background: var(--bar);
+  box-shadow: none;
   cursor: pointer;
   transition: background-color 180ms ease;
 }
@@ -425,8 +585,8 @@
   width: calc(var(--h) - 4px);
   height: calc(var(--h) - 4px);
   border-radius: 999px;
-  background: #fff;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2), 0 0 0 0.5px rgb(0 0 0 / 0.06);
+  background: var(--card);
+  box-shadow: none;
   transition:
     transform 240ms var(--ease),
     width 120ms ease;
@@ -469,9 +629,8 @@
   padding: 10px var(--sp-3);
   border-radius: var(--radius);
   background: var(--bad-bg);
-  color: var(--bad);
+  color: var(--bad-fg);
   font-size: var(--fs-sm);
-  box-shadow: inset 2px 0 0 var(--bad);
 }
 
 /* --- Shell ------------------------------------------------------------------
@@ -514,8 +673,8 @@
   padding: 16px 12px;
   box-sizing: border-box;
   overflow: hidden;
-  background: var(--paper-2);
-  border-right: 1px solid var(--line);
+  background: var(--card);
+  border: 0;
   font-size: var(--fs-sm);
 }
 
@@ -598,7 +757,7 @@
   height: 32px;
   padding: 0 8px;
   margin-bottom: 8px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--paper);
   color: var(--muted);
@@ -678,7 +837,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 9px;
+  border-radius: 999px;
   background: var(--mark-bg);
   color: var(--mark);
   font-size: 11px;
@@ -722,7 +881,7 @@
   gap: 4px;
   height: 24px;
   padding: 0 8px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--paper);
   color: var(--ink);
@@ -769,7 +928,7 @@
 
 .os-side-meter {
   height: 4px;
-  border-radius: 2px;
+  border-radius: 999px;
   background: var(--tint-2);
   overflow: hidden;
 }
@@ -786,7 +945,7 @@
 
 .os-side-error {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--bad);
 }
 
@@ -864,7 +1023,7 @@
 }
 
 .os-shell[data-sidebar="rail"] .os-side-sends {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .os-shell[data-sidebar="rail"] .os-side-meter {
@@ -991,7 +1150,7 @@
 .os-empty {
   max-width: 620px;
   padding: 22px 24px;
-  border: 1px dashed var(--line-strong);
+  border: 1px dashed var(--line);
   border-radius: var(--radius);
   background: var(--paper-2);
   color: var(--muted);
@@ -1071,33 +1230,39 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Status pills: one map for the whole OS (components/os/ui/pill.tsx
+   statusTone). good = live/sent/booked/won, neutral = draft/off/paused,
+   warn = decide this, bad = failed/lost, ink = the one emphasised label.
+   "Draft" is never green. data-tone="mark" is the old name for good. */
 .os-pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 20px;
-  padding: 0 7px;
-  border-radius: 10px;
-  background: var(--tint-2);
-  color: var(--ink);
-  font-size: 11px;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  font-size: var(--fs-xs);
   font-weight: 500;
+  line-height: 1;
   white-space: nowrap;
 }
 
-.os-pill[data-tone="mark"] {
-  background: var(--mark-bg);
-  color: var(--mark);
+.os-pill[data-tone="mark"],
+.os-pill[data-tone="good"] {
+  background: var(--good-bg);
+  color: var(--good-fg);
 }
 
 .os-pill[data-tone="warn"] {
   background: var(--warn-bg);
-  color: var(--warn);
+  color: var(--warn-fg);
 }
 
 .os-pill[data-tone="bad"] {
   background: var(--bad-bg);
-  color: var(--bad);
+  color: var(--bad-fg);
 }
 
 .os-pill[data-tone="ink"] {
@@ -1217,15 +1382,15 @@
 
 .os-setter-mark {
   flex: none;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 3px;
+  border-radius: 999px;
   background: var(--ink);
   color: var(--on-ink);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   line-height: 1;
 }
@@ -1239,7 +1404,6 @@
 .os-setter-mark[data-size="24"] {
   width: 24px;
   height: 24px;
-  border-radius: var(--radius);
   font-size: 12px;
 }
 
@@ -1247,16 +1411,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
   box-sizing: border-box;
-  border: 1px solid currentColor;
-  border-radius: 3px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--tint-2);
+  color: var(--muted);
   font-family: var(--font);
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 500;
   line-height: 1;
-  opacity: 0.6;
 }
 
 .os-icon-btn {
@@ -1338,10 +1504,11 @@
   justify-content: center;
   overflow: hidden;
   border-radius: 50%;
-  background: var(--tint-2);
+  background: var(--well);
   color: var(--ink);
   font-size: 13px;
   font-weight: 600;
+  box-shadow: none;
 }
 
 .os-avatar[data-size="24"] {
@@ -1380,7 +1547,7 @@
 }
 
 .os-avatar-rail-item[aria-current="page"] {
-  box-shadow: 0 0 0 2px var(--ink);
+  background: var(--ink);
 }
 
 .os-avatar-rail-dot {
@@ -1390,15 +1557,172 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--mark);
-  box-shadow: 0 0 0 2px var(--paper);
+  background: var(--warn); /* a draft waiting is "decide this": amber */
+  outline: 2px solid var(--card);
+}
+
+
+/* --- Shared primitives (owner A) ---------------------------------------------
+   Screen files build on these instead of inventing variants. Zero-specificity
+   (:where) where a screen may need to adjust them. */
+
+/* Page title: 24/600, -0.022em. Use .os-title on any page h1 that is not
+   inside .os-head; then delete the screen's own font-size/letter-spacing. */
+.os .os-title,
+.os .os-head h1 {
+  margin: 0;
+  font-size: var(--fs-h1);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.022em;
+  text-wrap: balance;
+}
+
+/* Section title inside a card: 17/600. */
+.os .os-h2 {
+  margin: 0;
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+/* Card: white on stone, radius 20, no border, no shadow. Controls inside
+   pick up --well through --ctl. .os-card-tile is the compact stat padding. */
+.os-card {
+  --ctl: var(--well);
+  --ctl-hover: var(--tint-2);
+  padding: 22px 24px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
+  box-shadow: none;
+}
+
+.os-card-tile {
+  padding: 20px 22px;
+}
+
+/* Inner well inside a card: controls inside it go back to --card. */
+.os-well {
+  --ctl: var(--card);
+  --ctl-hover: var(--tint-2);
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--well);
+}
+
+/* List row (split views, option lists): padding 12, radius 14, no dividers.
+   Picked = --well, set by aria-current, aria-selected="true",
+   aria-checked="true" or .is-picked. Hover = --tint. */
+.os-list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 0;
+  border-radius: var(--radius-cover);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  text-decoration: none;
+  transition:
+    background-color 120ms ease,
+    transform 100ms ease;
+}
+
+.os-list-row:hover {
+  background: var(--tint);
+}
+
+.os-list-row:is([aria-current]:not([aria-current="false"]), [aria-selected="true"], [aria-checked="true"], .is-picked),
+.os-list-row:is([aria-current]:not([aria-current="false"]), [aria-selected="true"], [aria-checked="true"], .is-picked):hover {
+  background: var(--well);
+}
+
+.os-list-row + .os-list-row {
+  margin-top: 2px;
+}
+
+/* Checkbox and radio: 18px, a 1px line on the context surface; checked is
+   an ink fill with an on-ink tick (or dot). Covers native inputs anywhere in
+   /os, upstream components included. */
+:where(.os) input:is([type="checkbox"], [type="radio"]) {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--ctl);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 14px;
+  vertical-align: middle;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    transform 100ms ease;
+}
+
+:where(.os) input[type="radio"] {
+  border-radius: 999px;
+}
+
+:where(.os) input:is([type="checkbox"], [type="radio"]):hover:not(:disabled) {
+  border-color: var(--ink);
+}
+
+:where(.os) input[type="checkbox"]:checked {
+  border-color: var(--ink);
+  background-color: var(--ink);
+  background-image: var(--tick);
+}
+
+:where(.os) input[type="checkbox"]:indeterminate {
+  border-color: var(--ink);
+  background-color: var(--ink);
+  background-image: var(--dash-glyph);
+}
+
+:where(.os) input[type="radio"]:checked {
+  border-color: var(--ink);
+  background-color: var(--ink);
+  background-image: radial-gradient(circle, var(--on-ink) 0 3.5px, transparent 4px);
+  background-size: 100% 100%;
+}
+
+:where(.os) input:is([type="checkbox"], [type="radio"]):active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+:where(.os) input:is([type="checkbox"], [type="radio"]):disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+:where(.os) input:is([type="checkbox"], [type="radio"]):focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.os) input:is([type="checkbox"], [type="radio"]):active:not(:disabled) {
+    transform: none;
+  }
 }
 
 /* --- Phone -------------------------------------------------------------------- */
 
 @media (max-width: 860px) {
+  /* The frosted header: account row (48) + the pill row (46). Screens
+     that size to the viewport subtract --bar-h. */
   .os {
-    --bar-h: 52px;
+    --bar-h: 94px;
   }
 
   .os-bar {
@@ -1406,31 +1730,134 @@
     top: 0;
     z-index: 30;
     display: flex;
+    flex-direction: column;
+    height: calc(var(--bar-h) + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 0 0;
+    box-sizing: border-box;
+    background: var(--frost);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 0;
+    font-size: var(--fs-sm);
+  }
+
+  .os-bar-top {
+    flex: none;
+    display: flex;
     align-items: center;
     gap: 8px;
-    height: calc(var(--bar-h) + env(safe-area-inset-top));
-    padding: env(safe-area-inset-top) 16px 0 8px;
-    background: color-mix(in srgb, var(--paper) 82%, transparent);
-    backdrop-filter: blur(20px) saturate(160%);
-    -webkit-backdrop-filter: blur(20px) saturate(160%);
-    border-bottom: 1px solid var(--line);
-    font-size: var(--fs-sm);
+    height: 48px;
+    padding: 0 16px 0 6px;
+    min-width: 0;
   }
 
   .os-bar-home {
     color: var(--ink);
+    font-size: var(--fs-body);
     font-weight: 600;
+    letter-spacing: -0.01em;
     text-decoration: none;
   }
 
   .os-bar-here {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: var(--muted);
+    font-size: var(--fs-xs);
   }
 
-  .os-bar-here::before {
-    content: "/";
-    margin-right: 8px;
-    color: var(--ghost);
+  /* Every page as one row of pills that scrolls sideways (the only thing
+     on a phone that may); the picked page is the ink pill. */
+  .os-bar-nav {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 46px;
+    padding: 2px 16px 10px;
+    box-sizing: border-box;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  /* Fade only the edges with more behind them (data-more, set by
+     useScrollPicked as the row scrolls). */
+  .os-bar-nav[data-more="right"] {
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+  }
+
+  .os-bar-nav[data-more="left"] {
+    -webkit-mask-image: linear-gradient(to right, transparent, black 28px);
+    mask-image: linear-gradient(to right, transparent, black 28px);
+  }
+
+  .os-bar-nav[data-more="both"] {
+    -webkit-mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
+  }
+
+  .os-bar-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .os-bar-pill {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--ink);
+    font-size: var(--fs-sm);
+    white-space: nowrap;
+    text-decoration: none;
+    transition:
+      background-color 120ms ease,
+      transform 100ms ease;
+  }
+
+  .os-bar-pill:active {
+    transform: scale(0.97);
+  }
+
+  .os-bar-pill[aria-current="page"] {
+    background: var(--ink);
+    color: var(--on-ink);
+    font-weight: 500;
+  }
+
+  .os-bar-pill .n {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: var(--neutral-bg);
+    color: var(--neutral-fg);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .os-bar-pill[aria-current="page"] .n {
+    background: color-mix(in srgb, var(--on-ink) 18%, transparent);
+    color: var(--on-ink);
+  }
+
+  /* Inbox's count is drafts waiting: amber, picked or not. */
+  .os-bar-pill .n[data-tone="warn"],
+  .os-bar-pill[aria-current="page"] .n[data-tone="warn"] {
+    background: var(--warn-bg);
+    color: var(--warn-fg);
   }
 
   .os-menu-button {
@@ -1470,6 +1897,7 @@
     z-index: 50;
     width: min(280px, 84vw);
     height: 100dvh;
+    border-radius: 0 var(--radius-card) var(--radius-card) 0;
     align-items: stretch;
     padding: calc(16px + env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom));
     box-shadow: var(--shadow-lg);
@@ -1537,8 +1965,9 @@
     min-width: 18px;
     height: 18px;
     padding: 0 5px;
-    border-radius: 9px;
-    background: var(--mark-bg);
+    border-radius: 999px;
+    background: var(--neutral-bg);
+    color: var(--neutral-fg);
     font-size: 11px;
     box-shadow: none;
   }
@@ -1548,7 +1977,7 @@
     position: fixed;
     inset: 0;
     z-index: 40;
-    background: rgb(0 0 0 / 0.32);
+    background: var(--scrim);
     opacity: 0;
     pointer-events: none;
     transition: opacity 240ms var(--ease);
@@ -1568,7 +1997,7 @@
   }
 
   .os-head h1 {
-    font-size: 21px;
+    font-size: var(--fs-h1);
   }
 
   .os-stats {
@@ -1602,7 +2031,9 @@
 @media (prefers-reduced-motion: reduce) {
   .os-button:active:not(:disabled),
   .os-nav a:active,
-  .os-menu-button:active {
+  .os-menu-button:active,
+  .os-bar-pill:active,
+  .os-list-row:active {
     transform: none;
   }
 
@@ -1631,7 +2062,7 @@
 
 @media (prefers-reduced-transparency: reduce) {
   .os-bar {
-    background: var(--paper);
+    background: var(--bg);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
@@ -1639,21 +2070,25 @@
 
 @media (prefers-contrast: more) {
   .os {
-    --line: rgb(17 17 17 / 0.2);
-    --line-strong: rgb(17 17 17 / 0.4);
-    --muted: rgb(17 17 17 / 0.8);
-    --faint: rgb(17 17 17 / 0.75);
+    --line: color-mix(in srgb, var(--ink) 20%, transparent);
+    --line-strong: color-mix(in srgb, var(--ink) 40%, transparent);
+    --muted: color-mix(in srgb, var(--ink) 80%, transparent);
+    --faint: color-mix(in srgb, var(--ink) 75%, transparent);
   }
 }
 
 /* --- Loading skeletons (components/os/ui/skeleton.tsx) ---------------------- */
 
+/* A soft shimmer sweeping across a well-coloured shape (no spinners). */
 .os-skel {
   display: block;
   flex: none;
-  border-radius: 6px;
-  background: var(--tint-2);
-  animation: os-skel-pulse 1.4s ease-in-out infinite;
+  border-radius: 8px;
+  background-color: var(--well);
+  background-image: linear-gradient(90deg, transparent 0%, var(--tint-2) 50%, transparent 100%);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: os-skel-shimmer 1.4s var(--ease) infinite;
 }
 
 .os-skel-round {
@@ -1703,7 +2138,7 @@
 .os-skel-bubble {
   height: 34px;
   max-width: 420px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
 }
 
 .os-skel-bubble[data-mine] {
@@ -1723,9 +2158,8 @@
 
 .os-skel-board {
   display: flex;
-  gap: 12px;
+  gap: var(--gap);
   overflow: hidden;
-  padding-right: 24px;
 }
 
 .os-skel-col {
@@ -1733,14 +2167,17 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px;
-  border-radius: var(--radius);
-  background: var(--paper-2);
+  padding: 14px;
+  border-radius: var(--radius-card);
+  background: var(--card);
 }
 
-@keyframes os-skel-pulse {
-  50% {
-    opacity: 0.45;
+@keyframes os-skel-shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
   }
 }
 

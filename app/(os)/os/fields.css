@@ -4,6 +4,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
 }
 
 .os-cf-head {
@@ -15,7 +16,7 @@
 
 .os-cf-head h2 {
   margin: 0;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-h2);
   font-weight: 600;
 }
 
@@ -53,27 +54,28 @@
   height: 32px;
   min-width: 72px;
   padding: 0 12px;
-  border: 1px solid var(--line-strong);
+  border: 0;
   border-radius: var(--radius);
-  background: var(--paper);
+  background: var(--ctl);
   color: var(--ink);
   font: inherit;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.os-cf-btn:hover {
-  border-color: var(--ink);
+.os-cf-btn:hover:not(:disabled) {
+  background: var(--ctl-hover);
 }
 
-.os-cf-btn.primary {
+.os-cf-btn.primary,
+.os-cf-btn.primary:hover:not(:disabled) {
   background: var(--ink);
-  border-color: var(--ink);
   color: var(--on-ink);
 }
 
 .os-cf-btn.danger {
-  color: var(--bad);
+  background: var(--bad-bg);
+  color: var(--bad-fg);
 }
 
 .os-cf-btn:disabled {
@@ -82,8 +84,16 @@
 }
 
 .os-cf-wrap {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  --ctl: var(--well);
+  --ctl-hover: var(--tint-2);
+  /* positioned so the header's sr-only label is clipped with the table */
+  position: relative;
+  max-width: 100%;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
   overflow-x: auto;
 }
 
@@ -100,19 +110,15 @@
   font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--muted);
-  border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
 
+/* Table rows: a 1px line on top, the one hairline the spec allows. */
 .os-cf-table td {
   padding: 0 12px;
-  height: 48px;
-  border-bottom: 1px solid var(--line);
+  height: 52px;
+  border-top: 1px solid var(--line);
   white-space: nowrap;
-}
-
-.os-cf-table tbody tr:last-child td {
-  border-bottom: 0;
 }
 
 .os-cf-prov {
@@ -122,14 +128,16 @@
 }
 
 .os-cf-logo {
-  width: 18px;
-  height: 18px;
-  border-radius: 3px;
-  background: var(--tint);
+  min-width: 18px;
+  height: 20px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--well);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--ink);
 }
@@ -147,12 +155,12 @@
 .os-cf-badge {
   display: inline-flex;
   align-items: center;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: var(--radius);
-  background: var(--tint);
-  font-size: 11px;
-  color: var(--muted);
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  font-size: var(--fs-xs);
+  color: var(--neutral-fg);
 }
 
 .os-cf-muted {
@@ -164,15 +172,16 @@
   align-items: center;
   gap: 6px;
   max-width: 200px;
-  height: 28px;
-  padding: 0 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--paper);
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--neutral-bg);
   font: inherit;
   font-size: var(--fs-xs);
-  color: var(--ink);
+  color: var(--neutral-fg);
   cursor: pointer;
+  transition: background-color 120ms ease;
 }
 
 .os-cf-map span {
@@ -187,12 +196,11 @@
 }
 
 .os-cf-map[data-off="true"] {
-  color: var(--ghost);
-  border-style: dashed;
+  color: var(--muted);
 }
 
 .os-cf-map:hover:not(:disabled) {
-  border-color: var(--ink);
+  background: var(--tint-2);
 }
 
 .os-cf-map:disabled {
@@ -210,14 +218,11 @@
   align-items: center;
   gap: 5px;
   height: 22px;
-  padding: 0 8px 0 3px;
-  border-radius: 11px;
-  background: var(--tint);
+  padding: 0 8px 0 2px;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
   font-size: var(--fs-xs);
-}
-
-.os-cf-setter .os-setter-mark {
-  border-radius: 50%;
 }
 
 .os-cf-end {
@@ -231,14 +236,14 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
 }
 
 .os-cf-more:hover {
-  background: var(--tint);
+  background: var(--well);
   color: var(--ink);
 }
 
@@ -249,10 +254,19 @@
 }
 
 .os-cf-editing td {
+  --ctl: var(--card);
   height: auto;
-  padding: 12px;
-  background: #f7f7f5;
+  padding: 14px;
+  background: var(--well);
   white-space: normal;
+}
+
+.os-cf-editing td:first-child {
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+
+.os-cf-editing td:last-child {
+  border-radius: 0 var(--radius) var(--radius) 0;
 }
 
 .os-cf-form {
@@ -277,13 +291,24 @@
 .os-cf-form input,
 .os-cf-form select {
   height: var(--control-h);
-  padding: 0 10px;
-  border: 1px solid var(--line-strong);
+  padding: 0 14px;
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--paper);
+  background-color: var(--ctl);
   font: inherit;
   font-size: var(--fs-sm);
   color: var(--ink);
+}
+
+/* Selects set the colour only, so the --chevron image survives. */
+.os-cf-form select {
+  padding-right: 36px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: var(--chevron);
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
 }
 
 .os-cf-form input:focus,
@@ -295,7 +320,7 @@
 .os-cf-form input:disabled,
 .os-cf-form select:disabled {
   color: var(--muted);
-  background: var(--tint);
+  background-color: var(--tint);
 }
 
 .os-cf-form-actions {
