@@ -11,7 +11,8 @@ import { useRef, useState, useTransition } from "react";
 import { reorderResources } from "@/app/(os)/os/knowledge/actions";
 import { deleteResourceChecked } from "@/app/(os)/os/resources/actions";
 import ResourceSheet, { formOf } from "@/components/os/resources/resource-sheet";
-import { deleteBlockers, kindLabel, linkLabel, matchesFilter, offeringAgents, type ResourceFilter, type ResourceRow, type ResourcesBoard, type UsedBy, USED_BY_LABEL } from "@/lib/os/resources-view";
+import DeleteCheck from "@/components/os/settings/delete-check";
+import { deleteBlockers, kindLabel, linkLabel, matchesFilter, offeringAgents, type ResourceFilter, type ResourceRow, type ResourcesBoard, type UsedBy, USED_BY_LABEL, usedChips } from "@/lib/os/resources-view";
 import { moveId } from "@/lib/os/setter/knowledge/resources-view";
 
 const PILLS: { key: ResourceFilter; label: string; count: keyof ResourcesBoard["counts"] }[] = [
@@ -89,7 +90,7 @@ export default function ResourcesScreen({ board }: { board: ResourcesBoard }) {
         ))}
       </div>
 
-      {board.sample ? <p className="os-rs-note">Sample resources (OS_MOCK). Add one to start your own list.</p> : null}
+      {board.sample ? <p className="os-rs-note">Sample resources. Add one to start your own list.</p> : null}
       {error ? (
         <p className="os-tg-error" role="alert">
           {error}
@@ -289,9 +290,10 @@ function UsedChips({ used }: { used: UsedBy[] }) {
   if (!used.length) return <span className="os-rs-muted">—</span>;
   return (
     <span className="os-rs-chips">
-      {used.map((u) => (
+      {usedChips(used).map((u) => (
         <Link key={`${u.kind}-${u.id}`} href={u.href} className="os-rs-chip" data-kind={u.kind}>
           {u.name}
+          {u.count > 1 ? ` ×${u.count}` : ""}
         </Link>
       ))}
     </span>
@@ -299,60 +301,19 @@ function UsedChips({ used }: { used: UsedBy[] }) {
 }
 
 function DeleteDialog({ del, pending, onClose, onConfirm }: { del: NonNullable<Delete>; pending: boolean; onClose: () => void; onConfirm: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const opened = useRef(false);
-  const attach = (d: HTMLDialogElement | null) => {
-    ref.current = d;
-    if (d && !opened.current && typeof d.showModal === "function") {
-      opened.current = true;
-      d.showModal();
-    }
-  };
-  const blocked = Boolean(del.blockers?.length);
+  // The same dialog as Settings › Tags; a resource in use is refused, not deleted anyway.
+  const blockers = del.blockers ?? [];
+  const agents = del.agents ?? [];
   return (
-    <dialog
-      ref={attach}
-      className="os-tg-dialog"
-      aria-label={blocked ? `Can't delete ${del.row.name}` : `Delete ${del.row.name}`}
-      onCancel={(e) => {
-        e.preventDefault();
-        onClose();
-      }}
-    >
-      <div className="os-tg-form">
-        <h2>{blocked ? `Can't delete "${del.row.name}"` : `Delete "${del.row.name}"?`}</h2>
-        {blocked ? (
-          <>
-            <p className="os-tg-hint">It&apos;s used by these. Remove it there first.</p>
-            <ul className="os-rs-blockers">
-              {del.blockers!.map((b) => (
-                <li key={`${b.kind}-${b.id}`}>
-                  <Link href={b.href}>
-                    {USED_BY_LABEL[b.kind]} {b.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : del.agents?.length ? (
-          <p className="os-tg-hint">{del.agents.map((a) => a.name).join(", ")} offer{del.agents.length === 1 ? "s" : ""} it. They stop offering it, and their sequences stop sending it.</p>
-        ) : null}
-        {del.error ? (
-          <p className="os-tg-error" role="alert">
-            {del.error}
-          </p>
-        ) : null}
-        <div className="os-tg-form-actions">
-          <button type="button" className="os-button" onClick={onClose} disabled={pending}>
-            {blocked ? "OK" : "Keep it"}
-          </button>
-          {!blocked ? (
-            <button type="button" className="os-button danger" onClick={onConfirm} disabled={pending}>
-              {pending ? "Deleting…" : "Delete"}
-            </button>
-          ) : null}
-        </div>
-      </div>
-    </dialog>
+    <DeleteCheck
+      name={del.row.name}
+      used={blockers.map((b) => ({ kind: USED_BY_LABEL[b.kind], name: b.name }))}
+      refuse
+      note={!blockers.length && agents.length ? `${agents.map((a) => a.name).join(", ")} offer${agents.length === 1 ? "s" : ""} it. They stop offering it, and their sequences stop sending it.` : null}
+      error={del.error}
+      pending={pending}
+      onClose={onClose}
+      onConfirm={onConfirm}
+    />
   );
 }

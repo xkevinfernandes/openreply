@@ -3,7 +3,9 @@
 // /api/os/diagnostics); readChecks turns our own state into the health list.
 // Every read is scoped to the caller's workspace; the queue and worker only
 // give counts and a heartbeat age. No call leaves for Instagram, Zernio, Kit
-// or Cal.com. With OS_MOCK=1 nothing is read at all (sample rows).
+// or Cal.com. The connection facts come from lib/os/connections.ts, the one
+// source Settings and the sidebar read too. With OS_MOCK=1 the Instagram,
+// Zernio, queue and worker rows are the sample (nothing outside is asked).
 
 import { prisma } from "@/lib/db/client";
 import {
@@ -19,6 +21,7 @@ import {
   type CheckRow,
   type QueueFacts,
 } from "@/lib/os/diagnostics";
+import { readCalcom, readInstagram, readKit, readSends } from "@/lib/os/connections";
 import { osMockEnabled } from "@/lib/os/mock";
 
 const DAY_MS = 86_400_000;
@@ -98,28 +101,24 @@ const startOfDay = (now: Date) => new Date(now.getFullYear(), now.getMonth(), no
 
 const READERS: Record<CheckKey, (workspaceId: string, now: Date) => Promise<CheckRow>> = {
   async instagram(workspaceId, now) {
-    const [account, zernio] = await Promise.all([
-      prisma.instagramAccount.findFirst({
-        where: { workspaceId },
-        orderBy: { connectedAt: "desc" },
-        select: { username: true, provider: true, tokenExpiresAt: true, zernioAccountId: true },
-      }),
-      prisma.zernioConnection.findUnique({ where: { workspaceId }, select: { webhookId: true } }),
-    ]);
-    return instagramCheck({ account, zernioReady: Boolean(zernio?.webhookId), now });
+    const { account, zernio } = await readInstagram(workspaceId, now);
+    return instagramCheck({ account, zernioReady: zernio.webhookReady, now });
   },
   async webhook(workspaceId, now) {
-    const [account, failedToday] = await Promise.all([
-      prisma.instagramAccount.findFirst({ where: { workspaceId }, orderBy: { connectedAt: "desc" }, select: { webhookSubscribed: true } }),
-      prisma.webhookEvent.count({ where: { workspaceId, status: "FAILED", createdAt: { gte: new Date(now.getTime() - DAY_MS) } } }),
+    const [{ account }, failedToday] = await Promise.all([
+      readInstagram(workspaceId, now),
+      osMockEnabled() ? 0 : prisma.webhookEvent.count({ where: { workspaceId, status: "FAILED", createdAt: { gte: new Date(now.getTime() - DAY_MS) } } }),
     ]);
     return webhookCheck({ connected: Boolean(account), subscribed: Boolean(account?.webhookSubscribed), failedToday });
   },
   async queue() {
+    // OS_MOCK: the sample answers (the Diagnostics canvas); Redis isn't asked.
+    if (osMockEnabled()) return queueCheck({ ok: true, latencyMs: 40, counts: { waiting: 0, failed: 0 } });
     return queueCheck(await queueFacts());
   },
   async worker(workspaceId, now) {
     const local = isLocalEnv();
+    if (osMockEnabled()) return workerCheck({ ok: true, healthy: true, checkedAt: new Date(now.getTime() - 120_000), ageMs: 120_000, failedToday: 0, local });
     if (!process.env.REDIS_URL && local) return workerCheck({ ok: false, local });
     try {
       const { getWorkerHealth } = await import("@/lib/ops/worker-health");
@@ -140,56 +139,38 @@ const READERS: Record<CheckKey, (workspaceId: string, now: Date) => Promise<Chec
       return workerCheck({ ok: false, local });
     }
   },
-  async zernio(workspaceId) {
-    const [conn, account] = await Promise.all([
-      prisma.zernioConnection.findUnique({ where: { workspaceId }, select: { webhookId: true } }),
-      prisma.instagramAccount.findFirst({ where: { workspaceId, provider: "ZERNIO" }, select: { id: true } }),
-    ]);
-    return zernioCheck({ configured: Boolean(conn), webhookReady: Boolean(conn?.webhookId), used: Boolean(account) });
+  async zernio(workspaceId, now) {
+    const { account, zernio } = await readInstagram(workspaceId, now);
+    return zernioCheck({ configured: zernio.configured, webhookReady: zernio.webhookReady, used: account?.provider === "ZERNIO" });
   },
   async kit(workspaceId) {
-    const [conn, row, last, errors] = await Promise.all([
-      prisma.crmConnection.findUnique({ where: { workspaceId_provider: { workspaceId, provider: "KIT" } }, select: { id: true } }),
-      prisma.osIntegration.findFirst({ where: { workspaceId, provider: "kit" }, select: { lastError: true } }),
-      prisma.contactSync.aggregate({ where: { workspaceId, provider: "kit" }, _max: { lastSyncedAt: true } }),
-      prisma.contactSync.count({ where: { workspaceId, provider: "kit", lastError: { not: null } } }),
-    ]);
-    return kitCheck({ connected: Boolean(conn), lastSyncedAt: last._max.lastSyncedAt ?? null, errors, lastError: row?.lastError ?? null });
+    return kitCheck(await readKit(workspaceId));
   },
   async calcom(workspaceId) {
-    const [row, last] = await Promise.all([
-      prisma.osIntegration.findFirst({ where: { workspaceId, provider: "calcom" }, select: { credentials: true, lastError: true } }),
-      prisma.booking.findFirst({ where: { workspaceId, provider: "calcom" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
-    ]);
-    return calcomCheck({ connected: Boolean(row?.credentials), lastError: row?.lastError ?? null, lastBookingAt: last?.createdAt ?? null });
+    return calcomCheck(await readCalcom(workspaceId));
   },
 };
 
-/** The sample list for OS_MOCK=1 (the Diagnostics canvas). */
-export function mockChecks(keys: CheckKey[]): CheckRow[] {
-  const at = new Date(Date.now() - 3 * 3600_000);
-  const sample: Record<CheckKey, CheckRow> = {
-    instagram: instagramCheck({ account: { username: "claudepreneur", provider: "ZERNIO", tokenExpiresAt: null, zernioAccountId: "z1" }, zernioReady: true, now: new Date() }),
-    webhook: webhookCheck({ connected: true, subscribed: false, failedToday: 0 }),
-    queue: queueCheck({ ok: true, latencyMs: 40, counts: { waiting: 0, failed: 0 } }),
-    worker: workerCheck({ ok: true, healthy: true, checkedAt: new Date(Date.now() - 120_000), ageMs: 120_000, failedToday: 0, local: true }),
-    zernio: zernioCheck({ configured: true, webhookReady: true, used: true }),
-    kit: kitCheck({ connected: true, lastSyncedAt: at, errors: 0, lastError: null }),
-    calcom: calcomCheck({ connected: true, lastError: null, lastBookingAt: new Date(Date.now() - 4 * DAY_MS) }),
+/** OS_MOCK's detail lists: the same quiet queue and running worker as the rows. */
+export function mockDetails(now = new Date()) {
+  return {
+    queueCounts: { waiting: 0, active: 0, delayed: 0, failed: 0 },
+    workerHealth: { healthy: true, ageMs: 120_000, heartbeat: { checkedAt: new Date(now.getTime() - 120_000).toISOString() } },
+    workerAlerts: [],
+    webhookFailures: [],
+    dmFailures: [],
+    tokenRefreshFailures: [],
+    operationalEvents: [],
   };
-  return keys.map((k) => sample[k]);
 }
 
 /** The health list for these keys, every check in parallel, each capped at 3 s. */
 export async function readChecks(workspaceId: string, keys: CheckKey[], now = new Date()): Promise<CheckRow[]> {
-  if (osMockEnabled()) return mockChecks(keys);
   return Promise.all(keys.map((k) => runCheck(k, () => READERS[k](workspaceId, now))));
 }
 
-/** "Sent today 36 / 80". */
+/** "Sent today 0 / 80": the same count as the sidebar (lib/os/connections.ts). */
 export async function sendingToday(workspaceId: string): Promise<{ sent: number; cap: number }> {
-  if (osMockEnabled()) return { sent: 36, cap: 80 };
-  const { capState } = await import("@/lib/os/sending/cap");
-  const s = await capState(workspaceId);
-  return { sent: s.sentToday, cap: s.cap };
+  const s = await readSends(workspaceId);
+  return { sent: s.sent, cap: s.cap };
 }

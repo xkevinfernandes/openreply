@@ -8,7 +8,7 @@ import { useState, useTransition } from "react";
 import { saveSending } from "@/app/(os)/os/settings/actions";
 import { InfoTip } from "@/components/os/ui";
 
-export default function SendingPanel({ sendCap, timezone, canManage }: { sendCap: number; timezone: string; canManage: boolean }) {
+export default function SendingPanel({ sendCap, timezone, zones = [], canManage }: { sendCap: number; timezone: string; zones?: string[]; canManage: boolean }) {
   const router = useRouter();
   const [cap, setCap] = useState(String(sendCap));
   const [tz, setTz] = useState(timezone);
@@ -44,7 +44,13 @@ export default function SendingPanel({ sendCap, timezone, canManage }: { sendCap
         </label>
         <label>
           <span>Timezone</span>
-          <input value={tz} onChange={(e) => setTz(e.target.value)} disabled={!canManage} placeholder="Europe/Luxembourg" />
+          <select value={tz} onChange={(e) => setTz(e.target.value)} disabled={!canManage}>
+            {(zones.includes(timezone) ? zones : [timezone, ...zones]).map((z) => (
+              <option key={z} value={z}>
+                {z.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
         </label>
         {canManage ? (
           <button type="submit" className="os-button" disabled={pending || !dirty}>

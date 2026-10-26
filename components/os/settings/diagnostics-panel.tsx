@@ -6,7 +6,9 @@
 // lists sit folded under Details.
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { InstagramFixButton } from "@/components/os/settings/instagram-panel";
 import { InfoTip } from "@/components/os/ui";
 import { CHECK_KEYS, CHECK_NAMES, checkedLabel, diagnosticsSummary, type CheckKey, type CheckRow } from "@/lib/os/diagnostics";
 import { ago, dmStatusLabel } from "@/lib/os/settings";
@@ -35,7 +37,13 @@ async function fetchChecks(query: string): Promise<{ checks: CheckRow[]; sending
   return p.data;
 }
 
-export default function DiagnosticsPanel() {
+/** "Check again" shows Checking… for at least this long, so a fast check is still seen. */
+const MIN_CHECKING_MS = 600;
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export default function DiagnosticsPanel({ sample = false, canManage = true }: { sample?: boolean; canManage?: boolean }) {
+  const router = useRouter();
   const [rows, setRows] = useState<Row[]>(() => CHECK_KEYS.map(checking));
   const [checkedAt, setCheckedAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -56,12 +64,16 @@ export default function DiagnosticsPanel() {
         setNow(Date.now());
       }
     };
+    const shown = wait(MIN_CHECKING_MS);
     for (const key of CHECK_KEYS) {
-      fetchChecks(`?only=${key}&fresh=1`)
-        .then((d) => d.checks[0] && setRow(d.checks[0]))
+      Promise.all([fetchChecks(`?only=${key}&fresh=1`), shown])
+        .then(([d]) => d.checks[0] && setRow(d.checks[0]))
         .catch(() => setRow({ key, name: CHECK_NAMES[key], tone: "warn", line: "Couldn't check. Try again.", next: [] }))
         .finally(done);
     }
+    fetchChecks("")
+      .then((d) => setSending(d.sending))
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -109,7 +121,12 @@ export default function DiagnosticsPanel() {
               {r.next.length ? (
                 <span className="os-dg-next">
                   {r.next.map((n) =>
-                    n.href ? (
+                    n.fix && canManage ? (
+                      <InstagramFixButton key={n.label} fix={n.fix} sample={sample} className="os-button" onDone={() => {
+                          checkAll();
+                          router.refresh();
+                        }} />
+                    ) : n.href ? (
                       n.href.startsWith("http") ? (
                         <a key={n.label} className="os-button" href={n.href} target="_blank" rel="noreferrer">
                           {n.label}
@@ -162,7 +179,7 @@ export default function DiagnosticsPanel() {
       >
         <summary>Details</summary>
         {detailsState === "loading" ? <p className="os-set-empty">Loading…</p> : null}
-        {detailsState === "error" ? <p className="os-set-empty">No details: the queue didn&apos;t answer, or this is sample data.</p> : null}
+        {detailsState === "error" ? <p className="os-set-empty">No details: the queue didn&apos;t answer. Try again.</p> : null}
         {details ? <DetailLists data={details} /> : null}
       </details>
     </div>

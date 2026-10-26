@@ -8,7 +8,7 @@ import { PANEL_WIDTH_COOKIE, parsePanelWidth } from "@/lib/os/contact-panel/widt
 import { followupsDue } from "@/lib/os/followups-data";
 import { osMockEnabled } from "@/lib/os/mock";
 import { parseSidebarCookie, SIDEBAR_COOKIE, type NavItem } from "@/lib/os/nav";
-import { capState } from "@/lib/os/sending/cap";
+import { readSends } from "@/lib/os/connections";
 import { inboxBadgeCount } from "@/lib/os/inbox-stream-load";
 import { ensureWorkspaceForUser } from "@/lib/workspace";
 import "./os.css";
@@ -55,8 +55,9 @@ async function navCounts(workspaceId: string): Promise<Partial<Record<NavItem["k
 /** Sidebar foot: today's sends against the cap, and Pause all. */
 async function sendsToday(workspaceId: string) {
   try {
-    const s = await capState(workspaceId);
-    return { sentToday: s.sentToday, cap: s.cap, pausedAll: s.pausedAll };
+    // The same count Diagnostics shows (lib/os/connections.ts).
+    const s = await readSends(workspaceId);
+    return { sentToday: s.sent, cap: s.cap, pausedAll: s.pausedAll };
   } catch {
     return { sentToday: 0, cap: 80, pausedAll: false };
   }

@@ -11,14 +11,14 @@ import SettingsNav from "@/components/os/settings/settings-nav";
 import TagsPanel from "@/components/os/settings/tags-panel";
 import WorkspacePanel from "@/components/os/settings/workspace-panel";
 import { prisma } from "@/lib/db/client";
-import { accountProblems } from "@/lib/os/automations";
+import { readInstagram } from "@/lib/os/connections";
 import { listCustomFields } from "@/lib/os/fields/store";
 import { calendarBoard } from "@/lib/os/integrations/calendar/view";
 import { dataOsView } from "@/lib/os/integrations/dataos";
 import { isNativeFieldKey } from "@/lib/os/integrations/mapping";
 import { integrationsView } from "@/lib/os/integrations/view";
 import { osMockEnabled } from "@/lib/os/mock";
-import { parseSettingsTab, reconnectKind, SETTINGS_TABS, settingsHref } from "@/lib/os/settings";
+import { parseSettingsTab, SETTINGS_TABS, settingsHref } from "@/lib/os/settings";
 import { statusLines } from "@/lib/os/settings-status";
 import { loadTagBoard } from "@/lib/os/tags/board";
 import { getWorkspaceSettings } from "@/lib/os/workspace-settings";
@@ -29,33 +29,13 @@ export const dynamic = "force-dynamic";
 type PageProps = { searchParams: Promise<{ tab?: string }> };
 
 async function InstagramTab({ workspaceId, canManage }: { workspaceId: string; canManage: boolean }) {
-  const [accounts, zernio] = await Promise.all([
-    prisma.instagramAccount.findMany({
-      where: { workspaceId },
-      orderBy: { connectedAt: "desc" },
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        provider: true,
-        tokenExpiresAt: true,
-        webhookSubscribed: true,
-        zernioAccountId: true,
-        connectedAt: true,
-        _count: { select: { automations: true } },
-      },
-    }),
-    prisma.zernioConnection.findUnique({ where: { workspaceId }, select: { webhookId: true } }),
-  ]);
-  const now = new Date();
-  const ws = { zernioReady: Boolean(zernio?.webhookId), kitConnected: true };
-  const first = accounts[0] ?? null;
-  const problems = first ? accountProblems(first, ws, now) : [];
-  const fix = reconnectKind(problems);
+  // The same read as the section list, Integrations, Diagnostics (lib/os/connections.ts).
+  const { account, problems, sample } = await readInstagram(workspaceId);
+  const first = problems[0];
 
   return (
     <div className="os-set-stack">
-      {fix && canManage ? <ReconnectBar problem={problems[0]} kind={fix} /> : null}
+      {first && canManage ? <ReconnectBar problem={first.text} fix={first.fix} sample={sample} /> : null}
       <Suspense fallback={null}>
         <div className="os-upstream">
           <InstagramConnectNotice />
@@ -64,42 +44,39 @@ async function InstagramTab({ workspaceId, canManage }: { workspaceId: string; c
 
       <section className="os-set-section" aria-labelledby="os-set-accounts">
         <header className="os-set-section-head">
-          <h2 id="os-set-accounts">Instagram accounts</h2>
-          <p>The accounts your automations send from and J reads. Comments, DMs and replies all go through this connection.</p>
+          <h2 id="os-set-accounts">Account</h2>
+          <p>The account your automations send from and J reads. Comments, DMs and replies all come through it.</p>
         </header>
-        {!accounts.length ? (
-          <p className="os-set-empty">No account connected yet. Add your Zernio key below, then pick the Instagram account.</p>
+        {!account ? (
+          <p className="os-set-empty">No account connected yet. Set up Zernio below, then pick the Instagram account.</p>
         ) : (
           <ul className="os-set-list">
-            {accounts.map((a) => {
-              const problems = accountProblems(a, ws, now);
-              return (
-                <li key={a.id} className="os-set-item">
-                  <div className="os-set-item-text">
-                    <strong>
-                      <a href={`https://instagram.com/${a.username}`} target="_blank" rel="noreferrer">
-                        @{a.username}
-                      </a>
-                    </strong>
-                    <span>
-                      {a.provider === "ZERNIO" ? "Through Zernio" : "Own Meta app"} · {a._count.automations} automation
-                      {a._count.automations === 1 ? "" : "s"} · connected{" "}
-                      {a.connectedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                    </span>
-                  </div>
-                  <span className="os-st" data-tone={problems.length ? "bad" : "good"}>
-                    <i />
-                    {problems[0] ?? "Connected"}
-                  </span>
-                  {canManage && <DisconnectButton id={a.id} username={a.username} />}
-                </li>
-              );
-            })}
+            <li className="os-set-item">
+              <div className="os-set-item-text">
+                <strong>
+                  <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer">
+                    @{account.username}
+                  </a>
+                </strong>
+                <span>
+                  {account.provider === "ZERNIO" ? "Through Zernio" : "Own Meta app"}
+                  {account.id ? ` · ${account.automations} automation${account.automations === 1 ? "" : "s"}` : ""}
+                  {account.connectedAt
+                    ? ` · connected ${account.connectedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
+                    : ""}
+                </span>
+              </div>
+              <span className="os-st" data-tone={problems.length ? "bad" : "good"}>
+                <i />
+                {first?.text ?? "Connected"}
+              </span>
+              {canManage && account.id ? <DisconnectButton id={account.id} username={account.username} /> : null}
+            </li>
           </ul>
         )}
       </section>
 
-      <ZernioPanel canManage={canManage} />
+      <ZernioPanel canManage={canManage} sample={sample && account ? { username: account.username } : null} />
     </div>
   );
 }
@@ -113,27 +90,19 @@ async function kitTags(workspaceId: string): Promise<string[]> {
 }
 
 async function IntegrationsTab({ workspaceId, canManage }: { workspaceId: string; canManage: boolean }) {
-  const [views, calendars, dataos, account, ws, fields, tags, zernio, zernioFull] = await Promise.all([
+  const [views, calendars, dataos, ig, fields, tags] = await Promise.all([
     integrationsView(workspaceId),
     calendarBoard(workspaceId),
     dataOsView(workspaceId),
-    prisma.instagramAccount.findFirst({
-      where: { workspaceId },
-      orderBy: { connectedAt: "desc" },
-      select: { id: true, username: true, provider: true, tokenExpiresAt: true, webhookSubscribed: true, zernioAccountId: true, _count: { select: { automations: true } } },
-    }),
-    getWorkspaceSettings(workspaceId),
+    readInstagram(workspaceId),
     listCustomFields(workspaceId),
     kitTags(workspaceId).catch(() => []),
-    prisma.zernioConnection.findUnique({ where: { workspaceId }, select: { webhookId: true } }),
-    prisma.zernioConnection.findUnique({ where: { workspaceId }, select: { workspaceId: true } }),
   ]);
-  const problem = account ? (accountProblems(account, { zernioReady: Boolean(zernio?.webhookId), kitConnected: true }, new Date())[0] ?? null) : null;
-  const mock = !account && osMockEnabled();
+  const first = ig.problems[0] ?? null;
   return (
     <SettingsIntegrations
-      instagram={{ id: account?.id ?? null, username: account?.username ?? (mock ? "claudepreneur" : null), provider: account?.provider ?? (mock ? "ZERNIO" : null), problem, sendCap: ws.sendCapPerDay }}
-      zernio={mock ? { configured: true, webhookReady: true } : { configured: Boolean(zernioFull), webhookReady: Boolean(zernio?.webhookId) }}
+      instagram={{ id: ig.account?.id ?? null, username: ig.account?.username ?? null, provider: ig.account?.provider ?? null, problem: first, sample: ig.sample }}
+      zernio={ig.zernio}
       dataos={dataos}
       views={views}
       calendars={calendars}
@@ -162,7 +131,7 @@ async function WorkspaceTab({ workspaceId, workspaceName, canManage }: { workspa
   const ws = await getWorkspaceSettings(workspaceId);
   return (
     <div className="os-set-stack">
-      <SendingPanel sendCap={ws.sendCapPerDay} timezone={ws.timezone} canManage={canManage} />
+      <SendingPanel sendCap={ws.sendCapPerDay} timezone={ws.timezone} zones={Intl.supportedValuesOf("timeZone")} canManage={canManage} />
       <WorkspacePanel workspaceName={workspaceName} />
     </div>
   );
@@ -197,7 +166,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
           {tab === "fields" && <FieldsTab workspaceId={ws} canManage={canManage} />}
           {tab === "tags" && <TagsTab workspaceId={ws} canManage={canManage} />}
           {tab === "logs" && <LogsPanel />}
-          {tab === "diagnostics" && <DiagnosticsPanel />}
+          {tab === "diagnostics" && <DiagnosticsPanel sample={osMockEnabled()} canManage={canManage} />}
           {tab === "workspace" && <WorkspaceTab workspaceId={ws} workspaceName={context.workspace.name} canManage={canManage} />}
         </div>
       </div>

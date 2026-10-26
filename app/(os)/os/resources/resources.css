@@ -425,6 +425,11 @@
     right: 0;
   }
 
+  /* The name never runs under the Edit button sitting top right. */
+  .os-rs-table td[data-label="Resource"] {
+    padding-right: 64px;
+  }
+
   .os-rs-grip-cell {
     padding-bottom: 4px;
   }

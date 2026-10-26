@@ -3,18 +3,16 @@
 // at 1.5 s and fills the slow ones client-side from /api/os/settings-status.
 
 import { prisma } from "@/lib/db/client";
-import { accountProblems } from "@/lib/os/automations";
+import { instagramLine, readCalcom, readInstagram, readKit } from "@/lib/os/connections";
 import { diagnosticsSummary } from "@/lib/os/diagnostics";
 import { readChecks } from "@/lib/os/diagnostics-reads";
 import { listCustomFields } from "@/lib/os/fields/store";
 import { calendarBoard } from "@/lib/os/integrations/calendar/view";
 import { dataOsView } from "@/lib/os/integrations/dataos";
 import { integrationsView } from "@/lib/os/integrations/view";
-import { osMockEnabled } from "@/lib/os/mock";
 import {
   diagnosticsStatus,
   fieldsStatus,
-  instagramStatus,
   integrationsStatus,
   logsStatus,
   SETTINGS_TABS,
@@ -28,38 +26,18 @@ import { listTags } from "@/lib/os/tags/store";
 
 export const STATUS_CAP_MS = 1500;
 
-/** The workspace's newest Instagram account and its problems. */
-export async function instagramHealth(workspaceId: string) {
-  const [account, zernio] = await Promise.all([
-    prisma.instagramAccount.findFirst({
-      where: { workspaceId },
-      orderBy: { connectedAt: "desc" },
-      select: { id: true, username: true, provider: true, tokenExpiresAt: true, webhookSubscribed: true, zernioAccountId: true },
-    }),
-    prisma.zernioConnection.findUnique({ where: { workspaceId }, select: { webhookId: true, profileId: true } }),
-  ]);
-  const problems = account ? accountProblems(account, { zernioReady: Boolean(zernio?.webhookId), kitConnected: true }, new Date()) : [];
-  return { account, zernio, problems };
-}
-
 const LOADERS: Record<SettingsTab, (workspaceId: string) => Promise<string>> = {
   async instagram(ws) {
-    const { account, problems } = await instagramHealth(ws);
-    if (!account && osMockEnabled()) return instagramStatus({ username: "claudepreneur", problem: null });
-    return instagramStatus({ username: account?.username ?? null, problem: problems[0] ?? null });
+    return instagramLine(await readInstagram(ws));
   },
   async integrations(ws) {
-    const [zernio, views, calendars, dataos] = await Promise.all([
-      prisma.zernioConnection.findUnique({ where: { workspaceId: ws }, select: { workspaceId: true } }),
-      integrationsView(ws),
-      calendarBoard(ws),
-      dataOsView(ws),
-    ]);
+    // The same reads Integrations and Diagnostics use (lib/os/connections.ts).
+    const [ig, kit, calcom, views, calendars, dataos] = await Promise.all([readInstagram(ws), readKit(ws), readCalcom(ws), integrationsView(ws), calendarBoard(ws), dataOsView(ws)]);
     const names: string[] = [];
-    // OS_MOCK shows Zernio as connected in Integrations (no key needed).
-    if (zernio || osMockEnabled()) names.push("Zernio");
-    if (views.find((v) => v.provider === "kit")?.connected) names.push("Kit");
-    for (const c of calendars.calendars) if (c.connected) names.push(c.provider === "calcom" ? "Cal.com" : "Calendly");
+    if (ig.zernio.configured) names.push("Zernio");
+    if (kit.connected) names.push("Kit");
+    if (calcom.connected) names.push("Cal.com");
+    if (calendars.calendars.some((c) => c.provider === "calendly" && c.connected)) names.push("Calendly");
     if (views.find((v) => v.provider === "ghl")?.connected) names.push("GoHighLevel");
     if (dataos.connected) names.push("Data OS");
     return integrationsStatus(names);

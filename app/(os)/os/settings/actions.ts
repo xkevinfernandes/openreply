@@ -74,3 +74,14 @@ export async function saveSending(input: { sendCapPerDay?: number; timezone?: st
     return { error: "That didn't save. Try again." };
   }
 }
+
+/** OS_MOCK only: "Fix webhook" on the sample account (nothing calls Zernio). */
+export async function fixSampleWebhook(): Promise<{ ok: true } | { error: string }> {
+  const { osMockEnabled } = await import("@/lib/os/mock");
+  if (!osMockEnabled()) return { error: "Only the sample account can be fixed this way." };
+  const ws = await manager();
+  if (typeof ws !== "string") return ws;
+  (await import("@/lib/os/connections")).fixMockWebhook();
+  revalidatePath("/os", "layout");
+  return { ok: true };
+}

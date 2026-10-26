@@ -93,6 +93,9 @@ export const dbKnowledge: KnowledgeSource = {
 };
 
 // ---------------------------------------------------------------- import
+/** What the bundled default setter is called once imported. */
+export const DEFAULT_SETTER_NAME = "J";
+
 export interface ImportResult {
   setterId: string;
   created: boolean;
@@ -115,7 +118,9 @@ export async function importFromFiles(
   if (catalog.tag_options?.length && !profile.settings.tag_options) profile.settings.tag_options = catalog.tag_options;
   // The Zernio env names are deploy config, not knowledge.
   delete (profile.settings as Record<string, unknown>).zernio;
-  profile.name = opts.name ?? (profile.name === "default" ? "Default" : profile.name);
+  // The bundled "default" setter is J (the claudepreneur files are J's).
+  const bundledDefault = profile.name === "default";
+  profile.name = opts.name ?? (bundledDefault ? DEFAULT_SETTER_NAME : profile.name);
 
   return prisma.$transaction(async (tx) => {
     const resourceIds: string[] = [];
@@ -140,7 +145,9 @@ export async function importFromFiles(
       voiceCorrections: cols.voiceCorrections as Prisma.InputJsonValue,
       autonomy: profile.settings.autonomy === "auto" ? ("AUTO" as const) : ("APPROVE" as const),
     };
-    const existing = await tx.setter.findFirst({ where: { workspaceId, name: profile.name } });
+    // An earlier import named it "Default": that's the same setter, not a new one.
+    const names = !opts.name && bundledDefault ? [profile.name, "Default"] : [profile.name];
+    const existing = await tx.setter.findFirst({ where: { workspaceId, name: { in: names } }, orderBy: { createdAt: "asc" } });
     const hasDefault = await tx.setter.findFirst({ where: { workspaceId, isDefault: true }, select: { id: true } });
     let setterId: string;
     let created = false;

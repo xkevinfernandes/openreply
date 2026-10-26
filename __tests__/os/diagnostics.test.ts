@@ -26,13 +26,17 @@ describe("Diagnostics checks", () => {
     expect(ok.line).toBe("@claude · token valid until 21 Dec");
     const expired = instagramCheck({ account: { username: "claude", provider: "INSTAGRAM", tokenExpiresAt: new Date("2026-10-01T00:00:00Z"), zernioAccountId: null }, zernioReady: false, now });
     expect(expired.tone).toBe("bad");
-    expect(expired.next[0]).toEqual({ label: "Reconnect", href: "/os/settings?tab=instagram" });
+    expect(expired.next[0]).toEqual({ label: "Reconnect", href: "/os/settings?tab=instagram", fix: "connect" });
+    // Zernio not set up: the step opens the Zernio key form, not a reconnect.
+    expect(instagramCheck({ account: { username: "c", provider: "ZERNIO", tokenExpiresAt: null, zernioAccountId: "z" }, zernioReady: false, now }).next[0].fix).toBe("zernio");
     expect(instagramCheck({ account: null, zernioReady: false, now }).tone).toBe("bad");
     expect(instagramCheck({ account: { username: "c", provider: "ZERNIO", tokenExpiresAt: null, zernioAccountId: "z" }, zernioReady: true, now }).tone).toBe("good");
   });
 
   it("webhook", () => {
     expect(webhookCheck({ connected: true, subscribed: false, failedToday: 0 })).toMatchObject({ tone: "bad", line: "Not subscribed, so new DMs and comments don't arrive" });
+    // The step fixes the webhook, not a generic reconnect.
+    expect(webhookCheck({ connected: true, subscribed: false, failedToday: 0 }).next[0]).toMatchObject({ label: "Fix webhook", fix: "webhook" });
     expect(webhookCheck({ connected: true, subscribed: true, failedToday: 2 }).tone).toBe("warn");
     expect(webhookCheck({ connected: false, subscribed: false, failedToday: 0 }).tone).toBe("off");
   });
@@ -122,6 +126,41 @@ describe("Diagnostics reads", () => {
     fetchSpy.mockRestore();
   });
 
+  it("mock mode: the rows match the one connection source (and Fix webhook clears it)", async () => {
+    vi.stubEnv("OS_MOCK", "1");
+    vi.stubEnv("NODE_ENV", "test");
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const conn = await import("../../lib/os/connections");
+    conn.resetMockConnections();
+    const { readChecks, mockDetails } = await import("../../lib/os/diagnostics-reads");
+    const rows = await readChecks("ws-1", ["instagram", "webhook", "queue", "worker", "zernio"]);
+    const by = Object.fromEntries(rows.map((r) => [r.key, r]));
+    expect(by.instagram.line).toBe("@claudepreneur · connected through Zernio");
+    expect(by.webhook.tone).toBe("bad");
+    expect(conn.instagramLine(await conn.readInstagram("ws-1"))).toBe("@claudepreneur · Webhook not subscribed");
+    expect(by.queue.line).toBe("Answered in 40 ms");
+    // The details the row's queue promises are there too (no "didn't answer").
+    expect(mockDetails().queueCounts).toEqual({ waiting: 0, active: 0, delayed: 0, failed: 0 });
+    expect(by.zernio.tone).toBe("good");
+    conn.fixMockWebhook();
+    expect((await readChecks("ws-1", ["webhook"]))[0].tone).toBe("good");
+    expect(conn.instagramLine(await conn.readInstagram("ws-1"))).toBe("@claudepreneur · connected");
+    conn.resetMockConnections();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("Details after a plain check still come back (the cache keeps them apart)", async () => {
+    vi.stubEnv("OS_MOCK", "1");
+    vi.stubEnv("NODE_ENV", "test");
+    vi.doMock("@/lib/workspace-access", () => ({ getCurrentWorkspaceContext: async () => ({ workspaceId: "ws-details", role: "OWNER" }) }));
+    const { GET } = await import("../../app/api/os/diagnostics/route");
+    await GET(new Request("http://localhost/api/os/diagnostics?only=queue&fresh=1"));
+    const body = await (await GET(new Request("http://localhost/api/os/diagnostics?only=queue&details=1"))).json();
+    expect(body.data.details.queueCounts).toEqual({ waiting: 0, active: 0, delayed: 0, failed: 0 });
+    vi.doUnmock("@/lib/workspace-access");
+  });
+
   it("the OS route refuses a caller with no workspace", async () => {
     vi.doMock("@/lib/workspace-access", () => ({ getCurrentWorkspaceContext: async () => null }));
     const { GET } = await import("../../app/api/os/diagnostics/route");
@@ -137,7 +176,7 @@ describe("Diagnostics reads", () => {
     vi.doMock("@/lib/workspace-access", () => ({ getCurrentWorkspaceContext: async () => ({ workspaceId: "ws-mine", role: "OWNER" }) }));
     vi.doMock("@/lib/os/diagnostics-reads", async (orig) => {
       const real = (await orig()) as typeof import("../../lib/os/diagnostics-reads");
-      return { ...real, readChecks: async (ws: string, keys: Parameters<typeof real.readChecks>[1]) => (seen.push(ws), real.mockChecks(keys)), sendingToday: async (ws: string) => (seen.push(ws), { sent: 1, cap: 80 }) };
+      return { ...real, readChecks: async (ws: string, keys: Parameters<typeof real.readChecks>[1]) => (seen.push(ws), real.readChecks(ws, keys)), sendingToday: async (ws: string) => (seen.push(ws), { sent: 1, cap: 80 }) };
     });
     const { GET } = await import("../../app/api/os/diagnostics/route");
     const body = await (await GET(new Request("http://localhost/api/os/diagnostics?only=worker,webhook,token"))).json();

@@ -23,7 +23,8 @@ export async function loadResourcesBoard(workspaceId: string): Promise<Resources
     const { MOCK_LEAD_MAGNETS, mockResourcesBoard } = await import("@/lib/os/mock-resources");
     const { resourceBroadcastUse } = await import("@/lib/os/broadcasts/resources");
     const used = await resourceBroadcastUse(workspaceId, MOCK_LEAD_MAGNETS.map((r) => r.id)).catch(() => new Map());
-    return mockResourcesBoard(used);
+    // The sheet offers the workspace's real setters (a sample one can't be saved to).
+    return { ...mockResourcesBoard(used), agents };
   }
   const docs = agents.length
     ? await prisma.setterDoc.findMany({ where: { setterId: { in: agents.map((a) => a.id) }, body: { not: "" } }, select: { setterId: true, key: true } }).catch(() => [])

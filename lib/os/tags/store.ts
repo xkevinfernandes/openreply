@@ -11,7 +11,7 @@
 
 import { prisma } from "@/lib/db/client";
 import { osMockEnabled } from "@/lib/os/mock";
-import { cleanTagName, SYSTEM_TAGS, systemTagFor, tagKey } from "@/lib/os/tags/key";
+import { cleanTagName, renamePlan, SYSTEM_TAGS, systemTagFor, tagKey } from "@/lib/os/tags/key";
 import { DEFAULT_TAG_COLOR, isTagColor } from "@/lib/os/tags/palette";
 
 export interface ManagedTag {
@@ -169,7 +169,8 @@ async function own(workspaceId: string, id: string) {
 }
 
 /** Rename: contacts, setters' tag options and an alias for the old name, in
- *  one transaction. Kit names don't change (Kit keeps seeing the same tag). */
+ *  one transaction. Kit names don't change once Kit has seen the tag (Kit
+ *  keeps seeing the same tag); see renamePlan for a tag nothing has used. */
 export async function renameTag(workspaceId: string, id: string, newName: string): Promise<TagResult> {
   if (osMockEnabled()) return (await import("@/lib/os/mock-crm")).mockRenameTag(workspaceId, id, newName);
   const tag = await own(workspaceId, id);
@@ -182,21 +183,35 @@ export async function renameTag(workspaceId: string, id: string, newName: string
   if (systemTagFor(name)) return { ok: false, error: `${name} is a system tag name.` };
   const { renameTagOnContacts } = await import("@/lib/os/fields/write");
   const updated = await prisma.$transaction(async (tx) => {
+    const setters = await tx.setter.findMany({ where: { workspaceId }, select: { id: true, settings: true } });
+    const inOptions = (settings: unknown) => {
+      const opts = ((settings ?? {}) as Record<string, unknown>).tag_options;
+      return Array.isArray(opts) && opts.some((o) => typeof o === "string" && tagKey(o) === tag.key);
+    };
+    const [kit, contacts, workflows] = await Promise.all([
+      tx.contactSync.findFirst({ where: { workspaceId, provider: "kit", pushedTags: { hasSome: tag.kitNames.length ? tag.kitNames : [tag.name] } }, select: { id: true } }),
+      tx.contact.count({ where: { workspaceId, tags: { has: tag.name } } }),
+      tx.workflow.findMany({ where: { workspaceId }, select: { draftGraph: true, versions: { select: { graph: true } } } }),
+    ]);
+    const quoted = JSON.stringify(tag.name);
+    const inWorkflow = workflows.some((w) => JSON.stringify([w.draftGraph, ...w.versions.map((v) => v.graph)]).includes(quoted));
+    const plan = renamePlan(tag, name, { kit: Boolean(kit), used: contacts > 0 || inWorkflow || setters.some((s) => inOptions(s.settings)) });
     // The new name may be one of this tag's own old names: it stops being an alias.
     await tx.tagAlias.deleteMany({ where: { workspaceId, tagId: tag.id, key: tagKey(name) } });
-    await tx.tagAlias.upsert({
-      where: { workspaceId_name: { workspaceId, name: tag.name } },
-      create: { workspaceId, tagId: tag.id, name: tag.name, key: tag.key },
-      update: { tagId: tag.id, key: tag.key },
-    });
-    const row = await tx.tag.update({ where: { id: tag.id }, data: { name, key: tagKey(name) }, select: SELECT });
+    if (plan.keepAlias) {
+      await tx.tagAlias.upsert({
+        where: { workspaceId_name: { workspaceId, name: tag.name } },
+        create: { workspaceId, tagId: tag.id, name: tag.name, key: tag.key },
+        update: { tagId: tag.id, key: tag.key },
+      });
+    }
+    const row = await tx.tag.update({ where: { id: tag.id }, data: { name, key: tagKey(name), kitNames: plan.kitNames }, select: SELECT });
     await renameTagOnContacts(tx, workspaceId, tag.name, name);
     // J writes the new name from now on.
-    const setters = await tx.setter.findMany({ where: { workspaceId }, select: { id: true, settings: true } });
     for (const s of setters) {
+      if (!inOptions(s.settings)) continue;
       const settings = (s.settings ?? {}) as Record<string, unknown>;
-      const opts = settings.tag_options;
-      if (!Array.isArray(opts) || !opts.some((o) => typeof o === "string" && tagKey(o) === tag.key)) continue;
+      const opts = settings.tag_options as string[];
       const next = [...new Set(opts.map((o) => (typeof o === "string" && tagKey(o) === tag.key ? name : o)))];
       await tx.setter.update({ where: { id: s.id }, data: { settings: { ...settings, tag_options: next } } });
     }

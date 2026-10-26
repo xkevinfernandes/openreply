@@ -7,7 +7,7 @@
 import { mockContactExtras, mockThreads, updateMockContactExtras } from "@/lib/os/mock";
 import type { TagStoreDb, TagAliasView, TagResult, TagUsage, ManagedTag } from "@/lib/os/tags/store";
 import { tagView } from "@/lib/os/tags/store";
-import { cleanTagName, SYSTEM_TAGS, systemTagFor, tagKey } from "@/lib/os/tags/key";
+import { cleanTagName, renamePlan, SYSTEM_TAGS, systemTagFor, tagKey } from "@/lib/os/tags/key";
 
 type TagRow = { id: string; workspaceId: string; name: string; key: string; color: string; kitNames: string[]; system: boolean };
 type AliasRow = TagAliasView & { workspaceId: string; key: string };
@@ -131,7 +131,11 @@ export function mockRenameTag(workspaceId: string, id: string, newName: string):
   const alias = mem.aliases.find((a) => a.workspaceId === workspaceId && a.key === key && a.tagId !== id);
   if (alias) return { ok: false, error: `This was the old name of ${mem.tags.find((t) => t.id === alias.tagId)?.name ?? "another tag"}.` };
   mem.aliases = mem.aliases.filter((a) => !(a.tagId === id && a.key === key));
-  mem.aliases.push({ id: nextId("alias"), workspaceId, tagId: id, name: tag.name, key: tag.key });
+  // The sample has no Kit: a tag Kit never saw just takes the new name.
+  const used = sampleContactIds().some((cid) => mockContactExtras(cid).tags.includes(tag.name));
+  const plan = renamePlan(tag, name, { kit: false, used });
+  if (plan.keepAlias) mem.aliases.push({ id: nextId("alias"), workspaceId, tagId: id, name: tag.name, key: tag.key });
+  tag.kitNames = plan.kitNames;
   for (const cid of sampleContactIds()) {
     const tags = mockContactExtras(cid).tags;
     if (tags.includes(tag.name)) updateMockContactExtras(cid, { tags: [...new Set(tags.map((t) => (t === tag.name ? name : t)))] });

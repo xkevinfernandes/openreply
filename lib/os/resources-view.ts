@@ -58,8 +58,9 @@ export function matchesFilter(kind: ResourceKind, f: ResourceFilter): boolean {
 }
 
 export function pillCounts(rows: { kind: ResourceKind }[], docs: number): ResourcesBoard["counts"] {
+  // All lists the knowledge docs too, so it counts them.
   return {
-    all: rows.filter((r) => r.kind !== "setter").length,
+    all: rows.filter((r) => r.kind !== "setter").length + docs,
     magnets: rows.filter((r) => r.kind === "resource").length,
     videos: rows.filter((r) => r.kind === "episode").length,
     docs,
@@ -89,7 +90,19 @@ export function usedByOf(r: { id: string; slug: string; broadcasts?: ResourceVie
   for (const c of inputs.campaigns.filter((x) => x.resourceId === r.id)) out.push({ kind: "campaign", id: c.automationId, name: c.name, href: `/os/automations/${c.automationId}` });
   for (const w of inputs.workflows.filter((x) => x.slugs.includes(r.slug))) out.push({ kind: "workflow", id: w.id, name: w.name, href: `/os/automations/workflows/${w.id}` });
   for (const b of r.broadcasts ?? []) out.push({ kind: "broadcast", id: b.key, name: b.name, href: `/os/automations/broadcasts/${b.key}`, unsent: b.unsent });
-  if (agentIds.length) out.push({ kind: "sequences", id: "sequences", name: "Sequences via J", href: `/os/knowledge/${agentIds[0]}` });
+  const first = agentIds.map((id) => inputs.agents.find((a) => a.id === id)).find(Boolean);
+  if (first) out.push({ kind: "sequences", id: "sequences", name: `Sequences via ${first.name}`, href: `/os/knowledge/${first.id}` });
+  return out;
+}
+
+/** One chip per name: two broadcasts called the same (a duplicate) show once, "×2". */
+export function usedChips(used: UsedBy[]): (UsedBy & { count: number })[] {
+  const out: (UsedBy & { count: number })[] = [];
+  for (const u of used) {
+    const hit = out.find((o) => o.kind === u.kind && o.name === u.name);
+    if (hit) hit.count += 1;
+    else out.push({ ...u, count: 1 });
+  }
   return out;
 }
 

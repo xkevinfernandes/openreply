@@ -28,10 +28,20 @@ export const SYSTEM_TAGS: readonly { name: string; readBy: string }[] = [
   { name: "booked", readBy: "J's state machine (call booked)" },
   { name: "not_now", readBy: "J's state machine (not now)" },
   { name: "not_now_auto", readBy: "J's triage (not now until they write again)" },
-  { name: "follow-up-friday", readBy: "Follow-up Friday" },
+  { name: "follow-up-friday", readBy: "Follow-up Friday (the contact's Friday switch writes it, the Friday broadcast picks people by it)" },
 ];
 
 export const SYSTEM_TAG_NAMES: ReadonlySet<string> = new Set(SYSTEM_TAGS.map((t) => t.name));
+
+/**
+ * What a rename keeps. Kit keeps its name only once Kit has seen the tag (a
+ * tag that never synced just takes the new name). The old name stays as an
+ * alias ("Was …") only while something could still write or read it: a
+ * contact, a workflow, a setter's tag options, or Kit.
+ */
+export function renamePlan(tag: { name: string; kitNames: string[] }, newName: string, seen: { kit: boolean; used: boolean }): { kitNames: string[]; keepAlias: boolean } {
+  return { kitNames: seen.kit ? (tag.kitNames.length ? tag.kitNames : [tag.name]) : [newName], keepAlias: seen.kit || seen.used };
+}
 
 export function systemTagFor(name: string): { name: string; readBy: string } | null {
   const k = tagKey(name);

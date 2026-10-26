@@ -17,7 +17,7 @@ export interface SavedResource {
   link: string | null;
 }
 
-const SAMPLE = "Sample data (OS_MOCK). Add a real resource to change things.";
+const SAMPLE = "That's a sample. Add your own resource to change things.";
 const isSample = (id?: string) => Boolean(id?.startsWith("mock-res-"));
 
 function refresh() {
