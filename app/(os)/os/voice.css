@@ -9,7 +9,7 @@
 /* --- Player ---------------------------------------------------------------- */
 
 .os-voice {
-  --vc-bg: var(--paper-2);
+  --vc-bg: var(--well);
   --vc-fg: var(--ink);
   --vc-btn: var(--ink);
   --vc-btn-fg: var(--on-ink);
@@ -27,7 +27,6 @@
   border-radius: 999px;
   background: var(--vc-bg);
   color: var(--vc-fg);
-  box-shadow: inset 0 0 0 1px var(--line);
 }
 
 .os-voice[data-tone="me"] {
@@ -38,19 +37,14 @@
   align-items: flex-end;
 }
 
-.os-voice[data-tone="me"] .os-voice-row {
-  box-shadow: none;
-}
-
 .os-voice[data-tone="draft"] {
   --vc-bg: var(--card);
   align-items: flex-end;
 }
 
+/* Not sent yet: a card bubble in the well, like the composer's draft bubbles. */
 .os-voice[data-tone="draft"] .os-voice-row {
-  box-shadow: none;
-  outline: 1px dashed var(--ink);
-  outline-offset: -1px;
+  background: var(--card);
 }
 
 .os-voice-play {
@@ -77,11 +71,6 @@
   cursor: default;
 }
 
-.os-voice-play:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-}
-
 .os-voice-play svg {
   width: 14px;
   height: 14px;
@@ -100,7 +89,7 @@
 .os-voice-wave i {
   flex: 1;
   min-height: 3px;
-  border-radius: 2px;
+  border-radius: 999px;
   background: currentColor;
   opacity: 0.32;
   transition: opacity 120ms ease;
@@ -134,8 +123,8 @@
 /* In J's draft: the tag says this bubble goes as your voice. */
 
 .os .chip.voice {
-  background: var(--mark-bg);
-  color: var(--mark);
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
 }
 
 /* --- Recorder --------------------------------------------------------------- */
@@ -186,8 +175,8 @@
   width: 120px;
   height: 6px;
   overflow: hidden;
-  border-radius: 3px;
-  background: var(--tint-2);
+  border-radius: 999px;
+  background: var(--well);
 }
 
 .os-rec-meter span {
@@ -238,20 +227,22 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--card);
-  transition: opacity 120ms ease, box-shadow 160ms ease;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: var(--radius-cover);
+  background: var(--well);
+  --ctl: var(--card);
+  --ctl-hover: var(--tint-2);
+  transition: opacity 120ms ease, background-color 160ms ease;
 }
 
 .os-vn-clip[data-empty="true"] {
-  border-style: dashed;
-  background: var(--paper-2);
+  background: var(--tint);
 }
 
+/* The clip being played or recorded: the one sage mark in the list. */
 .os-vn-clip[data-active="true"] {
-  box-shadow: inset 3px 0 0 var(--mark);
+  background: color-mix(in srgb, var(--sage) 14%, var(--well));
 }
 
 .os-vn-clip[aria-busy="true"] {
@@ -300,18 +291,20 @@
   outline: none;
 }
 
+/* Segmented pill: track on the card (inside the well), picked = ink. */
 .os-vn-kind {
   display: inline-flex;
-  padding: 2px;
-  border-radius: var(--radius);
-  background: var(--tint);
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--card);
 }
 
 .os-vn-kind button {
   height: 24px;
   padding: 0 10px;
   border: 0;
-  border-radius: 3px;
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
   font: 500 var(--fs-xs) / 1 var(--font);
@@ -324,9 +317,8 @@
 }
 
 .os-vn-kind button[aria-checked="true"] {
-  background: var(--card);
-  color: var(--ink);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  background: var(--ink);
+  color: var(--on-ink);
 }
 
 .os-vn-switch {
@@ -349,7 +341,7 @@
 
 .os-vn-hint {
   margin: -2px 0 0;
-  color: var(--warn);
+  color: var(--warn-fg);
   font-size: var(--fs-xs);
 }
 
@@ -380,10 +372,6 @@
   cursor: pointer;
 }
 
-.os-vn-check input {
-  accent-color: var(--ink);
-}
-
 .os-vn-meta {
   font-variant-numeric: tabular-nums;
 }
@@ -403,9 +391,9 @@
   flex-direction: column;
   gap: 12px;
   margin: 0 20px 10px;
-  padding: 12px 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  padding: 16px 18px;
+  border: 0;
+  border-radius: var(--radius-card);
   background: var(--card);
   box-shadow: var(--shadow);
   transform-origin: bottom right;
@@ -424,7 +412,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-body);
+  font-weight: 600;
 }
 
 .os-voicepanel-close {
@@ -434,7 +423,7 @@
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -463,8 +452,6 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--line);
 }
 
 .os-voicepanel-note {
@@ -479,14 +466,13 @@
   margin: 0;
   color: var(--muted);
   font-size: var(--fs-xs);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-weight: 500;
 }
 
 .os-voicepanel-clips {
   display: flex;
   flex-direction: column;
+  gap: 2px;
   max-height: 260px;
   margin: 0;
   padding: 0;
@@ -499,12 +485,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 0;
-  border-top: 1px solid var(--line);
-}
-
-.os-voicepanel-clips li:first-child {
-  border-top: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-cover);
+  background: var(--well);
+  --ctl: var(--card);
+  --ctl-hover: var(--tint-2);
 }
 
 .os-voicepanel-clip-text {

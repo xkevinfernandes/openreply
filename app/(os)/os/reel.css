@@ -1,0 +1,701 @@
+/* reel.css: the reel look's shapes, loaded after every other OS stylesheet.
+   The colours already moved in os.css (tokens); this file moves the shapes:
+   the floating sidebar on the stone, borderless radius-20 cards, pill
+   controls with the picked one in ink, reel buttons and inputs, and the
+   full-height screens (Inbox, Contacts) split into cards with a 20px gap.
+   Rules and numbers: Cursor Repos/branding (README.md, tokens.css). */
+
+/* --- Shell: the sidebar floats on the stone, the page beside it ---------- */
+@media (min-width: 861px) {
+  .os-frame {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+    gap: var(--gap);
+    padding: var(--page-pad);
+    box-sizing: border-box;
+    min-height: 100dvh;
+  }
+
+  .os-sidebar {
+    top: var(--page-pad);
+    height: calc(100dvh - var(--page-pad) * 2);
+    padding: 16px 10px 12px;
+    gap: 2px;
+    border: 0;
+    border-radius: var(--radius-card);
+    background: var(--card);
+  }
+
+  .os-main {
+    padding: 0 0 48px;
+  }
+
+  /* Full-height screens fill the column beside the sidebar. */
+  .os-main:has(.os-ix),
+  .os-main:has(.os-cx) {
+    padding: 0;
+  }
+  .os-ix {
+    height: calc(100dvh - var(--page-pad) * 2);
+    gap: var(--gap);
+  }
+  .os-cx {
+    height: calc(100dvh - var(--page-pad) * 2);
+    margin: 0;
+    gap: var(--gap);
+    overflow: visible;
+  }
+}
+
+/* --- Sidebar parts --------------------------------------------------------- */
+.os-side-head {
+  padding: 2px 4px 12px 6px;
+}
+.os-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+}
+.os-side-name {
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+.os-side-handle {
+  font-size: var(--fs-xs);
+}
+.os-side-toggle,
+.os-icon-btn,
+.os-ix-iconbtn {
+  border-radius: 999px;
+}
+.os-side-search {
+  height: 34px;
+  padding: 0 12px;
+  margin: 0 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--well);
+}
+.os-side-search:hover {
+  border-color: transparent;
+  background: var(--tint-2);
+}
+.os-nav {
+  gap: 2px;
+}
+.os-nav a {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-weight: 400;
+  transition:
+    background-color 120ms ease,
+    transform 100ms ease;
+}
+.os-nav a svg {
+  color: var(--muted);
+}
+.os-nav a:hover {
+  background: var(--well);
+}
+.os-nav a[aria-current="page"],
+.os-nav a[aria-current="page"]:hover {
+  background: var(--ink);
+  color: var(--on-ink);
+  font-weight: 500;
+}
+.os-nav a[aria-current="page"] svg {
+  color: var(--on-ink);
+}
+/* A count is a queue to work through, not a win: neutral, never green. */
+.os-nav .n {
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  font-weight: 600;
+}
+.os-nav a[aria-current="page"] .n {
+  background: color-mix(in srgb, var(--on-ink) 18%, transparent);
+  color: var(--on-ink);
+}
+/* Inbox's count is drafts waiting, "decide this": amber, picked or not
+   (the warn chip reads on the ink pill in both themes). Follow-ups due
+   stays the neutral queue count. */
+.os-nav .n[data-tone="warn"],
+.os-nav a[aria-current="page"] .n[data-tone="warn"] {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+/* Rail (desktop): the count shrinks to a dot; in the phone drawer it stays
+   the neutral number pill (os.css). */
+@media (min-width: 861px) {
+  .os-shell[data-sidebar="rail"] .os-nav .n,
+  .os-shell[data-sidebar="rail"] .os-nav a[aria-current="page"] .n {
+    background: var(--neutral-fg);
+    box-shadow: none;
+    outline: 2px solid var(--card);
+  }
+  .os-shell[data-sidebar="rail"] .os-nav a[aria-current="page"] .n {
+    background: var(--on-ink);
+    outline: 0;
+  }
+  .os-shell[data-sidebar="rail"] .os-nav .n[data-tone="warn"],
+  .os-shell[data-sidebar="rail"] .os-nav a[aria-current="page"] .n[data-tone="warn"] {
+    background: var(--warn);
+  }
+  .os-shell[data-sidebar="rail"] .os-nav a[aria-current="page"] .n[data-tone="warn"] {
+    outline: 2px solid var(--warn-bg);
+  }
+}
+.os-shell[data-sidebar="rail"] .os-nav a {
+  width: 40px;
+  height: 36px;
+}
+
+/* Rail: the hovered (or keyboard-focused) row grows out of its icon into
+   an ink pill that names it, over the page. Reduced motion: it just shows. */
+@media (min-width: 861px) {
+  .os-shell[data-sidebar="rail"] .os-sidebar {
+    overflow: visible;
+    z-index: 20;
+  }
+  .os-shell[data-sidebar="rail"] .os-nav a {
+    isolation: isolate;
+  }
+  .os-shell[data-sidebar="rail"] .os-nav a::after {
+    content: attr(data-label);
+    position: absolute;
+    z-index: -1;
+    top: 0;
+    left: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 0 16px 0 40px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--on-ink);
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    clip-path: inset(0 calc(100% - 40px) 0 0 round 999px);
+    transition:
+      clip-path 220ms var(--ease),
+      opacity 120ms ease;
+  }
+  .os-shell[data-sidebar="rail"] .os-nav a:is(:hover, :focus-visible)::after {
+    opacity: 1;
+    clip-path: inset(0 0 0 0 round 999px);
+  }
+  .os-shell[data-sidebar="rail"] .os-nav a:is(:hover, :focus-visible) {
+    background: transparent;
+    color: var(--on-ink);
+    outline-offset: 0;
+  }
+  .os-shell[data-sidebar="rail"] .os-nav a:is(:hover, :focus-visible) svg {
+    color: var(--on-ink);
+  }
+}
+@media (min-width: 861px) and (prefers-reduced-motion: reduce) {
+  .os-shell[data-sidebar="rail"] .os-nav a::after {
+    transition: none;
+  }
+}
+
+.os-side-foot {
+  gap: 10px;
+  padding: 12px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--well);
+}
+.os-side-pause {
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--card);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+.os-side-pause:hover {
+  background: var(--tint-2);
+}
+.os-side-pause[aria-pressed="true"] {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.os-side-sends {
+  font-size: var(--fs-xs);
+}
+.os-side-sends-n {
+  font-weight: 600;
+  color: var(--ink);
+}
+.os-side-meter {
+  height: 6px;
+  background: var(--card);
+}
+.os-side-meter > div {
+  height: 6px;
+  border-radius: 999px;
+}
+
+/* Theme switch, under the foot card. */
+.os-side-theme {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  margin-top: 8px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    transform 100ms ease;
+}
+.os-side-theme:hover {
+  background: var(--well);
+  color: var(--ink);
+}
+.os-side-theme:active {
+  transform: scale(0.97);
+}
+.os-shell[data-sidebar="rail"] .os-side-theme {
+  width: 40px;
+  padding: 0;
+  justify-content: center;
+}
+.os-shell[data-sidebar="rail"] .os-side-theme-text {
+  display: none;
+}
+.os-shell[data-sidebar="rail"] .os-side-foot {
+  background: transparent;
+}
+
+/* --- Page head ------------------------------------------------------------ */
+.os-head {
+  align-items: center;
+  gap: 16px;
+  margin-bottom: var(--gap);
+}
+.os-head p {
+  margin-top: 2px;
+  font-size: var(--fs-body);
+}
+
+/* --- Controls ------------------------------------------------------------- */
+.os {
+  --control-h: 36px;
+}
+/* Secondary buttons follow their surface (--ctl): --card on the stone,
+   --well inside a card. Primary is ink; disabled primary is a well with
+   muted text (a 40% ink slab read as mud). */
+.os-button {
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--ctl);
+  font-weight: 600;
+}
+.os-button:hover:not(:disabled) {
+  background: var(--ctl-hover);
+}
+.os-button:disabled {
+  opacity: 0.45;
+}
+.os-button.primary,
+.os-button.primary:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--on-ink);
+  opacity: 1;
+}
+.os-button.primary:disabled {
+  background: var(--well);
+  color: var(--muted);
+  opacity: 1;
+}
+/* Upstream primary buttons rendered inside /os, disabled the same way. */
+.os .os-upstream .zernio-action:disabled {
+  background: var(--well);
+  color: var(--muted);
+  opacity: 1;
+}
+.os-button.ghost {
+  background: transparent;
+  font-weight: 500;
+}
+.os-button.ghost:hover:not(:disabled) {
+  background: var(--ctl-hover);
+}
+.os-button.danger {
+  background: var(--bad-bg);
+  color: var(--bad-fg);
+}
+.os-button.danger:hover:not(:disabled) {
+  background: var(--bad-bg);
+  opacity: 0.86;
+}
+
+/* Inputs: the context surface (--ctl) with a 1px line. Selects set the
+   COLOUR only so the --chevron image survives (A-01). */
+.os-input,
+.os-textarea,
+.os-select select {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background-color: var(--ctl);
+}
+.os-input {
+  padding: 0 14px;
+}
+.os-textarea {
+  padding: 10px 14px;
+}
+/* A textarea given .os-input (not .os-textarea) grows with its rows and
+   gets top and bottom padding, not the one-line control height. */
+:where(textarea).os-input {
+  height: auto;
+  min-height: var(--control-h);
+  padding: 10px 14px;
+  line-height: 1.55;
+  resize: vertical;
+}
+.os-input:hover,
+.os-textarea:hover,
+.os-select select:hover {
+  border-color: var(--line-strong);
+}
+.os-input:focus,
+.os-textarea:focus,
+.os-select select:focus {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: none;
+}
+.os-select select {
+  padding: 0 36px 0 14px;
+  background-image: var(--chevron);
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
+}
+
+/* Segmented switch: a pill track, the picked option an ink pill. On the
+   stone (page head) the track is a card; inside a card it is a well. */
+.os-segmented,
+.os-ix-seg {
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--ctl);
+}
+.os-segmented button,
+.os-ix-seg-tab {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-weight: 400;
+}
+.os-segmented button[aria-pressed="true"],
+.os-ix-seg-tab[aria-selected="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+  font-weight: 500;
+  box-shadow: none;
+}
+/* The picked tab's count is still drafts waiting: an amber chip on the ink
+   pill (warn-bg/warn-fg read on ink in both themes; bare amber does not). */
+.os-ix-seg-tab[aria-selected="true"] .os-ix-seg-n {
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* Tabs: a pill track like the segmented switch (--card on the stone,
+   --well inside a card), picked tab an ink pill, no underline. A row too
+   wide for its column scrolls inside the track, never the page. */
+.os-tabs {
+  display: inline-flex;
+  max-width: 100%;
+  box-sizing: border-box;
+  gap: 4px;
+  padding: 4px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ctl);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  vertical-align: middle;
+}
+.os-tabs::-webkit-scrollbar {
+  display: none;
+}
+/* More tabs past an edge: fade that edge (set by Tabs on overflow). */
+.os-tabs[data-fade="end"] {
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+}
+.os-tabs[data-fade="start"] {
+  -webkit-mask-image: linear-gradient(to left, black calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to left, black calc(100% - 28px), transparent);
+}
+.os-tabs[data-fade="both"] {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
+}
+.os-tab {
+  flex: none;
+  height: 32px;
+  margin: 0;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  font-weight: 400;
+}
+.os-tabs[data-size="sm"] .os-tab {
+  height: 28px;
+  padding: 0 12px;
+}
+.os-tab:hover {
+  background: transparent;
+  color: var(--ink);
+}
+.os-tab:focus-visible {
+  outline-offset: -2px;
+}
+.os-tab[aria-selected="true"],
+.os-tab[aria-current="page"] {
+  background: var(--ink);
+  color: var(--on-ink);
+  font-weight: 500;
+}
+.os-tab[aria-selected="true"] .count,
+.os-tab[aria-current="page"] .count {
+  color: inherit;
+}
+.os-tab[aria-selected="true"] .os-tabs-n,
+.os-tab[aria-current="page"] .os-tabs-n {
+  background: color-mix(in srgb, var(--on-ink) 18%, transparent);
+  color: inherit;
+}
+/* On a phone, tighter tabs so a four-tab row usually fits outright. */
+@media (max-width: 420px) {
+  .os-tab {
+    padding: 0 11px;
+  }
+  .os-tabs[data-size="sm"] .os-tab {
+    padding: 0 10px;
+  }
+}
+
+/* Chips and pills: radius 999, the status pairs. */
+.os .chip,
+.os-pill {
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  font-size: var(--fs-xs);
+}
+.os .chip.ready,
+.os-pill[data-tone="mark"] {
+  background: var(--good-bg);
+  color: var(--good-fg);
+}
+.os .chip.flag,
+.os-pill[data-tone="warn"] {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+.os-pill[data-tone="good"] {
+  background: var(--good-bg);
+  color: var(--good-fg);
+}
+.os-pill[data-tone="ink"] {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+.os-pill[data-tone="bad"] {
+  background: var(--bad-bg);
+  color: var(--bad-fg);
+}
+.os .chip.quiet {
+  box-shadow: none;
+  background: transparent;
+  color: var(--muted);
+}
+.os-tabs-n {
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+.os kbd,
+.os-kbd {
+  border-radius: 8px;
+}
+.os-infotip-body {
+  border-radius: var(--radius);
+}
+
+.os-banner {
+  border-radius: 14px;
+  box-shadow: none;
+  color: var(--bad-fg);
+}
+
+/* --- Context surfaces ------------------------------------------------------
+   Every card sets --ctl to --well, so the buttons, inputs, selects, tab
+   tracks, segmented tracks and checkboxes inside it sit on the well; on
+   the stone they are --card. A screen whose card class is missing here
+   adds `--ctl: var(--well); --ctl-hover: var(--tint-2);` to its own card
+   rule (or uses .os-card). A well inside a card uses .os-well. */
+:where(
+    .os-card,
+    .os-stat,
+    .os-empty,
+    .os-sidebar,
+    .os-palette,
+    .os-ix-list,
+    .os-ix-conv,
+    .os-ix-panel,
+    .os-ix-rail,
+    .os-panel,
+    .os-cx-panel,
+    .os-cx-col,
+    .os-ct-table-wrap,
+    .os-home-sec,
+    .os-auto-grid,
+    .os-auto-empty,
+    .os-auto-pop,
+    .os-builder .panel,
+    .os-bc-card,
+    .os-bc-form,
+    .os-bc-empty,
+    .os-bcl-table,
+    .os-tl-list,
+    .os-int-card,
+    .os-si-group,
+    .os-set-section,
+    .os-upstream .zernio-sponsor,
+    .os-insp,
+    .os-voicepanel,
+    .os-cmp-menu,
+    .os-sandbox,
+    .os-kb-section,
+    .os-kb-step,
+    .kb-tree,
+    .kb-doc-pane,
+    .kb-res-sec,
+    .kb-chat,
+    .wf-list,
+    .wf-insp,
+    .wf-palette,
+    .wf-picker,
+    .wf-tpl,
+    .os-cmp,
+    .os-cf-wrap,
+    .os-vn-clip,
+    .os-cd-fields,
+    .os-ct-bulk[data-on],
+    .os-bc-split,
+    .os-bc-j,
+    .os-bc-foot,
+    .os-seq,
+    .kb-sec,
+    .kb-iv,
+    .os-sbx-sit,
+    .os-sbx-col,
+    [role="dialog"],
+    [role="menu"],
+    [role="listbox"]
+  ) {
+  --ctl: var(--well);
+  --ctl-hover: var(--tint-2);
+}
+
+/* --- Cards: white on stone, no border, no shadow ---------------------------- */
+.os-stat,
+.os-empty {
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
+}
+.os-stats {
+  gap: var(--gap);
+  margin-bottom: var(--gap);
+}
+.os-stat {
+  padding: 20px 22px;
+}
+.os-stat .label {
+  color: var(--muted);
+}
+.os-stat .value {
+  margin-top: 8px;
+  font-size: var(--fs-stat);
+  letter-spacing: -0.022em;
+}
+.os-empty {
+  padding: 22px 24px;
+}
+
+/* --- Inbox: list, thread and panel as three cards -------------------------- */
+.os-ix-list,
+.os-ix-conv,
+.os-ix-panel {
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
+  overflow: hidden;
+}
+.os-ix-rail {
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
+}
+.os-ix-title h1 {
+  font-size: var(--fs-h1);
+  letter-spacing: -0.022em;
+}
+.os-ix-search {
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--well);
+}
+.os-panel {
+  background: var(--card);
+}
+
+/* --- Avatars: a warm well disc, no outline ------------------------------- */
+.os-avatar {
+  background: var(--well);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+/* --- Skeletons: os.css "Loading skeletons" (shimmer on --well). --------- */
+
+/* The page behind the OS (overscroll, short pages) is the stone too. */
+/* --os-stone is the one definition of the ground (os.css, :root:has(.os)). */
+html:has(.os),
+html:has(.os) body {
+  background: var(--os-stone);
+}

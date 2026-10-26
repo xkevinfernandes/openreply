@@ -27,6 +27,31 @@ interface Props {
 
 const DRAG_TYPE = "application/x-os-contact";
 
+/** The browser's own drag snapshot of a rounded card shows square light
+ *  corners. Hand it a clone in a transparent, unpainted wrapper instead, keep
+ *  the grab point where the pointer took the card, and drop the clone once
+ *  the browser has its image. The wrapper sits inside the board so it keeps
+ *  the .os theme tokens. */
+function setCardDragImage(e: React.DragEvent<HTMLElement>) {
+  const card = e.currentTarget;
+  const host = card.closest(".os-cx-board");
+  if (!host || typeof e.dataTransfer.setDragImage !== "function") return;
+  const rect = card.getBoundingClientRect();
+  const wrap = document.createElement("div");
+  wrap.setAttribute("aria-hidden", "true");
+  wrap.style.cssText = `position:fixed;top:-1000px;left:-1000px;width:${rect.width}px;padding:0;margin:0;background:transparent;pointer-events:none;`;
+  const ghost = card.cloneNode(true) as HTMLElement;
+  ghost.removeAttribute("id");
+  ghost.removeAttribute("data-card");
+  ghost.removeAttribute("aria-describedby");
+  ghost.style.width = `${rect.width}px`;
+  ghost.style.transform = "translateZ(0)";
+  wrap.appendChild(ghost);
+  host.appendChild(wrap);
+  e.dataTransfer.setDragImage(wrap, e.clientX - rect.left, e.clientY - rect.top);
+  requestAnimationFrame(() => wrap.remove());
+}
+
 export default function ContactsKanban(p: Props) {
   const grouped = groupByColumn(p.rows, p.columns);
   const cols = boardColumns(p.columns);
@@ -110,7 +135,9 @@ export default function ContactsKanban(p: Props) {
                   noShow={c.attendance === "NO_SHOW"}
                   onOpen={() => p.onOpen(c.id)}
                   onKeyDown={(e) => keyMove(c, e)}
+                  dragged={dragging === c.id}
                   onDragStart={(e) => {
+                    setCardDragImage(e);
                     e.dataTransfer.setData(DRAG_TYPE, c.id);
                     e.dataTransfer.setData("text/plain", threadName(c.username, c.fullName));
                     e.dataTransfer.effectAllowed = "move";
@@ -137,11 +164,12 @@ interface CardProps {
   noShow: boolean;
   onOpen: () => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
-  onDragStart: (e: React.DragEvent) => void;
+  dragged: boolean;
+  onDragStart: (e: React.DragEvent<HTMLElement>) => void;
   onDragEnd: () => void;
 }
 
-function Card({ c, now, open, noShow, onOpen, onKeyDown, onDragStart, onDragEnd }: CardProps) {
+function Card({ c, now, open, noShow, dragged, onOpen, onKeyDown, onDragStart, onDragEnd }: CardProps) {
   const name = c.username ?? threadName(c.username, c.fullName);
   const when = shortAgo(c.lastMessageAt, now);
   const note = c.note ?? (noShow ? "no-show" : null);
@@ -151,6 +179,7 @@ function Card({ c, now, open, noShow, onOpen, onKeyDown, onDragStart, onDragEnd 
       className="os-cx-card"
       data-card={c.id}
       aria-current={open ? "true" : undefined}
+      data-dragged={dragged ? "true" : undefined}
       aria-describedby="os-cx-kb-hint"
       draggable
       onClick={onOpen}

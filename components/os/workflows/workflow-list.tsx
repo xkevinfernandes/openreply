@@ -14,6 +14,9 @@ import type { WorkflowRow } from "@/components/os/workflows/types";
 import { InfoTip } from "@/components/os/ui";
 import "@/components/os/workflows/workflows.css";
 
+/** Step names over the numbers when the row stacks (narrow list). */
+const FUNNEL_LABEL: Record<string, string> = { triggered: "Triggered", replied: "Replied", leadMagnet: "Lead magnet", booked: "Booked" };
+
 /** Mini drawings of each template's shape (WorkflowsList board). */
 function Sketch({ k }: { k: TemplateKey }) {
   return (
@@ -154,7 +157,7 @@ export default function WorkflowList({ rows }: { rows: WorkflowRow[] }) {
         <span className="wf-funnel">
           <span>Triggered</span>
           <span>Replied</span>
-          <span>Lead magnet</span>
+          <span title="Lead magnet">Magnet</span>
           <span>Booked</span>
         </span>
         <span />
@@ -182,6 +185,7 @@ export default function WorkflowList({ rows }: { rows: WorkflowRow[] }) {
           <span className="wf-funnel">
             {listFunnel(r.funnel).map((c) => (
               <span key={c.key} className="wf-fcell">
+                <span className="wf-fcell-lab">{FUNNEL_LABEL[c.key]}</span>
                 <span className="wf-fnum">
                   <b>{c.n}</b>
                   <span>{c.pct}</span>

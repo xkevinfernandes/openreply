@@ -4,14 +4,18 @@
 // the top of the sidebar with the collapse toggle and the ⌘K field; 7 nav
 // items with counts; the foot holds the mode, Pause all and today's sends.
 // Collapsed, it is a 64px icon rail (cookie os_sidebar=rail, read by the
-// layout so the first paint is right). Phones get a drawer behind a small bar.
+// layout so the first paint is right); a hovered rail row grows out into an
+// ink pill with its name (reel.css). Phones get a frosted header: the
+// account row, then every page as one swipeable pill row; the menu button
+// opens the drawer for the rest (sends, Pause all, theme).
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { setPauseAll } from "@/app/(os)/os/actions";
 import { openPalette } from "@/components/os/keys";
 import PaletteMount from "@/components/os/palette/mount";
+import { useScrollPicked } from "@/components/os/ui/scroll-picked";
 import { activeNav, BADGED, badgeLabel, isActive, osNav, sidebarCookie, type NavItem, type SidebarMode } from "@/lib/os/nav";
 
 export interface ShellSends {
@@ -42,6 +46,47 @@ const SEARCH = "M7 11.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM10.5 10.5l3 3";
 const PAUSE = "M5.5 3.5v9M10.5 3.5v9";
 const PLAY = "M5 3.2v9.6L12.5 8 5 3.2Z";
 const MENU = "M2.5 4.5h11M2.5 8h11M2.5 11.5h11";
+const SUN = "M8 1.5v1.2M8 13.3v1.2M1.5 8h1.2M13.3 8h1.2M3.4 3.4l.85.85M11.75 11.75l.85.85M3.4 12.6l.85-.85M11.75 4.25l.85-.85M8 5.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6Z";
+const MOON = "M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1Z";
+const AUTO = "M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2Zm0 0v12";
+
+type Theme = "auto" | "light" | "dark";
+const THEME_NEXT: Record<Theme, Theme> = { auto: "light", light: "dark", dark: "auto" };
+const THEME_LABEL: Record<Theme, string> = { auto: "Auto theme", light: "Light theme", dark: "Dark theme" };
+const THEME_ICON: Record<Theme, string> = { auto: AUTO, light: SUN, dark: MOON };
+
+function readTheme(): Theme {
+  try {
+    const t = localStorage.getItem("theme");
+    return t === "light" || t === "dark" ? t : "auto";
+  } catch {
+    return "auto";
+  }
+}
+
+// The pick lives outside React (localStorage, shared with ContentOS and the
+// portal); the shell subscribes to it. The server always renders "auto".
+const themeListeners = new Set<() => void>();
+function subscribeTheme(cb: () => void) {
+  themeListeners.add(cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    themeListeners.delete(cb);
+    window.removeEventListener("storage", cb);
+  };
+}
+const serverTheme = (): Theme => "auto";
+
+/** Auto → Light → Dark, kept in localStorage.theme (shared with ContentOS). */
+function applyTheme(t: Theme) {
+  try {
+    if (t === "auto") localStorage.removeItem("theme");
+    else localStorage.setItem("theme", t);
+  } catch {}
+  if (t === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = t;
+  themeListeners.forEach((cb) => cb());
+}
 
 export default function OsShell({ workspaceName, instagramUsername, counts = {}, sends, sidebar, children }: OsShellProps) {
   const pathname = usePathname();
@@ -53,7 +98,9 @@ export default function OsShell({ workspaceName, instagramUsername, counts = {},
   const paused = optimistic ?? sends.pausedAll;
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const theme = useSyncExternalStore(subscribeTheme, readTheme, serverTheme);
   const menuRef = useRef<HTMLButtonElement>(null);
+  const barNavRef = useRef<HTMLElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const rail = mode === "rail";
   const handle = instagramUsername ? `@${instagramUsername}` : workspaceName;
@@ -73,10 +120,18 @@ export default function OsShell({ workspaceName, instagramUsername, counts = {},
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  // Phone pill row: keep the current page's pill in view and fade only
+  // the edges with more behind them.
+  useScrollPicked(barNavRef, current?.key);
+
   function toggleRail() {
     const next: SidebarMode = rail ? "full" : "rail";
     setMode(next);
     document.cookie = sidebarCookie(next);
+  }
+
+  function cycleTheme() {
+    applyTheme(THEME_NEXT[theme]);
   }
 
   function togglePause() {
@@ -98,21 +153,38 @@ export default function OsShell({ workspaceName, instagramUsername, counts = {},
   return (
     <div className="os-shell" data-sidebar={mode}>
       <header className="os-bar">
-        <button
-          ref={menuRef}
-          type="button"
-          className="os-menu-button"
-          aria-label="Open menu"
-          aria-expanded={open}
-          aria-controls="os-sidebar"
-          onClick={() => setOpen(true)}
-        >
-          <Icon d={MENU} size={18} />
-        </button>
-        <Link href="/os" className="os-bar-home">
-          DM OS
-        </Link>
-        {current && current.href !== "/os" ? <span className="os-bar-here">{current.label}</span> : null}
+        <div className="os-bar-top">
+          <button
+            ref={menuRef}
+            type="button"
+            className="os-menu-button"
+            aria-label="Open menu"
+            aria-expanded={open}
+            aria-controls="os-sidebar"
+            onClick={() => setOpen(true)}
+          >
+            <Icon d={MENU} size={18} />
+          </button>
+          <Link href="/os" className="os-bar-home">
+            DM OS
+          </Link>
+          <span className="os-bar-here">{handle}</span>
+        </div>
+        <nav ref={barNavRef} className="os-bar-nav" aria-label="Pages">
+          {osNav.map((item) => {
+            const n = BADGED.has(item.key) ? (counts[item.key] ?? 0) : 0;
+            return (
+              <Link key={item.key} href={item.href} className="os-bar-pill" aria-current={current?.key === item.key ? "page" : undefined}>
+                {item.label}
+                {n ? (
+                  <span className="n" data-tone={item.key === "inbox" ? "warn" : undefined} aria-label={badgeLabel(item.key, n)}>
+                    {n}
+                  </span>
+                ) : null}
+              </Link>
+            );
+          })}
+        </nav>
       </header>
 
       <div className="os-frame">
@@ -149,12 +221,12 @@ export default function OsShell({ workspaceName, instagramUsername, counts = {},
                   onClick={() => setOpen(false)}
                   aria-current={isActive(pathname, item.href) ? "page" : undefined}
                   aria-label={rail ? railLabel : undefined}
-                  title={rail ? railLabel : undefined}
+                  data-label={railLabel}
                 >
                   <Icon d={item.icon} />
                   <span className="lbl">{item.label}</span>
                   {n ? (
-                    <span className="n" aria-label={badgeLabel(item.key, n)}>
+                    <span className="n" data-tone={item.key === "inbox" ? "warn" : undefined} aria-label={badgeLabel(item.key, n)}>
                       {n}
                     </span>
                   ) : null}
@@ -190,6 +262,10 @@ export default function OsShell({ workspaceName, instagramUsername, counts = {},
               </p>
             ) : null}
           </div>
+          <button type="button" className="os-side-theme" onClick={cycleTheme} aria-label={`${THEME_LABEL[theme]}. Switch to ${THEME_LABEL[THEME_NEXT[theme]].toLowerCase()}`} title={rail ? THEME_LABEL[theme] : undefined}>
+            <Icon d={THEME_ICON[theme]} />
+            <span className="os-side-theme-text">{THEME_LABEL[theme]}</span>
+          </button>
         </aside>
 
         <main className="os-main">{children}</main>

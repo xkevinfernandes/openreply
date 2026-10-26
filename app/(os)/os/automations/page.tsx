@@ -39,7 +39,7 @@ export default async function AutomationsPage({ searchParams }: PageProps) {
   return (
     <div className="os-auto">
       <header className="os-auto-head">
-        <h1>Automations</h1>
+        <h1 className="os-title">Automations</h1>
         <Link href="/os/automations/new" className="os-button primary os-auto-new">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M8 3.5v9M3.5 8h9" />

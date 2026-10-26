@@ -1,26 +1,18 @@
-// Automations › Broadcasts: one row per broadcast. The tabs mirror the
-// Automations page (S6 owns Campaigns and Tests).
+// Automations › Broadcasts: one row per broadcast. The head and the tabs are
+// the same as Workflows and Campaigns (Workflows · Campaigns · Broadcasts,
+// with counts), so switching tabs never moves the header.
 import Link from "next/link";
+import { AutomationsTabs, type AutomationsTab } from "@/components/os/automations/automations-tabs";
 import { EmptyState } from "@/components/os/ui";
 import type { BroadcastListItem } from "@/lib/os/broadcasts/engine";
 
-const TABS = [
-  { href: "/os/automations", label: "Campaigns" },
-  { href: "/os/automations/broadcasts", label: "Broadcasts", current: true },
-  { href: "/os/automations/experiments", label: "Tests" },
-];
-
-export default function BroadcastList({ items }: { items: BroadcastListItem[] | null }) {
+export default function BroadcastList({ items, counts }: { items: BroadcastListItem[] | null; counts?: Partial<Record<AutomationsTab, number>> }) {
   return (
-    <div className="os-bcl">
-      <h1 className="os-bcl-title">Automations</h1>
-      <nav className="os-tabs" aria-label="Automations">
-        {TABS.map((t) => (
-          <Link key={t.href} href={t.href} className="os-tab" role="tab" aria-selected={Boolean(t.current)}>
-            {t.label}
-          </Link>
-        ))}
-      </nav>
+    <div className="os-bcl os-auto">
+      <header className="os-auto-head">
+        <h1 className="os-bcl-title os-title">Automations</h1>
+      </header>
+      <AutomationsTabs active="broadcasts" counts={counts} />
       {items === null ? <div className="os-banner">Broadcasts didn&apos;t load. Refresh in a minute.</div> : null}
       {items && !items.length ? <EmptyState title="No broadcasts yet" /> : null}
       {items && items.length ? (

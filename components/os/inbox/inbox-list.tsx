@@ -12,7 +12,7 @@ import { useMemo, useState } from "react";
 import { INBOX_LIST_COOKIE, inboxListView, neighbourHref } from "@/components/os/inbox/categories";
 import { ResortPitches, TriageBar, TriageSuggestion } from "@/components/os/inbox/triage";
 import { useOsCommand } from "@/components/os/keys";
-import { Avatar, AvatarRail } from "@/components/os/ui";
+import { Avatar, AvatarRail, EmptyState } from "@/components/os/ui";
 import { FailDot, useFailedRuns } from "@/components/os/workflows/run-line";
 import type { InboxThread } from "@/lib/os/inbox";
 import { isUnsure } from "@/lib/os/triage-copy";
@@ -67,7 +67,7 @@ export default function InboxList({ threads, tab, selected, now, draftContactIds
         </button>
         {view.drafts ? (
           <span className="os-ix-drafts" title={`${view.drafts} ${view.drafts === 1 ? "draft" : "drafts"} waiting`}>
-            <span className="os-dot" data-tone="mark" aria-hidden="true" />
+            <span className="os-dot" data-tone="warn" aria-hidden="true" />
             {view.drafts}
           </span>
         ) : null}
@@ -89,7 +89,7 @@ export default function InboxList({ threads, tab, selected, now, draftContactIds
           <span className="os-ix-title-side">
             {view.drafts ? (
               <span className="os-ix-drafts">
-                <span className="os-dot" data-tone="mark" aria-hidden="true" />
+                <span className="os-dot" data-tone="warn" aria-hidden="true" />
                 {view.drafts} {view.drafts === 1 ? "draft" : "drafts"}
               </span>
             ) : null}
@@ -119,7 +119,17 @@ export default function InboxList({ threads, tab, selected, now, draftContactIds
       ) : null}
       {kind === "PITCHES" && !triageDisabled ? <ResortPitches /> : null}
       <ul className="os-ix-rows">
-        {view.rows.length === 0 ? <li className="os-ix-empty">{query ? "No threads match." : kind === "PITCHES" ? "No pitches. J never drafts here." : "Nothing here yet."}</li> : null}
+        {view.rows.length === 0 ? (
+          <li className="os-ix-empty">
+            {query ? (
+              <EmptyState title="No threads match">Try a name or a word from the chat.</EmptyState>
+            ) : kind === "PITCHES" ? (
+              <EmptyState title="No pitches">J never drafts here.</EmptyState>
+            ) : (
+              <EmptyState title="Nothing here yet" />
+            )}
+          </li>
+        ) : null}
         {view.rows.map((r) => {
           const t = byId.get(r.conversationId);
           const c = t?.contact;
@@ -140,7 +150,7 @@ export default function InboxList({ threads, tab, selected, now, draftContactIds
                       {r.stage ? <span className="os-ix-stage">{r.stage}</span> : null}
                       {r.draft ? (
                         <span className="os-ix-draft">
-                          <span className="os-dot" data-tone="mark" aria-hidden="true" />
+                          <span className="os-dot" data-tone="warn" aria-hidden="true" />
                           Draft
                         </span>
                       ) : null}

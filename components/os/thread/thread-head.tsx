@@ -16,6 +16,8 @@ interface ThreadHeadProps {
   username: string | null;
   backHref: string;
   stage: string | null;
+  /** The stage's funnel column key; picks the pill tone (booked/showed/won good, lost bad). */
+  stageKey?: string | null;
   /** Hours left in Meta's window after their last message (null: unknown). */
   windowHours: number | null;
   triage: { contactId: string; kind: ContactKind; suggestedKind: ContactKind } | null;
@@ -23,7 +25,10 @@ interface ThreadHeadProps {
 
 const kindLabel = (k: ContactKind) => kindTabs.find((t) => t.kind === k)?.label ?? k;
 
-export default function ThreadHead({ name, username, backHref, stage, windowHours, triage }: ThreadHeadProps) {
+const GOOD_COLUMNS = new Set(["booked", "showed", "won"]);
+const stageTone = (key: string | null | undefined) => (key && GOOD_COLUMNS.has(key) ? "good" : key === "lost" ? "bad" : "neutral");
+
+export default function ThreadHead({ name, username, backHref, stage, stageKey, windowHours, triage }: ThreadHeadProps) {
   return (
     <header className="os-th-head">
       <Link href={backHref} className="os-th-back" aria-label="Back to threads">
@@ -38,7 +43,7 @@ export default function ThreadHead({ name, username, backHref, stage, windowHour
       ) : (
         <span className="os-th-name">{name}</span>
       )}
-      {stage ? <span className="os-th-stage">{stage}</span> : null}
+      {stage ? <span className="os-th-stage" data-tone={stageTone(stageKey)}>{stage}</span> : null}
       {triage ? <TriageChip {...triage} /> : null}
       <span className="os-cmp-sp" />
       {windowHours !== null ? (

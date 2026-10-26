@@ -187,6 +187,7 @@ async function ConversationPane({ workspaceId, list, selected: selectedP, panel:
         username={selected.username}
         backHref={inboxHref(tab)}
         stage={contact?.kind === "SALES" ? stageLabel : null}
+        stageKey={panel?.stage.column ?? null}
         windowHours={thread ? windowHoursLeft(thread.messages, now) : null}
         triage={triage}
       />

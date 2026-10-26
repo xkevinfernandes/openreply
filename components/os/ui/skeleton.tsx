@@ -97,7 +97,7 @@ export function ContactsSkeleton() {
             <div key={c} className="os-skel-col">
               <Bar w={90} h={12} />
               {Array.from({ length: 4 - (c % 3) }, (_, i) => (
-                <span key={i} className="os-skel" style={{ width: "100%", height: 68, borderRadius: 10 }} />
+                <span key={i} className="os-skel" style={{ width: "100%", height: 68, borderRadius: 14 }} />
               ))}
             </div>
           ))}

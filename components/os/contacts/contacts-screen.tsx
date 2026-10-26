@@ -198,7 +198,7 @@ export default function ContactsScreen({ contacts, setters, truncated, initialVi
     <div className="os-cx" data-panel={open ? "open" : undefined}>
       <section className="os-cx-main" aria-labelledby="os-cx-h">
         <header className="os-cx-head">
-          <h1 id="os-cx-h">Contacts</h1>
+          <h1 id="os-cx-h" className="os-title">Contacts</h1>
           <span className="os-cx-count">
             {visible.length} {category ? `in ${categoryLabel}` : visible.length === 1 ? "contact" : "contacts"}
           </span>

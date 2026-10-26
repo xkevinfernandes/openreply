@@ -8,12 +8,12 @@ export interface RailItem {
   name: string | null;
   avatarUrl?: string | null;
   href: string;
-  /** Green dot: a draft is waiting. */
+  /** Amber dot: a draft is waiting ("decide this"). */
   dot?: boolean;
   current?: boolean;
 }
 
-/** The collapsed thread list: avatars only, green dots for drafts. */
+/** The collapsed thread list: avatars only, amber dots for drafts. */
 export function AvatarRail({ items, ariaLabel }: { items: RailItem[]; ariaLabel: string }) {
   return (
     <nav className="os-avatar-rail" aria-label={ariaLabel}>

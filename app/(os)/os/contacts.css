@@ -32,14 +32,16 @@
   flex-wrap: wrap;
   min-height: 44px;
   padding: 6px 0;
-  border-bottom: 1px solid var(--line);
 }
 
+/* With a selection the bar is a card on the stone; its controls sit on
+   the well (--ctl). */
 .os-ct-bulk[data-on="true"] {
-  padding: 6px 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--paper-2);
+  --ctl: var(--well);
+  --ctl-hover: var(--tint-2);
+  padding: 8px 10px 8px 16px;
+  border-radius: var(--radius-card);
+  background: var(--card);
 }
 
 .os-ct-count {
@@ -64,22 +66,23 @@
   font-size: var(--fs-sm);
 }
 
-/* The draft-waiting mark: the brand green, like "Draft ready" in the Inbox. */
+/* The draft-waiting mark: amber, "decide this", like the Inbox's draft marker. */
 .os-ct-dot {
   flex: none;
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--mark);
-  box-shadow: 0 0 0 3px var(--mark-bg);
+  background: var(--warn);
 }
 
 /* --- Table ------------------------------------------------------------------- */
 
 .os-ct-table-wrap {
   overflow-x: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
+  padding: 8px 16px;
 }
 
 .os-ct-table {
@@ -91,21 +94,22 @@
 .os-ct-table th {
   position: sticky;
   top: 0;
-  padding: 9px 10px;
-  border-bottom: 1px solid var(--line);
-  background: var(--paper-2);
-  color: var(--faint);
-  font-size: var(--fs-xs);
+  padding: 12px 10px;
+  border-bottom: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
   font-weight: 500;
   text-align: left;
   white-space: nowrap;
 }
 
 .os-ct-table td {
-  padding: 7px 10px;
-  border-bottom: 1px solid var(--line);
+  padding: 12px 10px;
+  border-bottom: 0;
   vertical-align: middle;
   white-space: nowrap;
+  border-top: 1px solid var(--line);
 }
 
 .os-ct-table tbody tr:last-child td {
@@ -117,7 +121,7 @@
 }
 
 .os-ct-table tbody tr:hover {
-  background: var(--tint);
+  background: var(--well);
 }
 
 .os-ct-table tr[aria-selected="true"],
@@ -150,6 +154,33 @@
   cursor: pointer;
 }
 
+.os-ct-who .who-text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.os-ct-who .name {
+  font-weight: 500;
+}
+
+.os-ct-who .sub {
+  color: var(--muted);
+}
+
+.os-ct-who .name,
+.os-ct-who .sub {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.os-ct-who .sub {
+  flex-shrink: 4;
+}
+
 .os-ct-who:hover .name {
   text-decoration: underline;
   text-decoration-color: var(--line-strong);
@@ -161,14 +192,55 @@
   gap: 4px;
 }
 
-.os-ct-inline-select select {
-  height: 28px;
-  border-color: transparent;
-  background-color: transparent;
+/* Tags are neutral pills, not bare text. */
+.os .os-ct-tags .chip.quiet {
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
 }
 
-.os-ct-inline-select select:hover {
+/* Stage: a filled status pill that opens the stage menu on click (a native
+   select, so the keyboard and the phone picker keep working). Tone from
+   the row: good once booked, bad when lost, neutral on the way. */
+.os .os-ct-table .os-ct-inline-select select {
+  field-sizing: content;
+  width: auto;
+  min-width: 0;
+  max-width: 180px;
+  height: 24px;
+  padding: 0 24px 0 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background-color: var(--neutral-bg);
+  background-position: right 8px center;
+  background-size: 12px;
+  color: var(--neutral-fg);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  text-overflow: ellipsis;
+}
+
+.os .os-ct-table .os-ct-inline-select[data-tone="good"] select {
+  background-color: var(--good-bg);
+  color: var(--good-fg);
+}
+
+.os .os-ct-table .os-ct-inline-select[data-tone="bad"] select {
+  background-color: var(--bad-bg);
+  color: var(--bad-fg);
+}
+
+/* Neutral pills are the well colour; on a hovered or picked row (also a
+   well in dark) they lift to the card so they stay pills. */
+.os .os-ct-table tr:is(:hover, [aria-selected="true"], [data-open="true"]) :is(.chip:not(.flag, .ready), .os-ct-inline-select[data-tone="neutral"] select) {
+  background-color: var(--card);
+}
+
+.os .os-ct-table .os-ct-inline-select select:hover {
   border-color: var(--line-strong);
+}
+
+.os .os-ct-table .os-ct-inline-select select:focus {
+  border-color: var(--ink);
 }
 
 /* --- Kanban ------------------------------------------------------------------ */
@@ -210,8 +282,8 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 28px 0 0 32px;
+  gap: var(--gap);
+  padding: 0;
   min-height: 0;
 }
 
@@ -219,16 +291,10 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  padding-right: 24px;
   flex-wrap: wrap;
 }
 
-.os-cx-head h1 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
+/* The h1 is .os-title (os.css). */
 
 .os-cx-count {
   color: var(--muted);
@@ -241,19 +307,20 @@
 
 .os-cx-views {
   display: inline-flex;
-  padding: 2px;
-  border-radius: var(--radius);
-  background: var(--tint);
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--ctl);
+  gap: 4px;
 }
 
 .os-cx-views button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 26px;
-  padding: 0 10px;
+  height: 30px;
+  padding: 0 14px;
   border: 0;
-  border-radius: 3px;
+  border-radius: 999px;
   background: transparent;
   font: inherit;
   font-weight: 500;
@@ -262,9 +329,9 @@
 }
 
 .os-cx-views button[aria-selected="true"] {
-  background: var(--paper);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
-  color: var(--ink);
+  background: var(--ink);
+  box-shadow: none;
+  color: var(--on-ink);
 }
 
 .os-cx-views svg,
@@ -284,12 +351,13 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
+  height: 36px;
   width: 220px;
-  padding: 0 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
   color: var(--muted);
+  background: var(--card);
 }
 
 .os-cx-search input {
@@ -310,7 +378,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-right: 24px;
   flex-wrap: wrap;
 }
 
@@ -319,18 +386,18 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 28px;
-  padding: 0 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: 14px;
-  background: var(--paper);
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--card);
   font-size: var(--fs-xs);
   cursor: pointer;
 }
 
 .os-cx-chip:hover,
 .os-cx-chip:focus-within {
-  border-color: var(--ink);
+  background: var(--well);
 }
 
 .os-cx-chip-k {
@@ -350,15 +417,16 @@
 }
 
 .os-cx-chip-mark {
-  width: 16px;
-  height: 16px;
+  flex: none;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: var(--ink);
   color: var(--on-ink);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -385,12 +453,13 @@
   color: var(--muted);
 }
 
+/* Draft waiting: amber ("decide this"); the legend dot shares the class. */
 .os-cx-draft {
   flex: none;
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--mark);
+  background: var(--warn);
 }
 
 .os-cx-follow {
@@ -404,7 +473,7 @@
 }
 
 .os-cx-status {
-  margin: -8px 24px 0 0;
+  margin: -8px 0 0;
   min-height: 0;
   font-size: var(--fs-xs);
   color: var(--muted);
@@ -427,13 +496,21 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 0 24px 24px 0;
+  padding: 0 0 24px;
+}
+
+/* The board fills the scroll area's height so every column, empty ones too,
+   runs to the bottom and takes a drop anywhere in it. */
+.os-cx-scroll {
+  display: flex;
+  flex-direction: column;
 }
 
 .os-cx-board {
   display: flex;
+  flex: 1 0 auto;
   gap: 12px;
-  align-items: flex-start;
+  align-items: stretch;
   width: max-content;
 }
 
@@ -443,19 +520,49 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px;
+  padding: 12px;
   box-sizing: border-box;
-  border-radius: var(--radius);
-  background: #f7f7f5;
-  transition: box-shadow 120ms var(--ease);
+  border-radius: var(--radius-card);
+  background: var(--card);
+}
+
+/* While a card is dragged every column is a target; the one under the
+   pointer turns sage with a dashed outline (no shadow). */
+.os-cx-col {
+  transition: background-color 120ms ease;
 }
 
 .os-cx-col[data-over="true"] {
-  box-shadow: inset 0 0 0 1.5px var(--ink);
+  background: color-mix(in srgb, var(--sage) 26%, var(--card));
+  outline: 1.5px dashed color-mix(in srgb, var(--sage) 70%, var(--ink));
+  outline-offset: -1.5px;
 }
 
-.os-cx-col[data-focus="true"] {
-  box-shadow: inset 0 0 0 1px var(--line-strong, #c9c9c4);
+/* The card being dragged stays put, faded, until it lands. */
+.os-cx-card[data-dragged="true"] {
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-cx-col {
+    transition: none;
+  }
+}
+
+/* The column a ?stage= link points at: its name becomes the row's one sage
+   pill. */
+.os-cx-col[data-focus="true"] h2 {
+  align-self: flex-start;
+  margin: 0 0 2px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--sage);
+  color: var(--sage-text);
+}
+
+.os-cx-col[data-focus="true"] h2 span {
+  color: inherit;
+  opacity: 0.8;
 }
 
 .os-cx-col h2 {
@@ -478,11 +585,11 @@
   flex-direction: column;
   gap: 6px;
   width: 100%;
-  padding: 10px;
+  padding: 12px;
   border: 0;
-  border-radius: var(--radius);
-  background: var(--paper);
-  box-shadow: 0 0 0 1px var(--line);
+  border-radius: 14px;
+  background: var(--well);
+  box-shadow: none;
   font: inherit;
   text-align: left;
   color: var(--ink);
@@ -490,11 +597,25 @@
 }
 
 .os-cx-card:hover {
-  box-shadow: 0 0 0 1px var(--line-strong);
+  background: var(--tint-2);
 }
 
+/* The open contact: the board's one sage card, no ring. */
 .os-cx-card[aria-current="true"] {
-  box-shadow: 0 0 0 1.5px var(--ink);
+  background: var(--sage);
+  color: var(--on-sage, var(--sage-text));
+}
+
+.os-cx-card[aria-current="true"] .os-cx-note,
+.os-cx-card[aria-current="true"] .os-cx-meta,
+.os-cx-card[aria-current="true"] .os-cx-follow {
+  color: var(--sage-text);
+  stroke: var(--sage-text);
+}
+
+.os-cx-card[aria-current="true"] .os-cx-av {
+  background: color-mix(in srgb, var(--sage-text) 20%, transparent);
+  color: inherit;
 }
 
 .os-cx-card:focus-visible {
@@ -518,11 +639,11 @@
   height: 22px;
   flex: 0 0 22px;
   border-radius: 50%;
-  background: var(--line);
+  background: var(--card);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -561,10 +682,12 @@
   width: var(--os-panel-w, 380px);
   min-width: 280px;
   min-height: 0;
-  border-left: 1px solid var(--line-strong);
-  background: var(--paper);
+  border-left: 0;
+  background: var(--card);
   display: flex;
   flex-direction: column;
+  border-radius: var(--radius-card);
+  overflow: hidden;
 }
 
 .os-cx-panel > .os-panel {
@@ -587,7 +710,7 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -607,11 +730,41 @@
   }
 
   .os-cx-main {
-    padding: 20px 0 0 16px;
+    padding: 20px 16px 0;
   }
 
   .os-cx-search {
     width: 100%;
+  }
+
+  /* Filters: one pill row that scrolls sideways inside itself. */
+  .os-cx-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 -16px;
+    padding: 0 16px;
+    scroll-padding-inline: 16px;
+  }
+  .os-cx-chips::-webkit-scrollbar {
+    display: none;
+  }
+  .os-cx-chips > * {
+    flex: none;
+  }
+  .os-cx-chips .os-cx-grow {
+    display: none;
+  }
+  .os-cx-legend {
+    white-space: nowrap;
+  }
+
+  /* The board scrolls inside the 16px gutter; a right fade says there is
+     more. It grows to the screen's foot so empty columns still take a drop. */
+  .os-cx-scroll {
+    flex: 1 0 auto;
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
   }
 
   .os-cx-panel {
@@ -655,7 +808,7 @@
 
 .os-cd-n {
   font-weight: 400;
-  color: var(--ghost);
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -670,7 +823,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius);
+  border-radius: 999px;
   color: var(--muted);
 }
 
@@ -689,25 +842,26 @@
   stroke-linejoin: round;
 }
 
+/* B-09: one well, no row dividers; rows are spaced, not ruled. */
 .os-cd-fields {
+  --ctl: var(--card);
+  --ctl-hover: var(--tint-2);
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--line);
+  gap: 2px;
+  padding: 6px 0;
+  border: 0;
   border-radius: var(--radius);
+  background: var(--well);
 }
 
 .os-cd-field {
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr) 14px;
+  grid-template-columns: 104px minmax(0, 1fr) 18px;
   align-items: center;
   gap: 8px;
   height: 32px;
   padding: 0 12px;
-  border-bottom: 1px solid var(--line);
-}
-
-.os-cd-field:last-child {
-  border-bottom: 0;
 }
 
 .os-cd-field[data-pending="true"] {
@@ -731,13 +885,21 @@
   box-sizing: border-box;
   border: 1px solid transparent;
   border-radius: var(--radius);
-  background: transparent;
+  background-color: transparent;
   font: inherit;
   color: var(--ink);
+  /* a long value ends in an ellipsis instead of a hard cut */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .os-cd-field input::placeholder {
-  color: var(--ghost);
+  color: var(--muted);
+}
+
+.os-cd-field input:focus {
+  background-color: var(--card);
 }
 
 .os-cd-field input:hover,
@@ -754,13 +916,6 @@
 .os-cd-src {
   display: inline-flex;
   justify-content: center;
-}
-
-.os-cd-src .os-setter-mark {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  font-size: 8px;
 }
 
 .os-cd-dot {
@@ -793,11 +948,11 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ghost);
+  background: var(--dash);
 }
 
 .os-cd-chip[data-state="synced"] i {
-  background: var(--mark);
+  background: var(--good);
 }
 
 .os-cd-chip[data-state="error"] i {
@@ -823,7 +978,7 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -861,6 +1016,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .os-cd-list li {
@@ -868,21 +1024,17 @@
   align-items: center;
   gap: 8px;
   min-height: 32px;
-  border-bottom: 1px solid var(--line);
-}
-
-.os-cd-list li:last-child {
-  border-bottom: 0;
 }
 
 .os-cd-kw {
   display: inline-flex;
   align-items: center;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: var(--radius);
-  background: var(--tint);
-  font-size: 11px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -890,7 +1042,7 @@
 .os-cd-arrow,
 .os-cd-ico {
   flex: none;
-  color: var(--ghost);
+  color: var(--muted);
 }
 
 .os-cd-res {
@@ -920,14 +1072,14 @@ a.os-cd-res:hover {
 .os-cd-none {
   margin: 0;
   font-size: var(--fs-xs);
-  color: var(--ghost);
+  color: var(--muted);
 }
 
 .os-cd-sub {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--mark);
+  background: var(--good);
 }
 
 .os-cd-tags {
@@ -942,9 +1094,10 @@ a.os-cd-res:hover {
   align-items: center;
   gap: 4px;
   height: 24px;
-  padding: 0 4px 0 8px;
-  border-radius: 12px;
-  background: var(--tint);
+  padding: 0 4px 0 10px;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
   font-size: var(--fs-xs);
 }
 
@@ -954,7 +1107,7 @@ a.os-cd-res:hover {
   border: 0;
   border-radius: 50%;
   background: transparent;
-  color: var(--ghost);
+  color: var(--muted);
   line-height: 1;
   cursor: pointer;
 }
@@ -964,32 +1117,48 @@ a.os-cd-res:hover {
 }
 
 .os-cd-tag-input {
-  height: 24px;
-  width: 120px;
-  padding: 0 8px;
+  height: 32px;
+  width: 140px;
+  padding: 0 10px;
+  box-sizing: border-box;
   border: 1px solid var(--ink);
-  border-radius: 12px;
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink);
   font: inherit;
   font-size: var(--fs-xs);
   outline: 0;
+  scroll-margin-bottom: 16px;
 }
 
+.os-cd-tag-input::placeholder {
+  color: var(--muted);
+}
+
+/* B-09: the add-tag button is a filled disc, no outline. */
 .os-cd-add {
   width: 24px;
   height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed var(--line-strong);
-  border-radius: 50%;
-  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  background: var(--well);
   color: var(--muted);
   cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    transform 100ms ease;
 }
 
 .os-cd-add:hover {
-  border-color: var(--ink);
+  background: var(--tint-2);
   color: var(--ink);
+}
+
+.os-cd-add:active {
+  transform: scale(0.97);
 }
 
 /* --- Activity tab ----------------------------------------------------------- */
@@ -1019,11 +1188,6 @@ a.os-cd-res:hover {
   align-items: center;
   gap: 10px;
   min-height: 32px;
-  border-bottom: 1px solid var(--line);
-}
-
-.os-ca-day li:last-child {
-  border-bottom: 0;
 }
 
 .os-ca-day li > svg {
@@ -1064,4 +1228,94 @@ a.os-cd-res:hover {
   font-size: var(--fs-xs);
   color: var(--ghost);
   font-variant-numeric: tabular-nums;
+}
+
+/* --- Table on a phone: rows become list rows ------------------------------- */
+/* Below 640 the table is too wide to read. Each row is a two-line list row:
+   checkbox, avatar and handle, last message on the right; the stage pill and
+   tags underneath. Kind, J, entry and setter stay on desktop. */
+@media (max-width: 640px) {
+  .os-ct-table-wrap {
+    overflow-x: visible;
+    padding: 4px 12px;
+  }
+
+  .os-ct-table,
+  .os-ct-table thead,
+  .os-ct-table tbody {
+    display: block;
+  }
+
+  .os-ct-table tr {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "check who when"
+      ". stage stage";
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 6px;
+    padding: 12px 4px;
+    border-top: 1px solid var(--line);
+  }
+
+  .os-ct-table thead tr {
+    grid-template-areas: "check who when";
+    padding: 8px 4px;
+    border-top: 0;
+  }
+
+  .os-ct-table th,
+  .os-ct-table td {
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+
+  .os-ct-table th {
+    position: static;
+  }
+
+  .os-ct-table .check {
+    grid-area: check;
+    width: auto;
+  }
+
+  .os-ct-table .contact {
+    grid-area: who;
+  }
+
+  .os-ct-table .when {
+    grid-area: when;
+  }
+
+  .os-ct-table td.stage {
+    grid-area: stage;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .os-ct-table .kind,
+  .os-ct-table th.stage,
+  .os-ct-table .j,
+  .os-ct-table .entry,
+  .os-ct-table .tags,
+  .os-ct-table .setter {
+    display: none;
+  }
+
+  .os-ct-who {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .os-ct-who .who-text {
+    flex: 1 1 auto;
+  }
+
+  .os .os-ct-table .os-ct-inline-select select {
+    max-width: 100%;
+  }
 }

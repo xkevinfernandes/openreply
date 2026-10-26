@@ -27,7 +27,7 @@ export default async function WorkflowsPage() {
   return (
     <div className="os-auto wf-page">
       <header className="os-auto-head">
-        <h1>Automations</h1>
+        <h1 className="os-title">Automations</h1>
         <NewWorkflowButton resourceSlug={firstResource?.slug} />
       </header>
       <AutomationsTabs active="workflows" counts={{ ...counts, workflows: rows.length }} />

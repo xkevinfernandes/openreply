@@ -1,7 +1,35 @@
 /* Workflows: list, template picker, the free-canvas builder, inspector,
    phone preview and the Inbox run lines. Tokens: app/(os)/os/os.css.
    Boards: WorkflowsList, WorkflowA (canvas), WorkflowC (palette, A vs B),
-   WorkflowB (phone tab only), InboxPaused. */
+   WorkflowB (phone tab only), InboxPaused.
+
+   Reel look: the head, canvas and inspector are cards on the stone; tools,
+   tabs and segments are pills with the picked one in ink; nodes are cards
+   on the canvas's dotted well, picked = a 2px ink outline. On a phone the
+   head wraps to two rows, the canvas sits in the 16px gutter and the
+   inspector is a bottom sheet over a scrim. The phone preview is
+   Instagram's, so it keeps Instagram's colours through the --ig-* tokens. */
+
+/* Instagram's own colours for the phone preview and the button editor.
+   --ig-them / --ig-them-2 (their bubble greys) come from os.css. */
+.os .wf-builder {
+  --ig-me: #3797f0;
+  --ig-me-hover: #2f86d6;
+  --ig-link: #3797f0;
+  --ig-on-me: #ffffff;
+  --ig-bg: #ffffff;
+  --ig-text: #000000;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .os .wf-builder {
+    --ig-bg: #000000;
+    --ig-text: #f5f5f5;
+  }
+}
+:root[data-theme="dark"] .os .wf-builder {
+  --ig-bg: #000000;
+  --ig-text: #f5f5f5;
+}
 
 /* --- Shared bits ----------------------------------------------------------- */
 
@@ -30,7 +58,7 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -56,7 +84,7 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: transparent;
   color: var(--ghost);
   cursor: pointer;
@@ -76,22 +104,23 @@
 .wf-seg {
   display: inline-flex;
   gap: 2px;
-  padding: 2px;
-  border-radius: var(--radius);
-  background: var(--tint);
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--ctl);
 }
 
+/* Full width in the inspector's column, never stretched tall. */
 .wf-seg-full {
   display: flex;
-  flex: 1 1 auto;
+  flex: none;
 }
 
 .wf-seg button {
   flex: 1 1 auto;
-  height: 26px;
-  padding: 0 10px;
+  height: 28px;
+  padding: 0 12px;
   border: 0;
-  border-radius: 3px;
+  border-radius: 999px;
   background: transparent;
   font: inherit;
   font-size: var(--fs-xs);
@@ -104,11 +133,15 @@
   white-space: nowrap;
 }
 
-.wf-seg button[aria-checked="true"] {
-  background: var(--paper);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
-  font-weight: 500;
+.wf-seg button:hover:not([aria-checked="true"]) {
   color: var(--ink);
+}
+
+.wf-seg button[aria-checked="true"] {
+  background: var(--ink);
+  box-shadow: none;
+  font-weight: 500;
+  color: var(--on-ink);
 }
 
 .wf-mode-dot {
@@ -119,18 +152,26 @@
   flex: 0 0 6px;
 }
 
+/* Draft is neutral, not "good": a muted dot. Auto is the ink dot. */
 .wf-mode-dot[data-mode="draft"],
 .wf-mode-pill[data-mode="draft"] .wf-mode-dot {
-  background: var(--mark);
+  background: var(--muted);
 }
 
 .wf-seg button[aria-checked="false"] .wf-mode-dot {
   background: var(--ghost);
 }
 
+.wf-seg button[aria-checked="true"] .wf-mode-dot {
+  background: var(--on-ink);
+}
+
 .wf-kw {
-  padding: 0 6px;
-  border-radius: var(--radius);
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
   background: var(--tint);
   font-size: 11px;
   font-weight: 600;
@@ -146,16 +187,17 @@
 
 .wf-add {
   position: relative;
+  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 24px;
-  padding: 0 8px;
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--paper);
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ctl);
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   cursor: pointer;
   white-space: nowrap;
@@ -163,7 +205,12 @@
 
 .wf-add:hover {
   color: var(--ink);
-  border-color: var(--ink);
+  background: var(--ctl-hover);
+}
+
+.wf-add:focus-within:has(select:focus-visible) {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .wf-add select {
@@ -199,16 +246,16 @@
   right: 0;
   top: calc(100% + 8px);
   z-index: 30;
-  width: 456px;
+  width: min(456px, calc(100vw - 32px));
   box-sizing: border-box;
-  padding: 12px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
+  gap: 12px;
+  background: var(--card);
+  border: 0;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-lg); /* a pop-up, the one place a shadow lives */
 }
 
 .wf-picker-head {
@@ -220,8 +267,9 @@
 .wf-picker-head h2 {
   margin: 0;
   flex: 1;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-h2);
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .wf-picker-grid {
@@ -234,26 +282,24 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--paper);
+  gap: 10px;
+  padding: 10px 10px 12px;
+  border: 0;
+  border-radius: var(--radius-cover);
+  background: var(--well);
   font: inherit;
   color: var(--ink);
   cursor: pointer;
   text-align: left;
+  min-width: 0;
 }
 
-.wf-tpl:hover:not(:disabled),
-.wf-tpl:focus-visible {
-  border-color: var(--ink);
-  box-shadow: 0 0 0 3px var(--tint-2);
-  outline: none;
+.wf-tpl:hover:not(:disabled) {
+  background: var(--tint-2);
 }
 
-.wf-tpl[data-blank] {
-  border-style: dashed;
+.wf-tpl[data-blank] .wf-tpl-art {
+  background: transparent;
 }
 
 .wf-tpl[aria-busy="true"] {
@@ -262,13 +308,19 @@
 
 .wf-tpl-art {
   align-self: stretch;
-  height: 52px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius);
-  background: var(--paper-2);
-  color: var(--ghost);
+  background: var(--card);
+  color: var(--muted);
+}
+
+/* .os svg caps every svg at 15px (os.css); the sketches keep their size. */
+.os .wf-tpl-art svg {
+  width: 102px;
+  height: 44px;
 }
 
 .wf-tpl-art .wf-sk-ink {
@@ -285,10 +337,10 @@
 
 .wf-tpl-tag {
   height: 18px;
-  padding: 0 6px;
-  border-radius: 9px;
-  background: var(--tint);
-  font-size: 10px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--card);
+  font-size: 11px;
   font-weight: 500;
   color: var(--muted);
   display: inline-flex;
@@ -296,9 +348,13 @@
 }
 
 .wf-list {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border: 0;
+  border-radius: var(--radius-card);
   font-size: var(--fs-sm);
+  background: var(--card);
+  padding: 8px 10px;
+  /* The row lays itself out by the card's width, not the window's. */
+  container: wf-list / inline-size;
 }
 
 .wf-list-empty {
@@ -316,7 +372,10 @@
   gap: 16px;
   align-items: center;
   padding: 14px;
-  border-bottom: 1px solid var(--line);
+  border: 0;
+  /* List rows, not table rows: a 14 row that wells on hover, no divider
+     (a divider on a rounded row bends up at both ends, R1-16). */
+  border-radius: var(--radius-cover);
 }
 
 .wf-list-grid:last-child {
@@ -325,9 +384,10 @@
 
 .wf-list-head {
   padding: 8px 14px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .wf-funnel {
@@ -337,13 +397,18 @@
   align-items: end;
 }
 
+/* The step name above each number, for the stacked phone row only. */
+.wf-fcell-lab {
+  display: none;
+}
+
 .wf-row {
   text-decoration: none;
   color: var(--ink);
 }
 
 .wf-row:hover {
-  background: var(--paper-2);
+  background: var(--well);
 }
 
 .wf-row-name {
@@ -381,10 +446,13 @@
   gap: 6px;
   justify-self: start;
   height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
   font-size: var(--fs-xs);
+  white-space: nowrap;
 }
 
 .wf-trigger-chip svg {
@@ -397,16 +465,20 @@
   gap: 6px;
   justify-self: start;
   height: 22px;
-  padding: 0 8px;
-  border-radius: 11px;
+  padding: 0 8px 0 2px;
+  border-radius: 999px;
   font-size: var(--fs-xs);
   font-weight: 500;
-  background: var(--tint);
+  background: transparent;
+  color: var(--ink);
+  white-space: nowrap;
 }
 
+/* Auto = the ink dot and its label; Draft = a neutral filled pill. */
 .wf-mode-pill[data-mode="draft"] {
-  background: var(--mark-bg);
-  color: var(--mark);
+  padding: 0 9px 0 8px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
 }
 
 .wf-fcell {
@@ -433,17 +505,21 @@
 
 .wf-fbar {
   display: block;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--tint-2);
+  height: 6px;
+  border-radius: 999px;
+  background: var(--well);
   overflow: hidden;
 }
 
 .wf-fbar > span {
   display: block;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--ghost);
+  height: 100%;
+  border-radius: 999px;
+  background: var(--bar);
+}
+
+.wf-row:hover .wf-fbar {
+  background: var(--card);
 }
 
 .wf-list .wf-fbar > span,
@@ -454,11 +530,13 @@
 .wf-ab-badge {
   display: inline-flex;
   align-items: center;
-  height: 20px;
-  padding: 0 6px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  font-size: 11px;
+  height: 22px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -466,6 +544,77 @@
   display: flex;
   justify-content: flex-end;
   color: var(--ghost);
+}
+
+/* A narrow list (a phone, or a narrow column): one stacked row per
+   workflow. Name and keywords; the trigger chip, mode and A/B; then the
+   four numbers as a mini funnel, each with its step name. No header. */
+@container wf-list (max-width: 760px) {
+  .wf-list-head {
+    display: none;
+  }
+
+  .wf-list-grid {
+    grid-template-columns: auto auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "name name name name"
+      "trig mode ab ."
+      "fun fun fun fun";
+    gap: 10px 8px;
+    padding: 14px 12px;
+  }
+
+  .wf-list-head + .wf-row {
+    border-top: 0;
+  }
+
+  .wf-row > .wf-row-name {
+    grid-area: name;
+  }
+
+  .wf-row > .wf-trigger-chip {
+    grid-area: trig;
+  }
+
+  .wf-row > .wf-mode-pill {
+    grid-area: mode;
+  }
+
+  .wf-row > :nth-child(5) {
+    grid-area: ab;
+    display: flex;
+  }
+
+  .wf-row > :nth-child(5):empty {
+    display: none;
+  }
+
+  .wf-row > .wf-funnel {
+    grid-area: fun;
+    gap: 10px;
+    padding-top: 2px;
+  }
+
+  .wf-row > .wf-row-go {
+    display: none;
+  }
+
+  .wf-fcell {
+    min-width: 0;
+  }
+
+  .wf-fcell-lab {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .wf-row-title {
+    white-space: normal;
+  }
 }
 
 /* --- Builder frame (WorkflowA) -------------------------------------------- */
@@ -485,7 +634,12 @@
 
 .wf-head {
   flex: 0 0 auto;
-  border-bottom: 1px solid var(--line);
+  min-width: 0;
+  border-bottom: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
+  --ctl: var(--well);
+  --ctl-hover: var(--tint-2);
 }
 
 .wf-head-row {
@@ -518,9 +672,7 @@
 }
 
 .wf-name:focus {
-  outline: none;
-  border-color: var(--line-strong);
-  background: var(--paper);
+  background: var(--well);
 }
 
 .wf-trig-chip {
@@ -530,8 +682,8 @@
   height: 24px;
   padding: 0 8px;
   border: 0;
-  border-radius: var(--radius);
-  background: var(--tint);
+  border-radius: 999px;
+  background: var(--well);
   font: inherit;
   font-size: var(--fs-xs);
   color: var(--ink);
@@ -559,37 +711,60 @@
 }
 
 .wf-strip {
-  height: 44px;
   box-sizing: border-box;
-  padding: 0 20px 0 50px;
+  padding: 4px 20px 16px 50px;
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-wrap: wrap;
+  /* Top-aligned so a stat without a percentage foot keeps its number on
+     the same line as the others. */
+  align-items: flex-start;
+  column-gap: 14px;
+  row-gap: 12px;
   overflow: hidden;
 }
 
+/* A stat: 12 muted label above a 28/600 tabular number, the step's
+   percentage as a 12 foot. The arrow sits between columns (R1-17). */
 .wf-strip-item {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas:
+    "arrow label"
+    "arrow num"
+    "arrow pct";
+  align-items: center;
+  row-gap: 2px;
   white-space: nowrap;
 }
 
 .wf-strip-arrow {
-  align-self: center;
-  margin-right: 8px;
+  grid-area: arrow;
+  margin-right: 14px;
   color: var(--ghost);
 }
 
 .wf-strip-label {
-  font-size: 11px;
+  grid-area: label;
+  font-size: 12px;
   color: var(--muted);
 }
 
 .wf-strip-item b {
-  font-size: 15px;
+  grid-area: num;
+  font-size: var(--fs-stat);
   font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.022em;
   font-variant-numeric: tabular-nums;
+}
+
+.wf-strip > :not(.wf-strip-item) {
+  align-self: center;
+}
+
+.wf-strip-item .wf-strip-pct {
+  grid-area: pct;
+  font-size: 12px;
 }
 
 .wf-strip-pct,
@@ -605,11 +780,11 @@
   align-items: center;
   gap: 6px;
   height: 24px;
-  padding: 0 8px;
+  padding: 0 10px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 999px;
   background: var(--bad-bg);
-  color: var(--bad);
+  color: var(--bad-fg);
   font: inherit;
   font-size: 11px;
   font-weight: 500;
@@ -631,6 +806,7 @@
   flex: 1 1 0;
   min-height: 0;
   display: flex;
+  gap: var(--gap);
 }
 
 /* --- Canvas --------------------------------------------------------------- */
@@ -641,22 +817,49 @@
   position: relative;
   overflow: hidden;
   background: var(--paper-2);
+  border-radius: var(--radius-card);
 }
 
 .wf-canvas .react-flow {
-  --xy-background-color: var(--paper-2);
-  --xy-edge-stroke: rgb(17 17 17 / 0.34);
+  --xy-background-color: var(--well);
+  --xy-background-pattern-color: color-mix(in srgb, var(--ink) 16%, transparent);
+  --xy-edge-stroke: color-mix(in srgb, var(--ink) 34%, transparent);
   --xy-edge-stroke-selected: var(--ink);
   --xy-edge-stroke-width: 1.4;
   --xy-connectionline-stroke: var(--ink);
-  --xy-handle-background-color: var(--paper);
-  --xy-handle-border-color: rgb(17 17 17 / 0.34);
-  --xy-minimap-background-color: var(--paper);
-  --xy-controls-button-background-color: var(--paper);
-  --xy-controls-button-background-color-hover: var(--tint);
+  --xy-handle-background-color: var(--card);
+  --xy-handle-border-color: transparent;
+  --xy-minimap-background-color: var(--card);
+  /* One surface: the mask is the card too, so the minimap reads as a single
+     14 tile of node marks, not a viewport block inside a frame (R1-20). */
+  --xy-minimap-mask-background-color: var(--card);
+  --xy-minimap-mask-stroke-color: transparent;
+  --xy-minimap-node-background-color: color-mix(in srgb, var(--ink) 16%, transparent);
+  --xy-controls-button-background-color: transparent;
+  --xy-controls-button-background-color-hover: var(--well);
+  --xy-controls-button-color: var(--ink);
+  --xy-controls-button-color-hover: var(--ink);
   --xy-controls-button-border-color: transparent;
-  --xy-controls-box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  --xy-controls-box-shadow: none;
   font-family: var(--font);
+}
+
+/* .os svg gives every svg a stroke and a 15px box (os.css); React Flow's
+   own svgs (dot ground, minimap) must not inherit either. */
+.os .wf-canvas .react-flow__background,
+.os .wf-canvas .react-flow__background *,
+.os .wf-canvas .react-flow__minimap-svg {
+  stroke: none;
+}
+
+.os .wf-canvas .react-flow__minimap-svg {
+  display: block;
+  width: 168px;
+  height: 112px;
+}
+
+.os .wf-canvas .react-flow__minimap-mask {
+  stroke: none;
 }
 
 .wf-canvas .react-flow__edge.wf-edge-alt path.react-flow__edge-path {
@@ -664,7 +867,7 @@
 }
 
 .wf-canvas .react-flow__node {
-  border-radius: var(--radius);
+  border-radius: var(--radius-cover);
 }
 
 .wf-canvas .react-flow__node.selected,
@@ -674,23 +877,35 @@
 
 .wf-canvas .react-flow__controls {
   margin: 16px;
-  padding: 2px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  padding: 3px;
+  gap: 2px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: none;
   overflow: hidden;
 }
 
 .wf-canvas .react-flow__controls-button {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
+  padding: 9px;
   border: 0;
+  border-radius: 999px;
+}
+
+.wf-canvas .react-flow__controls-button svg {
+  max-width: 13px;
+  max-height: 13px;
+  stroke: none;
 }
 
 .wf-canvas .react-flow__minimap {
   margin: 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  border: 0;
+  border-radius: var(--radius-cover);
+  background: var(--card);
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -707,29 +922,36 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--paper);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  height: 36px;
+  padding: 0 14px 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: none;
   font: inherit;
   font-weight: 500;
   color: var(--ink);
   cursor: pointer;
 }
 
+.wf-tool:hover {
+  background: var(--card);
+  color: var(--ink);
+}
+
 .wf-tool[aria-expanded="true"] {
-  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
 }
 
 .wf-tool-group {
   display: flex;
-  padding: 1px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--paper);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  gap: 2px;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: none;
 }
 
 .wf-palette {
@@ -741,14 +963,14 @@
   max-height: calc(100% - 72px);
   overflow: auto;
   box-sizing: border-box;
-  padding: 6px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
+  background: var(--card);
+  border: 0;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-lg); /* a pop-up, the one place a shadow lives */
 }
 
 .wf-palette-head {
@@ -760,7 +982,7 @@
 .wf-palette-head h2 {
   flex: 1;
   margin: 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -779,10 +1001,8 @@
   text-align: left;
 }
 
-.wf-palette-item:hover,
-.wf-palette-item:focus-visible {
-  background: var(--paper-2);
-  outline: none;
+.wf-palette-item:hover {
+  background: var(--well);
 }
 
 .wf-palette-item > span:nth-child(2) {
@@ -795,8 +1015,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius);
-  background: var(--tint);
+  border-radius: var(--radius-sm);
+  background: var(--well);
+}
+
+.wf-palette-item:hover .wf-palette-icon {
+  background: var(--card);
 }
 
 .wf-palette-grip {
@@ -808,10 +1032,10 @@
 .wf-node {
   position: relative;
   box-sizing: border-box;
-  background: var(--paper);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  background: var(--card);
+  border: 0;
+  border-radius: var(--radius-cover);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   color: var(--ink);
@@ -820,18 +1044,19 @@
   cursor: default;
 }
 
+/* Picked = a 2px ink outline; a problem = a 2px red one. */
 .wf-node[data-selected] {
-  border: 1.5px solid var(--ink);
-  box-shadow: 0 0 0 4px var(--tint-2), 0 1px 2px rgb(0 0 0 / 0.06);
+  outline: 2px solid var(--ink);
+  outline-offset: 0;
 }
 
 .wf-node[data-problem] {
-  border-color: var(--bad);
-  box-shadow: 0 0 0 3px var(--bad-bg);
+  outline: 2px solid var(--bad);
+  outline-offset: 0;
 }
 
 .wf-node[data-type="end"] {
-  border-style: dashed;
+  color: var(--muted);
 }
 
 .wf-nh {
@@ -856,16 +1081,16 @@
 }
 
 .wf-setter-dot {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 14px;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
   border-radius: 50%;
   background: var(--ink);
   color: var(--on-ink);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -901,7 +1126,7 @@
   box-sizing: border-box;
   padding: 5px 9px;
   border-radius: 14px;
-  background: #efefef;
+  background: var(--ig-them);
   font-size: var(--fs-xs);
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -916,8 +1141,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: transparent;
-  border: 1px dashed var(--line-strong);
+  background: var(--well);
+  border: 0;
   color: var(--muted);
 }
 
@@ -975,9 +1200,10 @@
   align-items: center;
   gap: 4px;
   height: 20px;
-  padding: 0 6px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--well);
   font-size: 11px;
   white-space: nowrap;
 }
@@ -1039,11 +1265,12 @@
   font-weight: 500;
 }
 
+/* Ports: filled dots in the edge colour, no ring. */
 .wf-canvas .wf-handle {
   width: 9px;
   height: 9px;
-  border: 1.4px solid rgb(17 17 17 / 0.34);
-  background: var(--paper);
+  border: 0;
+  background: color-mix(in srgb, var(--ink) 34%, transparent);
 }
 
 .wf-canvas .wf-port .wf-handle {
@@ -1063,33 +1290,36 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-left: 1px solid var(--line);
-  background: var(--paper);
+  border-left: 0;
+  background: var(--card);
+  border-radius: var(--radius-card);
+  overflow: hidden;
 }
 
 .wf-insp-top {
-  padding: 12px 16px;
+  padding: 14px 16px 4px;
   display: flex;
   align-items: center;
   gap: 4px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 0;
 }
 
+/* Inspector tabs: a pill track, the picked tab in ink. */
 .wf-tabbar {
   display: flex;
   gap: 2px;
-  padding: 2px;
-  border-radius: var(--radius);
-  background: var(--tint);
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--ctl);
   flex: 1;
   margin-right: 4px;
 }
 
 .wf-tabbar button {
   flex: 1;
-  height: 26px;
+  height: 30px;
   border: 0;
-  border-radius: 3px;
+  border-radius: 999px;
   background: transparent;
   font: inherit;
   font-size: var(--fs-xs);
@@ -1101,11 +1331,15 @@
   gap: 6px;
 }
 
-.wf-tabbar button[aria-selected="true"] {
-  background: var(--paper);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
-  font-weight: 500;
+.wf-tabbar button:hover:not([aria-selected="true"]) {
   color: var(--ink);
+}
+
+.wf-tabbar button[aria-selected="true"] {
+  background: var(--ink);
+  box-shadow: none;
+  font-weight: 500;
+  color: var(--on-ink);
 }
 
 .wf-insp-title {
@@ -1138,7 +1372,7 @@
   list-style: none;
   border-radius: var(--radius);
   background: var(--bad-bg);
-  color: var(--bad);
+  color: var(--bad-fg);
   font-size: var(--fs-xs);
 }
 
@@ -1190,6 +1424,16 @@
   flex: 1 1 auto;
   min-width: 0;
   height: 32px;
+  /* The shared hairline chevron, as on every .os-select (R1-3). Set the
+     image, never the background shorthand, so the colour stays --ctl. */
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 32px;
+  background-image: var(--chevron);
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  cursor: pointer;
 }
 
 .wf-num {
@@ -1217,20 +1461,26 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 24px;
-  padding: 0 4px 0 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
+  height: 26px;
+  padding: 0 4px 0 10px;
+  border: 0;
+  border-radius: 999px;
   font-size: var(--fs-xs);
-  background: var(--paper);
+  background: var(--well);
 }
 
 .wf-chip:not(:has(.wf-chip-x)) {
-  padding-right: 8px;
+  padding-right: 10px;
+}
+
+/* Setter exits: an exit with an arrow reads ink, one without is muted. */
+.wf-chip[title] {
+  color: var(--muted);
 }
 
 .wf-chip[data-linked] {
-  border-color: var(--ink);
+  color: var(--ink);
+  font-weight: 500;
 }
 
 .wf-chip-x {
@@ -1240,7 +1490,7 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 3px;
+  border-radius: 999px;
   background: transparent;
   color: var(--ghost);
   cursor: pointer;
@@ -1282,10 +1532,10 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: var(--radius);
   background: var(--warn-bg);
-  color: var(--warn);
+  color: var(--warn-fg);
   font-size: var(--fs-xs);
 }
 
@@ -1305,17 +1555,17 @@
   gap: 10px;
 }
 
+/* One bubble: a well in the inspector card; its fields go back to --card. */
 .wf-bubble-edit {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  border: 1px solid var(--line);
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border: 0;
   border-radius: var(--radius);
-}
-
-.wf-bubble-edit[data-kind="link"] {
-  border-color: var(--line-strong);
+  background: var(--well);
+  --ctl: var(--card);
+  --ctl-hover: var(--tint);
 }
 
 .wf-bubble-tools {
@@ -1324,9 +1574,15 @@
   gap: 2px;
 }
 
-.wf-bubble-text {
+/* A bubble's text grows with what's written (up to a point). */
+.os .wf-insp .wf-bubble-text {
+  height: auto;
+  min-height: 60px;
+  max-height: 240px;
+  padding-top: 9px;
+  padding-bottom: 9px;
   resize: vertical;
-  min-height: 52px;
+  field-sizing: content;
 }
 
 .wf-add-row {
@@ -1344,10 +1600,11 @@
 .wf-igbtn {
   display: flex;
   align-items: center;
-  height: 30px;
+  height: 32px;
   padding: 0 4px 0 0;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--ctl);
 }
 
 .wf-igbtn input {
@@ -1360,7 +1617,7 @@
   font-size: var(--fs-xs);
   font-weight: 600;
   text-align: center;
-  color: #3797f0;
+  color: var(--ig-link);
 }
 
 .wf-igbtn input:focus {
@@ -1450,7 +1707,7 @@
   width: 20px;
   height: 20px;
   flex: 0 0 20px;
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: var(--tint);
   display: inline-flex;
   align-items: center;
@@ -1542,17 +1799,22 @@
 
 .wf-phone-wrap > .wf-field-row {
   align-self: stretch;
+  gap: 10px;
+  white-space: nowrap;
 }
 
+/* The device: Instagram's screen in a --well bezel, no outline, no shadow. */
 .wf-phone {
   width: 292px;
+  max-width: 100%;
   height: 520px;
   box-sizing: border-box;
-  border: 1px solid var(--line-strong);
-  border-radius: 28px;
-  padding: 10px;
-  background: var(--paper);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 16px 40px rgb(0 0 0 / 0.08);
+  border: 8px solid var(--well);
+  border-radius: var(--radius-card);
+  padding: 8px 10px 10px;
+  background: var(--ig-bg);
+  color: var(--ig-text);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1563,14 +1825,14 @@
   align-items: center;
   gap: 8px;
   padding: 6px 6px 10px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--ig-them-2);
 }
 
 .wf-ph-av {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: var(--tint-2);
+  background: var(--ig-them);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1586,7 +1848,7 @@
 }
 
 .wf-ph-who span {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 
@@ -1605,9 +1867,9 @@
   align-self: flex-end;
   max-width: 78%;
   padding: 7px 11px;
-  border-radius: 18px;
-  background: #3797f0;
-  color: #ffffff;
+  border-radius: 20px;
+  background: var(--ig-me);
+  color: var(--ig-on-me);
   font-size: var(--fs-xs);
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -1615,8 +1877,8 @@
 
 .wf-ph-b[data-side="in"] {
   align-self: flex-start;
-  background: #efefef;
-  color: var(--ink);
+  background: var(--ig-them);
+  color: var(--ig-text);
 }
 
 .wf-ph-img {
@@ -1625,16 +1887,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #2f86d6;
+  background: var(--ig-me-hover);
 }
 
 .wf-ph-link {
   align-self: flex-end;
   width: 196px;
-  border-radius: 18px;
+  border-radius: 20px;
   overflow: hidden;
-  background: #3797f0;
-  color: #ffffff;
+  background: var(--ig-me);
+  color: var(--ig-on-me);
   display: flex;
   flex-direction: column;
   font-size: var(--fs-xs);
@@ -1651,22 +1913,22 @@
 
 .wf-ph-card {
   padding: 7px 11px 9px;
-  background: #2f86d6;
+  background: var(--ig-me-hover);
   display: flex;
   flex-direction: column;
   gap: 1px;
 }
 
 .wf-ph-card span {
-  font-size: 10px;
+  font-size: 11px;
   opacity: 0.75;
 }
 
 .wf-ph-btncard {
   align-self: flex-end;
   width: 196px;
-  border: 1px solid var(--line-strong);
-  border-radius: 18px;
+  border: 1px solid var(--ig-them-2);
+  border-radius: 20px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1679,10 +1941,14 @@
 
 .wf-ph-btn {
   padding: 7px 11px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--ig-them-2);
   text-align: center;
-  color: #3797f0;
+  color: var(--ig-link);
   font-weight: 600;
+}
+
+.wf-ph-btncard {
+  color: var(--ig-text);
 }
 
 .wf-ph-comment {
@@ -1702,8 +1968,8 @@
   height: 34px;
   margin-top: 6px;
   padding: 0 12px;
-  border-radius: 17px;
-  background: #efefef;
+  border-radius: 999px;
+  background: var(--ig-them);
   font-size: var(--fs-xs);
   color: var(--ghost);
 }
@@ -1714,18 +1980,20 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 32px;
-  margin-top: 8px;
-  padding: 0 4px 0 10px;
-  border: 1px solid var(--line);
+  height: 36px;
+  margin-top: 10px;
+  padding: 0 7px 0 12px;
+  border: 0;
   border-radius: var(--radius);
+  background: var(--well);
   text-decoration: none;
   color: var(--ink);
   font-size: var(--fs-xs);
+  transition: background-color 120ms ease;
 }
 
 .wf-runline:hover {
-  background: var(--paper-2);
+  background: var(--tint-2);
 }
 
 .wf-runline > svg {
@@ -1745,23 +2013,24 @@
   align-items: center;
   gap: 4px;
   height: 22px;
-  padding: 0 8px;
-  border-radius: 11px;
-  background: var(--tint);
-  font-size: 11px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--good-bg);
+  color: var(--good-fg);
+  font-size: var(--fs-xs);
   font-weight: 500;
 }
 
 .wf-runline-st[data-paused] {
   background: var(--warn-bg);
-  color: var(--warn);
+  color: var(--warn-fg);
 }
 
 .wf-runline-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--mark);
+  background: var(--good);
 }
 
 .wf-runline-st[data-paused] .wf-runline-dot {
@@ -1789,9 +2058,9 @@
   gap: 4px;
   height: 22px;
   padding: 0 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: 11px;
-  background: var(--paper);
+  border: 0;
+  border-radius: 999px;
+  background: var(--well);
   font: inherit;
   font-size: 11px;
   font-weight: 500;
@@ -1807,4 +2076,166 @@
   flex: 0 0 auto;
   align-self: center;
   margin-left: 4px;
+}
+
+/* Reel look (reel.css): the builder's header, canvas and inspector as cards, full height. */
+@media (min-width: 861px) {
+  .wf-builder {
+    height: calc(100dvh - var(--page-pad) * 2);
+    gap: var(--gap);
+  }
+}
+
+/* The scrim behind the phone inspector sheet; nothing on a wide screen. */
+.wf-insp-scrim {
+  display: none;
+}
+
+/* --- Phone ---------------------------------------------------------------- */
+@media (max-width: 860px) {
+  /* The builder sits in the 16px gutter like every other screen. */
+  .os-main:has(.os-wfb) {
+    padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .wf-builder {
+    height: calc(100dvh - var(--bar-h) - env(safe-area-inset-top) - 28px - env(safe-area-inset-bottom));
+    min-height: 420px;
+    gap: 12px;
+  }
+
+  /* Head: back, name and trigger on one row; save state, mode, on/off
+     and Publish on the next. .wf-grow becomes the line break. */
+  .wf-head-row {
+    height: auto;
+    flex-wrap: wrap;
+    row-gap: 10px;
+    padding: 10px 12px 12px 6px;
+  }
+
+  .wf-head-row > .wf-grow {
+    flex: 1 0 100%;
+    height: 0;
+    margin: -5px 0;
+  }
+
+  .wf-name {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+    field-sizing: fixed;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .wf-trig-chip {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .wf-save {
+    margin-left: 6px;
+    margin-right: auto;
+  }
+
+  /* The results strip scrolls inside the card. */
+  .wf-strip {
+    padding: 4px 16px 16px 18px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .wf-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .wf-strip-item,
+  .wf-strip > * {
+    flex: 0 0 auto;
+  }
+
+  .wf-tools {
+    left: 12px;
+    top: 12px;
+  }
+
+  .wf-palette {
+    left: 12px;
+    top: 56px;
+  }
+
+  .wf-canvas .react-flow__controls {
+    margin: 12px;
+  }
+
+  .wf-canvas .react-flow__minimap {
+    display: none;
+  }
+
+  /* Inspector: a bottom sheet over a scrim. */
+  .wf-insp-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 44;
+    background: var(--scrim);
+    animation: wf-fade 200ms var(--ease) both;
+  }
+
+  .wf-insp {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 45;
+    max-height: min(78dvh, calc(100dvh - var(--bar-h) - 24px));
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    box-shadow: var(--shadow-lg); /* a sheet is a pop-up */
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: wf-sheet-in 320ms var(--ease-sheet) both;
+  }
+
+  .wf-insp-top {
+    position: relative;
+    padding-top: 22px;
+  }
+
+  /* The grabber. */
+  .wf-insp-top::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    width: 36px;
+    height: 4px;
+    margin-left: -18px;
+    border-radius: 999px;
+    background: var(--bar);
+  }
+
+  .wf-phone {
+    width: 100%;
+    max-width: 320px;
+  }
+}
+
+@keyframes wf-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes wf-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) and (max-width: 860px) {
+  .wf-insp {
+    animation-name: wf-fade;
+    animation-duration: 160ms;
+  }
 }

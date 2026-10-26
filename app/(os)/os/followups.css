@@ -37,13 +37,6 @@
   gap: var(--sp-2);
 }
 
-.os-tl-title h1 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
 .os-tl-filter {
   display: flex;
   align-items: center;
@@ -52,25 +45,29 @@
   color: var(--muted);
 }
 
+/* Nothing sent / paused / scheduled: the empty state sits in a card under
+   the tabs, like the inbox's (R1-15). */
+.os-tl > .os-empty-state {
+  padding: 22px 24px;
+  border-radius: var(--radius-card);
+  background: var(--card);
+}
+
 .os-tl > .os-tabs {
   align-self: flex-start;
 }
 
-.os-tl > .os-tabs .os-tab:first-child .os-tabs-n {
-  color: var(--mark);
-}
-
 .os-tl-msg {
   align-self: flex-start;
-  padding: 6px 10px;
-  border-radius: var(--radius);
-  background: var(--tint);
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--card);
   font-size: var(--fs-xs);
 }
 
 .os-tl-msg[data-bad] {
   background: var(--bad-bg);
-  color: var(--bad);
+  color: var(--bad-fg);
 }
 
 /* Yours to do */
@@ -88,8 +85,9 @@
 
 .os-tl-todo-head h2 {
   margin: 0;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-h2);
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .os-tl-todo-head span {
@@ -99,37 +97,28 @@
 
 .os-tl-todo ul {
   margin: 0;
-  padding: 0;
+  padding: 6px 10px;
   list-style: none;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--mark-bg);
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
 }
 
 .os-tl-todo li {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--line);
+  padding: 12px;
+  border-bottom: 0;
+  border-radius: var(--radius-cover);
 }
 
 .os-tl-todo li:last-child {
   border-bottom: 0;
 }
 
-.os-tl-todo input {
-  margin: 0;
-  accent-color: var(--ink);
-}
-
-.os-tl-todo-mark {
-  width: 13px;
-  height: 13px;
-  flex: none;
-  border-radius: 50%;
-  border: 1.5px solid var(--mark);
-}
+/* The tick is the shared /os checkbox; .os-tl-todo-mark is the same
+   checkbox, disabled, on items you finish from their action (D-09). */
 
 .os-tl-todo-text {
   flex: 1;
@@ -194,10 +183,11 @@
 
 .os-tl-list {
   margin: 0;
-  padding: 0;
+  padding: 6px 10px;
   list-style: none;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
 }
 
 .os-tl-row {
@@ -205,9 +195,10 @@
   grid-template-columns: 24px 132px 196px minmax(0, 1fr) 64px 124px;
   align-items: center;
   gap: var(--sp-3);
-  padding: 8px 8px 8px 14px;
-  border-bottom: 1px solid var(--line);
+  padding: 8px 8px 8px 12px;
+  border-bottom: 0;
   transition: background-color 120ms ease;
+  border-radius: var(--radius-cover);
 }
 
 .os-tl-row:last-child {
@@ -215,7 +206,7 @@
 }
 
 .os-tl-row:hover {
-  background: var(--paper-2);
+  background: var(--well);
 }
 
 .os-tl-row[data-variant="sent"] {
@@ -226,7 +217,7 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--tint-2);
+  background: var(--well);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -307,16 +298,16 @@
   align-items: center;
   gap: var(--sp-3);
   padding: 10px 8px 10px 14px;
-  border: 1px solid rgb(154 106 0 / 0.25);
-  border-radius: var(--radius);
+  border: 0;
+  border-radius: 14px;
   background: var(--warn-bg);
 }
 
 .os-tl-banner-ic {
   width: 24px;
   height: 24px;
-  border-radius: var(--radius);
-  background: var(--paper);
+  border-radius: 999px;
+  background: var(--card);
   color: var(--warn);
   display: flex;
   align-items: center;
@@ -339,7 +330,7 @@
 }
 
 .os-tl-warn {
-  color: var(--warn);
+  color: var(--warn-fg);
 }
 
 .os-tl-banner-btn.os-button {
@@ -368,6 +359,14 @@
   }
   .os-tl-banner {
     grid-template-columns: 24px minmax(0, 1fr) auto;
+    row-gap: 8px;
+  }
+  .os-tl-banner-text {
+    white-space: normal;
+  }
+  .os-tl-banner-btn.os-button {
+    grid-column: 2 / -1;
+    justify-self: start;
   }
   .os-tl-banner .os-tl-src {
     display: none;
@@ -399,8 +398,8 @@
 
 .os-pf-loading {
   height: 64px;
-  border-radius: var(--radius);
-  background: var(--tint);
+  border-radius: 14px;
+  background: var(--well);
 }
 
 .os-pf-switches {
@@ -422,8 +421,9 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border: 0;
+  border-radius: 14px;
+  background: var(--well);
 }
 
 .os-pf-list li {
@@ -431,7 +431,7 @@
   flex-direction: column;
   gap: 2px;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 0;
 }
 
 .os-pf-list li:last-child {
@@ -514,22 +514,27 @@
   margin-right: var(--sp-2);
 }
 
+/* Follow-up Friday's next run: a --card pill on the stone (D-09). */
 .os-tl-fri {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   align-self: flex-start;
+  box-sizing: border-box;
   max-width: 100%;
-  padding: 6px 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  min-height: 32px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
   color: var(--muted);
   font-size: var(--fs-xs);
   text-decoration: none;
+  background: var(--ctl);
+  transition: background-color 120ms ease;
 }
 
 .os-tl-fri:hover {
-  background: var(--paper-2);
+  background: var(--ctl-hover);
 }
 
 .os-tl-fri strong {

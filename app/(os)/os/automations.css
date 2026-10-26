@@ -15,13 +15,19 @@
   justify-content: space-between;
   gap: var(--sp-4);
   flex-wrap: wrap;
+  /* The height of the head's button, so a head without one (Broadcasts)
+     puts the title and tabs where Workflows and Campaigns do. */
+  min-height: var(--control-h, 36px);
 }
 
-.os .os-auto-head h1 {
+/* Page title: .os-title (os.css). The workflows list (E) shares this head
+   without the class yet, so its h1 gets the same tokens here. */
+.os .os-auto-head h1:not(.os-title) {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--fs-h1);
   font-weight: 600;
-  letter-spacing: -0.01em;
+  line-height: 1.2;
+  letter-spacing: -0.022em;
 }
 
 .os .os-auto-new {
@@ -45,6 +51,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* On the picked (ink) pill the ghost count vanishes: take the pill's own
+   colour, softened, like reel.css does for .count and .os-tabs-n. (R2-1) */
+.os .os-tab[aria-current="page"] .os-auto-tab-n {
+  color: inherit;
+  opacity: 0.7;
+}
+
 /* Trigger chips */
 .os .os-auto-chips {
   display: flex;
@@ -58,9 +71,9 @@
   gap: 6px;
   height: 28px;
   padding: 0 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--paper);
+  border: 0;
+  border-radius: 999px;
+  background: var(--card);
   color: var(--ink);
   font: inherit;
   font-size: var(--fs-xs);
@@ -80,13 +93,12 @@
 }
 
 .os .os-auto-chips button[aria-pressed="true"] {
-  border-color: var(--ink);
   background: var(--ink);
   color: var(--on-ink);
 }
 
 .os .os-auto-chips button[aria-pressed="true"] .n {
-  color: rgb(255 255 255 / 0.62);
+  color: color-mix(in srgb, var(--on-ink) 62%, transparent);
 }
 
 .os .os-auto-note {
@@ -104,8 +116,10 @@
    out as the list gets narrower (container queries on the grid). */
 .os .os-auto-grid {
   container-type: inline-size;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
+  padding: 6px 14px;
 }
 
 .os .os-auto-r {
@@ -117,38 +131,106 @@
   align-items: center;
   min-width: 0;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 0;
   color: var(--ink);
+  border-top: 1px solid var(--line);
 }
 
+/* The cells are named through the grid (.os-auto-grid) so these beat the
+   cells' own display rules further down. */
 @container (max-width: 980px) {
-  .os .os-auto-r {
+  .os .os-auto-grid .os-auto-r {
     --cols: minmax(84px, 0.8fr) minmax(110px, 1fr) minmax(96px, 0.8fr) 76px 68px 64px 56px 56px 32px;
   }
-  .os .os-auto-c-open {
+  .os .os-auto-grid .os-auto-c-open {
     display: none;
   }
 }
 
 @container (max-width: 780px) {
-  .os .os-auto-r {
+  .os .os-auto-grid .os-auto-r {
     --cols: minmax(84px, 0.8fr) minmax(0, 1fr) 76px 68px 56px 32px;
   }
-  .os .os-auto-c-trig,
-  .os .os-auto-c-trd,
-  .os .os-auto-c-rep {
+  .os .os-auto-grid :is(.os-auto-c-trig, .os-auto-c-trd, .os-auto-c-rep) {
     display: none;
   }
 }
 
-@container (max-width: 520px) {
-  .os .os-auto-r {
-    --cols: minmax(72px, auto) minmax(0, 1fr) 64px 32px;
-    gap: 8px;
+/* Phone (D-08): each campaign is a list row (padding 12, radius 14, no
+   dividers): keyword pill and status on top, what it sends, the trigger
+   line, then Triggered / Replied / Booked in a row with their labels. */
+@container (max-width: 560px) {
+  .os .os-auto-grid {
+    padding: 6px;
   }
-  .os .os-auto-c-set,
-  .os .os-auto-c-bk {
+  .os .os-auto-grid .os-auto-hr {
     display: none;
+  }
+  .os .os-auto-grid .os-auto-r {
+    grid-template-columns: auto auto auto minmax(0, 1fr) auto 32px;
+    grid-template-areas:
+      "kw kw kw kw status menu"
+      "sends sends sends sends sends sends"
+      "trig trig trig trig trig trig"
+      "trd rep bk . . .";
+    gap: 6px 16px;
+    padding: 12px;
+    border-top: 0;
+    border-radius: var(--radius-cover);
+  }
+  .os .os-auto-grid .os-auto-r + .os-auto-r {
+    margin-top: 2px;
+  }
+  .os .os-auto-grid .os-auto-kw {
+    grid-area: kw;
+  }
+  .os .os-auto-grid .os-auto-sends {
+    grid-area: sends;
+  }
+  .os .os-auto-grid .os-auto-c-trig {
+    grid-area: trig;
+    display: flex;
+  }
+  .os .os-auto-grid .os-auto-c-open,
+  .os .os-auto-grid .os-auto-c-set {
+    display: none;
+  }
+  .os .os-auto-grid .os-auto-status {
+    grid-area: status;
+    justify-self: end;
+  }
+  .os .os-auto-grid .os-auto-menu {
+    grid-area: menu;
+  }
+  .os .os-auto-grid :is(.os-auto-c-trd, .os-auto-c-rep, .os-auto-c-bk) {
+    display: block;
+    text-align: left;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .os .os-auto-grid .os-auto-c-trd {
+    grid-area: trd;
+  }
+  .os .os-auto-grid .os-auto-c-rep {
+    grid-area: rep;
+  }
+  .os .os-auto-grid .os-auto-c-bk {
+    grid-area: bk;
+  }
+  .os .os-auto-grid :is(.os-auto-c-trd, .os-auto-c-rep, .os-auto-c-bk)::before {
+    margin-right: 4px;
+    color: var(--muted);
+    font-size: var(--fs-xs);
+    font-weight: 400;
+  }
+  .os .os-auto-grid .os-auto-c-trd::before {
+    content: "Triggered";
+  }
+  .os .os-auto-grid .os-auto-c-rep::before {
+    content: "Replied";
+  }
+  .os .os-auto-grid .os-auto-c-bk::before {
+    content: "Booked";
   }
 }
 
@@ -203,12 +285,13 @@
 }
 
 .os .os-auto-r:not(.os-auto-hr):hover {
-  background: var(--paper-2);
+  background: var(--well);
 }
 
 .os .os-auto-hr {
+  border-top: 0;
   padding: 8px 14px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--muted);
 }
@@ -248,8 +331,8 @@
 .os .os-auto-kw .chip {
   flex: none;
   padding: 1px 6px;
-  border-radius: var(--radius);
-  background: var(--tint-2);
+  border-radius: 999px;
+  background: var(--neutral-bg);
   color: var(--ink);
   font-size: var(--fs-xs);
   font-weight: 600;
@@ -260,7 +343,7 @@
 
 .os .os-auto-kw .more {
   flex: none;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
@@ -289,10 +372,11 @@
 
 .os .os-auto-kw .ab {
   padding: 0 6px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  font-size: 11px;
+  border: 0;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
   color: var(--muted);
+  background: var(--well);
 }
 
 .os .os-auto-two {
@@ -350,7 +434,7 @@
   justify-content: center;
   background: var(--tint-2);
   color: var(--ink);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -362,41 +446,41 @@
 .os .os-auto-status {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   justify-self: start;
-  height: 24px;
-  padding: 0 6px;
-  margin-left: -6px;
+  height: 22px;
+  padding: 0 9px;
   border: 0;
-  border-radius: var(--radius);
-  background: none;
-  color: var(--ink);
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
   font: inherit;
   font-size: var(--fs-xs);
+  font-weight: 500;
   cursor: pointer;
+  transition: transform 100ms var(--ease), opacity 120ms ease;
 }
 
 .os .os-auto-status:hover:not(:disabled) {
-  background: var(--tint);
+  opacity: 0.82;
 }
 
+.os .os-auto-status:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* The pill says the state; no dot beside it. */
 .os .os-auto-status .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--ghost);
+  display: none;
 }
 
-.os .os-auto-status[data-state="live"] .dot {
-  background: var(--mark);
+.os .os-auto-status[data-state="live"] {
+  background: var(--good-bg);
+  color: var(--good-fg);
 }
 
 .os .os-auto-status[data-state="warn"] {
-  color: var(--warn);
-}
-
-.os .os-auto-status[data-state="warn"] .dot {
-  background: var(--warn);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
 }
 
 .os .os-auto-more {
@@ -405,7 +489,7 @@
   width: 28px;
   height: 28px;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: none;
   color: var(--ghost);
   cursor: pointer;
@@ -437,8 +521,9 @@
 
 .os .os-auto-bc-head h2 {
   margin: 0;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-h2);
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .os .os-auto-bc-head a {
@@ -449,9 +534,10 @@
 .os .os-auto-bc ul {
   list-style: none;
   margin: 0;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  padding: 6px 14px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
 }
 
 .os .os-auto-bc li + li {
@@ -469,7 +555,7 @@
 }
 
 .os .os-auto-bc-row:hover {
-  background: var(--paper-2);
+  background: var(--well);
 }
 
 .os .os-auto-bc-row .name {
@@ -482,19 +568,35 @@
 }
 
 .os .os-auto-bc-row .st {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-self: start;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
   font-size: var(--fs-xs);
-  color: var(--muted);
+  font-weight: 500;
+}
+
+.os .os-auto-bc-row .st .os-dot {
+  display: none;
 }
 
 .os .os-auto-bc-row .st[data-tone="warn"] {
-  color: var(--warn);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
 }
 
 .os .os-auto-bc-row .st[data-tone="mark"] {
-  color: var(--mark);
+  background: var(--good-bg);
+  color: var(--good-fg);
+}
+
+.os .os-auto-bc-row .st[data-tone="ink"] {
+  background: var(--ink);
+  color: var(--on-ink);
 }
 
 .os .os-auto-bc-row svg {
@@ -540,8 +642,8 @@
   z-index: 20;
   min-width: 150px;
   padding: 4px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border: 0;
+  border-radius: var(--radius-card);
   background: var(--card);
   box-shadow: var(--shadow);
   transform-origin: top right;
@@ -561,7 +663,7 @@
   width: 100%;
   padding: 7px 10px;
   border: 0;
-  border-radius: 3px;
+  border-radius: var(--radius);
   background: none;
   color: var(--ink);
   font: inherit;
@@ -587,9 +689,9 @@
   flex-direction: column;
   align-items: center;
   padding: 56px 24px 64px;
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--paper-2);
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
   text-align: center;
 }
 
@@ -617,14 +719,18 @@
 /* --- Edit page: lead magnet + setter ---------------------------------------- */
 
 .os .os-auto-bar {
+  /* A card: its selects are wells, like every control in a card. */
+  --ctl: var(--well);
+  --ctl-hover: var(--tint-2);
   display: flex;
   align-items: flex-end;
   gap: var(--sp-4) var(--sp-6);
   flex-wrap: wrap;
-  margin-bottom: var(--sp-6);
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  margin-bottom: var(--gap);
+  padding: 20px 22px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
 }
 
 .os .os-auto-pick {
@@ -655,104 +761,414 @@
   color: var(--bad);
 }
 
-/* --- OpenReply's builder, restyled ---------------------------------------------
-   Its Tailwind utilities sit in @layer utilities, so these plain rules win
-   without !important. Only colour, corners and borders change; layout and
-   behaviour stay upstream's. */
+/* --- OpenReply's campaign builder, in the reel look ----------------------------
+   The markup is upstream's and stays untouched (components/campaign-builder.tsx,
+   campaign-preview.tsx, post-picker.tsx, account-select.tsx); its Tailwind
+   utilities sit in @layer utilities, so these plain rules win without
+   !important. The form column is one white card on the stone; options are
+   list rows (picked = well) with the shared ink radio; every outlined box is
+   an inner well; inputs, buttons and the switch are the /os controls. The
+   preview phone stands on the stone beside it: the device is an exempt mock,
+   its screen is Instagram's own light or dark (the --ig-* colours). (D-01..03,
+   U-02) */
 
-.os-builder .rounded,
-.os-builder .rounded-lg,
-.os-builder .rounded-xl,
-.os-builder .rounded-md {
-  border-radius: var(--radius);
+.os-builder {
+  /* Instagram's screen colours for the preview phone (exempt mock colours). */
+  --ig-screen: #ffffff;
+  --ig-text: #000000;
+  --ig-sub: #737373;
+  --ig-me: #3797f0;
+  --ig-on-me: #ffffff;
+  --ig-link: #00376b;
 }
 
-.os-builder .panel {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .os-builder {
+    --ig-screen: #000000;
+    --ig-text: #f5f5f5;
+    --ig-sub: #a8a8a8;
+    --ig-link: #e0f1ff;
+  }
+}
+
+:root[data-theme="dark"] .os-builder {
+  --ig-screen: #000000;
+  --ig-text: #f5f5f5;
+  --ig-sub: #a8a8a8;
+  --ig-link: #e0f1ff;
+}
+
+/* Layout: a wider form card beside the preview, 20px apart. */
+.os-builder .grid.gap-6 {
+  gap: var(--gap);
+}
+
+@media (min-width: 1024px) {
+  .os-builder .lg\:grid-cols-\[300px_1fr\] {
+    grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
+  }
+}
+
+/* The form column: one card. */
+.os-builder .space-y-8.min-w-0 {
+  --ctl: var(--well);
+  --ctl-hover: var(--tint-2);
+  padding: 22px 24px;
+  border: 0;
+  border-radius: var(--radius-card);
   background: var(--card);
 }
 
+/* Section titles 17/600; the campaign name in the edit bar too. */
+.os-builder h2.text-sm.font-semibold,
+.os-builder label.text-sm.font-semibold,
+.os-builder span.truncate.text-sm.font-semibold {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.os-builder label.text-sm.font-semibold .font-normal {
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+}
+
+/* Colours */
 .os-builder .text-foreground {
   color: var(--ink);
 }
 
-.os-builder .text-muted {
-  color: var(--muted);
-}
-
+.os-builder .text-muted,
 .os-builder .text-zinc-500,
 .os-builder .placeholder\:text-zinc-500::placeholder {
-  color: var(--ghost);
+  color: var(--muted);
 }
 
 .os-builder .hover\:text-foreground:hover {
   color: var(--ink);
 }
 
-.os-builder .border-border {
-  border-color: var(--line);
-}
-
-.os-builder input.border-border,
-.os-builder textarea.border-border,
-.os-builder select.border-border,
-.os-builder button.border-border {
-  border-color: var(--line-strong);
-}
-
-.os-builder .bg-surface {
-  background: var(--card);
-}
-
-.os-builder .focus\:border-accent\/40:focus {
-  border-color: var(--ink);
-  box-shadow: 0 0 0 3px var(--tint-2);
-}
-
-.os-builder .bg-accent {
-  background: var(--ink);
-}
-
-.os-builder .hover\:bg-accent-hover:hover {
-  background: var(--ink);
-  opacity: 0.86;
-}
-
 .os-builder .text-accent {
   color: var(--ink);
 }
 
-.os-builder .border-accent {
-  border-color: var(--ink);
-}
-
-.os-builder .bg-accent\/5 {
-  background: var(--tint);
-}
-
-.os-builder .border-accent\/30 {
-  border-color: var(--line-strong);
-}
-
-.os-builder .bg-success\/15 {
-  background: var(--mark-bg);
-}
-
-.os-builder .text-success {
-  color: var(--mark);
-}
-
-.os-builder .text-error {
+.os-builder .text-error,
+.os-builder .hover\:text-error:hover {
   color: var(--bad);
 }
 
-.os-builder .bg-error\/10 {
-  background: var(--bad-bg);
+/* Status pill in the edit bar (LIVE / PAUSED). */
+.os-builder span.rounded.text-xs.font-semibold {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.os-builder span.rounded.text-xs.font-semibold.bg-success\/15 {
+  background: var(--good-bg);
+  color: var(--good-fg);
+}
+
+.os-builder span.rounded.text-xs.font-semibold.bg-zinc-500\/15 {
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+
+/* Buttons: primary ink, secondary on the context surface, radius 12. */
+.os-builder button.bg-accent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-h);
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.os-builder button.bg-accent:hover:not(:disabled) {
+  background: var(--ink);
+  opacity: 0.86;
+}
+
+.os-builder button.bg-accent:disabled {
+  background: var(--well);
+  color: var(--muted);
+  opacity: 1;
+}
+
+.os-builder button.border.border-border:not(.gap-3) {
+  min-height: var(--control-h);
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--ctl);
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.os-builder button.border.border-border:not(.gap-3):hover:not(:disabled) {
+  background: var(--ctl-hover);
 }
 
 .os-builder button:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: scale(0.97);
+}
+
+/* Options: list rows (padding 12, radius 14, no border); picked = well with
+   the shared radio (ink disc, on-ink dot). */
+.os-builder button.w-full.items-center.gap-3.rounded-lg {
+  padding: 12px;
+  border: 0;
+  border-radius: var(--radius-cover);
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--fs-body);
+  font-weight: 400;
+}
+
+.os-builder button.w-full.items-center.gap-3.rounded-lg:hover {
+  background: var(--tint);
+}
+
+.os-builder button.w-full.items-center.gap-3.rounded-lg.bg-accent\/5,
+.os-builder button.w-full.items-center.gap-3.rounded-lg.bg-accent\/5:hover {
+  background: var(--well);
+}
+
+.os-builder .space-y-3 > button.w-full.gap-3:has(+ button.w-full.gap-3) {
+  margin-block-end: 2px;
+}
+
+.os-builder button.gap-3 > span.rounded-full.border {
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line-strong);
+  background: var(--card);
+}
+
+.os-builder button.gap-3 > span.rounded-full.border.border-accent {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+.os-builder button.gap-3 > span.rounded-full.border > span {
+  width: 7px;
+  height: 7px;
+  background: var(--on-ink);
+}
+
+/* Every outlined box (post picker, toggle rows, the "they will get" groups)
+   is an inner well; controls inside it go back to --card. */
+.os-builder div.rounded-lg.border {
+  --ctl: var(--card);
+  --ctl-hover: var(--tint-2);
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--well);
+}
+
+.os-builder div.border-t.border-border {
+  border-top: 0;
+}
+
+/* The error and import notes. */
+.os-builder div.rounded.border-error\/20 {
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--bad-bg);
+  color: var(--bad-fg);
+}
+
+.os-builder div.rounded.border-accent\/30 {
+  border: 0;
+  border-radius: var(--radius-cover);
+  background: var(--card);
+}
+
+/* Inputs: the context surface with a 1px line, radius 12. Selects set the
+   colour only, so the --chevron image stays. */
+.os-builder :is(input, textarea, select).border {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background-color: var(--ctl);
+  color: var(--ink);
+}
+
+.os-builder :is(input, textarea).border:not(.w-20) {
+  padding: 10px 14px;
+}
+
+.os-builder :is(input, textarea, select).border:hover {
+  border-color: var(--line-strong);
+}
+
+.os-builder :is(input, textarea, select).border:focus {
+  border-color: var(--ink);
+  outline: none;
+  box-shadow: none;
+}
+
+.os-builder select.border {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 10px 36px 10px 14px;
+  background-image: var(--chevron);
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
+}
+
+/* The switch: ink track when on, --bar when off, a --card knob. */
+.os-builder button.relative.h-6.w-11.rounded-full {
+  background: var(--bar);
+}
+
+.os-builder button.relative.h-6.w-11.rounded-full.bg-accent {
+  background: var(--ink);
+}
+
+.os-builder button.relative.h-6.w-11 > span {
+  background: var(--card);
+  box-shadow: none;
+}
+
+/* Post picker: thumbs radius 8, the picked one ringed in ink. */
+.os-builder button.aspect-square.rounded {
+  border-color: transparent;
+  border-radius: var(--radius-sm);
+}
+
+.os-builder button.aspect-square.rounded.border-accent {
+  border-color: var(--ink);
+}
+
+.os-builder .aspect-square.rounded.bg-surface {
+  border-radius: var(--radius-sm);
+  background: var(--card);
+}
+
+.os-builder button.aspect-square .bg-accent {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+/* Preview tabs: the segmented switch (a --card track on the stone, the
+   picked tab an ink pill, no ring). */
+.os-builder .inline-flex.rounded-full.bg-surface.p-1 {
+  gap: 4px;
+  padding: 4px;
+  background: var(--ctl);
+}
+
+.os-builder .inline-flex.rounded-full.bg-surface.p-1 > button {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  box-shadow: none;
+}
+
+.os-builder .inline-flex.rounded-full.bg-surface.p-1 > button:hover {
+  color: var(--ink);
+}
+
+.os-builder .inline-flex.rounded-full.bg-surface.p-1 > button.bg-background,
+.os-builder .inline-flex.rounded-full.bg-surface.p-1 > button.bg-background:hover {
+  background: var(--ink);
+  color: var(--on-ink);
+  font-weight: 500;
+  box-shadow: none;
+}
+
+/* "Preview" sits centred over the phone, like the tabs under it. */
+.os-builder p.mb-4.text-sm.text-muted {
+  text-align: center;
+}
+
+/* --- The preview phone (U-02) -------------------------------------------------
+   The device (titanium frame, bezel, island) is an exempt mock and keeps its
+   own shape. Its screen is Instagram's own UI in the theme's light or dark. */
+.os-builder .rounded-\[3rem\] {
+  box-shadow: none;
+}
+
+.os-builder .rounded-\[2\.3rem\] {
+  background: var(--ig-screen);
+  color: var(--ig-text);
+}
+
+.os-builder .rounded-\[2\.3rem\] > .absolute.rounded-full.bg-black {
+  background: var(--stage);
+}
+
+.os-builder .rounded-\[2\.3rem\] .text-white {
+  color: var(--ig-text);
+}
+
+.os-builder .rounded-\[2\.3rem\] .fill-white {
+  fill: var(--ig-text);
+}
+
+.os-builder .rounded-\[2\.3rem\] .fill-white\/60 {
+  fill: color-mix(in srgb, var(--ig-text) 60%, transparent);
+}
+
+.os-builder .rounded-\[2\.3rem\] .stroke-white\/60 {
+  stroke: color-mix(in srgb, var(--ig-text) 60%, transparent);
+}
+
+.os-builder .rounded-\[2\.3rem\] :is(.bg-zinc-800, .bg-zinc-800\/70) {
+  background: var(--ig-them);
+}
+
+.os-builder .rounded-\[2\.3rem\] :is(.bg-zinc-700, .bg-zinc-600) {
+  background: var(--ig-them-2);
+}
+
+.os-builder .rounded-\[2\.3rem\] .bg-\[\#0b0b0b\] {
+  background: var(--ig-screen);
+}
+
+.os-builder .rounded-\[2\.3rem\] .border-zinc-800 {
+  border-color: var(--ig-them);
+}
+
+.os-builder .rounded-\[2\.3rem\] :is(.text-zinc-400, .text-zinc-500) {
+  color: var(--ig-sub);
+}
+
+.os-builder .rounded-\[2\.3rem\] .text-zinc-200 {
+  color: var(--ig-text);
+}
+
+.os-builder .rounded-\[2\.3rem\] .text-sky-400 {
+  color: var(--ig-link);
+}
+
+.os-builder .rounded-\[2\.3rem\] .bg-accent,
+.os-builder .rounded-\[2\.3rem\] .bg-accent .text-white,
+.os-builder .rounded-\[2\.3rem\] .bg-accent.text-white {
+  background: var(--ig-me);
+  color: var(--ig-on-me);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-builder button:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 /* --- Phone -------------------------------------------------------------------- */
@@ -820,5 +1236,152 @@
 }
 
 .os-auto-tabs {
-  margin: -12px 0 var(--sp-6);
+  align-self: flex-start;
+  margin: 0;
+}
+
+/* --- New campaign: one header row ---------------------------------------------
+   The page head (title left) and the actions (Cancel, then upstream's Go Live)
+   share one row. Upstream's top bar keeps its markup: the builder's two
+   wrappers step out of the box tree (display: contents), the "New campaign"
+   label is hidden, and the bar's buttons take the head row's last column.
+   Everything else spans the full width below. Under 640px the title gets the
+   row and Cancel + Go Live sit together on the next one, right-aligned. (R1-11) */
+
+.os .os-auto-newpage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--gap) var(--sp-2);
+}
+
+.os .os-auto-newpage > .os-head {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+}
+
+.os .os-auto-newpage > .os-auto-cancel {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.os .os-auto-newpage > .os-builder,
+.os .os-auto-newpage > .os-builder > .space-y-6 {
+  display: contents;
+}
+
+.os .os-auto-newpage > .os-builder > .space-y-6 > * {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.os .os-auto-newpage > .os-builder > .space-y-6 > div.flex.flex-wrap.justify-between {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.os .os-auto-newpage > .os-builder > .space-y-6 > div.flex.flex-wrap.justify-between > div.min-w-0 {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .os .os-auto-newpage > .os-head {
+    grid-column: 1 / -1;
+  }
+
+  .os .os-auto-newpage > .os-auto-cancel,
+  .os .os-auto-newpage > .os-builder > .space-y-6 > div.flex.flex-wrap.justify-between {
+    grid-row: 2;
+  }
+}
+
+/* --- Edit automation: one header row ------------------------------------------
+   Same grid as the new page (.os-auto-newpage). The breadcrumb + "Edit
+   automation" take the first column; upstream's top bar steps out of the box
+   tree too, so its campaign name + LIVE pill sit beside the title (second
+   column, on the title's baseline) and its Stop + Save changes take the last.
+   The Sends/Setter card and the builder follow at full width. Under 640px the
+   title gets the row; the name + pill and the buttons share the next. (R2-8) */
+
+.os .os-auto-editpage {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  column-gap: var(--sp-4);
+}
+
+.os .os-auto-editpage > .os-head,
+.os .os-auto-editpage > .os-builder > .space-y-6 > div.flex.flex-wrap.justify-between > div {
+  align-self: last baseline;
+}
+
+.os .os-auto-editpage > .os-builder > .space-y-6 > div.flex.flex-wrap.justify-between {
+  display: contents;
+}
+
+.os .os-auto-editpage > .os-builder > .space-y-6 > div.flex.flex-wrap.justify-between > div.min-w-0 {
+  display: flex;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  margin: 0;
+  gap: 10px;
+}
+
+.os .os-auto-editpage > .os-builder > .space-y-6 > div.flex.flex-wrap.justify-between > div.min-w-0 span.truncate {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.os .os-auto-editpage > .os-builder > .space-y-6 > div.flex.flex-wrap.justify-between > div.ml-auto {
+  grid-column: 3;
+  grid-row: 1;
+  margin: 0;
+}
+
+.os .os-auto-editpage > .os-auto-bar {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.os .os-auto-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.os .os-auto-crumbs a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.os .os-auto-crumbs a:hover {
+  color: var(--ink);
+}
+
+@media (max-width: 640px) {
+  .os .os-auto-editpage > .os-builder > .space-y-6 > div.flex.flex-wrap.justify-between > div.min-w-0 {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    align-self: center;
+  }
+
+  .os .os-auto-editpage > .os-builder > .space-y-6 > div.flex.flex-wrap.justify-between > div.min-w-0 span.truncate {
+    font-size: var(--fs-body);
+  }
+
+  .os .os-auto-editpage > .os-builder > .space-y-6 > div.flex.flex-wrap.justify-between > div.ml-auto {
+    grid-row: 2;
+  }
+
+  /* Sends and Setter: both selects the card's full width. */
+  .os .os-auto-bar .os-auto-pick {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .os .os-auto-bar .os-auto-pick .os-select,
+  .os .os-auto-bar .os-auto-pick select {
+    width: 100%;
+    min-width: 0;
+  }
 }

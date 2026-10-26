@@ -36,7 +36,7 @@ export function Avatar({ name, src, size = 32, className }: AvatarProps) {
       className={["os-avatar", className].filter(Boolean).join(" ")}
       data-size={PRESET.has(size) ? size : undefined}
       data-img={show ? "true" : undefined}
-      style={PRESET.has(size) ? undefined : { width: size, height: size, fontSize: Math.max(10, Math.round(size * 0.36)) }}
+      style={PRESET.has(size) ? undefined : { width: size, height: size, fontSize: Math.max(11, Math.round(size * 0.36)) }}
       aria-hidden="true"
     >
       {show ? (

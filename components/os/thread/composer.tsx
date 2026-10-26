@@ -262,7 +262,7 @@ export default function Composer({
                 Inspect
               </button>
               <span className="os-cmp-sp" />
-              <button type="button" className="os-cmp-text-btn" onClick={() => setState(writeOwn())}>
+              <button type="button" className="os-cmp-text-btn" title="Write my own" onClick={() => setState(writeOwn())}>
                 {icon(I_PEN, 12)}
                 Write my own
               </button>

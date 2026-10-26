@@ -42,20 +42,13 @@
   flex-wrap: wrap;
 }
 
-.os-bc-titlerow h1 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
 .os-bc-onoff {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 2px 6px;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: transparent;
   font: inherit;
   font-size: var(--fs-xs);
@@ -82,34 +75,33 @@
 .os-bc-cols {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-8);
+  gap: var(--gap);
   align-items: flex-start;
 }
 
-/* The form: fieldsets with a 140px legend column */
+/* The form: one card; fieldsets with a 140px legend column, separated by
+   space, not hairlines (D-05). */
 .os-bc-form {
   flex: 1 1 500px;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  gap: 24px;
+  padding: 22px 24px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
 }
 
 .os-bc-sec {
   margin: 0;
-  padding: 16px 18px;
+  padding: 0;
   border: 0;
-  border-bottom: 1px solid var(--line);
   display: grid;
   grid-template-columns: 140px minmax(0, 1fr);
   gap: var(--sp-3);
   align-items: start;
   min-width: 0;
-}
-
-.os-bc-sec.os-bc-last {
-  border-bottom: 0;
 }
 
 .os-bc-sec legend {
@@ -129,9 +121,13 @@
   gap: 6px;
 }
 
+/* A sub-group (the follow-up) sits in an inner well. */
 .os-bc-split {
-  padding-top: var(--sp-3);
-  border-top: 1px solid var(--line);
+  --ctl: var(--card);
+  --ctl-hover: var(--tint-2);
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--well);
 }
 
 .os-bc-row {
@@ -156,9 +152,10 @@
   gap: 6px;
   height: 26px;
   padding: 0 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
+  border: 0;
+  border-radius: 999px;
   font-weight: 500;
+  background: var(--neutral-bg);
 }
 
 .os-bc-num {
@@ -201,8 +198,8 @@
   gap: 6px;
   height: 26px;
   padding: 0 4px 0 8px;
-  border-radius: var(--radius);
-  background: var(--tint);
+  border-radius: 999px;
+  background: var(--well);
   font-size: var(--fs-xs);
 }
 
@@ -214,7 +211,7 @@
   justify-content: center;
   padding: 0;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -227,10 +224,10 @@
 
 .os-bc-more {
   height: 26px;
-  padding: 0 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--card);
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--well);
   font: inherit;
   font-size: var(--fs-xs);
   color: var(--muted);
@@ -238,19 +235,33 @@
 }
 
 .os-bc-ta.os-textarea {
-  min-height: 34px;
+  min-height: 44px;
   resize: vertical;
+  field-sizing: content;
+}
+
+/* Without field-sizing the box can't grow to its text: room for 3 lines. */
+@supports not (field-sizing: content) {
+  .os-bc-ta.os-textarea {
+    min-height: 72px;
+  }
+}
+
+/* {link} and {first_name} are one row of the same neutral pill (R1-14). */
+.os-bc-vars {
+  gap: 6px;
 }
 
 .os-bc-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  align-self: flex-start;
   max-width: 100%;
-  padding: 6px 10px;
-  border-radius: var(--radius);
-  background: var(--tint);
+  height: 26px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--well);
   font-size: var(--fs-xs);
   font-weight: 500;
   overflow: hidden;
@@ -261,19 +272,21 @@
 .os-bc-var {
   display: inline-flex;
   align-items: center;
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--card);
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--well);
+  color: var(--ink);
   font: inherit;
   font-size: var(--fs-xs);
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
 
 .os-bc-var:hover {
-  background: var(--tint);
+  background: var(--tint-2);
 }
 
 .os-bc-chk {
@@ -283,41 +296,40 @@
   cursor: pointer;
 }
 
-.os-bc-chk input {
-  margin: 0;
-  accent-color: var(--ink);
-}
-
 .os-bc-chk input:disabled {
   opacity: 1;
   cursor: default;
 }
 
 .os-bc-small select {
-  height: 28px;
+  height: 30px;
   font-size: var(--fs-xs);
 }
 
+/* HH:MM plus the clock icon, never clipped (D-07). */
 .os-bc-hm.os-input {
-  width: 92px;
+  width: 120px;
+  padding: 0 10px 0 14px;
   font-variant-numeric: tabular-nums;
 }
 
 .os-bc-j {
+  --ctl: var(--card);
+  --ctl-hover: var(--tint-2);
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  padding: var(--sp-3);
+  padding: 10px 12px;
   border-radius: var(--radius);
-  background: var(--paper-2);
+  background: var(--well);
 }
 
 /* Pacing strip */
 .os-bc-strip {
   position: relative;
   height: 20px;
-  border-radius: var(--radius);
-  background: var(--tint);
+  border-radius: 999px;
+  background: var(--well);
 }
 
 .os-bc-tick {
@@ -326,14 +338,14 @@
   width: 2px;
   height: 12px;
   margin-left: -1px;
-  border-radius: 1px;
+  border-radius: 999px;
   background: var(--ink);
 }
 
 .os-bc-hours {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -356,8 +368,9 @@
 
 .os-bc-drafts-head h2 {
   margin: 0;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-h2);
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .os-bc-btn-sm {
@@ -366,9 +379,10 @@
   gap: 6px;
   height: 28px;
   padding: 0 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--card);
+  border: 0;
+  border-radius: 12px;
+  background: var(--ctl);
+  color: var(--ink);
   font: inherit;
   font-size: var(--fs-xs);
   font-weight: 500;
@@ -376,29 +390,28 @@
 }
 
 .os-bc-btn-sm:hover:not(:disabled) {
-  background: var(--tint);
+  background: var(--ctl-hover);
 }
 
 .os-bc-empty {
   margin: 0;
-  padding: var(--sp-4);
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius);
+  padding: 20px 22px;
+  border: 0;
+  border-radius: var(--radius-card);
   color: var(--muted);
-  font-size: var(--fs-xs);
-}
-
-.os-bc-card {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  font-size: var(--fs-sm);
   background: var(--card);
 }
 
-.os-bc-card[data-status="approved"],
-.os-bc-card[data-status="scheduled"] {
-  border-color: color-mix(in srgb, var(--mark) 40%, transparent);
+/* A draft: one card, its parts spaced, no hairlines. */
+.os-bc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
 }
 
 .os-bc-card[data-status="sent"] {
@@ -409,8 +422,7 @@
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
+  padding: 8px 12px 0;
 }
 
 .os-bc-av {
@@ -439,7 +451,7 @@
 }
 
 .os-bc-ctx {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
@@ -449,8 +461,8 @@
   gap: 4px;
   height: 26px;
   padding: 0 4px 0 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  border-radius: 12px;
   font-size: var(--fs-xs);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -486,8 +498,8 @@
   width: 100%;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--card);
+  border-radius: 12px;
+  background: var(--well);
   font: inherit;
   font-size: var(--fs-sm);
   line-height: 1.45;
@@ -498,7 +510,7 @@
 }
 
 .os-bc-ed:focus {
-  border-color: var(--ghost);
+  border-color: var(--ink);
 }
 
 .os-bc-ed:disabled {
@@ -507,7 +519,7 @@
 }
 
 .os-bc-when {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -516,8 +528,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 8px;
-  border-top: 1px solid var(--line);
+  padding: 0 8px;
   min-height: 26px;
 }
 
@@ -538,7 +549,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--warn);
 }
 
@@ -546,7 +557,7 @@
   height: 26px;
   padding: 0 8px;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 12px;
   background: transparent;
   font: inherit;
   font-size: var(--fs-xs);
@@ -579,10 +590,11 @@
 
 .os-bc-aside-list ul {
   margin: 6px 0 0;
-  padding: 0;
+  padding: 4px 12px;
   list-style: none;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
 }
 
 .os-bc-aside-list li {
@@ -599,19 +611,27 @@
   border-bottom: 0;
 }
 
-/* Sticky footer */
+/* Sticky footer: a card bar floating 16px above the bottom edge, no line
+   (D-05, D-06). It follows the form in the flow, so at the end of the page
+   it sits under the last card instead of over it. */
 .os-bc-foot {
+  --ctl: var(--well);
+  --ctl-hover: var(--tint-2);
   position: sticky;
-  bottom: 0;
+  bottom: 16px;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
   flex-wrap: wrap;
-  margin: 0 calc(var(--sp-10) * -1) -72px;
-  padding: 12px var(--sp-10);
-  border-top: 1px solid var(--line);
-  background: var(--paper);
+  box-sizing: border-box;
+  max-width: 1240px;
+  margin: var(--gap) 0 0;
+  padding: 10px 10px 10px 20px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
 }
 
 .os-bc-foot .os-button {
@@ -621,14 +641,25 @@
 @media (max-width: 860px) {
   .os-bc-sec {
     grid-template-columns: 1fr;
+    gap: var(--sp-2);
+  }
+  .os-bc-form {
+    padding: 20px;
   }
   .os-bc-drafts {
     min-width: 0;
     flex-basis: 100%;
   }
-  .os-bc-foot {
-    margin: 0;
-    padding: 12px 0;
+  .os-bc-indent {
+    padding-left: 0;
+  }
+}
+
+/* Phone: day, from and to stay on one line. */
+@media (max-width: 480px) {
+  .os-bc-hm.os-input {
+    width: 104px;
+    padding: 0 6px 0 10px;
   }
 }
 
@@ -642,27 +673,33 @@
   font-size: var(--fs-sm);
 }
 
-.os-bcl-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
 .os-bcl > .os-tabs {
   align-self: flex-start;
 }
 
+/* No broadcasts: the empty state is a card, not bare text on the stone. */
+.os-bcl > .os-empty-state {
+  padding: 22px 24px;
+  border-radius: var(--radius-card);
+  background: var(--card);
+}
+
+/* The table is the card: header 12/500 muted with no band, rows 14 with a
+   1px line on top. */
 .os-bcl-table {
   width: 100%;
-  border-collapse: collapse;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  box-sizing: border-box;
+  border-collapse: separate;
+  border-spacing: 0;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--card);
+  font-size: var(--fs-body);
 }
 
 .os-bcl-table th {
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
   text-align: left;
   font-size: var(--fs-xs);
   font-weight: 500;
@@ -670,12 +707,9 @@
 }
 
 .os-bcl-table td {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--line);
-}
-
-.os-bcl-table tr:last-child td {
-  border-bottom: 0;
+  height: 56px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
 }
 
 .os-bcl-name {
@@ -694,9 +728,10 @@
   align-items: center;
   height: 22px;
   padding: 0 7px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
+  border: 0;
+  border-radius: 999px;
   font-size: var(--fs-xs);
+  background: var(--neutral-bg);
 }
 
 .os-bcl-num {
@@ -704,16 +739,48 @@
   color: var(--muted);
 }
 
+/* Status as a filled pill: on = good, needs you = warn, off = neutral. */
 .os-bcl-state {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
   font-size: var(--fs-xs);
-  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.os-bcl-state .os-bc-dot {
+  display: none;
+}
+
+.os-bcl-state[data-on] {
+  background: var(--good-bg);
+  color: var(--good-fg);
 }
 
 .os-bcl-state[data-needs] {
-  color: var(--warn);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+/* Phone: the audience count and next send share the name's cell width. */
+@media (max-width: 560px) {
+  .os-bcl-table {
+    padding: 6px 8px;
+  }
+  .os-bcl-table th:nth-child(2),
+  .os-bcl-table td:nth-child(2) {
+    display: none;
+  }
+  .os-bcl-table th,
+  .os-bcl-table td {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
 }
 
 /* An (i) at the end of a row opens leftwards, so it never pushes the page wide. */
