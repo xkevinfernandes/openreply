@@ -214,8 +214,8 @@ describe("undo", () => {
 });
 
 describe("templates (New workflow picker)", () => {
-  it("offers the four starting points, Hold the lead magnet first and default", () => {
-    expect(TEMPLATES.map((t) => t.label)).toEqual(["Hold the lead magnet", "Simple: send the link", "Start a conversation", "Blank"]);
+  it("offers the starting points, Hold the lead magnet first and default", () => {
+    expect(TEMPLATES.map((t) => t.label)).toEqual(["Hold the lead magnet", "Simple: send the link", "Start a conversation", "Waitlist + questions", "Blank"]);
     expect(TEMPLATES.find((t) => t.isDefault)?.key).toBe("hold_lead_magnet");
     expect(isTemplateKey("send_link")).toBe(true);
     expect(isTemplateKey("nope")).toBe(false);

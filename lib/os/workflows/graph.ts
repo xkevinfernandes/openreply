@@ -8,7 +8,7 @@ import { z } from "zod";
 export const STEP_TYPES = ["trigger", "message", "wait", "ask", "condition", "action", "randomizer", "setter", "goto", "end"] as const;
 export type StepType = (typeof STEP_TYPES)[number];
 
-/** Where an arrow leaves a node. Buttons use "button:<id>", randomizer branches "branch:<id>". */
+/** Where an arrow leaves a node. Buttons use "button:<id>", quick replies "reply:<id>" (+ "other"), randomizer branches "branch:<id>". */
 export const SETTER_EXITS = ["booked", "quiet", "not_a_fit", "stopped", "goal_met"] as const;
 export type SetterExit = (typeof SETTER_EXITS)[number];
 
@@ -24,6 +24,28 @@ const Bubble = z.discriminatedUnion("kind", [
     buttons: z.array(z.object({ id: z.string(), label: z.string().max(20) })).min(1).max(3),
   }),
   z.object({ kind: z.literal("image"), assetUrl: z.string() }),
+  /**
+   * Instagram quick replies: chips under the text, gone once they answer.
+   * The label they pick is saved to `saveTo`. Always the message's last
+   * bubble. Anything typed that isn't an option leaves by "other" (see
+   * engine.ts › quickReply); unconnected, "other" follows the first option.
+   */
+  z.object({
+    kind: z.literal("quick_replies"),
+    text,
+    options: z
+      .array(
+        z.object({
+          id: z.string(),
+          label: z.string().min(1).max(20),
+          /** Picking it counts as qualified in the By reel stats (e.g. revenue $5K+). */
+          qualifies: z.boolean().optional(),
+        })
+      )
+      .min(1)
+      .max(13),
+    saveTo: z.string().optional(),
+  }),
 ]);
 export type Bubble = z.infer<typeof Bubble>;
 
@@ -116,7 +138,7 @@ export type GraphNode = z.infer<typeof GraphNode>;
 export const GraphEdge = z.object({
   id: z.string(),
   from: z.string(),
-  /** "next" | "timeout" | "yes" | "no" | "button:<id>" | "branch:<id>" | "exit:<SetterExit>" */
+  /** "next" | "timeout" | "yes" | "no" | "button:<id>" | "reply:<id>" | "other" | "branch:<id>" | "exit:<SetterExit>" */
   fromPort: z.string(),
   to: z.string(),
 });
@@ -140,7 +162,10 @@ export function portsOf(node: { type: StepType; data: unknown }): string[] {
     case "setter":
       return SETTER_EXITS.map((e) => `exit:${e}`);
     case "message": {
-      const buttons = (node.data as StepData<"message">).bubbles.flatMap((b) => (b.kind === "buttons" ? b.buttons : []));
+      const bubbles = (node.data as StepData<"message">).bubbles;
+      const buttons = bubbles.flatMap((b) => (b.kind === "buttons" ? b.buttons : []));
+      const replies = bubbles.flatMap((b) => (b.kind === "quick_replies" ? b.options : []));
+      if (replies.length) return [...replies.map((o) => `reply:${o.id}`), "other"];
       return buttons.length ? buttons.map((b) => `button:${b.id}`) : ["next"];
     }
     default:
@@ -165,6 +190,13 @@ export function validateGraph(input: unknown): GraphProblem[] {
     ids.add(n.id);
     const r = STEP_DATA[n.type].safeParse(n.data);
     if (!r.success) problems.push({ nodeId: n.id, message: r.error.issues[0]?.message ?? "Step is incomplete" });
+    else if (n.type === "message") {
+      const bubbles = (r.data as StepData<"message">).bubbles;
+      const qr = bubbles.findIndex((b) => b.kind === "quick_replies");
+      if (qr >= 0 && bubbles.some((b) => b.kind === "buttons")) problems.push({ nodeId: n.id, message: "Buttons or quick replies, not both" });
+      else if (qr >= 0 && qr !== bubbles.length - 1) problems.push({ nodeId: n.id, message: "Quick replies go in the last bubble" });
+      if (bubbles.filter((b) => b.kind === "quick_replies").length > 1) problems.push({ nodeId: n.id, message: "One set of quick replies per message" });
+    }
   }
   const triggers = g.nodes.filter((n) => n.type === "trigger");
   if (triggers.length !== 1) problems.push({ message: "A workflow needs exactly one trigger" });

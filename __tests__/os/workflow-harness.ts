@@ -34,6 +34,9 @@ export function harness() {
   const tagLog: string[] = [];
   const scheduled: { runId: string; at: Date }[] = [];
   const pendingDrafts = new Set<string>();
+  /** The fake option picker (J's model): typed text → option id or null. Calls are recorded. */
+  let picker: (text: string, options: { id: string; label: string }[]) => string | null = () => null;
+  const picks: string[] = [];
   const resources: Record<string, string> = { "setter-starter": "https://kevin.link/starter", "script-vault": "https://kevin.link/vault", quiz: "https://kevin.link/quiz" };
   const state = { can: "ok" as CanSend, failNext: 0, follows: false as boolean | null, campaignOwns: false, capReset: new Date(T0.getTime() + 14 * 3600_000) };
 
@@ -136,6 +139,10 @@ export function harness() {
     async classify(t) {
       return heuristicClassify(t);
     },
+    async pickOption(t, ctx) {
+      picks.push(t);
+      return picker(t, ctx.options);
+    },
     async todo(_ws, contactId, key, title) {
       if (!todos.some((t) => t.key === key)) todos.push({ contactId, key, title });
     },
@@ -160,6 +167,10 @@ export function harness() {
     tagLog,
     scheduled,
     pendingDrafts,
+    picks,
+    setPicker(fn: typeof picker) {
+      picker = fn;
+    },
     resources,
     state,
     ports,

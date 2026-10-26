@@ -40,9 +40,12 @@ export const PAUSED_RECHECK_MS = 15 * 60_000;
 /** Follow-gate checks before carrying on (S5). */
 export const MAX_FOLLOW_CHECKS = 2;
 export const FOLLOW_GATE_TEXT = "follow me first so it comes through, then tap below 👇";
+/** Quick replies: the one retry after a typed answer that matches no option. */
+export const QUICK_REPLY_RETRY = "didn't quite catch that, tap one of these 👇";
 const MAX_STEPS_PER_PASS = 40;
 
 type Ev = { kind: "enter" } | { kind: "reply"; text: string; tap: string | null } | { kind: "timer" };
+type QuickReplies = Extract<Bubble, { kind: "quick_replies" }>;
 
 type StepOut =
   | { go: string }
@@ -69,7 +72,12 @@ function nodeById(graph: WorkflowGraph, id: string | null): GraphNode | null {
 }
 
 function edgeTo(graph: WorkflowGraph, from: string, port: string): string | null {
-  return graph.edges.find((e) => e.from === from && e.fromPort === port)?.to ?? null;
+  const to = graph.edges.find((e) => e.from === from && e.fromPort === port)?.to ?? null;
+  if (to || port !== "other") return to;
+  // Quick replies: an unconnected "other" goes where the first option goes.
+  const node = nodeById(graph, from);
+  const first = node ? portsOf(node).find((p) => p.startsWith("reply:")) : undefined;
+  return first ? (graph.edges.find((e) => e.from === from && e.fromPort === first)?.to ?? null) : null;
 }
 
 function data<T extends keyof typeof STEP_DATA>(node: GraphNode, type: T): StepData<T> {
@@ -104,7 +112,16 @@ export function resourcesOfGraph(graph: WorkflowGraph): string[] {
 
 /** K5: a Message step edited only in its words since this run's version. */
 export function textOnlyOverlay(oldData: StepData<"message">, newData: StepData<"message">): StepData<"message"> {
-  const shape = (b: Bubble) => (b.kind === "buttons" ? `buttons:${b.buttons.map((x) => x.id).join(",")}` : b.kind === "link" ? `link:${b.resourceSlug ?? b.url}` : b.kind === "image" ? `image:${b.assetUrl}` : "text");
+  const shape = (b: Bubble) =>
+    b.kind === "buttons"
+      ? `buttons:${b.buttons.map((x) => x.id).join(",")}`
+      : b.kind === "quick_replies"
+        ? `replies:${b.options.map((x) => x.id).join(",")}:${b.saveTo ?? ""}`
+        : b.kind === "link"
+          ? `link:${b.resourceSlug ?? b.url}`
+          : b.kind === "image"
+            ? `image:${b.assetUrl}`
+            : "text";
   if (oldData.bubbles.length !== newData.bubbles.length) return oldData;
   if (oldData.bubbles.some((b, i) => shape(b) !== shape(newData.bubbles[i]))) return oldData;
   return newData;
@@ -345,6 +362,11 @@ export class WorkflowEngine {
     // S4: what we know at entry goes to the CRM straight away.
     const first = (contact.fullName ?? "").trim().split(/\s+/)[0];
     if (first) await this.ports.writeField(ws, contact.id, "first_name", first, `workflow:${wf.id}:${t.id}`).catch(() => false);
+    // Reel tracking: which post and keyword brought them in, on the contact (the run keeps it too).
+    if (trig.kind === "comment" && trig.postId) {
+      await this.ports.writeField(ws, contact.id, "source_post", trig.postId, `workflow:${wf.id}:${t.id}`).catch(() => false);
+      await this.ports.writeField(ws, contact.id, "source_keyword", keyword, `workflow:${wf.id}:${t.id}`).catch(() => false);
+    }
 
     if (trig.kind === "comment" && trig.commentId) {
       const text = pick(t.data.publicReplies, () => this.ports.random());
@@ -566,7 +588,14 @@ export class WorkflowEngine {
       }
       case "buttons":
         return { text: b.text, buttons: b.buttons.map((x) => ({ id: x.id, label: x.label, payload: `wf:${run.id}:${node.id}:${x.id}` })) };
+      case "quick_replies":
+        return { text: b.text, quickReplies: this.chips(run, node, b) };
     }
+  }
+
+  /** Quick-reply chips carry the same payload as a button: the webhook routes both the same way. */
+  private chips(run: RunRecord, node: GraphNode, b: QuickReplies) {
+    return b.options.map((x) => ({ id: x.id, label: x.label, payload: `wf:${run.id}:${node.id}:${x.id}` }));
   }
 
   // -------------------------------------------------------------- steps
@@ -624,8 +653,11 @@ export class WorkflowEngine {
   private async message(run: RunRecord, node: GraphNode, ev: Ev, contact: ContactInfo | null): Promise<StepOut> {
     const d = await this.messageData(run, node);
     const buttons = d.bubbles.flatMap((b) => (b.kind === "buttons" ? b.buttons : []));
+    const replies = d.bubbles.find((b): b is QuickReplies => b.kind === "quick_replies") ?? null;
     const allSent = (run.state.bubble ?? 0) >= d.bubbles.length;
+    // No answer (to the buttons, the quick replies or their retry): the run ends Quiet.
     if (ev.kind === "timer" && run.waitingFor === "reply" && run.waitUntil && this.now() >= run.waitUntil) return { end: "exited", exit: "quiet" };
+    if (ev.kind === "reply" && allSent && replies) return this.quickReply(run, node, replies, ev, contact);
     if (ev.kind === "reply" && allSent && buttons.length) {
       // S1: typing counts as the tap.
       const tapped = ev.tap?.startsWith(`wf:${run.id}:${node.id}:`) ? ev.tap.split(":").pop()! : null;
@@ -650,10 +682,56 @@ export class WorkflowEngine {
       run.state.bubble = i + 1;
       await this.store.saveRun(run);
     }
-    if (buttons.length) return { wait: "reply", until: this.replyDeadline(run, contact) };
+    if (buttons.length || replies) return { wait: "reply", until: this.replyDeadline(run, contact) };
     // After the comment's private reply, the next step waits for their answer (E1).
     if (run.state.gate) return { wait: "reply", until: this.replyDeadline(run, contact) };
     return { go: "next" };
+  }
+
+  /**
+   * An answer to quick replies. A tap, or the label typed (case and spaces
+   * don't matter), picks that option. Anything else goes to the model J's
+   * classifier uses, which maps it to one option or none. None: one retry
+   * with the same chips; a second miss saves what they typed as-is and leaves
+   * by "other" (unconnected, "other" follows the first option). A refusal
+   * ("skip", "no thanks", a question back) leaves by "other" without saving.
+   */
+  private async quickReply(run: RunRecord, node: GraphNode, b: QuickReplies, ev: Extract<Ev, { kind: "reply" }>, contact: ContactInfo | null): Promise<StepOut> {
+    const prefix = `wf:${run.id}:${node.id}:`;
+    const tapped = ev.tap?.startsWith(prefix) ? ev.tap.slice(prefix.length) : null;
+    const said = ev.text.trim();
+    const norm = (t: string) => t.toLowerCase().replace(/\s+/g, "");
+    let via: "tap" | "typed" | "model" | null = null;
+    let opt = b.options.find((o) => o.id === tapped);
+    if (opt) via = "tap";
+    else if (said) {
+      opt = b.options.find((o) => norm(o.label) === norm(said));
+      if (opt) via = "typed";
+      else {
+        const id = await this.ports.pickOption(said, { question: b.text, options: b.options.map((o) => ({ id: o.id, label: o.label })) }).catch(() => null);
+        opt = b.options.find((o) => o.id === id);
+        if (opt) via = "model";
+      }
+    }
+    const save = async (value: string) => {
+      // S4: synced the moment it's captured.
+      if (b.saveTo && run.contactId) await this.ports.writeField(run.workspaceId, run.contactId, b.saveTo, value, `workflow:${run.workflowId}:${node.id}`).catch(() => false);
+    };
+    if (opt) {
+      await this.event(run, node.id, "replied", null, { option: opt.id, via });
+      await save(opt.label);
+      return { go: `reply:${opt.id}` };
+    }
+    await this.event(run, node.id, "replied", null, { option: null });
+    if (isRefusal(said)) return { go: "other" };
+    if (!run.state.askRetried) {
+      const r = await this.send(run, contact, { text: QUICK_REPLY_RETRY, quickReplies: this.chips(run, node, b) }, node.id);
+      if (r !== "sent" && r !== "gate") return r;
+      run.state.askRetried = true;
+      return { wait: "reply", until: this.replyDeadline(run, contact) };
+    }
+    if (said) await save(said);
+    return { go: "other" };
   }
 
   /** Nothing can be sent 7 days after their last message (or the comment): the run ends Quiet (E2). */
@@ -698,8 +776,9 @@ export class WorkflowEngine {
       if (run.waitUntil && this.now() >= run.waitUntil) return { end: "exited", exit: "quiet" };
       return { wait: "reply", until: run.waitUntil ?? this.replyDeadline(run, contact) };
     }
-    await this.event(run, node.id, "replied");
     const value = validateAnswer(d.validate, ev.text);
+    // saved: the answer was captured (by-reel stats count emails from it).
+    await this.event(run, node.id, "replied", null, value != null ? { saved: true, validate: d.validate } : undefined);
     if (value != null) {
       // S4: synced the moment it's captured.
       if (run.contactId) await this.ports.writeField(run.workspaceId, run.contactId, d.saveTo, value, `workflow:${run.workflowId}:${node.id}`).catch(() => false);
@@ -759,8 +838,15 @@ export class WorkflowEngine {
     const cid = run.contactId ?? contact?.id;
     if (!cid) return { go: "next" };
     for (const op of d.ops) {
-      if (op.op === "add_tag" && op.key) await this.ports.addTag(run.workspaceId, cid, op.key);
-      if (op.op === "remove_tag" && op.key) await this.ports.removeTag(run.workspaceId, cid, op.key);
+      if (op.op === "add_tag" && op.key) {
+        await this.ports.addTag(run.workspaceId, cid, op.key);
+        // A Condition later in this same pass reads the tag it just got.
+        if (contact && !contact.tags.includes(op.key)) contact.tags.push(op.key);
+      }
+      if (op.op === "remove_tag" && op.key) {
+        await this.ports.removeTag(run.workspaceId, cid, op.key);
+        if (contact) contact.tags = contact.tags.filter((t) => t !== op.key);
+      }
       if (op.op === "set_field" && op.key && op.value != null) await this.ports.writeField(run.workspaceId, cid, op.key, op.value, `workflow:${run.workflowId}:${node.id}`);
       if (op.op === "friday") await this.ports.friday(run.workspaceId, cid);
     }

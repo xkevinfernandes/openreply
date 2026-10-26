@@ -11,6 +11,8 @@ import {
   addBubble,
   addButton,
   addOp,
+  addOption,
+  MAX_OPTIONS,
   CONDITION_RULES,
   moveBubble,
   normalizeBubbles,
@@ -18,12 +20,15 @@ import {
   removeBubble,
   removeButton,
   removeOp,
+  removeOption,
   setButtonLabel,
+  setOptionLabel,
   STEP_LABEL,
   updateBubble,
   updateOp,
   waitWindowWarning,
 } from "@/components/os/workflows/forms";
+import { AutoTextarea } from "@/components/os/workflows/autosize";
 import { WfIcon } from "@/components/os/workflows/icons";
 import PhonePreview from "@/components/os/workflows/phone-preview";
 import RandomizerPanel from "@/components/os/workflows/randomizer-panel";
@@ -46,7 +51,7 @@ export interface InspectorProps {
 
 const TIP: Partial<Record<GraphNode["type"], string>> = {
   trigger: "What starts the workflow. One keyword lives in one live workflow.",
-  message: "Sends as written (no approval). A link is always its own bubble.",
+  message: "Sends as written (no approval). A link is always its own bubble. Quick replies: one arrow per option; a typed answer J can't match leaves by Other.",
   wait: "Pauses the run. Past 24h after their last message, Instagram needs your approval.",
   ask: "Asks once, saves the answer to a field, then carries on even without one.",
   condition: "Splits by Yes / No.",
@@ -258,7 +263,7 @@ function MessageForm({ data, ctx, onChange }: FormProps<StepData<"message">>) {
         {bubbles.map((b, i) => (
           <li key={i} className="wf-bubble-edit" data-kind={b.kind}>
             <div className="wf-bubble-tools">
-              <span className="wf-lab">{b.kind === "text" ? "Text" : b.kind === "link" ? "Link" : b.kind === "buttons" ? "Buttons" : "Image"}</span>
+              <span className="wf-lab">{b.kind === "text" ? "Text" : b.kind === "link" ? "Link" : b.kind === "buttons" ? "Buttons" : b.kind === "quick_replies" ? "Quick replies" : "Image"}</span>
               <span className="wf-grow" />
               <button type="button" className="wf-ghostbtn" aria-label="Move up" disabled={i === 0} onClick={() => set(moveBubble(bubbles, i, -1))}>
                 <WfIcon name="up" size={12} />
@@ -271,7 +276,7 @@ function MessageForm({ data, ctx, onChange }: FormProps<StepData<"message">>) {
               </button>
             </div>
             {b.kind === "text" ? (
-              <textarea
+              <AutoTextarea
                 className="os-input wf-bubble-text"
                 rows={2}
                 value={b.text}
@@ -298,7 +303,7 @@ function MessageForm({ data, ctx, onChange }: FormProps<StepData<"message">>) {
               </>
             ) : b.kind === "buttons" ? (
               <>
-                <textarea
+                <AutoTextarea
                   className="os-input wf-bubble-text"
                   rows={2}
                   value={b.text}
@@ -323,6 +328,47 @@ function MessageForm({ data, ctx, onChange }: FormProps<StepData<"message">>) {
                   ) : null}
                 </div>
               </>
+            ) : b.kind === "quick_replies" ? (
+              <>
+                <AutoTextarea
+                  className="os-input wf-bubble-text"
+                  rows={2}
+                  value={b.text}
+                  placeholder="what's holding you back right now?"
+                  aria-label="Question"
+                  onChange={(e) => set(updateBubble(bubbles, i, { ...b, text: e.target.value }))}
+                />
+                <div className="wf-igbtns">
+                  {b.options.map((x) => (
+                    <span key={x.id} className="wf-igbtn">
+                      <input value={x.label} maxLength={20} placeholder="Option" aria-label="Option label" onChange={(e) => set(setOptionLabel(bubbles, i, x.id, e.target.value))} />
+                      <button
+                        type="button"
+                        className="wf-ghostbtn"
+                        aria-label="Counts as qualified"
+                        aria-pressed={Boolean(x.qualifies)}
+                        title={x.qualifies ? "Counts as qualified in By reel" : "Mark as qualified"}
+                        style={{ opacity: x.qualifies ? 1 : 0.35 }}
+                        onClick={() => set(updateBubble(bubbles, i, { ...b, options: b.options.map((o) => (o.id === x.id ? { ...o, qualifies: !o.qualifies || undefined } : o)) }))}
+                      >
+                        ★
+                      </button>
+                      <button type="button" className="wf-ghostbtn" aria-label="Remove option" onClick={() => set(removeOption(bubbles, i, x.id))}>
+                        <WfIcon name="close" size={11} />
+                      </button>
+                    </span>
+                  ))}
+                  {b.options.length < MAX_OPTIONS ? (
+                    <button type="button" className="wf-add" onClick={() => set(addOption(bubbles, i))}>
+                      <WfIcon name="plus" size={11} />
+                      Option
+                    </button>
+                  ) : null}
+                </div>
+                <Group label="Saves to" tip="The option they pick (or what they typed, after one retry).">
+                  <FieldSelect ctx={ctx} value={b.saveTo ?? ""} label="Saves to" onChange={(saveTo) => set(updateBubble(bubbles, i, { ...b, saveTo: saveTo || undefined }))} />
+                </Group>
+              </>
             ) : (
               <input className="os-input" placeholder="Image URL" aria-label="Image URL" value={b.assetUrl} onChange={(e) => set(updateBubble(bubbles, i, { kind: "image", assetUrl: e.target.value }))} />
             )}
@@ -338,11 +384,17 @@ function MessageForm({ data, ctx, onChange }: FormProps<StepData<"message">>) {
           <WfIcon name="link" size={11} />
           Link
         </button>
-        {!bubbles.some((b) => b.kind === "buttons") ? (
-          <button type="button" className="wf-add" onClick={() => set(addBubble(bubbles, "buttons"))}>
-            <WfIcon name="plus" size={11} />
-            Buttons
-          </button>
+        {!bubbles.some((b) => b.kind === "buttons" || b.kind === "quick_replies") ? (
+          <>
+            <button type="button" className="wf-add" onClick={() => set(addBubble(bubbles, "buttons"))}>
+              <WfIcon name="plus" size={11} />
+              Buttons
+            </button>
+            <button type="button" className="wf-add" onClick={() => set(addBubble(bubbles, "quick_replies"))}>
+              <WfIcon name="plus" size={11} />
+              Quick replies
+            </button>
+          </>
         ) : null}
         <button type="button" className="wf-add" onClick={() => set(addBubble(bubbles, "image"))}>
           <WfIcon name="image" size={11} />
@@ -403,7 +455,7 @@ function AskForm({ data, ctx, onChange }: FormProps<StepData<"ask">>) {
   return (
     <>
       <Group label="Question">
-        <textarea className="os-input wf-bubble-text" rows={2} value={data.question} placeholder="what's the best email for extras?" aria-label="Question" onChange={(e) => set({ question: e.target.value })} />
+        <AutoTextarea className="os-input wf-bubble-text" rows={2} value={data.question} placeholder="what's the best email for extras?" aria-label="Question" onChange={(e) => set({ question: e.target.value })} />
       </Group>
       <Group label="Saves to">
         <FieldSelect ctx={ctx} value={data.saveTo} label="Saves to" onChange={(saveTo) => set({ saveTo, validate: saveTo === "email" ? "email" : data.validate === "email" ? "text" : data.validate })} />
@@ -419,7 +471,7 @@ function AskForm({ data, ctx, onChange }: FormProps<StepData<"ask">>) {
         onChange={(validate) => set({ validate })}
       />
       <Group label="If it looks wrong" tip="Asked once more, then the run carries on without it.">
-        <input className="os-input" value={data.retry ?? ""} placeholder="hmm, mind checking that?" aria-label="Retry message" onChange={(e) => set({ retry: e.target.value || undefined })} />
+        <AutoTextarea className="os-input wf-bubble-text" rows={1} minPx={44} value={data.retry ?? ""} placeholder="hmm, mind checking that?" aria-label="Retry message" onChange={(e) => set({ retry: e.target.value || undefined })} />
       </Group>
     </>
   );

@@ -83,6 +83,8 @@ interface WebhookEntry {
       is_deleted?: boolean;
       is_unsupported?: boolean;
       attachments?: Array<{ type?: string }>;
+      /** A tapped quick reply: the text is its label, this is its payload. */
+      quick_reply?: { payload?: string };
     };
   }>;
 }
@@ -92,6 +94,8 @@ export interface WebhookMessageEvent {
   messageId: string;
   messageText: string;
   senderId: string;
+  /** Set when the message is a tapped quick reply. */
+  quickReplyPayload?: string;
 }
 
 export interface WebhookPostbackEvent {
@@ -233,6 +237,7 @@ export function parseMessageEvents(
         messageId,
         messageText: text,
         senderId,
+        ...(message.quick_reply?.payload ? { quickReplyPayload: message.quick_reply.payload } : {}),
       });
     }
   }

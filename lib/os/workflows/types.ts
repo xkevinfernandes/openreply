@@ -71,7 +71,7 @@ export interface RunStepState {
   bubble?: number;
   /** Comment trigger: only the private reply may go until they answer. */
   gate?: boolean;
-  /** Ask: the retry line went out. */
+  /** Ask / quick replies: the retry line went out. */
   askRetried?: boolean;
   /** Condition follows: checks so far. */
   followChecks?: number;
@@ -221,8 +221,8 @@ export interface OutButton {
   payload: string;
 }
 
-/** One outgoing bubble. A link is always its own bubble. */
-export type OutMessage = { text: string; buttons?: OutButton[] } | { url: string } | { image: string };
+/** One outgoing bubble. A link is always its own bubble. Buttons and quick replies never go together. */
+export type OutMessage = { text: string; buttons?: OutButton[]; quickReplies?: OutButton[] } | { url: string } | { image: string };
 
 export interface SendContext {
   workspaceId: string;
@@ -288,6 +288,11 @@ export interface Ports {
   /** A J draft waits in the Inbox for this contact. */
   pendingJDraft(contactId: string): Promise<boolean>;
   classify(text: string, ctx: { held: string[]; history: string[] }): Promise<Classification>;
+  /**
+   * A typed answer to quick replies: which option they meant, or null
+   * ("none"). The same model J's classifier uses; null when there's no model.
+   */
+  pickOption(text: string, ctx: { question: string; options: { id: string; label: string }[] }): Promise<string | null>;
   todo(workspaceId: string, contactId: string, key: string, title: string, context: Record<string, unknown>): Promise<void>;
   /** Wake the run at this time (a delayed job). */
   schedule(runId: string, at: Date): Promise<void>;

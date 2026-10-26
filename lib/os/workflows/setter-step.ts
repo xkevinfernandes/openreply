@@ -74,6 +74,21 @@ export function readClassification(obj: unknown, fallback: Classification): Clas
   return { lowEffort: b("lowEffort"), askedForResource: b("askedForResource"), notReady: b("notReady"), notFit: b("notFit"), stop: b("stop"), aiQuestion: b("aiQuestion") };
 }
 
+// ---------------------------------------------------------------- quick replies
+export const PICK_OPTION_SYSTEM =
+  "Someone typed a reply to an Instagram DM question instead of tapping one of its answer chips. " +
+  'Pick the one option they clearly mean, or "none" if it fits none of them or they don\'t answer. Answer with JSON only: {"option":"<id>"} or {"option":"none"}.';
+
+export function pickOptionPrompt(text: string, ctx: { question: string; options: { id: string; label: string }[] }): string {
+  return `Question: ${ctx.question.slice(0, 600)}\nOptions:\n${ctx.options.map((o) => `- ${o.id}: ${o.label}`).join("\n")}\nTheir reply:\n"""${text.slice(0, 600)}"""`;
+}
+
+/** The model's pick: an option id it was given, else null (none / unreadable). */
+export function readPickedOption(obj: unknown, ids: string[]): string | null {
+  const v = obj && typeof obj === "object" ? (obj as { option?: unknown }).option : null;
+  return typeof v === "string" && ids.includes(v) ? v : null;
+}
+
 // ---------------------------------------------------------------- release rules
 export type SetterSignal =
   | { kind: "reply"; c: Classification }

@@ -246,7 +246,21 @@ export async function workflowStats(workspaceId: string, id: string, opts: { per
     const b = await prisma.booking.count({ where: { contactId: r.contactId, attendance: "SHOWED", createdAt: { gte: r.startedAt } } });
     if (b) showedRuns.add(r.id);
   }
-  return computeStats(graph, events, { period, now, versionId: opts.versionId ?? null, showedRuns });
+  // By reel: the post each comment run came from (run.trigger), and its link when a campaign knows the post.
+  const runIds = [...new Set(events.map((e) => e.runId))];
+  const runRows = runIds.length ? await prisma.workflowRun.findMany({ where: { id: { in: runIds } }, select: { id: true, trigger: true } }) : [];
+  const runPosts = new Map<string, string>();
+  for (const r of runRows) {
+    const t = (r.trigger && typeof r.trigger === "object" ? r.trigger : {}) as { kind?: string; postId?: string | null };
+    if (t.kind === "comment" && t.postId) runPosts.set(r.id, t.postId);
+  }
+  const stats = computeStats(graph, events, { period, now, versionId: opts.versionId ?? null, showedRuns, runPosts });
+  if (stats.byReel.length) {
+    const posts = await prisma.automation.findMany({ where: { workspaceId, postId: { in: stats.byReel.map((r) => r.postId) }, postUrl: { not: null } }, select: { postId: true, postUrl: true } });
+    const url = new Map(posts.map((p) => [p.postId!, p.postUrl!]));
+    for (const r of stats.byReel) r.permalink = url.get(r.postId) ?? null;
+  }
+  return stats;
 }
 
 export async function pauseContact(workspaceId: string, contactId: string, reason: string): Promise<A.ApiResult<{ runId: string | null }>> {

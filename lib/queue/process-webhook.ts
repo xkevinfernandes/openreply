@@ -105,7 +105,9 @@ export async function processInstagramWebhook({ payload: incoming, provider, wor
     for (const event of messageEvents) {
       const account = accountMap.get(event.instagramAccountId);
       if (!account) continue;
-      await queueSetterForInbound({ workspaceId: account.workspaceId, instagramAccountId: account.id, igUserId: event.senderId, text: event.messageText, mid: event.messageId });
+      // A workflow quick reply (payload "wf:…") is routed like a button tap; the text is its label.
+      const tapPayload = event.quickReplyPayload?.startsWith("wf:") ? event.quickReplyPayload : null;
+      await queueSetterForInbound({ workspaceId: account.workspaceId, instagramAccountId: account.id, igUserId: event.senderId, text: event.messageText, mid: event.messageId, tapPayload });
 
       await queue.add(
         MESSAGE_JOB_NAME,

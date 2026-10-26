@@ -59,6 +59,9 @@ export function FieldSelect({ ctx, value, onChange, label = "Field" }: { ctx: Pi
         ))}
       </select>
       <SyncGlyph ctx={ctx} k={value} />
+      {!known && value ? (
+        <span className="wf-warn-dot" role="img" title={`"${value}" isn't a field yet: create it in Settings › Custom fields, or nothing is saved`} aria-label={`"${value}" isn't a field yet`} />
+      ) : null}
     </span>
   );
 }

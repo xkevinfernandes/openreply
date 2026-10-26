@@ -1,10 +1,10 @@
-// The four starting points in "New workflow" (WorkflowsList board). The
+// The starting points in "New workflow" (WorkflowsList board). The
 // graphs are the engine's (lib/os/workflows/templates.ts); the canvas lays
 // them out left to right and fills in the first lead magnet.
 
 import { portsOf, type StepData, type WorkflowGraph } from "@/lib/os/workflows/graph";
 import type { TemplateId } from "@/lib/os/workflows/api";
-import { TEMPLATES as ENGINE_TEMPLATES, templateGraph as engineTemplate } from "@/lib/os/workflows/templates";
+import { HAND_LAID, TEMPLATES as ENGINE_TEMPLATES, templateGraph as engineTemplate } from "@/lib/os/workflows/templates";
 
 export type TemplateKey = TemplateId;
 export const TEMPLATE_KEYS: TemplateKey[] = ENGINE_TEMPLATES.map((t) => t.id);
@@ -24,8 +24,8 @@ export function isTemplateKey(v: unknown): v is TemplateKey {
   return typeof v === "string" && (TEMPLATE_KEYS as string[]).includes(v);
 }
 
-const COL = 290;
-const ROW = 230;
+const COL = 320;
+const ROW = 280;
 
 /**
  * Left-to-right layout for the free canvas: each step one column right of
@@ -92,7 +92,12 @@ export function fillResource(graph: WorkflowGraph, resource?: string): WorkflowG
   };
 }
 
+/** Laid out left to right, unless the template places its own steps (HAND_LAID). */
+export function layoutFor(key: TemplateKey, graph: WorkflowGraph): WorkflowGraph {
+  return HAND_LAID.includes(key) ? graph : layoutGraph(graph);
+}
+
 /** A template as the canvas opens it. */
 export function templateGraph(key: TemplateKey, resource?: string): WorkflowGraph {
-  return layoutGraph(fillResource(engineTemplate(key, { resource }), resource));
+  return layoutFor(key, fillResource(engineTemplate(key, { resource }), resource));
 }

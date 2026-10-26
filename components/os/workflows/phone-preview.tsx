@@ -77,6 +77,17 @@ export default function PhonePreview({ node, ctx }: { node: GraphNode; ctx: Buil
             ))}
           </div>
         );
+      } else if (b.kind === "quick_replies") {
+        out.push(<div key={i} className="wf-ph-b">{fillVars(b.text, vars) || "…"}</div>);
+        out.push(
+          <div key={`${i}-qr`} className="wf-ph-chips">
+            {b.options.map((x) => (
+              <span key={x.id} className="wf-ph-chip">
+                {x.label || "Option"}
+              </span>
+            ))}
+          </div>
+        );
       } else out.push(<div key={i} className="wf-ph-b wf-ph-img">Image</div>);
     }
   } else if (node.type === "ask") {

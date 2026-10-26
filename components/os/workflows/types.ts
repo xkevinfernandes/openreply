@@ -45,6 +45,17 @@ export interface WorkflowStats {
   releases: Record<string, Partial<Record<"booked" | "quiet" | "notReady" | "askedTwice" | "notFit", number>>>;
   /** Randomizer steps: the funnel per branch. */
   branches: Record<string, Record<string, BranchCounts>>;
+  /** Comment runs per post: entered → email → finished the questions → qualified. */
+  byReel: ReelRow[];
+}
+
+export interface ReelRow {
+  postId: string;
+  permalink: string | null;
+  entered: number;
+  email: number;
+  finished: number;
+  qualified: number;
 }
 
 export interface WorkflowDetail {

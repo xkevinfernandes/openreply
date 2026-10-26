@@ -1,6 +1,6 @@
 // Per-step numbers for the canvas, from the run events. Pure.
-import type { BranchFunnel, NodeStats, ReleaseRuleKey, StatsPeriod, WorkflowStats } from "@/lib/os/workflows/api";
-import type { WorkflowGraph } from "@/lib/os/workflows/graph";
+import type { BranchFunnel, NodeStats, ReelFunnel, ReleaseRuleKey, StatsPeriod, WorkflowStats } from "@/lib/os/workflows/api";
+import { STEP_DATA, type WorkflowGraph } from "@/lib/os/workflows/graph";
 
 export interface StatEvent {
   runId: string;
@@ -33,7 +33,7 @@ export function periodStart(period: StatsPeriod, now: Date): Date | null {
 export function computeStats(
   graph: WorkflowGraph,
   events: StatEvent[],
-  opts: { period: StatsPeriod; now: Date; versionId?: string | null; showedRuns?: Set<string> }
+  opts: { period: StatsPeriod; now: Date; versionId?: string | null; showedRuns?: Set<string>; runPosts?: Map<string, string> }
 ): WorkflowStats {
   const from = periodStart(opts.period, opts.now);
   const evs = events.filter((e) => (!from || e.at >= from) && (!opts.versionId || e.versionId === opts.versionId));
@@ -100,5 +100,74 @@ export function computeStats(
     },
     nodes,
     ports,
+    byReel: reelFunnels(graph, evs, trigger?.id ?? null, opts.runPosts ?? new Map()),
   };
+}
+
+/** Quick-reply message steps (the questions). */
+function questionNodes(graph: WorkflowGraph): Set<string> {
+  const out = new Set<string>();
+  for (const n of graph.nodes) {
+    if (n.type !== "message") continue;
+    const r = STEP_DATA.message.safeParse(n.data);
+    if (r.success && r.data.bubbles.some((b) => b.kind === "quick_replies")) out.add(n.id);
+  }
+  return out;
+}
+
+/** The last questions: question steps with no other question reachable after them. */
+export function lastQuestions(graph: WorkflowGraph): Set<string> {
+  const qs = questionNodes(graph);
+  const out = new Set<string>();
+  for (const q of qs) {
+    const seen = new Set<string>([q]);
+    const stack = graph.edges.filter((e) => e.from === q).map((e) => e.to);
+    let later = false;
+    while (stack.length && !later) {
+      const id = stack.pop()!;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      if (qs.has(id)) later = true;
+      else stack.push(...graph.edges.filter((e) => e.from === id).map((e) => e.to));
+    }
+    if (!later) out.add(q);
+  }
+  return out;
+}
+
+/**
+ * By reel: per post id (comment runs), entered → email captured (an email
+ * Ask step answered) → finished the last question → qualified (picked a quick
+ * reply marked qualifies, e.g. revenue $5K+). From the events alone, no extra columns.
+ */
+export function reelFunnels(graph: WorkflowGraph, evs: StatEvent[], triggerId: string | null, runPosts: Map<string, string>): ReelFunnel[] {
+  if (!runPosts.size) return [];
+  const emailAsks = new Set(graph.nodes.filter((n) => n.type === "ask" && STEP_DATA.ask.safeParse(n.data).data?.validate === "email").map((n) => n.id));
+  const last = lastQuestions(graph);
+  // "node:reply:<id>" for every option marked qualifies.
+  const qualifying = new Set(
+    graph.nodes.flatMap((n) =>
+      n.type === "message"
+        ? (STEP_DATA.message.safeParse(n.data).data?.bubbles ?? []).flatMap((b) => (b.kind === "quick_replies" ? b.options.filter((o) => o.qualifies).map((o) => `${n.id}:reply:${o.id}`) : []))
+        : []
+    )
+  );
+  const saved = (e: StatEvent) => Boolean(e.data && typeof e.data === "object" && (e.data as { saved?: unknown }).saved);
+  // Leaving a last question by an option or "other" (not a Quiet exit).
+  const answered = (e: StatEvent) => e.kind === "leave" && last.has(e.nodeId) && Boolean(e.port) && (e.port!.startsWith("reply:") || e.port === "other");
+  const per = new Map<string, { entered: Set<string>; email: Set<string>; finished: Set<string>; qualified: Set<string> }>();
+  for (const e of evs) {
+    const post = runPosts.get(e.runId);
+    if (!post) continue;
+    const row = per.get(post) ?? { entered: new Set(), email: new Set(), finished: new Set(), qualified: new Set() };
+    per.set(post, row);
+    if (e.kind === "enter" && e.nodeId === triggerId) row.entered.add(e.runId);
+    if (e.kind === "replied" && emailAsks.has(e.nodeId) && saved(e)) row.email.add(e.runId);
+    if (answered(e)) row.finished.add(e.runId);
+    if (e.kind === "leave" && e.port && qualifying.has(`${e.nodeId}:${e.port}`)) row.qualified.add(e.runId);
+  }
+  return [...per]
+    .map(([postId, r]) => ({ postId, permalink: null, entered: r.entered.size, email: r.email.size, finished: r.finished.size, qualified: r.qualified.size }))
+    .filter((r) => r.entered > 0)
+    .sort((a, b) => b.entered - a.entered || a.postId.localeCompare(b.postId));
 }

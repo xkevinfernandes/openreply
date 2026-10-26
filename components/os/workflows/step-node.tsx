@@ -19,14 +19,18 @@ export interface StepNodeData extends Record<string, unknown> {
 
 export type StepNodeType = Node<StepNodeData, "step">;
 
-const WIDTH: Partial<Record<GraphNode["type"], number>> = { randomizer: 168, setter: 236, end: 120, goto: 180 };
+// Message and Ask cards are wider so their copy reads on the canvas; every
+// card keeps a fixed width so the flow still reads left to right.
+const WIDTH: Partial<Record<GraphNode["type"], number>> = { message: 264, ask: 264, randomizer: 168, setter: 236, end: 120, goto: 180 };
+/** Bubbles shown on a card before "+N". */
+const MAX_BUBBLES = 5;
 
 function Bubbles({ bubbles, ctx }: { bubbles: Bubble[]; ctx: BuilderContext }) {
-  const shown = bubbles.slice(0, 3);
+  const shown = bubbles.slice(0, MAX_BUBBLES);
   return (
     <>
       {shown.map((b, i) => {
-        if (b.kind === "text") return <span key={i} className="wf-b">{b.text || <span className="wf-ghost">Empty</span>}</span>;
+        if (b.kind === "text") return <span key={i} className="wf-b" title={b.text || undefined}>{b.text || <span className="wf-ghost">Empty</span>}</span>;
         if (b.kind === "link")
           return (
             <span key={i} className="wf-lk">
@@ -42,8 +46,8 @@ function Bubbles({ bubbles, ctx }: { bubbles: Bubble[]; ctx: BuilderContext }) {
             </span>
           );
         return (
-          <span key={i} className="wf-b">
-            {b.text || <span className="wf-ghost">Buttons</span>}
+          <span key={i} className="wf-b" title={b.text || undefined}>
+            {b.text || <span className="wf-ghost">{b.kind === "quick_replies" ? "Quick replies" : "Buttons"}</span>}
           </span>
         );
       })}
@@ -87,7 +91,12 @@ function Body({ node, ctx }: { node: GraphNode; ctx: BuilderContext }) {
       );
     }
     case "message":
-      return <Bubbles bubbles={(node.data as StepData<"message">).bubbles ?? []} ctx={ctx} />;
+      return (
+        <>
+          <Bubbles bubbles={(node.data as StepData<"message">).bubbles ?? []} ctx={ctx} />
+          <SaveChips node={node} ctx={ctx} />
+        </>
+      );
     case "wait": {
       const d = node.data as StepData<"wait">;
       const warn = waitWindowWarning(d);
@@ -107,7 +116,7 @@ function Body({ node, ctx }: { node: GraphNode; ctx: BuilderContext }) {
       const d = node.data as StepData<"ask">;
       return (
         <>
-          <span className="wf-b">{d.question || <span className="wf-ghost">Question</span>}</span>
+          <span className="wf-b wf-b-full">{d.question || <span className="wf-ghost">Question</span>}</span>
           <SaveChips node={node} ctx={ctx} />
         </>
       );
@@ -208,10 +217,13 @@ function StepNodeView({ data, selected }: NodeProps<StepNodeType>) {
             const label = portLabel(node, p);
             const branch = p.startsWith("branch:") ? (node.data as StepData<"randomizer">).branches.find((b) => `branch:${b.id}` === p) : null;
             const n = branch ? branchStats?.[branch.id]?.reached : portCounts[p];
+            // Buttons and quick replies read as chips under the message; the
+            // handle stays inside the same row, so it lines up with its chip.
+            const chip = p.startsWith("button:") ? "button" : p.startsWith("reply:") ? "reply" : null;
             return (
-              <div key={p} className="wf-port" data-port={p}>
+              <div key={p} className="wf-port" data-port={p} data-chip={chip ?? undefined}>
                 <span className="wf-port-label">
-                  {branch ? <b>{branch.label}</b> : label}
+                  {branch ? <b>{branch.label}</b> : chip ? <span className="wf-port-chip" data-kind={chip}>{label}</span> : label}
                   {branch ? <span className="wf-port-w">{branch.weight}%</span> : null}
                 </span>
                 {n !== undefined ? <span className="wf-port-n">{n}</span> : null}

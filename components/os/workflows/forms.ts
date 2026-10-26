@@ -21,7 +21,7 @@ export const STEP_LABEL: Record<StepType, string> = {
 
 /** The palette (WorkflowC drawer), in order. Hover text only, no captions. */
 export const PALETTE: { type: StepType; tip: string }[] = [
-  { type: "message", tip: "Text, buttons, image, link" },
+  { type: "message", tip: "Text, buttons, quick replies, image, link" },
   { type: "wait", tip: "Delay, or until they reply" },
   { type: "ask", tip: "Email or an answer to a field" },
   { type: "condition", tip: "Follows, tag, field, keyword, stage" },
@@ -74,6 +74,12 @@ export function portLabel(node: GraphNode, port: string): string {
   if (port.startsWith("branch:")) {
     const id = port.slice(7);
     return (node.data as StepData<"randomizer">).branches?.find((b) => b.id === id)?.label ?? id;
+  }
+  if (port === "other") return "Other";
+  if (port.startsWith("reply:")) {
+    const id = port.slice(6);
+    for (const b of (node.data as StepData<"message">).bubbles ?? []) if (b.kind === "quick_replies") for (const x of b.options) if (x.id === id) return x.label || "Option";
+    return "Option";
   }
   if (port.startsWith("button:")) {
     const id = port.slice(7);
@@ -162,9 +168,12 @@ export function addBubble(bubbles: Bubble[], kind: Bubble["kind"]): Bubble[] {
         ? { kind: "link" }
         : kind === "buttons"
           ? { kind: "buttons", text: "", buttons: [{ id: buttonId(bubbles), label: "Yes please" }] }
-          : { kind: "image", assetUrl: "" };
-  // One buttons bubble per message: Instagram shows it last.
-  if (kind === "buttons" && bubbles.some((x) => x.kind === "buttons")) return bubbles;
+          : kind === "quick_replies"
+            ? { kind: "quick_replies", text: "", options: [{ id: buttonId(bubbles), label: "" }] }
+            : { kind: "image", assetUrl: "" };
+  // One buttons or quick-replies bubble per message: Instagram shows it last.
+  if ((kind === "buttons" || kind === "quick_replies") && bubbles.some((x) => x.kind === "buttons" || x.kind === "quick_replies")) return bubbles;
+  if (kind !== "quick_replies" && bubbles.at(-1)?.kind === "quick_replies") return [...bubbles.slice(0, -1), b, bubbles.at(-1)!];
   return [...bubbles, b];
 }
 
@@ -186,7 +195,7 @@ export function moveBubble(bubbles: Bubble[], i: number, dir: -1 | 1): Bubble[] 
 }
 
 function buttonId(bubbles: Bubble[]): string {
-  const taken = new Set(bubbles.flatMap((b) => (b.kind === "buttons" ? b.buttons.map((x) => x.id) : [])));
+  const taken = new Set(bubbles.flatMap((b) => (b.kind === "buttons" ? b.buttons.map((x) => x.id) : b.kind === "quick_replies" ? b.options.map((x) => x.id) : [])));
   for (let i = 1; ; i++) if (!taken.has(`b${i}`)) return `b${i}`;
 }
 
@@ -208,6 +217,28 @@ export function setButtonLabel(bubbles: Bubble[], i: number, id: string, label: 
   const b = bubbles[i];
   if (!b || b.kind !== "buttons") return bubbles;
   return updateBubble(bubbles, i, { ...b, buttons: b.buttons.map((x) => (x.id === id ? { ...x, label: label.slice(0, 20) } : x)) });
+}
+
+/** Quick replies: up to 13 options, 20 characters each. */
+export const MAX_OPTIONS = 13;
+
+export function addOption(bubbles: Bubble[], i: number): Bubble[] {
+  const b = bubbles[i];
+  if (!b || b.kind !== "quick_replies" || b.options.length >= MAX_OPTIONS) return bubbles;
+  return updateBubble(bubbles, i, { ...b, options: [...b.options, { id: buttonId(bubbles), label: "" }] });
+}
+
+export function removeOption(bubbles: Bubble[], i: number, id: string): Bubble[] {
+  const b = bubbles[i];
+  if (!b || b.kind !== "quick_replies") return bubbles;
+  const options = b.options.filter((x) => x.id !== id);
+  return options.length ? updateBubble(bubbles, i, { ...b, options }) : removeBubble(bubbles, i);
+}
+
+export function setOptionLabel(bubbles: Bubble[], i: number, id: string, label: string): Bubble[] {
+  const b = bubbles[i];
+  if (!b || b.kind !== "quick_replies") return bubbles;
+  return updateBubble(bubbles, i, { ...b, options: b.options.map((x) => (x.id === id ? { ...x, label: label.slice(0, 20) } : x)) });
 }
 
 /** {first_name} and friends, for the phone preview. */
@@ -366,6 +397,8 @@ export function savesTo(node: GraphNode): string[] {
   switch (node.type) {
     case "ask":
       return (node.data as StepData<"ask">).saveTo ? [(node.data as StepData<"ask">).saveTo] : [];
+    case "message":
+      return ((node.data as StepData<"message">).bubbles ?? []).flatMap((b) => (b.kind === "quick_replies" && b.saveTo ? [b.saveTo] : []));
     case "setter":
       return (node.data as StepData<"setter">).saveTo ?? [];
     case "action":
@@ -416,6 +449,8 @@ export function friendlyProblems(graph: WorkflowGraph): GraphProblem[] {
       if (bubbles.some((b) => b.kind === "text" && !b.text.trim())) add({ nodeId: n.id, message: "Empty bubble" });
       if (bubbles.some((b) => b.kind === "link" && !b.url && !b.resourceSlug)) add({ nodeId: n.id, message: "Pick a link" });
       if (bubbles.some((b) => b.kind === "buttons" && b.buttons.some((x) => !x.label.trim()))) add({ nodeId: n.id, message: "Name every button" });
+      if (bubbles.some((b) => b.kind === "quick_replies" && b.options.some((x) => !x.label.trim()))) add({ nodeId: n.id, message: "Name every option" });
+      if (bubbles.some((b) => b.kind === "quick_replies" && !b.text.trim())) add({ nodeId: n.id, message: "Write the question" });
     }
     if (n.type === "ask" && !(n.data as StepData<"ask">).question?.trim()) add({ nodeId: n.id, message: "Write the question" });
     if (n.type === "action" && ((n.data as StepData<"action">).ops ?? []).some((o) => o.op !== "friday" && !o.key)) add({ nodeId: n.id, message: "Pick a tag or field" });

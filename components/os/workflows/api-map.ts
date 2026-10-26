@@ -41,7 +41,7 @@ export function statsFromApi(s: Api.WorkflowStats, since: string | null = null):
     if (i < 0) continue;
     (ports[key.slice(0, i)] ??= {})[key.slice(i + 1)] = n;
   }
-  return { strip: s.header, since, nodes, ports, releases, branches };
+  return { strip: s.header, since, nodes, ports, releases, branches, byReel: (s.byReel ?? []).map((r) => ({ ...r })) };
 }
 
 /** The Inbox line shows live runs only: active/waiting = Active, paused = Paused. */

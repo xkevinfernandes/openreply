@@ -7,7 +7,7 @@
 import type { GraphProblem, StepType, WorkflowGraph } from "@/lib/os/workflows/graph";
 
 export type WorkflowMode = "draft" | "auto";
-export type TemplateId = "hold_lead_magnet" | "send_link" | "start_conversation" | "blank";
+export type TemplateId = "hold_lead_magnet" | "send_link" | "start_conversation" | "waitlist_questions" | "blank";
 export type RunStatus = "active" | "waiting" | "paused" | "completed" | "exited" | "replaced" | "failed";
 export type StatsPeriod = "7d" | "30d" | "all";
 
@@ -124,6 +124,20 @@ export interface NodeStats {
   branches?: Record<string, BranchFunnel>;
 }
 
+/** One post's funnel (comment triggers): people who entered from it and how far they got. */
+export interface ReelFunnel {
+  postId: string;
+  /** The post on Instagram, when a campaign already knows it. */
+  permalink: string | null;
+  entered: number;
+  /** Answered an email Ask step. */
+  email: number;
+  /** Answered (or passed) the last quick-reply question. */
+  finished: number;
+  /** Picked a quick-reply option marked qualifies (e.g. revenue $5K+). */
+  qualified: number;
+}
+
 export interface WorkflowStats {
   period: StatsPeriod;
   versionId: string | null;
@@ -131,6 +145,8 @@ export interface WorkflowStats {
   nodes: Record<string, NodeStats>;
   /** People who left by an arrow, keyed "<nodeId>:<port>" (setter exits on the arrows). */
   ports: Record<string, number>;
+  /** By reel: comment runs per post, most entered first. */
+  byReel: ReelFunnel[];
 }
 
 /** The run a contact is in, for the thread strip ("Paused · you replied" + Resume). */

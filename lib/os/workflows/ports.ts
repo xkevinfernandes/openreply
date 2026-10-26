@@ -14,7 +14,8 @@ import { FOLLOW_UP_FRIDAY } from "@/lib/os/broadcasts/types";
 import { capState, checkSend, localDayStart, recordSend } from "@/lib/os/sending/cap";
 import { getSetterConfig } from "@/lib/os/setter/config";
 import { draft as runDrafter } from "@/lib/os/setter/drafter";
-import { CLASSIFY_SYSTEM, heuristicClassify, readClassification } from "@/lib/os/workflows/setter-step";
+import { sendMessageWithQuickReplies } from "@/lib/meta/client";
+import { CLASSIFY_SYSTEM, heuristicClassify, PICK_OPTION_SYSTEM, pickOptionPrompt, readClassification, readPickedOption } from "@/lib/os/workflows/setter-step";
 import type { CanSend, ContactInfo, JRequest, OutMessage, Ports, SendContext } from "@/lib/os/workflows/types";
 
 
@@ -35,19 +36,23 @@ function plain(msg: OutMessage): string {
   return msg.text;
 }
 
-/** Zernio takes up to 3 postback buttons on a DM or a private reply. */
+/** Zernio takes up to 3 postback buttons, or up to 13 quick replies, on a DM or a private reply. */
 async function zernioSend(ctx: Extract<InstagramContext, { provider: "ZERNIO" }>, target: { commentId?: string; postId?: string | null; recipientId?: string }, msg: OutMessage, key: string) {
   const path = target.commentId
     ? `/inbox/comments/${encodeURIComponent(target.postId ?? target.commentId)}/${encodeURIComponent(target.commentId)}/private-reply`
     : `/inbox/conversations/${encodeURIComponent(target.recipientId!)}/messages`;
   const buttons = "text" in msg && msg.buttons?.length ? msg.buttons.slice(0, 3).map((b) => ({ type: "postback", title: b.label.slice(0, 20), payload: b.payload })) : undefined;
+  const quickReplies = !buttons && "text" in msg && msg.quickReplies?.length ? msg.quickReplies.slice(0, 13).map((b) => ({ title: b.label.slice(0, 20), payload: b.payload })) : undefined;
   const body = {
     accountId: ctx.accountId,
     ...("image" in msg ? { attachments: [{ type: "image", url: msg.image }], message: "" } : { message: buttons ? plain(msg).slice(0, 640) : plain(msg) }),
     ...(buttons ? { buttons } : {}),
+    ...(quickReplies ? { quickReplies } : {}),
   };
   await zernioRequest({ apiKey: ctx.apiKey, path, method: "POST", body, ...(target.commentId ? {} : { idempotencyKey: createHash("sha256").update(key).digest("hex") }) });
 }
+
+const metaReplies = (list: { label: string; payload: string }[]) => list.slice(0, 13).map((b) => ({ title: b.label, payload: b.payload }));
 
 async function noteOutbound(workspaceId: string, igUserId: string, msg: OutMessage) {
   await prisma.workflowOutbound.create({ data: { workspaceId, igUserId, hash: textHash(plain(msg)) } }).catch(() => {});
@@ -139,6 +144,7 @@ export function dbPorts(): Ports {
     async privateReply(sc, commentId, postId, msg) {
       const { ctx, instagramId } = await accountContext(sc.instagramAccountId, `wf:${commentId}`);
       if (ctx.provider === "ZERNIO") await zernioSend(ctx, { commentId, postId }, msg, `pr:${commentId}`);
+      else if ("text" in msg && msg.quickReplies?.length) await sendMessageWithQuickReplies(ctx.accessToken, instagramId, { comment_id: commentId }, msg.text, metaReplies(msg.quickReplies));
       else await sendPrivateReply({ context: ctx, instagramAccountId: instagramId, commentId, message: plain(msg), postId: postId ?? undefined });
       await noteOutbound(sc.workspaceId, sc.igUserId, msg);
       await recordSend(sc.workspaceId, { key: `wf-pr:${commentId}`, source: "workflow" });
@@ -147,6 +153,7 @@ export function dbPorts(): Ports {
       const { ctx, instagramId } = await accountContext(sc.instagramAccountId, `wf:${opts.key}`);
       if (opts.humanAgent) throw new Error("A workflow step never sends under HUMAN_AGENT by itself.");
       if (ctx.provider === "ZERNIO") await zernioSend(ctx, { recipientId: sc.igUserId }, msg, opts.key);
+      else if ("text" in msg && msg.quickReplies?.length) await sendMessageWithQuickReplies(ctx.accessToken, instagramId, { id: sc.igUserId }, msg.text, metaReplies(msg.quickReplies));
       else await sendDirectMessage({ context: ctx, instagramAccountId: instagramId, userId: sc.igUserId, message: plain(msg) });
       await noteOutbound(sc.workspaceId, sc.igUserId, msg);
       await recordSend(sc.workspaceId, { key: `wf:${opts.key}`, source: "workflow" });
@@ -196,6 +203,18 @@ export function dbPorts(): Ports {
       } catch (err) {
         console.error("[OS Workflows] classifier:", err instanceof Error ? err.message : err);
         return fallback;
+      }
+    },
+    async pickOption(text, ctx) {
+      // Same model and keys as J's classifier; without the API there's no guess (the step retries).
+      const cfg = getSetterConfig();
+      if (cfg.drafter.backend !== "anthropic_api") return null;
+      try {
+        const r = await runDrafter({ system: PICK_OPTION_SYSTEM, prompt: pickOptionPrompt(text, ctx), job: "triage", settings: { ...cfg.drafter, max_tokens: { ...cfg.drafter.max_tokens, triage: 100 } } });
+        return readPickedOption(r.obj, ctx.options.map((o) => o.id));
+      } catch (err) {
+        console.error("[OS Workflows] option picker:", err instanceof Error ? err.message : err);
+        return null;
       }
     },
     async todo(workspaceId, contactId, key, title, context) {

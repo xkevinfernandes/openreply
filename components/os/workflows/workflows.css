@@ -86,6 +86,12 @@
   flex: 1 1 auto;
 }
 
+/* In the inspector's column, "full" means full width, never full height. */
+.wf-insp-body .wf-seg-full {
+  flex: 0 0 auto;
+  align-self: stretch;
+}
+
 .wf-seg button {
   flex: 1 1 auto;
   height: 26px;
@@ -732,6 +738,75 @@
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
 }
 
+/* By reel: per post funnel, top right of the canvas. */
+.wf-reels-btn {
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.wf-reels-btn[aria-expanded="true"] {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.wf-reels {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  z-index: 6;
+  max-width: calc(100% - 32px);
+  max-height: calc(100% - 32px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 6px 10px 10px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+
+.wf-reels-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wf-reels-table th,
+.wf-reels-table td {
+  padding: 5px 10px;
+  text-align: right;
+  white-space: nowrap;
+  border-top: 1px solid var(--line);
+}
+
+.wf-reels-table thead th {
+  border-top: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.wf-reels-table th[scope="row"],
+.wf-reels-table thead th:first-child {
+  text-align: left;
+  font-weight: 500;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wf-reels-table a {
+  color: inherit;
+}
+
 .wf-palette {
   position: absolute;
   left: 16px;
@@ -905,10 +980,18 @@
   font-size: var(--fs-xs);
   line-height: 1.35;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 8;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Ask questions show in full. */
+.wf-b-full {
+  display: block;
+  -webkit-line-clamp: none;
+  overflow: visible;
 }
 
 .wf-b-img,
@@ -1011,6 +1094,41 @@
 
 .wf-port + .wf-port {
   border-top: 1px solid var(--line);
+}
+
+/* Button and quick-reply ports: one chip per row, its handle on the right. */
+.wf-port[data-chip] {
+  height: 28px;
+}
+
+.wf-port[data-chip] + .wf-port[data-chip] {
+  border-top: 0;
+}
+
+.wf-ports > .wf-port[data-chip]:first-child {
+  margin-top: 4px;
+}
+
+.wf-port-chip {
+  display: inline-block;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 2px 9px;
+  border: 1px solid #3797f0;
+  border-radius: 12px;
+  color: #3797f0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wf-port-chip[data-kind="button"] {
+  border-color: var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--ink);
 }
 
 .wf-port-label {
@@ -1324,9 +1442,15 @@
   gap: 2px;
 }
 
+/* .os-input is a fixed-height single line; textareas size to their copy
+   (autosize.tsx sets the height), with no drag handle or inner scroll. */
 .wf-bubble-text {
-  resize: vertical;
-  min-height: 52px;
+  height: auto;
+  padding: 8px 10px;
+  line-height: 1.5;
+  resize: none;
+  overflow-y: hidden;
+  min-height: 44px;
 }
 
 .wf-add-row {
@@ -1546,7 +1670,7 @@
 
 .wf-phone {
   width: 292px;
-  height: 520px;
+  min-height: 520px;
   box-sizing: border-box;
   border: 1px solid var(--line-strong);
   border-radius: 28px;
@@ -1593,7 +1717,6 @@
 .wf-ph-list {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -1611,6 +1734,7 @@
   font-size: var(--fs-xs);
   line-height: 1.35;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .wf-ph-b[data-side="in"] {
@@ -1675,6 +1799,8 @@
 
 .wf-ph-btncard > span:first-child {
   padding: 8px 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .wf-ph-btn {
@@ -1683,6 +1809,30 @@
   text-align: center;
   color: #3797f0;
   font-weight: 600;
+}
+
+/* Quick replies: chips under their question, Instagram blue outline. */
+.wf-ph-chips {
+  align-self: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  max-width: 236px;
+}
+
+.wf-ph-chip {
+  padding: 5px 10px;
+  border: 1px solid #3797f0;
+  border-radius: 14px;
+  color: #3797f0;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.wf-field-row .wf-warn-dot {
+  flex-shrink: 0;
 }
 
 .wf-ph-comment {

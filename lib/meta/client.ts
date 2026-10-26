@@ -366,6 +366,43 @@ export async function sendDirectMessage(
 }
 
 /**
+ * Send a text with quick replies (up to 13 chips, 20 characters each), to a
+ * user's IGSID or as a comment's private reply. A tap comes back as a normal
+ * message whose `quick_reply.payload` is the chip's payload.
+ */
+export async function sendMessageWithQuickReplies(
+  accessToken: string,
+  instagramAccountId: string,
+  recipient: { id: string } | { comment_id: string },
+  text: string,
+  replies: { title: string; payload: string }[]
+): Promise<{ recipient_id: string; message_id: string }> {
+  const response = await fetch(
+    `${instagramGraphBase()}/${instagramAccountId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        recipient,
+        message: {
+          text,
+          quick_replies: replies.slice(0, 13).map((r) => ({
+            content_type: "text",
+            title: r.title.slice(0, 20),
+            payload: r.payload,
+          })),
+        },
+      }),
+    }
+  );
+
+  return handleResponse(response);
+}
+
+/**
  * Send a direct message as a button template with up to 3 web_url buttons —
  * the reveal message plus tappable link buttons (cleaner than inline URLs).
  */

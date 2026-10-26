@@ -45,7 +45,7 @@ import { WfIcon } from "@/components/os/workflows/icons";
 import Inspector from "@/components/os/workflows/inspector";
 import { StepNode, type StepNodeData, type StepNodeType } from "@/components/os/workflows/step-node";
 import type { BuilderContext } from "@/components/os/workflows/context";
-import type { WorkflowDetail, WorkflowMode, WorkflowStats } from "@/components/os/workflows/types";
+import type { ReelRow, WorkflowDetail, WorkflowMode, WorkflowStats } from "@/components/os/workflows/types";
 import { sinceLabel, stripItems } from "@/components/os/workflows/view";
 import { InfoTip } from "@/components/os/ui";
 import type { GraphProblem, StepData, StepType, WorkflowGraph } from "@/lib/os/workflows/graph";
@@ -77,6 +77,7 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [measured, setMeasured] = useState<Record<string, { width: number; height: number }>>({});
   const [palette, setPalette] = useState(false);
+  const [reels, setReels] = useState(false);
   const [name, setName] = useState(workflow.name);
   const [mode, setMode] = useState<WorkflowMode>(workflow.mode);
   const [on, setOn] = useState(workflow.on);
@@ -396,6 +397,11 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
               {note.text}
             </span>
           ) : null}
+          {stats?.byReel.length ? (
+            <button type="button" className="wf-reels-btn" aria-expanded={reels} aria-controls="wf-reels" onClick={() => setReels((r) => !r)}>
+              By reel · {stats.byReel.length}
+            </button>
+          ) : null}
           {stats?.since ? <span className="wf-since">{sinceLabel(stats.since)}</span> : null}
         </div>
       </header>
@@ -448,6 +454,8 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
             </div>
           </div>
 
+          {reels && stats?.byReel.length ? <ReelTable rows={stats.byReel} onClose={() => setReels(false)} /> : null}
+
           {palette ? (
             <nav id="wf-palette" className="wf-palette" aria-label="Steps">
               <div className="wf-palette-head">
@@ -499,6 +507,57 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** By reel: per post, entered → email → finished the questions → qualified. */
+function ReelTable({ rows, onClose }: { rows: ReelRow[]; onClose: () => void }) {
+  const pctOf = (n: number, of: number) => (of > 0 ? `${Math.round((n / of) * 100)}%` : "–");
+  return (
+    <section id="wf-reels" className="wf-reels" aria-label="By reel">
+      <div className="wf-palette-head">
+        <h2>By reel</h2>
+        <button type="button" className="wf-iconbtn" aria-label="Close by reel" title="Close" onClick={onClose}>
+          <WfIcon name="close" />
+        </button>
+      </div>
+      <table className="wf-reels-table">
+        <thead>
+          <tr>
+            <th scope="col">Post</th>
+            <th scope="col">Entered</th>
+            <th scope="col">Email</th>
+            <th scope="col">Finished</th>
+            <th scope="col">Qualified</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.postId}>
+              <th scope="row" title={r.postId}>
+                {r.permalink ? (
+                  <a href={r.permalink} target="_blank" rel="noreferrer">
+                    {r.permalink.replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/\/$/, "") || r.postId}
+                  </a>
+                ) : (
+                  r.postId
+                )}
+              </th>
+              <td>{r.entered}</td>
+              <td>
+                {r.email} <span className="wf-strip-pct">{pctOf(r.email, r.entered)}</span>
+              </td>
+              <td>
+                {r.finished} <span className="wf-strip-pct">{pctOf(r.finished, r.entered)}</span>
+              </td>
+              <td>
+                {r.qualified} <span className="wf-strip-pct">{pctOf(r.qualified, r.entered)}</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
   );
 }
 

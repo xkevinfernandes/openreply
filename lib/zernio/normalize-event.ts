@@ -17,7 +17,7 @@ const envelopeSchema = z.object({
     text: z.string().nullable(), sender: z.object({ id: z.string().min(1) }),
   }).optional(),
   conversation: z.object({ participantId: z.string().nullish() }).optional(),
-  metadata: z.object({ postbackPayload: z.string().optional(), postbackTitle: z.string().optional() }).optional(),
+  metadata: z.object({ postbackPayload: z.string().optional(), postbackTitle: z.string().optional(), quickReplyPayload: z.string().optional() }).optional(),
   statusAt: z.string().optional(),
 });
 
@@ -42,7 +42,7 @@ export function normalizeZernioEvent({ payload, account }: {
     const sender = { id: message.sender.id };
     entry.messaging = [metadata?.postbackPayload
       ? { sender, postback: { mid: message.platformMessageId, payload: metadata.postbackPayload, title: metadata.postbackTitle } }
-      : { sender, message: { mid: message.platformMessageId, text: message.text ?? '' } }];
+      : { sender, message: { mid: message.platformMessageId, text: message.text ?? '', ...(metadata?.quickReplyPayload ? { quick_reply: { payload: metadata.quickReplyPayload } } : {}) } }];
   } else if (event === 'message.read' && conversation?.participantId) {
     const watermark = statusAt ? Date.parse(statusAt) : undefined;
     entry.messaging = [{ sender: { id: conversation.participantId }, read: { watermark: watermark !== undefined && Number.isFinite(watermark) ? watermark : undefined } }];

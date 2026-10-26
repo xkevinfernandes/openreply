@@ -8,10 +8,10 @@
 
 import { detailFromApi, publishProblems, rowFromSummary, runFromApi, statsFromApi } from "@/components/os/workflows/api-map";
 import { friendlyProblems, STEP_LABEL } from "@/components/os/workflows/forms";
-import { fillResource, layoutGraph, templateGraph, TEMPLATES, type TemplateKey } from "@/components/os/workflows/templates";
+import { fillResource, layoutFor, templateGraph, TEMPLATES, type TemplateKey } from "@/components/os/workflows/templates";
 import type { ContactRun, FunnelStrip, NodeStat, Period, WorkflowDetail, WorkflowMode, WorkflowRow, WorkflowStats } from "@/components/os/workflows/types";
 import { osMockEnabled } from "@/lib/os/mock";
-import { WorkflowGraph, type GraphProblem, type StepData } from "@/lib/os/workflows/graph";
+import { portsOf, WorkflowGraph, type GraphProblem, type StepData } from "@/lib/os/workflows/graph";
 
 const api = () => import("@/lib/os/workflows/api");
 
@@ -97,7 +97,7 @@ export async function createWorkflow(workspaceId: string, template: TemplateKey,
   const a = await api();
   const { id } = ok(await a.createWorkflow(workspaceId, { templateId: template }));
   const d = await a.getWorkflow(workspaceId, id);
-  if (d) ok(await a.saveDraft(workspaceId, id, layoutGraph(fillResource(d.draft, resourceSlug))));
+  if (d) ok(await a.saveDraft(workspaceId, id, layoutFor(template, fillResource(d.draft, resourceSlug))));
   return { id };
 }
 
@@ -307,7 +307,7 @@ function computeStats(w: StoredWorkflow): WorkflowStats {
   const branches: WorkflowStats["branches"] = {};
   const trigger = graph.nodes.find((n) => n.type === "trigger");
   const strip: FunnelStrip = { triggered: w.triggered, replied: 0, leadMagnet: 0, booked: 0, showed: 0 };
-  if (!trigger || !w.triggered) return { strip, since: null, nodes, ports, releases, branches };
+  if (!trigger || !w.triggered) return { strip, since: null, nodes, ports, releases, branches, byReel: [] };
 
   const keep: Partial<Record<string, number>> = { message: 0.64, wait: 0.9, ask: 0.35, condition: 1, action: 1, setter: 1, goto: 1, end: 1 };
   const visit = (id: string, people: number, prev: number | null, depth: number) => {
@@ -364,7 +364,7 @@ function computeStats(w: StoredWorkflow): WorkflowStats {
       if (prev !== null && depth === 1) strip.replied += reached;
       const d = node.data as StepData<"message">;
       if (d.bubbles.some((b) => b.kind === "link")) strip.leadMagnet += reached;
-      const portsHere = d.bubbles.flatMap((b) => (b.kind === "buttons" ? b.buttons.map((x) => `button:${x.id}`) : []));
+      const portsHere = portsOf(node).filter((p) => p !== "next" && p !== "other");
       if (portsHere.length) portsHere.forEach((p, i) => send(p, Math.round(reached / (i + 2))));
       else send("next", reached);
     } else if (node.type === "wait") {
@@ -378,7 +378,7 @@ function computeStats(w: StoredWorkflow): WorkflowStats {
   };
   visit(trigger.id, w.triggered, null, 0);
   if (!strip.replied) strip.replied = Math.round(w.triggered * 0.64);
-  return { strip, since: "2026-10-12", nodes, ports, releases, branches };
+  return { strip, since: "2026-10-12", nodes, ports, releases, branches, byReel: [] };
 }
 
 // ---------------------------------------------------------------- mock seed
