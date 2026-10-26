@@ -6,8 +6,9 @@
 // Keys arrive on the DM OS event bus (components/os/keys.ts), so the ⌘K
 // palette drives the same actions. Owner: S1.
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { composerDraftAction } from "@/app/(os)/os/automations/broadcasts/actions";
 import { approveJDraft, draftWithJ, holdJDraft, sendInboxMessage } from "@/app/(os)/os/inbox/actions";
 import VoicePanel from "@/components/os/inbox/voice-panel";
 import { closeInspect, currentInspect, toggleInspect, useInspect } from "@/components/os/inspect/bus";
@@ -109,6 +110,27 @@ export default function Composer({
   const fields = useRef<(HTMLTextAreaElement | null)[]>([]);
   const focusAt = useRef<{ i: number; caret: number } | null>(null);
 
+  // Send myself (broadcast Review → ?bm=<message id>): the broadcast's draft in
+  // the composer. The draft is only marked once this send succeeds.
+  const params = useSearchParams();
+  const pathname = usePathname();
+  const bm = listen ? (params?.get("bm") ?? null) : null;
+  const [broadcast, setBroadcast] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => {
+    if (!bm) return;
+    let live = true;
+    void composerDraftAction(bm).then((r) => {
+      if (!live) return;
+      if (r.bubbles?.length) {
+        setState({ mode: "own", bubbles: r.bubbles });
+        setBroadcast({ id: bm, name: r.name ?? "Broadcast" });
+      } else if (r.error) setError(r.error);
+    });
+    return () => {
+      live = false;
+    };
+  }, [bm]);
+
   // A new draft remounts the composer (hosts key it on the draft).
   useEffect(() => {
     const f = focusAt.current;
@@ -173,10 +195,24 @@ export default function Composer({
   function approve() {
     if (!canSend) return;
     const edit = draft ? editedText(state, draft.bubbles) : null;
+    const mine = broadcast;
     run(
       "send",
-      () => (draft ? approveJDraft(draft.id, edit) : sendInboxMessage(igUserId, out, { conversationId, contactId })),
-      () => setState(writeOwn())
+      () =>
+        mine
+          ? sendInboxMessage(igUserId, out, { conversationId, contactId, broadcastMessageId: mine.id })
+          : draft
+            ? approveJDraft(draft.id, edit)
+            : sendInboxMessage(igUserId, out, { conversationId, contactId }),
+      () => {
+        setState(writeOwn());
+        if (mine) {
+          setBroadcast(null);
+          const q = new URLSearchParams(params?.toString() ?? "");
+          q.delete("bm");
+          router.replace(`${pathname}?${q}`);
+        }
+      }
     );
   }
 
@@ -308,6 +344,11 @@ export default function Composer({
           ))}
         </div>
 
+        {broadcast ? (
+          <p className="os-cmp-notice" role="status">
+            {broadcast.name}: your draft. It leaves Review once this sends.
+          </p>
+        ) : null}
         {error ? (
           <p className="os-cmp-error" role="alert">
             {error}

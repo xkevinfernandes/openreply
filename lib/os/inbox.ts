@@ -306,11 +306,16 @@ export interface SendReplyOptions {
   /** Kevin's own send (the composer): stamps last personal send and marks the
    *  thread read (lib/os/send-stamp.ts). J's drafts, broadcasts: false. */
   human?: boolean;
+  /** Only the inbox composer (and Send myself): checks neither Pause all nor
+   *  the cap; recorded with source "manual", which the cap doesn't count.
+   *  Distinct from send.ts's opts.manual. */
+  fromComposer?: boolean;
 }
 
 export async function sendReply(workspaceId: string, igUserId: string, text: string, options: SendReplyOptions) {
   // Pause all + the daily setter limit (lib/os/sending/cap.ts): only J's bubbles count.
-  await assertCanSend(workspaceId, 1, { source: options.source });
+  // Kevin's composer is never held (Pause all stops automations only).
+  if (!options.fromComposer) await assertCanSend(workspaceId, 1, { source: options.source });
   // Its Instagram echo must not read as Kevin typing in the IG app (workflows
   // pause on that): noted before the send, since the echo can arrive first.
   const { sendNotedOs } = await import("@/lib/os/workflows/hooks");

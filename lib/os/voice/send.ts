@@ -42,11 +42,14 @@ export interface AudioSend {
   human?: boolean;
   /** The OS contact, for the send stamp. */
   contactId?: string | null;
+  /** Kevin's composer: checks neither Pause all nor the cap (Pause all stops automations only). */
+  fromComposer?: boolean;
 }
 
 export async function sendAudioMessage(s: AudioSend): Promise<{ messageId: string | null }> {
-  // Pause all (a voice note is Kevin's, so the setter limit doesn't hold it).
-  await assertCanSend(s.workspaceId, 1, { source: "voice" });
+  // Pause all (a voice note is Kevin's, so the setter limit doesn't hold it);
+  // Kevin's own from the composer checks neither.
+  if (!s.fromComposer) await assertCanSend(s.workspaceId, 1, { source: "voice" });
   const result = await sendAudioUnguarded(s);
   await recordSend(s.workspaceId, { key: `voice:${s.sendKey}`, source: "voice" });
   await stampSend(s.contactId ? { contactId: s.contactId, workspaceId: s.workspaceId } : { workspaceId: s.workspaceId, igUserId: s.igUserId }, { human: s.human === true });

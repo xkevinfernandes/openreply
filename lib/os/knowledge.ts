@@ -29,6 +29,8 @@ export interface ResourceView {
   /** Resource.keyword plus the keywords of campaigns mapped to it. */
   keywords: { word: string; automationId: string | null }[];
   usedBy: { id: string; name: string }[];
+  /** Broadcasts whose link bubbles use it (Part C 024). */
+  broadcasts: { key: string; name: string; unsent: boolean }[];
   /** Times it went out (OsEvent lead_magnet_sent). */
   sent: number;
   /** Episodes: when J shares it. */
@@ -90,6 +92,8 @@ export async function listResources(workspaceId: string): Promise<ResourceView[]
     ? await prisma.automation.findMany({ where: { workspaceId, id: { in: maps.map((m) => m.automationId) } }, select: { id: true, keywords: true } }).catch(() => [])
     : [];
   const sent = sentCounts(events);
+  const { resourceBroadcastUse } = await import("@/lib/os/broadcasts/resources");
+  const inBroadcasts = await resourceBroadcastUse(workspaceId, rows.map((r) => r.id)).catch(() => new Map());
   return rows.map((r) => {
     const data = (r.data && typeof r.data === "object" ? r.data : {}) as { when?: unknown };
     return {
@@ -104,6 +108,7 @@ export async function listResources(workspaceId: string): Promise<ResourceView[]
       setterCount: r.setters.length,
       keywords: keywordsFor(r, maps, automations),
       usedBy: r.setters.map((s) => s.setter),
+      broadcasts: (inBroadcasts.get(r.id) ?? []).map((b: { key: string; name: string; unsent: boolean }) => ({ key: b.key, name: b.name, unsent: b.unsent })),
       sent: sent.get(r.id) ?? 0,
       when: typeof data.when === "string" ? data.when : "",
       sortOrder: r.sortOrder,

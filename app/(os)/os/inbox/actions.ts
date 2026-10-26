@@ -75,7 +75,7 @@ export async function setContactStage(contactId: string, stage: ContactStage): P
 export async function sendInboxMessage(
   igUserId: string,
   text: string | string[],
-  where: { conversationId?: string | null; contactId?: string | null } = {}
+  where: { conversationId?: string | null; contactId?: string | null; broadcastMessageId?: string | null } = {}
 ): Promise<{ error?: string }> {
   const workspaceId = await requireWorkspace();
   // One message per bubble, in order (a link is its own bubble).
@@ -83,7 +83,13 @@ export async function sendInboxMessage(
   if (!bubbles.length) return { error: "Write a message first." };
   try {
     for (const message of bubbles) {
-      await sendReply(workspaceId, igUserId, message, { conversationId: where.conversationId ?? null, contactId: where.contactId ?? null, source: "manual", human: true });
+      await sendReply(workspaceId, igUserId, message, { conversationId: where.conversationId ?? null, contactId: where.contactId ?? null, source: "manual", human: true, fromComposer: true });
+    }
+    // Send myself (a broadcast draft from Review): it's done, his links kept for the link guard.
+    if (where.broadcastMessageId) {
+      const { markSentByKevin } = await import("@/lib/os/broadcasts/engine");
+      await markSentByKevin(workspaceId, String(where.broadcastMessageId), bubbles).catch((err) => console.error("[OS Broadcasts] send myself:", err));
+      revalidatePath("/os/automations/broadcasts", "layout");
     }
     // Kevin wrote by hand: a workflow run (and J) pause for this person (K1).
     await workflowKevinSent(workspaceId, where.contactId, bubbles.join("\n"));
