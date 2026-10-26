@@ -1,557 +1,5 @@
-/* --- Broadcasts (board AutomationsB: the Follow-up Friday builder) --------- */
-
-.os-bc {
-  display: flex;
-  flex-direction: column;
-  font-size: var(--fs-sm);
-}
-
-.os-bc-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-5);
-  max-width: 1240px;
-  width: 100%;
-  padding-bottom: var(--sp-6);
-}
-
-.os-bc-head {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.os-bc-crumbs {
-  font-size: var(--fs-xs);
-  color: var(--muted);
-}
-
-.os-bc-crumbs a {
-  color: var(--muted);
-  text-decoration: none;
-}
-
-.os-bc-crumbs a:hover {
-  color: var(--ink);
-}
-
-.os-bc-titlerow {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-}
-
-.os-bc-onoff {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 6px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  font: inherit;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.os-bc-onoff:hover {
-  background: var(--tint);
-  color: var(--ink);
-}
-
-.os-bc-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--ghost);
-}
-
-.os-bc-dot[data-on] {
-  background: var(--mark);
-}
-
-.os-bc-cols {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--gap);
-  align-items: flex-start;
-}
-
-/* The form: one card; fieldsets with a 140px legend column, separated by
-   space, not hairlines (D-05). */
-.os-bc-form {
-  flex: 1 1 500px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  padding: 22px 24px;
-  border: 0;
-  border-radius: var(--radius-card);
-  background: var(--card);
-}
-
-.os-bc-sec {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  display: grid;
-  grid-template-columns: 140px minmax(0, 1fr);
-  gap: var(--sp-3);
-  align-items: start;
-  min-width: 0;
-}
-
-.os-bc-sec legend {
-  float: left;
-  padding: 6px 0 0;
-  font-weight: 600;
-}
-
-.os-bc-stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  min-width: 0;
-}
-
-.os-bc-stack-tight {
-  gap: 6px;
-}
-
-/* A sub-group (the follow-up) sits in an inner well. */
-.os-bc-split {
-  --ctl: var(--card);
-  --ctl-hover: var(--tint-2);
-  padding: 10px 12px;
-  border-radius: var(--radius);
-  background: var(--well);
-}
-
-.os-bc-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  flex-wrap: wrap;
-}
-
-.os-bc-indent {
-  gap: var(--sp-4);
-  padding-left: 26px;
-}
-
-.os-bc-grow {
-  flex: 1;
-}
-
-.os-bc-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 999px;
-  font-weight: 500;
-  background: var(--neutral-bg);
-}
-
-.os-bc-num {
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-
-.os-bc-num-sm {
-  font-variant-numeric: tabular-nums;
-}
-
-.os-bc-sub {
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  font-weight: 400;
-}
-
-.os-bc-inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.os-bc-strong {
-  font-weight: 500;
-}
-
-.os-bc-chips {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.os-bc-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 4px 0 8px;
-  border-radius: 999px;
-  background: var(--well);
-  font-size: var(--fs-xs);
-}
-
-.os-bc-x {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.os-bc-x:hover {
-  background: var(--tint-2);
-  color: var(--ink);
-}
-
-.os-bc-more {
-  height: 26px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--well);
-  font: inherit;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.os-bc-ta.os-textarea {
-  min-height: 44px;
-  resize: vertical;
-  field-sizing: content;
-}
-
-/* Without field-sizing the box can't grow to its text: room for 3 lines. */
-@supports not (field-sizing: content) {
-  .os-bc-ta.os-textarea {
-    min-height: 72px;
-  }
-}
-
-/* {link} and {first_name} are one row of the same neutral pill (R1-14). */
-.os-bc-vars {
-  gap: 6px;
-}
-
-.os-bc-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-  height: 26px;
-  box-sizing: border-box;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: var(--well);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.os-bc-var {
-  display: inline-flex;
-  align-items: center;
-  height: 26px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--well);
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-
-.os-bc-var:hover {
-  background: var(--tint-2);
-}
-
-.os-bc-chk {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-}
-
-.os-bc-chk input:disabled {
-  opacity: 1;
-  cursor: default;
-}
-
-.os-bc-small select {
-  height: 30px;
-  font-size: var(--fs-xs);
-}
-
-/* HH:MM plus the clock icon, never clipped (D-07). */
-.os-bc-hm.os-input {
-  width: 120px;
-  padding: 0 10px 0 14px;
-  font-variant-numeric: tabular-nums;
-}
-
-.os-bc-j {
-  --ctl: var(--card);
-  --ctl-hover: var(--tint-2);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  padding: 10px 12px;
-  border-radius: var(--radius);
-  background: var(--well);
-}
-
-/* Pacing strip */
-.os-bc-strip {
-  position: relative;
-  height: 20px;
-  border-radius: 999px;
-  background: var(--well);
-}
-
-.os-bc-tick {
-  position: absolute;
-  top: 4px;
-  width: 2px;
-  height: 12px;
-  margin-left: -1px;
-  border-radius: 999px;
-  background: var(--ink);
-}
-
-.os-bc-hours {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Drafts */
-.os-bc-drafts {
-  flex: 0 1 420px;
-  min-width: 300px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-}
-
-.os-bc-drafts-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-2);
-}
-
-.os-bc-drafts-head h2 {
-  margin: 0;
-  font-size: var(--fs-h2);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.os-bc-btn-sm {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 12px;
-  background: var(--ctl);
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.os-bc-btn-sm:hover:not(:disabled) {
-  background: var(--ctl-hover);
-}
-
-.os-bc-empty {
-  margin: 0;
-  padding: 20px 22px;
-  border: 0;
-  border-radius: var(--radius-card);
-  color: var(--muted);
-  font-size: var(--fs-sm);
-  background: var(--card);
-}
-
-/* A draft: one card, its parts spaced, no hairlines. */
-.os-bc-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 4px;
-  border: 0;
-  border-radius: var(--radius-card);
-  background: var(--card);
-}
-
-.os-bc-card[data-status="sent"] {
-  opacity: 0.7;
-}
-
-.os-bc-card > header {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: 8px 12px 0;
-}
-
-.os-bc-av {
-  width: 24px;
-  height: 24px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--tint-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.os-bc-who {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  flex: 1;
-  line-height: 1.3;
-}
-
-.os-bc-handle {
-  font-weight: 500;
-}
-
-.os-bc-ctx {
-  font-size: var(--fs-xs);
-  color: var(--muted);
-}
-
-.os-bc-time {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 4px 0 8px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-
-.os-bc-time input {
-  width: 64px;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  font: inherit;
-  color: var(--ink);
-}
-
-.os-bc-time input::-webkit-calendar-picker-indicator {
-  display: none;
-}
-
-.os-bc-time:focus-within {
-  border-color: var(--ink);
-}
-
-.os-bc-body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-}
-
-.os-bc-ed {
-  box-sizing: border-box;
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--well);
-  font: inherit;
-  font-size: var(--fs-sm);
-  line-height: 1.45;
-  color: var(--ink);
-  resize: none;
-  outline: none;
-  field-sizing: content;
-}
-
-.os-bc-ed:focus {
-  border-color: var(--ink);
-}
-
-.os-bc-ed:disabled {
-  background: var(--paper-2);
-  color: var(--muted);
-}
-
-.os-bc-when {
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.os-bc-card > footer {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 8px;
-  min-height: 26px;
-}
-
-.os-bc-state {
-  padding: 0 6px;
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  color: var(--mark);
-  font-variant-numeric: tabular-nums;
-}
-
-.os-bc-state[data-status="failed"] {
-  color: var(--bad);
-}
-
-.os-bc-err {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--fs-xs);
-  color: var(--warn);
-}
+/* --- Broadcasts (one-off): the list (Automations board) and one broadcast
+   (Friday board): five steps as a fixed list of cards, Review beside them. */
 
 .os-bc-quiet {
   height: 26px;
@@ -563,6 +11,9 @@
   font-size: var(--fs-xs);
   color: var(--muted);
   cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
 }
 
 .os-bc-quiet:hover:not(:disabled) {
@@ -570,106 +21,18 @@
   color: var(--ink);
 }
 
-.os-bc-approve.os-button {
-  height: 26px;
-  padding: 0 10px;
-  font-size: var(--fs-xs);
+.os-bc-quiet:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
-.os-bc-showmore {
-  align-self: flex-start;
-  font-weight: 500;
-}
-
-.os-bc-aside-list summary {
-  cursor: pointer;
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--muted);
-}
-
-.os-bc-aside-list ul {
-  margin: 6px 0 0;
-  padding: 4px 12px;
-  list-style: none;
-  border: 0;
-  border-radius: var(--radius-card);
-  background: var(--card);
-}
-
-.os-bc-aside-list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-2);
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--line);
-  font-size: var(--fs-xs);
-}
-
-.os-bc-aside-list li:last-child {
-  border-bottom: 0;
-}
-
-/* Sticky footer: a card bar floating 16px above the bottom edge, no line
-   (D-05, D-06). It follows the form in the flow, so at the end of the page
-   it sits under the last card instead of over it. */
-.os-bc-foot {
-  --ctl: var(--well);
-  --ctl-hover: var(--tint-2);
-  position: sticky;
-  bottom: 16px;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-  box-sizing: border-box;
-  max-width: 1240px;
-  margin: var(--gap) 0 0;
-  padding: 10px 10px 10px 20px;
-  border: 0;
-  border-radius: var(--radius-card);
-  background: var(--card);
-}
-
-.os-bc-foot .os-button {
-  height: 36px;
-}
-
-@media (max-width: 860px) {
-  .os-bc-sec {
-    grid-template-columns: 1fr;
-    gap: var(--sp-2);
-  }
-  .os-bc-form {
-    padding: 20px;
-  }
-  .os-bc-drafts {
-    min-width: 0;
-    flex-basis: 100%;
-  }
-  .os-bc-indent {
-    padding-left: 0;
-  }
-}
-
-/* Phone: day, from and to stay on one line. */
-@media (max-width: 480px) {
-  .os-bc-hm.os-input {
-    width: 104px;
-    padding: 0 6px 0 10px;
-  }
-}
-
-/* --- Broadcasts list ------------------------------------------------------- */
+/* --- The list ---------------------------------------------------------------- */
 
 .os-bcl {
   display: flex;
   flex-direction: column;
   gap: var(--sp-5);
-  max-width: 1200px;
+  max-width: 1240px;
   font-size: var(--fs-sm);
 }
 
@@ -677,15 +40,17 @@
   align-self: flex-start;
 }
 
-/* No broadcasts: the empty state is a card, not bare text on the stone. */
 .os-bcl > .os-empty-state {
   padding: 22px 24px;
   border-radius: var(--radius-card);
   background: var(--card);
 }
 
-/* The table is the card: header 12/500 muted with no band, rows 14 with a
-   1px line on top. */
+.os-bcl-wrap {
+  min-width: 0;
+}
+
+/* The table is the card: header 12/500 muted, rows 14 with a 1px line on top. */
 .os-bcl-table {
   width: 100%;
   box-sizing: border-box;
@@ -704,12 +69,17 @@
   font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .os-bcl-table td {
   height: 56px;
   padding: 8px 12px;
   border-top: 1px solid var(--line);
+}
+
+.os-bcl-table td:first-child {
+  min-width: 190px;
 }
 
 .os-bcl-name {
@@ -728,90 +98,673 @@
   align-items: center;
   height: 22px;
   padding: 0 7px;
-  border: 0;
   border-radius: 999px;
   font-size: var(--fs-xs);
+  font-weight: 400;
+  white-space: nowrap;
   background: var(--neutral-bg);
 }
 
-.os-bcl-num {
+.os-bcl-num,
+.os-bcl-sub {
   font-variant-numeric: tabular-nums;
   color: var(--muted);
-}
-
-/* Status as a filled pill: on = good, needs you = warn, off = neutral. */
-.os-bcl-state {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 9px;
-  border-radius: 999px;
-  background: var(--neutral-bg);
-  color: var(--neutral-fg);
-  font-size: var(--fs-xs);
-  font-weight: 500;
   white-space: nowrap;
 }
 
-.os-bcl-state .os-bc-dot {
-  display: none;
+.os-bcl-table td.os-bcl-sub[data-label="Messages"] {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.os-bcl-state[data-on] {
-  background: var(--good-bg);
-  color: var(--good-fg);
+.os-bcl-act {
+  text-align: right;
 }
 
-.os-bcl-state[data-needs] {
-  background: var(--warn-bg);
-  color: var(--warn-fg);
+.os-bcl-dup.os-button {
+  height: 30px;
+  font-size: var(--fs-xs);
 }
 
-/* Phone: the audience count and next send share the name's cell width. */
-@media (max-width: 560px) {
-  .os-bcl-table {
-    padding: 6px 8px;
+/* Phone: each row a small card; the headers become labels. */
+@media (max-width: 720px) {
+  .os-bcl-table,
+  .os-bcl-table tbody,
+  .os-bcl-table tr,
+  .os-bcl-table td {
+    display: block;
   }
-  .os-bcl-table th:nth-child(2),
-  .os-bcl-table td:nth-child(2) {
+  .os-bcl-table thead {
     display: none;
   }
-  .os-bcl-table th,
+  .os-bcl-table tr {
+    padding: 10px 2px;
+    border-top: 1px solid var(--line);
+  }
+  .os-bcl-table tr:first-child {
+    border-top: 0;
+  }
   .os-bcl-table td {
-    padding-left: 8px;
-    padding-right: 8px;
+    height: auto;
+    padding: 3px 0;
+    border: 0;
+    white-space: normal;
+  }
+  .os-bcl-table td[data-label]:not([data-label="Broadcast"])::before {
+    content: attr(data-label) " · ";
+    color: var(--muted);
+    font-size: var(--fs-xs);
+  }
+  .os-bcl-act {
+    text-align: left;
+    padding-top: 8px !important;
   }
 }
 
-/* An (i) at the end of a row opens leftwards, so it never pushes the page wide. */
-.os-bc-row > .os-infotip .os-infotip-body {
-  left: auto;
-  right: -6px;
-  transform: translate(0, 2px);
+/* --- One broadcast ------------------------------------------------------------- */
+
+.os-bb {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  max-width: 1240px;
+  width: 100%;
+  font-size: var(--fs-sm);
+  padding-bottom: var(--sp-6);
 }
 
-.os-bc-row > .os-infotip:hover .os-infotip-body,
-.os-bc-row > .os-infotip:focus-within .os-infotip-body {
-  transform: translate(0, 0);
+.os-bb-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
 }
 
-/* Phones: a row's (i) opens as a full-width card under the icon instead of
-   centring on it (which ran off the right edge). */
-@media (max-width: 480px) {
-  .os-bc-row .os-infotip-body,
-  .os-bc-row > .os-infotip .os-infotip-body {
-    position: fixed;
-    top: auto;
-    bottom: auto;
-    left: 16px;
-    right: 16px;
-    width: auto;
-    max-width: none;
-    margin-top: 24px;
-    transform: none;
+.os-bb-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 320px;
+}
+
+.os-bb-crumbs a {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.os-bb-crumbs a:hover {
+  color: var(--ink);
+}
+
+.os-bb-titlerow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.os-bb-name {
+  min-width: 0;
+  width: min(100%, 520px);
+  margin: 0;
+  padding: 0 4px;
+  margin-left: -4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-h1);
+  font-weight: 600;
+  letter-spacing: -0.022em;
+}
+
+.os-bb-name:hover,
+.os-bb-name:focus {
+  background: var(--card);
+  outline: none;
+}
+
+.os-bb-head-acts {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+/* Steps 1–4 on the left, Review (5) beside them. */
+.os-bb-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-3);
+  align-items: start;
+}
+
+@media (min-width: 1100px) {
+  .os-bb-steps {
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    column-gap: var(--sp-5);
   }
-  .os-bc-row .os-infotip:hover .os-infotip-body,
-  .os-bc-row .os-infotip:focus-within .os-infotip-body {
-    transform: none;
+  .os-bb-steps > .os-bb-step:not(.os-bb-review) {
+    grid-column: 1;
+  }
+  /* Left cards keep their own height; Review's extra height goes to the last row. */
+  .os-bb-steps {
+    grid-template-rows: repeat(4, min-content) 1fr;
+  }
+  .os-bb-steps > .os-bb-review {
+    grid-column: 2;
+    grid-row: 1 / span 5;
+  }
+}
+
+.os-bb-step {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.os-bb-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-top: 18px;
+}
+
+.os-bb-n {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--on-ink, var(--card));
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.os-bb-line {
+  flex: 1;
+  width: 1px;
+  min-height: 12px;
+  background: var(--line);
+}
+
+.os-bb-card.os-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: 18px 20px;
+  min-width: 0;
+}
+
+.os-bb-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.os-bb-label {
+  margin: 0;
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+
+.os-bb-card-head p {
+  margin: 4px 0 0;
+}
+
+.os-bb-sum,
+.os-bb-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.os-bb-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.os-bb-strong {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.os-bb-sub {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.os-bb-warn {
+  color: var(--warn-fg);
+  font-size: var(--fs-xs);
+}
+
+.os-bb-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.os-bb-time.os-input {
+  width: 108px;
+}
+
+.os-bb-date.os-input {
+  width: 150px;
+}
+
+.os-bb-num.os-input {
+  width: 76px;
+}
+
+/* Who: get it (bold), then each left-out reason. */
+.os-bb-who {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px var(--sp-4);
+  margin: 0;
+  max-width: 420px;
+}
+
+.os-bb-who > div {
+  display: contents;
+}
+
+.os-bb-who dt,
+.os-bb-who dd {
+  margin: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.os-bb-who > div[data-main] dt,
+.os-bb-who > div[data-main] dd {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Messages: the bubbles as they'll go. */
+.os-bb-bubbles {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.os-bb-bubble {
+  max-width: 100%;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--well);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.os-bb-bubble[data-link] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+
+.os-bb-bubble[data-empty] {
+  border-style: dashed;
+}
+
+.os-bb-bubble[data-followup] {
+  background: transparent;
+  padding-left: 0;
+}
+
+.os-bb-edit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.os-bb-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.os-bb-edit-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: start;
+}
+
+.os-bb-edit textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.os-bb-tools {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.os-bb-linkfill {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.os-bb-linkfill .os-input {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.os-bb-adds .os-button {
+  height: 30px;
+  font-size: var(--fs-xs);
+}
+
+.os-bb-adds .os-button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--on-ink, var(--card));
+}
+
+.os-bb-fu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.os-bb-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-radius: 12px;
+}
+
+.os-bb-picklist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.os-bb-pick {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.os-bb-pick:hover:not(:disabled) {
+  background: var(--tint-2);
+}
+
+.os-bb-pick:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.os-bb-newres {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Personalise. */
+.os-bb-agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.os-bb-agent-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--on-ink, var(--card));
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.os-bb-modes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 6px;
+}
+
+.os-bb-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--well);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.os-bb-mode[aria-checked="true"] {
+  background: var(--ink);
+  color: var(--on-ink, var(--card));
+}
+
+.os-bb-mode[aria-checked="true"] .os-bb-strong,
+.os-bb-mode[aria-checked="true"] .os-bb-sub {
+  color: inherit;
+}
+
+.os-bb-vars {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.os-bb-varedit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Review. */
+.os-bb-filter button {
+  font-variant-numeric: tabular-nums;
+}
+
+.os-bb-make {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.os-bb-progress {
+  margin: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.os-bb-drafts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.os-bb-draft {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--well);
+  --ctl: var(--card);
+}
+
+.os-bb-draft-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.os-bb-av {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--card);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.os-bb-draft-body p {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+
+.os-bb-link {
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: var(--fs-xs);
+}
+
+.os-bb-draft-acts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.os-bb-draft-acts .os-button {
+  height: 30px;
+  font-size: var(--fs-xs);
+}
+
+.os-bb-myself {
+  margin-left: auto;
+}
+
+.os-bb-had,
+.os-bb-notsent,
+.os-bb-failed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-radius: 12px;
+}
+
+.os-bb-had-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.os-bb-sendbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+
+.os-bb-earlier ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.os-bb-earlier li {
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.os-bb-earlier a {
+  color: var(--ink);
+}
+
+/* 400px: steps stack, the rail shrinks, Send sticks to the bottom. */
+@media (max-width: 560px) {
+  .os-bb-step {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .os-bb-rail {
+    display: none;
+  }
+  .os-bb-card.os-card {
+    padding: 14px;
+  }
+  .os-bb-name {
+    font-size: 22px;
+  }
+  .os-bb-sendbar {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin: 0 -14px -14px;
+    padding: 12px 14px;
+    background: var(--card);
+    border-radius: 0 0 var(--radius-card) var(--radius-card);
+  }
+  .os-bb-sendbar .os-button {
+    width: 100%;
+  }
+  .os-bb-edit-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .os-bb-tools {
+    justify-content: flex-start;
   }
 }

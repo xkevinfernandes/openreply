@@ -48,12 +48,13 @@ export function activeNav(pathname: string): NavItem | null {
   return osNav.find((n) => isActive(pathname, n.href)) ?? null;
 }
 
-/** Nav items that show a count: drafts waiting, follow-ups due. */
-export const BADGED: ReadonlySet<NavItem["key"]> = new Set(["inbox", "followups"]);
+/** Nav items that show a count: drafts waiting, follow-ups due, broadcasts in review. */
+export const BADGED: ReadonlySet<NavItem["key"]> = new Set(["inbox", "followups", "automations"]);
 
 export function badgeLabel(key: NavItem["key"], n: number): string | undefined {
   if (key === "inbox") return `${n} drafts waiting`;
   if (key === "followups") return `${n} follow-ups due`;
+  if (key === "automations") return `${n} ${n === 1 ? "broadcast" : "broadcasts"} in review`;
   return undefined;
 }
 
