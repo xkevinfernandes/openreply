@@ -18,6 +18,7 @@ export function rowFromSummary(s: Api.WorkflowSummary, stats: Api.WorkflowStats 
     ab,
     funnel: stats?.header ?? EMPTY,
     version: s.version,
+    unpublished: s.unpublished,
   };
 }
 

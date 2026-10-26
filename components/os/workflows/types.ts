@@ -27,6 +27,8 @@ export interface WorkflowRow {
   funnel: FunnelStrip;
   /** Last published version, null = never published. */
   version: number | null;
+  /** The draft differs from the published version. */
+  unpublished: boolean;
 }
 
 export interface NodeStat {

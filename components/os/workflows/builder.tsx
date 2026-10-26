@@ -1,7 +1,7 @@
 "use client";
 
 // The workflow builder (WorkflowA board, the free canvas): header with name,
-// Draft/Auto, On/Off and Publish, the results strip, the React Flow canvas
+// Live/Off/Not published, Approve each DM / Auto-send, On/Off and Publish, the results strip, the React Flow canvas
 // with the step palette drawer, and the inspector for the selected step.
 // The graph only changes through graph-edit.ts; edits autosave as the draft.
 
@@ -48,6 +48,8 @@ import type { BuilderContext } from "@/components/os/workflows/context";
 import type { ReelRow, WorkflowDetail, WorkflowMode, WorkflowStats } from "@/components/os/workflows/types";
 import { sinceLabel, stripItems } from "@/components/os/workflows/view";
 import { InfoTip } from "@/components/os/ui";
+import { callAction, MODE_LABEL, MODE_TIP, onBlockedNote, saveLabel, UNREACHABLE_NOTE } from "@/components/os/workflows/status";
+import { WorkflowStatusCell } from "@/components/os/workflows/workflow-list";
 import type { GraphProblem, StepData, StepType, WorkflowGraph } from "@/lib/os/workflows/graph";
 
 const NODE_TYPES = { step: StepNode };
@@ -113,7 +115,7 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
     if (n !== savedName.current && n.trim()) input.name = n;
     if (!input.graph && !input.name) return true;
     setSave("saving");
-    const r = await saveWorkflowDraft(workflow.id, input);
+    const r = await callAction(() => saveWorkflowDraft(workflow.id, input));
     if (r.error !== undefined) {
       setSave("error");
       setNote({ text: r.error, tone: "bad" });
@@ -286,37 +288,50 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
   function publish() {
     setNote(null);
     startPublish(async () => {
-      const own = friendlyProblems(graphRef.current);
-      if (own.length) {
-        setShowProblems(true);
-        setSelected(own.find((p) => p.nodeId)?.nodeId ?? null);
-        return;
+      try {
+        await doPublish();
+      } catch (err) {
+        console.error("[OS Workflows] publish:", err);
+        setNote({ text: UNREACHABLE_NOTE, tone: "bad" });
       }
-      if (!(await flush())) return;
-      const r = await publishWorkflowAction(workflow.id);
-      if (r.error !== undefined) {
-        setNote({ text: r.error, tone: "bad" });
-        return;
-      }
-      if (r.problems?.length) {
-        setServerProblems(r.problems);
-        setShowProblems(true);
-        setSelected(r.problems.find((p) => p.nodeId)?.nodeId ?? null);
-        return;
-      }
-      setShowProblems(false);
-      setServerProblems([]);
-      setVersion(r.version ?? version);
-      setUnpublished(false);
-      setOn(true);
-      setNote({ text: `Published v${r.version}` });
     });
+  }
+
+  async function doPublish() {
+    const own = friendlyProblems(graphRef.current);
+    if (own.length) {
+      setShowProblems(true);
+      setSelected(own.find((p) => p.nodeId)?.nodeId ?? null);
+      return;
+    }
+    if (!(await flush())) {
+      // flush() sets its own note; never leave a failed save silent.
+      setNote((n) => n ?? { text: "Couldn't save your changes, so nothing was published. Try again.", tone: "bad" });
+      return;
+    }
+    const r = await callAction(() => publishWorkflowAction(workflow.id));
+    if (r.error !== undefined) {
+      setNote({ text: r.error, tone: "bad" });
+      return;
+    }
+    if (r.problems?.length) {
+      setServerProblems(r.problems);
+      setShowProblems(true);
+      setSelected(r.problems.find((p) => p.nodeId)?.nodeId ?? null);
+      return;
+    }
+    setShowProblems(false);
+    setServerProblems([]);
+    setVersion(r.version ?? version);
+    setUnpublished(false);
+    setOn(true);
+    setNote({ text: `Published v${r.version}` });
   }
 
   async function changeMode(m: WorkflowMode) {
     const prev = mode;
     setMode(m);
-    const r = await setWorkflowMode(workflow.id, m);
+    const r = await callAction(() => setWorkflowMode(workflow.id, m));
     if (r.error !== undefined) {
       setMode(prev);
       setNote({ text: r.error, tone: "bad" });
@@ -325,8 +340,14 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
 
   async function toggleOn() {
     const next = !on;
+    const blocked = onBlockedNote(next, version);
+    if (blocked) {
+      setNote({ text: blocked, tone: "bad" });
+      return;
+    }
+    setNote(null);
     setOn(next);
-    const r = await setWorkflowOn(workflow.id, next);
+    const r = await callAction(() => setWorkflowOn(workflow.id, next));
     if (r.error !== undefined) {
       setOn(!next);
       setNote({ text: r.error, tone: "bad" });
@@ -358,17 +379,18 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
           ) : null}
           <span className="wf-grow" />
           <span className="wf-save" data-state={save} role="status">
-            {save === "saving" ? "Saving…" : save === "error" ? "Not saved" : unpublished ? (version ? "Draft changes" : "Saved") : version ? `v${version}` : "Saved"}
+            {saveLabel(save, unpublished, version)}
           </span>
+          <WorkflowStatusCell row={{ version, on, unpublished }} showChanges={false} />
           <div className="wf-seg" role="radiogroup" aria-label="Mode">
             {(["draft", "auto"] as const).map((m) => (
-              <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => mode !== m && void changeMode(m)}>
+              <button key={m} type="button" role="radio" aria-checked={mode === m} title={MODE_TIP[m]} onClick={() => mode !== m && void changeMode(m)}>
                 <span className="wf-mode-dot" data-mode={m} />
-                {m === "draft" ? "Draft" : "Auto"}
+                {MODE_LABEL[m]}
               </button>
             ))}
           </div>
-          <InfoTip label="Draft and Auto">Draft: J&apos;s messages wait for your approval in the Inbox. Auto: they send on their own. Your own Message steps always send.</InfoTip>
+          <InfoTip label="Approve each DM and Auto-send">Approve each DM: J&apos;s messages wait for your approval in the Inbox. Auto-send: they send on their own. Your own Message steps always send.</InfoTip>
           <button type="button" className="os-switch" role="switch" aria-checked={on} aria-label={on ? "On" : "Off"} title={on ? "On: new people enter" : "Off: no new runs"} onClick={() => void toggleOn()}>
             <span className="os-switch-knob" />
           </button>

@@ -318,7 +318,7 @@
 
 .wf-list-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 132px 84px 300px 44px 24px;
+  grid-template-columns: minmax(0, 1fr) 112px 132px 84px 300px 44px 24px;
   gap: 16px;
   align-items: center;
   padding: 14px;
@@ -369,10 +369,61 @@
   white-space: nowrap;
 }
 
-.wf-off {
-  font-size: 11px;
+.wf-status-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+}
+
+.wf-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
+  white-space: nowrap;
+  background: var(--tint);
+  color: var(--muted);
+}
+
+.wf-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: 0 0 6px;
+  background: var(--ghost);
+}
+
+.wf-status[data-status="live"] {
+  background: var(--mark-bg);
+  color: var(--mark);
+}
+
+.wf-status[data-status="live"] .wf-status-dot {
+  background: var(--mark);
+}
+
+.wf-status[data-status="unpublished"] {
+  background: transparent;
+  border: 1px dashed var(--line-strong);
   color: var(--ghost);
+}
+
+.wf-unpub {
+  font-size: 11px;
+  color: var(--warn);
+  white-space: nowrap;
+}
+
+.wf-head .wf-status-cell {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
 }
 
 .wf-kws {
@@ -631,6 +682,10 @@
 
 .wf-note[data-tone="bad"] {
   color: var(--bad);
+  white-space: normal;
+  line-height: 1.3;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 
 .wf-body {

@@ -198,7 +198,7 @@ export async function publishWorkflow(workspaceId: string, id: string, opts: A.P
 }
 
 export async function setWorkflowMode(workspaceId: string, id: string, mode: A.WorkflowMode): Promise<A.ApiResult> {
-  if (mode !== "draft" && mode !== "auto") return err("Draft or Auto.");
+  if (mode !== "draft" && mode !== "auto") return err("Approve each DM or Auto-send.");
   const r = await prisma.workflow.updateMany({ where: { id, workspaceId }, data: { mode } });
   return r.count ? { ok: true } : err("That workflow is gone. Refresh.");
 }

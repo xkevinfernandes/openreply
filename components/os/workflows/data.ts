@@ -182,6 +182,7 @@ async function mockListWorkflows(_workspaceId: string): Promise<WorkflowRow[]> {
       ab: graph.nodes.some((n) => n.type === "randomizer"),
       funnel: stats.strip,
       version: w.versions.at(-1)?.version ?? null,
+      unpublished: !w.versions.length || !same(w.versions.at(-1)!.graph, w.draft),
     };
   });
 }

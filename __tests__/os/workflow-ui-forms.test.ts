@@ -304,7 +304,7 @@ describe("mock adapter (OS_MOCK=1)", () => {
     try {
       const data = await import("@/components/os/workflows/data");
       const rows = await data.listWorkflows("w");
-      expect(rows[0]).toMatchObject({ id: "w9", on: true, version: 2, funnel: { triggered: 10 }, trigger: { keywords: ["GUIDE"] }, ab: false });
+      expect(rows[0]).toMatchObject({ id: "w9", on: true, version: 2, unpublished: true, funnel: { triggered: 10 }, trigger: { keywords: ["GUIDE"] }, ab: false });
       const stats = (await data.workflowStats("w", "w9"))!;
       expect(stats.nodes.opener).toEqual({ reached: 6, share: 0.6 });
       expect(stats.ports.setter).toEqual({ "exit:quiet": 2 });

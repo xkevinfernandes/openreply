@@ -9,6 +9,7 @@ import { createWorkflowAction } from "@/app/(os)/os/automations/workflows/action
 import { WfIcon } from "@/components/os/workflows/icons";
 import { TRIGGER_KIND_LABEL } from "@/components/os/workflows/forms";
 import { listFunnel } from "@/components/os/workflows/view";
+import { callAction, hasUnpublishedChanges, MODE_SHORT, MODE_TIP, STATUS_LABEL, STATUS_TIP, workflowStatus } from "@/components/os/workflows/status";
 import { TEMPLATES, type TemplateKey } from "@/components/os/workflows/templates";
 import type { WorkflowRow } from "@/components/os/workflows/types";
 import { InfoTip } from "@/components/os/ui";
@@ -80,7 +81,7 @@ export function TemplatePicker({ onClose, resourceSlug }: { onClose: () => void;
     setPicked(k);
     setError(null);
     start(async () => {
-      const r = await createWorkflowAction(k, resourceSlug);
+      const r = await callAction(() => createWorkflowAction(k, resourceSlug));
       if (r?.error) setError(r.error);
     });
   }
@@ -89,7 +90,7 @@ export function TemplatePicker({ onClose, resourceSlug }: { onClose: () => void;
     <div className="wf-picker" role="dialog" aria-label="New workflow" ref={ref}>
       <div className="wf-picker-head">
         <h2>Start from</h2>
-        <InfoTip label="About new workflows">New workflows start in Draft: every message waits for you in the Inbox.</InfoTip>
+        <InfoTip label="About new workflows">New workflows start in Approve each DM: every message waits for you in the Inbox. They stay Not published until you publish them.</InfoTip>
       </div>
       <div className="wf-picker-grid">
         {TEMPLATES.map((t) => (
@@ -136,6 +137,20 @@ export function NewWorkflowButton({ resourceSlug }: { resourceSlug?: string }) {
   );
 }
 
+/** Live / Off / Not published, plus "Unpublished changes" when the draft moved on. */
+export function WorkflowStatusCell({ row, showChanges = true }: { row: Pick<WorkflowRow, "version" | "on" | "unpublished">; showChanges?: boolean }) {
+  const status = workflowStatus(row);
+  return (
+    <span className="wf-status-cell">
+      <span className="wf-status" data-status={status} title={STATUS_TIP[status]}>
+        <span className="wf-status-dot" aria-hidden="true" />
+        {STATUS_LABEL[status]}
+      </span>
+      {showChanges && hasUnpublishedChanges(row) ? <span className="wf-unpub">Unpublished changes</span> : null}
+    </span>
+  );
+}
+
 export default function WorkflowList({ rows }: { rows: WorkflowRow[] }) {
   if (!rows.length) {
     return (
@@ -149,6 +164,7 @@ export default function WorkflowList({ rows }: { rows: WorkflowRow[] }) {
     <section className="wf-list" aria-label="Workflows">
       <div className="wf-list-grid wf-list-head">
         <span>Workflow</span>
+        <span>Status</span>
         <span>Trigger</span>
         <span>Mode</span>
         <span className="wf-funnel">
@@ -165,19 +181,19 @@ export default function WorkflowList({ rows }: { rows: WorkflowRow[] }) {
           <span className="wf-row-name">
             <span className="wf-row-title">
               {r.name}
-              {!r.on ? <span className="wf-off">Off</span> : null}
             </span>
             <span className="wf-kws">
               {r.trigger.keywords.length ? r.trigger.keywords.map((k) => <span key={k} className="wf-kw">{k}</span>) : <span className="wf-kw" data-empty="true">No keyword</span>}
             </span>
           </span>
+          <WorkflowStatusCell row={r} />
           <span className="wf-trigger-chip">
             <WfIcon name={r.trigger.kind} size={13} />
             {TRIGGER_KIND_LABEL[r.trigger.kind]}
           </span>
-          <span className="wf-mode-pill" data-mode={r.mode}>
+          <span className="wf-mode-pill" data-mode={r.mode} title={MODE_TIP[r.mode]}>
             <span className="wf-mode-dot" />
-            {r.mode === "draft" ? "Draft" : "Auto"}
+            {MODE_SHORT[r.mode]}
           </span>
           <span className="wf-funnel">
             {listFunnel(r.funnel).map((c) => (
