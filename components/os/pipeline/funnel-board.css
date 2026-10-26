@@ -1,0 +1,226 @@
+/* Pipeline › All · funnel (dm-crm 032). Scoped under .os; reel tokens. */
+
+.os .os-fb-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--ctl);
+}
+
+.os .os-fb-tabs a {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  text-decoration: none;
+}
+
+.os .os-fb-tabs a[aria-current="page"] {
+  background: var(--ink);
+  color: var(--on-ink);
+  font-weight: 500;
+}
+
+.os .os-fb {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.os .os-fb-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.os .os-fb-arch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.os .os-fb-err {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--bad-bg);
+  color: var(--bad-fg);
+  font-size: var(--fs-sm);
+}
+
+.os .os-fb-cols {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(200px, 1fr);
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x proximity;
+}
+
+.os .os-fb-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: var(--radius-card);
+  background: var(--card);
+  outline: 2px solid transparent;
+  scroll-snap-align: start;
+  transition: outline-color 120ms var(--ease), opacity 120ms var(--ease);
+}
+
+.os .os-fb-col[data-drop] {
+  outline-color: var(--line);
+}
+
+.os .os-fb-col[data-over] {
+  outline-color: var(--ink);
+}
+
+.os .os-fb-col[data-nodrop] {
+  opacity: 0.6;
+}
+
+.os .os-fb-col header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.os .os-fb-col header .lbl {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.os .os-fb-col header .big {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.os .os-fb-col header .big strong {
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.os .os-fb-col header .rate,
+.os .os-fb-col header .here {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.os .os-fb-col header .total {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--good-bg);
+  color: var(--good-fg);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.os .os-fb-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.os .os-fb-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 34px 10px 12px;
+  border-radius: var(--radius);
+  background: var(--well);
+  cursor: grab;
+}
+
+.os .os-fb-card[data-archived] {
+  opacity: 0.6;
+}
+
+.os .os-fb-card .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.os .os-fb-card .meta {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.os .os-fb-more {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.os .os-fb-more:hover {
+  background: var(--ctl);
+  color: var(--ink);
+}
+
+.os .os-fb-menu {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.os .os-fb-menu button {
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ctl);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.os .os-fb-menu button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.os .os-fb-rest,
+.os .os-fb-none {
+  padding: 4px 2px;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+@media (max-width: 640px) {
+  .os .os-fb-cols {
+    grid-auto-columns: 82%;
+  }
+}
