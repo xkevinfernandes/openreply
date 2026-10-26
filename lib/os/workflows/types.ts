@@ -193,6 +193,17 @@ export interface WorkflowStore {
   claimInbound(key: string, workspaceId: string): Promise<boolean>;
   /** Live runs whose timer is due. */
   dueRuns(now: Date, limit?: number): Promise<RunRecord[]>;
+  /** Live runs (active, waiting, paused) of one workflow. */
+  liveRunsOf(workflowId: string): Promise<RunRecord[]>;
+  /** The workflow and everything that belongs to it: versions, runs, their events, Randomizer branches. */
+  deleteWorkflow(workflowId: string): Promise<void>;
+  /**
+   * A short lease on one run, so a tap and a timer never advance the same run
+   * at once (the later save would undo the earlier one). Returns a token, or
+   * null while someone else holds it. The lease ends by itself after ttlMs.
+   */
+  lockRun(runId: string, ttlMs: number): Promise<string | null>;
+  unlockRun(runId: string, token: string): Promise<void>;
 }
 
 // ---------------------------------------------------------------- ports

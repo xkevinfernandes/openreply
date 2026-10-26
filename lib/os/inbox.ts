@@ -305,10 +305,11 @@ export interface SendReplyOptions {
 export async function sendReply(workspaceId: string, igUserId: string, text: string, options: SendReplyOptions = {}) {
   // Send cap + Pause all (lib/os/sending/cap.ts): every bubble counts.
   await assertCanSend(workspaceId);
-  await sendReplyUnguarded(workspaceId, igUserId, text, options);
+  // Its Instagram echo must not read as Kevin typing in the IG app (workflows
+  // pause on that): noted before the send, since the echo can arrive first.
+  const { sendNotedOs } = await import("@/lib/os/workflows/hooks");
+  await sendNotedOs(workspaceId, igUserId, text, () => sendReplyUnguarded(workspaceId, igUserId, text, options));
   await recordSend(workspaceId, { contactId: options.contactId, key: options.sendKey, source: "reply" });
-  // Its Instagram echo must not read as Kevin typing in the IG app (workflows pause on that).
-  await (await import("@/lib/os/workflows/hooks")).noteOsSend(workspaceId, igUserId, text);
 }
 
 async function sendReplyUnguarded(workspaceId: string, igUserId: string, text: string, options: SendReplyOptions) {

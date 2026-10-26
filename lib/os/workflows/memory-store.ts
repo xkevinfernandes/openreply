@@ -25,6 +25,7 @@ export function memoryWorkflowStore(): MemoryWorkflowStore {
   const assignments = new Map<string, string>();
   const inbound = new Set<string>();
   const liveKeys = new Map<string, string>();
+  const locks = new Map<string, { token: string; until: number }>();
   const key = (a: string, u: string) => `${a}:${u}`;
 
   return {
@@ -130,6 +131,32 @@ export function memoryWorkflowStore(): MemoryWorkflowStore {
         .filter((r) => (r.status === "waiting" || r.status === "active") && r.waitUntil && r.waitUntil <= now)
         .slice(0, limit)
         .map(clone);
+    },
+    async liveRunsOf(workflowId) {
+      return [...runs.values()].filter((r) => r.workflowId === workflowId && isLive(r.status)).map(clone);
+    },
+    async deleteWorkflow(workflowId) {
+      workflows.delete(workflowId);
+      for (const [id, v] of versionsById) if (v.workflowId === workflowId) versionsById.delete(id);
+      for (const [id, r] of runs) {
+        if (r.workflowId !== workflowId) continue;
+        runs.delete(id);
+        locks.delete(id);
+        for (const [k, rid] of liveKeys) if (rid === id) liveKeys.delete(k);
+      }
+      for (let i = events.length - 1; i >= 0; i--) if (events[i].workflowId === workflowId) events.splice(i, 1);
+      for (const k of assignments.keys()) if (k.startsWith(`${workflowId}:`)) assignments.delete(k);
+    },
+    async lockRun(runId, ttlMs) {
+      const t = Date.now();
+      const held = locks.get(runId);
+      if (held && held.until > t) return null;
+      const token = `lk${++seq}`;
+      locks.set(runId, { token, until: t + ttlMs });
+      return token;
+    },
+    async unlockRun(runId, token) {
+      if (locks.get(runId)?.token === token) locks.delete(runId);
     },
   };
 }

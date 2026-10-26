@@ -95,6 +95,10 @@ model WorkflowRun {
   startedAt          DateTime          @default(now())
   endedAt            DateTime?
   updatedAt          DateTime          @updatedAt
+  /// A short lease while one process advances the run (a tap racing the
+  /// timer): who holds it and until when. Null = free.
+  lockToken          String?
+  lockedUntil        DateTime?
 
   events WorkflowRunEvent[]
 

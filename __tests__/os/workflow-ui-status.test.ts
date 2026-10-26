@@ -32,6 +32,7 @@ const row = (over: Partial<WorkflowRow>): WorkflowRow => ({
   funnel: { triggered: 0, replied: 0, leadMagnet: 0, booked: 0, showed: 0 },
   version: 3,
   unpublished: false,
+  live: 0,
   ...over,
 });
 

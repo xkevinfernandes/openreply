@@ -1,11 +1,13 @@
 "use client";
 
 // Automations › Workflows (WorkflowsList board): one row per workflow, the
-// whole row clickable; "New workflow" opens the template picker.
+// whole row clickable; "New workflow" opens the template picker; the row's
+// ⋯ menu deletes it (inline confirm).
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createWorkflowAction } from "@/app/(os)/os/automations/workflows/actions";
+import { DeleteWorkflowConfirm } from "@/components/os/workflows/delete-workflow";
 import { WfIcon } from "@/components/os/workflows/icons";
 import { TRIGGER_KIND_LABEL } from "@/components/os/workflows/forms";
 import { listFunnel } from "@/components/os/workflows/view";
@@ -177,43 +179,91 @@ export default function WorkflowList({ rows }: { rows: WorkflowRow[] }) {
         <span />
       </div>
       {rows.map((r) => (
-        <Link key={r.id} href={`/os/automations/workflows/${r.id}`} className="wf-list-grid wf-row">
-          <span className="wf-row-name">
-            <span className="wf-row-title">
-              {r.name}
-            </span>
-            <span className="wf-kws">
-              {r.trigger.keywords.length ? r.trigger.keywords.map((k) => <span key={k} className="wf-kw">{k}</span>) : <span className="wf-kw" data-empty="true">No keyword</span>}
-            </span>
-          </span>
-          <WorkflowStatusCell row={r} />
-          <span className="wf-trigger-chip">
-            <WfIcon name={r.trigger.kind} size={13} />
-            {TRIGGER_KIND_LABEL[r.trigger.kind]}
-          </span>
-          <span className="wf-mode-pill" data-mode={r.mode} title={MODE_TIP[r.mode]}>
-            <span className="wf-mode-dot" />
-            {MODE_SHORT[r.mode]}
-          </span>
-          <span className="wf-funnel">
-            {listFunnel(r.funnel).map((c) => (
-              <span key={c.key} className="wf-fcell">
-                <span className="wf-fnum">
-                  <b>{c.n}</b>
-                  <span>{c.pct}</span>
-                </span>
-                <span className="wf-fbar">
-                  <span style={{ width: `${c.bar}%` }} />
-                </span>
-              </span>
-            ))}
-          </span>
-          <span>{r.ab ? <span className="wf-ab-badge" title="Randomizer running">A/B</span> : null}</span>
-          <span className="wf-row-go">
-            <WfIcon name="chevron" />
-          </span>
-        </Link>
+        <WorkflowListRow key={r.id} r={r} />
       ))}
     </section>
+  );
+}
+
+/** One row: the whole row opens the builder; the ⋯ menu holds Delete (inline confirm under the row). */
+function WorkflowListRow({ r }: { r: WorkflowRow }) {
+  const [menu, setMenu] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [gone, setGone] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menu) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenu(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenu(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menu]);
+
+  if (gone) return null;
+  return (
+    <div className="wf-row-wrap" data-confirming={confirming || undefined}>
+      <Link href={`/os/automations/workflows/${r.id}`} className="wf-list-grid wf-row">
+        <span className="wf-row-name">
+          <span className="wf-row-title">{r.name}</span>
+          <span className="wf-kws">
+            {r.trigger.keywords.length ? r.trigger.keywords.map((k) => <span key={k} className="wf-kw">{k}</span>) : <span className="wf-kw" data-empty="true">No keyword</span>}
+          </span>
+        </span>
+        <WorkflowStatusCell row={r} />
+        <span className="wf-trigger-chip">
+          <WfIcon name={r.trigger.kind} size={13} />
+          {TRIGGER_KIND_LABEL[r.trigger.kind]}
+        </span>
+        <span className="wf-mode-pill" data-mode={r.mode} title={MODE_TIP[r.mode]}>
+          <span className="wf-mode-dot" />
+          {MODE_SHORT[r.mode]}
+        </span>
+        <span className="wf-funnel">
+          {listFunnel(r.funnel).map((c) => (
+            <span key={c.key} className="wf-fcell">
+              <span className="wf-fnum">
+                <b>{c.n}</b>
+                <span>{c.pct}</span>
+              </span>
+              <span className="wf-fbar">
+                <span style={{ width: `${c.bar}%` }} />
+              </span>
+            </span>
+          ))}
+        </span>
+        <span>{r.ab ? <span className="wf-ab-badge" title="Randomizer running">A/B</span> : null}</span>
+        <span aria-hidden="true" />
+      </Link>
+      <div className="wf-row-menu" ref={menuRef}>
+        <button type="button" className="wf-iconbtn" aria-label={`More for ${r.name}`} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
+          <WfIcon name="more" />
+        </button>
+        {menu ? (
+          <div className="wf-menu" role="menu">
+            <button
+              type="button"
+              role="menuitem"
+              className="wf-menu-item"
+              data-tone="bad"
+              onClick={() => {
+                setMenu(false);
+                setConfirming(true);
+              }}
+            >
+              <WfIcon name="trash" size={14} />
+              Delete
+            </button>
+          </div>
+        ) : null}
+      </div>
+      {confirming ? <DeleteWorkflowConfirm id={r.id} name={r.name} live={r.live} onCancel={() => setConfirming(false)} onDeleted={() => setGone(true)} /> : null}
+    </div>
   );
 }

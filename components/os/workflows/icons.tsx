@@ -39,6 +39,7 @@ const P = {
   tag: "M2.5 2.5h5l6 6-5 5-6-6v-5ZM5.2 5.2v.1",
   resume: "M5 3.5v9l7-4.5-7-4.5Z",
   pause: "M5.5 3.5v9M10.5 3.5v9",
+  more: "M3.5 8h.1M8 8h.1M12.5 8h.1",
   grip: "M6 4v.1M10 4v.1M6 8v.1M10 8v.1M6 12v.1M10 12v.1",
 } as const;
 

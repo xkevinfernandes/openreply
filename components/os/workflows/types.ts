@@ -29,6 +29,8 @@ export interface WorkflowRow {
   version: number | null;
   /** The draft differs from the published version. */
   unpublished: boolean;
+  /** People in it right now (active, waiting or paused). */
+  live: number;
 }
 
 export interface NodeStat {
@@ -71,6 +73,8 @@ export interface WorkflowDetail {
   /** The draft differs from the published version. */
   unpublished: boolean;
   updatedAt: string;
+  /** People in it right now (active, waiting or paused). */
+  live: number;
 }
 
 export interface ContactRun {

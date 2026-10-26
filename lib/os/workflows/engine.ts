@@ -43,13 +43,22 @@ export const FOLLOW_GATE_TEXT = "follow me first so it comes through, then tap b
 /** Quick replies: the one retry after a typed answer that matches no option. */
 export const QUICK_REPLY_RETRY = "didn't quite catch that, tap one of these 👇";
 const MAX_STEPS_PER_PASS = 40;
+/** The per-run lease (store.lockRun): how long one pass may hold it, and how long a tap waits for it. */
+export const RUN_LOCK_TTL_MS = 120_000;
+export const RUN_LOCK_WAIT_MS = 20_000;
+const RUN_LOCK_POLL_MS = 150;
+/** A timer that finds its run busy looks again this much later. */
+export const RUN_BUSY_RETRY_MS = 5_000;
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+type InboundResult = { consumed: boolean; runId: string | null; outcome?: Outcome };
 type Ev = { kind: "enter" } | { kind: "reply"; text: string; tap: string | null } | { kind: "timer" };
 type QuickReplies = Extract<Bubble, { kind: "quick_replies" }>;
 
 type StepOut =
   | { go: string }
-  | { wait: string; until?: Date | null }
+  /** pass: what they said isn't the step's answer (a question, free text at buttons): J sees it. */
+  | { wait: string; until?: Date | null; pass?: boolean }
   | { end: RunStatus; exit: string }
   | { blocked: string; until: Date }
   | { failed: string };
@@ -198,7 +207,7 @@ export class WorkflowEngine {
     text?: string | null;
     tapPayload?: string | null;
     storyReply?: boolean;
-  }): Promise<{ consumed: boolean; runId: string | null; outcome?: Outcome }> {
+  }): Promise<InboundResult> {
     const dupKey = ev.mid ? `msg:${ev.mid}` : null;
     if (dupKey && !(await this.store.claimInbound(dupKey, ev.workspaceId))) {
       const run = await this.store.liveRun(ev.instagramAccountId, ev.igUserId);
@@ -241,24 +250,66 @@ export class WorkflowEngine {
       }
       if (m && run && contact) {
         const outcome = await this.onTrigger(m.wf, m.version, m.keyword, contact, { kind: surface, keyword: m.keyword, mid: ev.mid ?? null, text });
+        // Started = another workflow replaced the run: report the new one.
+        if (outcome.status !== "repeat" && outcome.status !== "held" && outcome.status !== "queued") {
+          const now = await this.store.liveRun(ev.instagramAccountId, ev.igUserId);
+          return { consumed: await this.consumes(now), runId: now?.id ?? ("runId" in outcome ? outcome.runId : null), outcome };
+        }
         run = (await this.store.getRun(run.id)) ?? run;
-        if (outcome.status !== "repeat" && outcome.status !== "held" && outcome.status !== "queued") return { consumed: await this.consumes(run), runId: run.id, outcome };
       }
     }
-    if (!run) return { consumed: false, runId: null };
+    // A workflow tap whose run is over (replaced, ended): nothing to do, and nothing for J.
+    if (!run) return { consumed: Boolean(ev.tapPayload?.startsWith("wf:")), runId: null };
     if (run.status === "paused") return { consumed: true, runId: run.id };
+    const runId = run.id;
+    // One pass per run at a time: a tap racing the timer must not undo it.
+    return this.locked(runId, () => this.inboundStep(runId, ev, text, contact));
+  }
+
+  /** handleInbound under the run's lease: the run is read again, fresh. */
+  private async inboundStep(runId: string, ev: { tapPayload?: string | null }, text: string, contact: ContactInfo | null): Promise<InboundResult> {
+    const run = await this.store.getRun(runId);
+    if (!run || !isLive(run.status)) return { consumed: false, runId: null };
+    if (run.status === "paused") return { consumed: true, runId };
+    const tap = ev.tapPayload ?? null;
+    // A tap on an older step or another run (a double tap, an old message's
+    // button): nothing to do, and nothing for J either.
+    if (tap?.startsWith("wf:")) {
+      const [, tapRun, tapNode] = tap.split(":");
+      if (tapRun !== run.id || tapNode !== run.currentNodeId) {
+        console.info(`[OS Workflows] stale tap on run ${runId}: names ${tapRun}/${tapNode}, run is on ${run.currentNodeId}`);
+        return { consumed: true, runId };
+      }
+    }
 
     run.state.theirLastAt = iso(this.now());
     run.state.lastFrom = "them";
     // Any reply opens Instagram's window: the private-reply gate is over (E1).
     run.state.gate = false;
-    const tap = ev.tapPayload ?? null;
     // The flow's own input (a tap, an answer) never reaches J; entering the
-    // Setter step asks J itself.
+    // Setter step asks J itself. A question or free text the step can't use
+    // ("passed") does reach J, and the run keeps waiting.
     const before = await this.consumes(run);
-    await this.advance(run, { kind: "reply", text, tap }, contact);
+    const r = await this.advance(run, { kind: "reply", text, tap }, contact);
+    if (r === "passed") return { consumed: false, runId };
     const after = await this.store.getRun(run.id);
-    return { consumed: before || (await this.consumes(after)), runId: run.id };
+    return { consumed: before || (await this.consumes(after)), runId };
+  }
+
+  /** Run fn holding the run's lease, waiting for it a while. Busy too long: go ahead anyway (a lost tap is worse). */
+  private async locked<T>(runId: string, fn: () => Promise<T>): Promise<T> {
+    const deadline = Date.now() + RUN_LOCK_WAIT_MS;
+    let token = await this.store.lockRun(runId, RUN_LOCK_TTL_MS);
+    while (!token && Date.now() < deadline) {
+      await sleep(RUN_LOCK_POLL_MS);
+      token = await this.store.lockRun(runId, RUN_LOCK_TTL_MS);
+    }
+    if (!token) console.warn(`[OS Workflows] run ${runId} stayed busy ${RUN_LOCK_WAIT_MS}ms: going ahead`);
+    try {
+      return await fn();
+    } finally {
+      if (token) await this.store.unlockRun(runId, token).catch(() => {});
+    }
   }
 
   /** J may draft for this person unless a live run is on another step (or paused). */
@@ -305,24 +356,15 @@ export class WorkflowEngine {
           await this.ports.requestJ({ contactId: contact.id, workspaceId: ws, reason: "timer", runId: live.id });
         return { status: "repeat", runId: live.id };
       }
-      // E5 / E7: another keyword while J holds the conversation: add to the hold list.
-      const v = await this.version(live.versionId);
-      const node = v ? nodeById(v.graph, live.currentNodeId) : null;
-      const extra = resourcesOfGraph(version.graph);
-      if (node?.type === "setter") {
-        for (const r of extra) if (!live.setter.held.includes(r) && !live.setter.released.includes(r)) live.setter.held.push(r);
-        live.setter.notes.push(`also asked for ${extra.join(", ") || wf.name} (${keyword})`);
-        await this.store.saveRun(live);
-        return { status: "held", runId: live.id };
-      }
-      // E6: before the Setter step, the new workflow waits its turn.
-      live.state.pending = [...(live.state.pending ?? []).filter((p) => p.workflowId !== wf.id), { workflowId: wf.id, keyword, trigger: trig }];
-      await this.store.saveRun(live);
-      return { status: "queued", runId: live.id };
     }
+    // The latest trigger wins: another workflow's keyword replaces the live
+    // run (once the checks below let the new one start; a blocked trigger
+    // leaves the old run alone).
+    const replacing = live && live.workflowId !== wf.id ? live : null;
 
-    // E10: Kevin is talking to them: a to-do instead of automation.
-    if (contact.paused) {
+    // E10: Kevin is talking to them: a to-do instead of automation. A paused
+    // run being replaced is the exception: it ends, and the contact unpauses.
+    if (contact.paused && replacing?.status !== "paused") {
       const links = await this.links(ws, resourcesOfGraph(version.graph));
       await this.ports.todo(ws, contact.id, `wf-paused:${wf.id}:${trig.commentId ?? trig.mid ?? iso(now)}`, `${trig.kind === "comment" ? "commented" : "sent"} ${keyword.toUpperCase()}: send the guide?`, {
         workflowId: wf.id,
@@ -356,6 +398,17 @@ export class WorkflowEngine {
         }
         return { status: "skipped", reason: "re-entry not allowed yet" };
       }
+    }
+
+    if (replacing) {
+      // Ended (and saved) first: that frees the person's liveKey for the new run.
+      console.info(`[OS Workflows] run ${replacing.id} replaced by ${wf.id} (${keyword})`);
+      if (replacing.status === "paused") {
+        if (replacing.contactId) await this.ports.setPaused(replacing.contactId, false);
+        contact.paused = false;
+      }
+      replacing.state.pending = [];
+      await this.finish(replacing, "exited", "replaced", replacing.currentNodeId);
     }
 
     const run = await this.store.createRun({
@@ -443,7 +496,7 @@ export class WorkflowEngine {
 
   // -------------------------------------------------------------- the loop
   /** Run steps from the current node until the run waits or ends. */
-  async advance(run: RunRecord, first: Ev, contactIn?: ContactInfo | null): Promise<void> {
+  async advance(run: RunRecord, first: Ev, contactIn?: ContactInfo | null): Promise<"passed" | void> {
     const version = await this.version(run.versionId);
     if (!version) return this.fail(run, "The workflow version is gone.");
     const contact = contactIn ?? (await this.contactOf(run));
@@ -483,7 +536,7 @@ export class WorkflowEngine {
         run.waitUntil = out.until ?? null;
         await this.store.saveRun(run);
         if (run.waitUntil) await this.ports.schedule(run.id, run.waitUntil);
-        return;
+        return out.pass ? "passed" : undefined;
       }
       if ("blocked" in out) {
         run.status = "waiting";
@@ -677,10 +730,13 @@ export class WorkflowEngine {
     if (ev.kind === "timer" && run.waitingFor === "reply" && run.waitUntil && this.now() >= run.waitUntil) return { end: "exited", exit: "quiet" };
     if (ev.kind === "reply" && allSent && replies) return this.quickReply(run, node, replies, ev, contact);
     if (ev.kind === "reply" && allSent && buttons.length) {
-      // S1: typing counts as the tap.
+      // S1: typing a button's label (any case, any spaces) counts as the tap.
       const tapped = ev.tap?.startsWith(`wf:${run.id}:${node.id}:`) ? ev.tap.split(":").pop()! : null;
-      const typed = buttons.find((b) => b.label.trim().toLowerCase() === ev.text.trim().toLowerCase());
-      const id = (tapped && buttons.some((b) => b.id === tapped) ? tapped : null) ?? typed?.id ?? buttons[0].id;
+      const norm = (t: string) => t.toLowerCase().replace(/\s+/g, "");
+      const typed = ev.text.trim() ? buttons.find((b) => norm(b.label) === norm(ev.text)) : undefined;
+      const id = (tapped && buttons.some((b) => b.id === tapped) ? tapped : null) ?? typed?.id ?? null;
+      // Anything else (a question, "wait what is this"): the buttons keep waiting and J answers it.
+      if (!id) return { wait: "reply", until: this.replyDeadline(run, contact), pass: true };
       await this.event(run, node.id, "replied");
       return { go: `button:${id}` };
     }
@@ -797,6 +853,8 @@ export class WorkflowEngine {
       if (run.waitUntil && this.now() >= run.waitUntil) return { end: "exited", exit: "quiet" };
       return { wait: "reply", until: run.waitUntil ?? this.replyDeadline(run, contact) };
     }
+    // A question back ("what's it for?"): not an answer and not a no. The step keeps waiting; J answers it.
+    if (isQuestion(ev.text, d.validate)) return { wait: "reply", until: this.replyDeadline(run, contact), pass: true };
     const value = validateAnswer(d.validate, ev.text);
     // saved: the answer was captured (by-reel stats count emails from it).
     await this.event(run, node.id, "replied", null, value != null ? { saved: true, validate: d.validate } : undefined);
@@ -997,6 +1055,11 @@ export class WorkflowEngine {
   /** J's draft went out (approved or auto-sent). Bubbles as sent; raw = J's output. */
   async afterJSent(contactId: string, info: { bubbles: string[]; exit?: string | null; resourceUrls?: Record<string, string> }): Promise<void> {
     const run = await this.store.liveRunForContact(contactId);
+    if (run) await this.locked(run.id, () => this.afterJSentLocked(contactId, info));
+  }
+
+  private async afterJSentLocked(contactId: string, info: { bubbles: string[]; exit?: string | null; resourceUrls?: Record<string, string> }): Promise<void> {
+    const run = await this.store.liveRunForContact(contactId);
     if (!run || run.status === "paused") return;
     const v = await this.version(run.versionId);
     const node = v ? nodeById(v.graph, run.currentNodeId) : null;
@@ -1030,7 +1093,7 @@ export class WorkflowEngine {
         run.setter.pendingExit = "not_a_fit";
         await this.store.saveRun(run);
         if (run.contactId) await this.ports.requestJ({ contactId: run.contactId, workspaceId: run.workspaceId, reason: "timer", runId: run.id });
-        return this.advance(run, { kind: "timer" });
+        return void (await this.advance(run, { kind: "timer" }));
       }
       return this.advanceWith(run, "exit:not_a_fit");
     }
@@ -1057,6 +1120,11 @@ export class WorkflowEngine {
   /** A call was booked (in the DM or on the calendar): R1 release, then Booked (J7). */
   async handleBooked(contactId: string): Promise<void> {
     const run = await this.store.liveRunForContact(contactId);
+    if (run) await this.locked(run.id, () => this.handleBookedLocked(contactId));
+  }
+
+  private async handleBookedLocked(contactId: string): Promise<void> {
+    const run = await this.store.liveRunForContact(contactId);
     if (!run) return;
     const v = await this.version(run.versionId);
     const node = v ? nodeById(v.graph, run.currentNodeId) : null;
@@ -1072,7 +1140,7 @@ export class WorkflowEngine {
       run.setter.pendingExit = "booked";
       await this.store.saveRun(run);
       if (run.contactId) await this.ports.requestJ({ contactId: run.contactId, workspaceId: run.workspaceId, reason: "timer", runId: run.id });
-      return this.advance(run, { kind: "timer" });
+      return void (await this.advance(run, { kind: "timer" }));
     }
     return this.advanceWith(run, "exit:booked");
   }
@@ -1125,10 +1193,10 @@ export class WorkflowEngine {
       run.setter.quietFrom = null;
       await this.store.saveRun(run);
       if (run.contactId) await this.ports.requestJ({ contactId: run.contactId, workspaceId: run.workspaceId, reason: "resume", runId: run.id });
-      return this.advance(run, { kind: "timer" });
+      return void (await this.advance(run, { kind: "timer" }));
     } else if (run.waitingFor === "send") {
       await this.store.saveRun(run);
-      return this.advance(run, { kind: "timer" });
+      return void (await this.advance(run, { kind: "timer" }));
     } else {
       run.waitUntil = this.replyDeadline(run, await this.contactOf(run));
     }
@@ -1136,8 +1204,22 @@ export class WorkflowEngine {
     if (run.waitUntil) await this.ports.schedule(run.id, run.waitUntil);
   }
 
-  /** A run's timer fired (delayed job, or the sweep). */
+  /** A run's timer fired (delayed job, or the sweep). A run busy with a tap is looked at again shortly. */
   async tick(runId: string): Promise<void> {
+    const token = await this.store.lockRun(runId, RUN_LOCK_TTL_MS);
+    if (!token) {
+      const run = await this.store.getRun(runId);
+      if (run && (run.status === "waiting" || run.status === "active")) await this.ports.schedule(runId, new Date(this.now().getTime() + RUN_BUSY_RETRY_MS));
+      return;
+    }
+    try {
+      await this.tickLocked(runId);
+    } finally {
+      await this.store.unlockRun(runId, token).catch(() => {});
+    }
+  }
+
+  private async tickLocked(runId: string): Promise<void> {
     const run = await this.store.getRun(runId);
     if (!run || (run.status !== "waiting" && run.status !== "active")) return;
     const now = this.now();
@@ -1175,6 +1257,13 @@ export class WorkflowEngine {
     }
     return n;
   }
+
+  /** Delete a workflow: everyone in it stops where they are (paused contacts unpause), then it's gone with its runs. */
+  async deleteWorkflow(workflowId: string): Promise<number> {
+    const stopped = await this.stopAll(workflowId, await this.store.liveRunsOf(workflowId));
+    await this.store.deleteWorkflow(workflowId);
+    return stopped;
+  }
 }
 
 // ---------------------------------------------------------------- answers
@@ -1190,6 +1279,20 @@ export function validateAnswer(kind: "email" | "text" | "number", text: string):
     return Number.isFinite(n) ? String(n) : null;
   }
   return t;
+}
+
+const QUESTION_START = /^(what|whats|what's|why|how|who|where|when|which|is|are|do|does|did|can|could|will|would|should|wait|huh)\b/i;
+
+/**
+ * A question back at an Ask step ("is this for the newsletter?"), not an
+ * answer: it ends with "?" and doesn't hold a valid answer. For a free-text
+ * Ask it must also open like a question ("fitness?" is an answer).
+ */
+export function isQuestion(text: string, validate: "email" | "text" | "number"): boolean {
+  const t = (text ?? "").trim();
+  if (!t.endsWith("?")) return false;
+  if (validate !== "text") return validateAnswer(validate, t) == null;
+  return QUESTION_START.test(t);
 }
 
 export function isRefusal(text: string): boolean {

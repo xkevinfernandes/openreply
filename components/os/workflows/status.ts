@@ -82,3 +82,10 @@ export async function callAction<T>(fn: () => Promise<T>): Promise<T | { error: 
 export function onBlockedNote(next: boolean, version: number | null): string | null {
   return next && !version ? PUBLISH_FIRST_NOTE : null;
 }
+
+/** The inline Delete confirm: who stops if it goes. */
+export function deleteConfirmText(name: string, live: number): string {
+  const n = Math.max(0, live);
+  const who = n === 0 ? "Nobody is in it right now." : n === 1 ? "1 person is in it right now; they stop where they are." : `${n} people are in it right now; they stop where they are.`;
+  return `Delete ${name.trim() || "this workflow"}? ${who}`;
+}

@@ -1,4 +1,5 @@
 // The Postgres WorkflowStore (prisma/os-workflows.prisma).
+import { randomUUID } from "node:crypto";
 import { Prisma, type WorkflowRunStatus } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db/client";
 import { WorkflowGraph } from "@/lib/os/workflows/graph";
@@ -165,5 +166,27 @@ export const dbWorkflowStore: WorkflowStore = {
   async dueRuns(now, limit = 100) {
     const rows = await prisma.workflowRun.findMany({ where: { status: { in: ["ACTIVE", "WAITING"] }, waitUntil: { lte: now } }, orderBy: { waitUntil: "asc" }, take: limit });
     return rows.map(runFromRow);
+  },
+  async liveRunsOf(workflowId) {
+    const rows = await prisma.workflowRun.findMany({ where: { workflowId, status: { in: LIVE_DB } } });
+    return rows.map(runFromRow);
+  },
+  async deleteWorkflow(workflowId) {
+    // Versions, runs and run events go with the workflow (onDelete: Cascade);
+    // Randomizer branches have no relation, so they go by hand. Inbound and
+    // outbound rows are keyed by message / person, not by workflow.
+    await prisma.$transaction([prisma.workflowRandomizerAssignment.deleteMany({ where: { workflowId } }), prisma.workflow.deleteMany({ where: { id: workflowId } })]);
+  },
+  async lockRun(runId, ttlMs) {
+    const now = new Date();
+    const token = randomUUID();
+    const r = await prisma.workflowRun.updateMany({
+      where: { id: runId, OR: [{ lockedUntil: null }, { lockedUntil: { lt: now } }] },
+      data: { lockToken: token, lockedUntil: new Date(now.getTime() + ttlMs) },
+    });
+    return r.count === 1 ? token : null;
+  },
+  async unlockRun(runId, token) {
+    await prisma.workflowRun.updateMany({ where: { id: runId, lockToken: token }, data: { lockToken: null, lockedUntil: null } });
   },
 };

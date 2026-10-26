@@ -72,6 +72,13 @@ export async function setWorkflowOn(id: string, on: boolean) {
   return r;
 }
 
+/** Delete (after the inline confirm): everyone in it stops, then it's gone. */
+export async function deleteWorkflowAction(id: string): Promise<Result<{ stopped: number }>> {
+  const r = await guard((w) => data.deleteWorkflow(w, id));
+  if (r.error === undefined) refresh();
+  return r;
+}
+
 // ---------------------------------------------------------------- Inbox
 export async function loadContactRun(contactId: string): Promise<ContactRun | null> {
   try {

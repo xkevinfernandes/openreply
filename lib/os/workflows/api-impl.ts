@@ -225,6 +225,16 @@ export async function stopEveryone(workspaceId: string, id: string): Promise<A.A
   return { ok: true, stopped };
 }
 
+export async function deleteWorkflow(workspaceId: string, id: string): Promise<A.ApiResult<{ stopped: number }>> {
+  const w = await prisma.workflow.findFirst({ where: { id, workspaceId }, select: { id: true } });
+  if (!w) return err("That workflow is gone. Refresh.");
+  // Off first: no new runs start while everyone is stopped.
+  await prisma.workflow.updateMany({ where: { id, workspaceId }, data: { active: false } });
+  const { workflowEngine } = await import("@/lib/os/workflows/hooks");
+  const stopped = await workflowEngine().deleteWorkflow(id);
+  return { ok: true, stopped };
+}
+
 export async function workflowStats(workspaceId: string, id: string, opts: { period?: A.StatsPeriod; versionId?: string | null }): Promise<A.WorkflowStats | null> {
   const w = await prisma.workflow.findFirst({ where: { id, workspaceId } });
   if (!w) return null;

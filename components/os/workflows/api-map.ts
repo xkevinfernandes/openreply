@@ -19,11 +19,12 @@ export function rowFromSummary(s: Api.WorkflowSummary, stats: Api.WorkflowStats 
     funnel: stats?.header ?? EMPTY,
     version: s.version,
     unpublished: s.unpublished,
+    live: s.runs.active + s.runs.paused,
   };
 }
 
 export function detailFromApi(d: Api.WorkflowDetail): WorkflowDetail {
-  return { id: d.id, name: d.name, mode: d.mode, on: d.active, graph: d.draft, version: d.version, unpublished: d.unpublished, updatedAt: d.updatedAt };
+  return { id: d.id, name: d.name, mode: d.mode, on: d.active, graph: d.draft, version: d.version, unpublished: d.unpublished, updatedAt: d.updatedAt, live: d.runs.active + d.runs.paused };
 }
 
 export function statsFromApi(s: Api.WorkflowStats, since: string | null = null): WorkflowStats {

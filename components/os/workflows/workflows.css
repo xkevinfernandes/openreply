@@ -519,6 +519,74 @@
   font-weight: 600;
 }
 
+/* Row ⋯ menu (Delete) and the inline delete confirm */
+.wf-row-wrap {
+  position: relative;
+}
+
+.wf-row-menu {
+  position: absolute;
+  /* Level with the row's middle (14px padding + half a two-line name), and
+   * staying there when the confirm opens below. */
+  top: 21px;
+  right: 8px;
+}
+
+.wf-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  min-width: 140px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow-lg);
+}
+
+.wf-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wf-menu-item[data-tone="bad"] {
+  color: var(--bad);
+}
+
+.wf-menu-item:hover {
+  background: var(--paper-2);
+}
+
+.wf-delete-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bad-bg);
+}
+
+.wf-delete-text {
+  flex: 1 1 260px;
+  color: var(--ink);
+}
+
+.wf-delete-btn:hover:not(:disabled) {
+  color: var(--bad);
+}
+
 .wf-row-go {
   display: flex;
   justify-content: flex-end;

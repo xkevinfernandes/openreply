@@ -8,6 +8,7 @@
 import "@xyflow/react/dist/style.css";
 import "@/components/os/workflows/workflows.css";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Background,
   BackgroundVariant,
@@ -41,6 +42,7 @@ import {
   updateNodeData,
   type History,
 } from "@/components/os/workflows/graph-edit";
+import { DeleteWorkflowConfirm } from "@/components/os/workflows/delete-workflow";
 import { WfIcon } from "@/components/os/workflows/icons";
 import Inspector from "@/components/os/workflows/inspector";
 import { StepNode, type StepNodeData, type StepNodeType } from "@/components/os/workflows/step-node";
@@ -73,6 +75,8 @@ export default function Builder(props: BuilderProps) {
 
 function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
   const rf = useReactFlow();
+  const router = useRouter();
+  const [deleting, setDeleting] = useState(false);
   const [hist, setHist] = useState<History>(() => historyOf(workflow.graph));
   const graph = hist.present;
   const [selected, setSelected] = useState<string | null>(null);
@@ -397,7 +401,13 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
           <button type="button" className="os-button primary wf-publish" disabled={publishing} aria-busy={publishing} onClick={publish}>
             {publishing ? "Publishing…" : "Publish"}
           </button>
+          <button type="button" className="wf-iconbtn wf-delete-btn" aria-label="Delete workflow" title="Delete workflow" aria-expanded={deleting} onClick={() => setDeleting((d) => !d)}>
+            <WfIcon name="trash" />
+          </button>
         </div>
+        {deleting ? (
+          <DeleteWorkflowConfirm id={workflow.id} name={name} live={workflow.live} onCancel={() => setDeleting(false)} onDeleted={() => router.push("/os/automations/workflows")} />
+        ) : null}
         <div className="wf-strip" aria-label="Workflow results">
           {strip.map((s, i) => (
             <span key={s.label} className="wf-strip-item">

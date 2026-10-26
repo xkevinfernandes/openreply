@@ -17,11 +17,9 @@ import { draft as runDrafter } from "@/lib/os/setter/drafter";
 import { sendMessageWithQuickReplies } from "@/lib/meta/client";
 import { CLASSIFY_SYSTEM, heuristicClassify, PICK_OPTION_SYSTEM, pickOptionPrompt, readClassification, readPickedOption } from "@/lib/os/workflows/setter-step";
 import type { CanSend, ContactInfo, JRequest, OutMessage, Ports, SendContext } from "@/lib/os/workflows/types";
+import { sendNoted, textHash } from "@/lib/os/workflows/outbound";
 
-
-export function textHash(text: string): string {
-  return createHash("sha256").update(text.trim().toLowerCase().replace(/\s+/g, " ")).digest("hex").slice(0, 32);
-}
+export { textHash };
 
 async function accountContext(instagramAccountId: string, operationId?: string): Promise<{ ctx: InstagramContext; instagramId: string }> {
   const account = await prisma.instagramAccount.findUnique({ where: { id: instagramAccountId } });
@@ -54,9 +52,8 @@ async function zernioSend(ctx: Extract<InstagramContext, { provider: "ZERNIO" }>
 
 const metaReplies = (list: { label: string; payload: string }[]) => list.slice(0, 13).map((b) => ({ title: b.label, payload: b.payload }));
 
-async function noteOutbound(workspaceId: string, igUserId: string, msg: OutMessage) {
-  await prisma.workflowOutbound.create({ data: { workspaceId, igUserId, hash: textHash(plain(msg)) } }).catch(() => {});
-}
+/** Send with the outbound note written first (its echo can beat the send's response). */
+const noted = (sc: SendContext, msg: OutMessage, send: () => Promise<unknown>) => sendNoted(sc.workspaceId, sc.igUserId, plain(msg), send);
 
 async function toContactInfo(c: {
   id: string;
@@ -143,19 +140,21 @@ export function dbPorts(): Ports {
     },
     async privateReply(sc, commentId, postId, msg) {
       const { ctx, instagramId } = await accountContext(sc.instagramAccountId, `wf:${commentId}`);
-      if (ctx.provider === "ZERNIO") await zernioSend(ctx, { commentId, postId }, msg, `pr:${commentId}`);
-      else if ("text" in msg && msg.quickReplies?.length) await sendMessageWithQuickReplies(ctx.accessToken, instagramId, { comment_id: commentId }, msg.text, metaReplies(msg.quickReplies));
-      else await sendPrivateReply({ context: ctx, instagramAccountId: instagramId, commentId, message: plain(msg), postId: postId ?? undefined });
-      await noteOutbound(sc.workspaceId, sc.igUserId, msg);
+      await noted(sc, msg, async () => {
+        if (ctx.provider === "ZERNIO") await zernioSend(ctx, { commentId, postId }, msg, `pr:${commentId}`);
+        else if ("text" in msg && msg.quickReplies?.length) await sendMessageWithQuickReplies(ctx.accessToken, instagramId, { comment_id: commentId }, msg.text, metaReplies(msg.quickReplies));
+        else await sendPrivateReply({ context: ctx, instagramAccountId: instagramId, commentId, message: plain(msg), postId: postId ?? undefined });
+      });
       await recordSend(sc.workspaceId, { key: `wf-pr:${commentId}`, source: "workflow" });
     },
     async dm(sc: SendContext, msg, opts) {
       const { ctx, instagramId } = await accountContext(sc.instagramAccountId, `wf:${opts.key}`);
       if (opts.humanAgent) throw new Error("A workflow step never sends under HUMAN_AGENT by itself.");
-      if (ctx.provider === "ZERNIO") await zernioSend(ctx, { recipientId: sc.igUserId }, msg, opts.key);
-      else if ("text" in msg && msg.quickReplies?.length) await sendMessageWithQuickReplies(ctx.accessToken, instagramId, { id: sc.igUserId }, msg.text, metaReplies(msg.quickReplies));
-      else await sendDirectMessage({ context: ctx, instagramAccountId: instagramId, userId: sc.igUserId, message: plain(msg) });
-      await noteOutbound(sc.workspaceId, sc.igUserId, msg);
+      await noted(sc, msg, async () => {
+        if (ctx.provider === "ZERNIO") await zernioSend(ctx, { recipientId: sc.igUserId }, msg, opts.key);
+        else if ("text" in msg && msg.quickReplies?.length) await sendMessageWithQuickReplies(ctx.accessToken, instagramId, { id: sc.igUserId }, msg.text, metaReplies(msg.quickReplies));
+        else await sendDirectMessage({ context: ctx, instagramAccountId: instagramId, userId: sc.igUserId, message: plain(msg) });
+      });
       await recordSend(sc.workspaceId, { key: `wf:${opts.key}`, source: "workflow" });
     },
     async canSend(workspaceId, n): Promise<CanSend> {

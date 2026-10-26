@@ -140,6 +140,13 @@ export async function setOn(workspaceId: string, id: string, on: boolean): Promi
   ok(await (await api()).setWorkflowActive(workspaceId, id, on));
 }
 
+/** Delete: everyone in it stops where they are, then it's gone (its keyword is free again). */
+export async function deleteWorkflow(workspaceId: string, id: string): Promise<{ stopped: number }> {
+  if (osMockEnabled()) return mockDeleteWorkflow(workspaceId, id);
+  const { stopped } = ok(await (await api()).deleteWorkflow(workspaceId, id));
+  return { stopped };
+}
+
 // ---------------------------------------------------------------- runs (Inbox)
 export async function contactRun(workspaceId: string, contactId: string): Promise<ContactRun | null> {
   if (osMockEnabled()) return mockContactRun(workspaceId, contactId);
@@ -183,8 +190,13 @@ async function mockListWorkflows(_workspaceId: string): Promise<WorkflowRow[]> {
       funnel: stats.strip,
       version: w.versions.at(-1)?.version ?? null,
       unpublished: !w.versions.length || !same(w.versions.at(-1)!.graph, w.draft),
+      live: mockLive(w.id),
     };
   });
+}
+
+function mockLive(id: string): number {
+  return [...store().runs.values()].filter((r) => r.workflowId === id).length;
 }
 
 async function mockGetWorkflow(_workspaceId: string, id: string): Promise<WorkflowDetail | null> {
@@ -200,6 +212,7 @@ async function mockGetWorkflow(_workspaceId: string, id: string): Promise<Workfl
     version: w.versions.at(-1)?.version ?? null,
     unpublished: !published || !same(published, w.draft),
     updatedAt: w.updatedAt,
+    live: mockLive(w.id),
   };
 }
 
@@ -271,6 +284,19 @@ async function mockSetOn(_workspaceId: string, id: string, on: boolean): Promise
   if (!w) throw new Error("That workflow is gone. Refresh the page.");
   if (on && !w.versions.length) throw new Error("Publish it first.");
   w.on = on;
+}
+
+async function mockDeleteWorkflow(_workspaceId: string, id: string): Promise<{ stopped: number }> {
+  const s = store();
+  if (!s.workflows.has(id)) throw new Error("That workflow is gone. Refresh the page.");
+  let stopped = 0;
+  for (const [contactId, r] of s.runs)
+    if (r.workflowId === id) {
+      s.runs.delete(contactId);
+      stopped++;
+    }
+  s.workflows.delete(id);
+  return { stopped };
 }
 
 // ---------------------------------------------------------------- runs (Inbox)

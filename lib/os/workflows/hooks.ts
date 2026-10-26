@@ -15,6 +15,7 @@ import { osMockEnabled } from "@/lib/os/mock";
 import { dbWorkflowStore } from "@/lib/os/workflows/db-store";
 import { WorkflowEngine } from "@/lib/os/workflows/engine";
 import { SetterData } from "@/lib/os/workflows/graph";
+import { sendNoted } from "@/lib/os/workflows/outbound";
 import { dbPorts, textHash } from "@/lib/os/workflows/ports";
 import { releaseRulesView, stillHeld, type WorkflowStepView } from "@/lib/os/workflows/setter-step";
 
@@ -162,10 +163,13 @@ export async function workflowKevinSent(workspaceId: string, contactId: string |
   });
 }
 
-/** Remember an OS send, so its echo isn't taken for Kevin typing in the IG app. */
-export async function noteOsSend(workspaceId: string, igUserId: string, text: string): Promise<void> {
-  if (!enabled()) return;
-  await prisma.workflowOutbound.create({ data: { workspaceId, igUserId, hash: textHash(text) } }).catch(() => {});
+/**
+ * An OS send (J, the Inbox), remembered before it goes so its echo isn't taken
+ * for Kevin typing in the IG app; a failed send takes the note back.
+ */
+export async function sendNotedOs<T>(workspaceId: string, igUserId: string, text: string, send: () => Promise<T>): Promise<T> {
+  if (!enabled()) return send();
+  return sendNoted(workspaceId, igUserId, text, send);
 }
 
 // ---------------------------------------------------------------- J's side

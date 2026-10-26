@@ -99,50 +99,70 @@ describe("5.1 Entering", () => {
     expect((await h.comment("ann", "VAULT")).status).toBe("started");
   });
 
-  it("E5 a different keyword while J holds the conversation: no new opener, the resource joins the hold list", async () => {
+  it("E5 a different keyword while J holds the conversation: the latest trigger wins, the new workflow starts", async () => {
     const h = harness();
     await intoSetter(h);
+    const old = (await h.run("sam"))!;
     h.publish(sendLink("VAULT", "script-vault"));
-    const before = h.sentTo("sam").length;
-    expect((await h.comment("sam", "VAULT")).status).toBe("held");
-    expect(h.sentTo("sam").length).toBe(before);
+    expect((await h.comment("sam", "VAULT")).status).toBe("started");
+    const first = (await h.store.getRun(old.id))!;
+    expect(first.status).toBe("exited");
+    expect(first.exit).toBe("replaced");
     const run = (await h.run("sam"))!;
-    expect(run.workflowId).toBe("wf1");
-    expect(run.setter.held).toEqual(["setter-starter", "script-vault"]);
-    expect(run.setter.notes.join()).toMatch(/also asked for script-vault/);
+    expect(run.workflowId).toBe("wf2");
+    // VAULT's own opener went out (the comment's private reply).
+    expect(h.sentTo("sam").at(-1)!.via).toBe("private");
   });
 
-  it("E6 a different keyword before the Setter step: the new workflow waits, then E5 applies when J takes over", async () => {
-    const h = harness();
-    h.publish(hold());
-    await h.comment("sam", "SETTER");
-    h.publish(sendLink("VAULT", "script-vault"));
-    expect((await h.comment("sam", "VAULT")).status).toBe("queued");
-    await h.dm("sam", "yes please");
-    const run = (await h.run("sam"))!;
-    expect(run.currentNodeId).toBe("setter");
-    expect(run.setter.held).toEqual(["setter-starter", "script-vault"]);
-    expect(run.state.pending).toEqual([]);
-  });
-
-  it("E6 the waiting workflow starts once the current run ends", async () => {
+  it("E6 a different keyword before the Setter step: the old run ends (pending cleared), the new one runs now", async () => {
     const h = harness();
     h.publish(dmTrigger("HI", [n("ask", "ask", { question: "what's your email?", saveTo: "email", validate: "email" }), n("end", "end", {})], [e("trigger", "next", "ask"), e("ask", "next", "end")]));
     h.publish(dmTrigger("VAULT", [n("m", "message", { bubbles: [{ kind: "link", resourceSlug: "script-vault" }] })], [e("trigger", "next", "m")]));
     await h.dm("ann", "HI");
-    expect((await h.dm("ann", "VAULT")).runId).toBeTruthy();
-    expect((await h.run("ann"))!.state.pending).toHaveLength(1);
-    await h.dm("ann", "ann@example.com");
+    const old = (await h.run("ann"))!;
+    const out = await h.dm("ann", "VAULT");
+    expect(out.outcome?.status).toBe("started");
+    expect(out.runId).not.toBe(old.id);
+    const first = (await h.store.getRun(old.id))!;
+    expect([first.status, first.exit, first.state.pending]).toEqual(["exited", "replaced", []]);
     expect(h.sentTo("ann").map((s) => text(s.msg))).toContain("https://kevin.link/vault");
+    // Nothing waits on the old one: an email now isn't saved by it.
+    await h.dm("ann", "ann@example.com");
+    expect(h.fields.get("c_ann:email")).toBeUndefined();
   });
 
-  it("E7 a DM keyword in the middle of a live conversation is the same as E5", async () => {
+  it("E6 a paused run replaced by another workflow: it ends and the contact unpauses", async () => {
+    const h = harness();
+    await intoSetter(h);
+    const old = (await h.run("sam"))!;
+    await h.engine().pauseRun(old, "you replied");
+    expect(h.contacts.get("sam")!.paused).toBe(true);
+    h.publish(sendLink("VAULT", "script-vault"));
+    expect((await h.comment("sam", "VAULT")).status).toBe("started");
+    expect((await h.store.getRun(old.id))!.exit).toBe("replaced");
+    expect(h.contacts.get("sam")!.paused).toBe(false);
+    expect((await h.run("sam"))!.workflowId).toBe("wf2");
+  });
+
+  it("E6 a blocked new trigger (rate limit) leaves the live run alone", async () => {
+    const h = harness();
+    h.publish(sendLink("VAULT", "script-vault"));
+    await h.comment("sam", "VAULT");
+    h.publish(hold());
+    await h.comment("sam", "SETTER");
+    const setterRun = (await h.run("sam"))!;
+    // VAULT again inside 24h: rate limited, so SETTER's run stays.
+    expect((await h.comment("sam", "VAULT")).status).toBe("skipped");
+    expect((await h.run("sam"))!.id).toBe(setterRun.id);
+  });
+
+  it("E7 a DM keyword for another workflow mid-conversation replaces the run too", async () => {
     const h = harness();
     await intoSetter(h);
     h.publish(dmTrigger("QUIZ", [n("m", "message", { bubbles: [{ kind: "link", resourceSlug: "quiz" }] })], [e("trigger", "next", "m")]));
     const out = await h.dm("sam", "QUIZ");
-    expect(out.consumed).toBe(false); // J sees it in the thread and answers
-    expect((await h.run("sam"))!.setter.held).toContain("quiz");
+    expect(out.outcome?.status).toBe("started");
+    expect(h.sentTo("sam").map((x) => text(x.msg))).toContain("https://kevin.link/quiz");
   });
 
   it("E8 Pitches: public reply and the Message steps only, never a Setter step", async () => {
@@ -248,11 +268,11 @@ describe("5.2 Inside the steps", () => {
     expect(h.fields.has("c_bob:email")).toBe(false);
   });
 
-  it("S3 they refuse or ask why: no retry, no hostage; with a Setter step next J takes it", async () => {
+  it("S3 they refuse: no retry, no hostage; with a Setter step next J takes it", async () => {
     const h = harness();
     h.publish(askFlow("message"));
     await h.dm("bob", "EMAIL");
-    await h.dm("bob", "why do you need my email?");
+    await h.dm("bob", "nah I'd rather not");
     expect(text(h.sentTo("bob").at(-1)!.msg)).toBe("https://kevin.link/starter");
     const h2 = harness();
     h2.publish(askFlow("setter"));

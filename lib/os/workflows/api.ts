@@ -211,6 +211,15 @@ export async function setWorkflowActive(workspaceId: string, id: string, active:
   return (await impl()).setWorkflowActive(workspaceId, id, active);
 }
 
+/**
+ * Delete (confirmed in the UI): everyone in it stops where they are (exit
+ * stopped_by_kevin, paused contacts unpause), then the workflow goes with its
+ * versions, runs and stats. Its keywords are free again at once.
+ */
+export async function deleteWorkflow(workspaceId: string, id: string): Promise<ApiResult<{ stopped: number }>> {
+  return (await impl()).deleteWorkflow(workspaceId, id);
+}
+
 /** "Stop everyone now" (confirmed in the UI): every live run ends at once. */
 export async function stopEveryone(workspaceId: string, id: string): Promise<ApiResult<{ stopped: number }>> {
   return (await impl()).stopEveryone(workspaceId, id);
