@@ -19,6 +19,7 @@ import { enqueueBroadcastSend } from "@/lib/os/broadcasts/jobs";
 import {
   alreadyHadLink,
   asWritten,
+  baseName,
   bubbleLinks,
   capFigures,
   datedName,
@@ -28,8 +29,11 @@ import {
   EXTEND_LIMIT,
   fromVariation,
   hasEmptyLink,
+  isBlankDraft,
   linksIn,
   linksOf,
+  NEW_BROADCAST_NAME,
+  nextFreeDate,
   nowEndError,
   perPerson,
   plannedOf,
@@ -263,11 +267,13 @@ async function uniqueKey(c: Ctx, workspaceId: string, name: string): Promise<str
   return slugFor(name, (k) => keys.has(k));
 }
 
-/** "New broadcast": a draft, Now until the default end, in the workspace timezone. */
+/** "New broadcast": a draft, Now until the default end, in the workspace timezone. An untouched one is reused. */
 export async function createBroadcast(workspaceId: string, deps: EngineDeps = {}): Promise<Result<{ key: string }>> {
   const c = ctx(deps);
+  const blank = (await c.store.list(workspaceId)).find(isBlankDraft);
+  if (blank) return { ok: true, key: blank.key };
   const tz = await c.timezone(workspaceId);
-  const name = "New broadcast";
+  const name = NEW_BROADCAST_NAME;
   const b = await c.store.create(workspaceId, {
     key: await uniqueKey(c, workspaceId, name),
     name,
@@ -399,7 +405,11 @@ export async function duplicateBroadcast(workspaceId: string, key: string, deps:
   const c = ctx(deps);
   const b = await c.store.get(workspaceId, key);
   if (!b) return { ok: false, error: "Broadcast not found." };
-  const date = b.startMode === "now" ? null : duplicateDate(b, c.now);
+  // Never a second one on a date the series already has: the next free week.
+  const series = baseName(b.name);
+  const taken = new Set((await c.store.list(workspaceId)).filter((x) => x.sendDate && x.status !== "cancelled" && baseName(x.name) === series).map((x) => x.sendDate!));
+  const next = b.startMode === "now" ? null : duplicateDate(b, c.now);
+  const date = next ? nextFreeDate(next, taken) : null;
   const name = datedName(b.name, date, b.timezone);
   const copy = await c.store.create(workspaceId, {
     key: await uniqueKey(c, workspaceId, date ? `${name.replace(/\s*·.*$/, "")}-${date}` : name),
@@ -785,9 +795,11 @@ export async function sendBroadcast(workspaceId: string, key: string, deps: Engi
     }
     ready.push({ m, contact: contact! });
   }
+  // New in Who since drafting: people who'd get it now (the same checks as
+  // Make drafts) but have no draft. Archived, Personal, paused etc. never count.
   const known = new Set(all.map((m) => m.contactId));
-  const now = await audienceContacts(c, workspaceId, live);
-  const taggedSince = now.contacts.filter((x) => !known.has(x.contactId) && (!tag || x.tags.includes(tag))).length;
+  const whoNow = await whoFor(c, workspaceId, live).catch(() => null);
+  const taggedSince = whoNow ? [...whoNow.get, ...whoNow.hadLink.map((h) => h.entry)].filter((e) => !known.has(e.contact.contactId)).length : 0;
 
   const capNow = await c.cap(workspaceId, c.now);
   const capLeft = Math.max(0, w.today ? capNow.cap - capNow.sentToday : capNow.cap);
@@ -968,7 +980,7 @@ export async function broadcastNeeds(workspaceId: string, deps: EngineDeps = {})
   for (const b of await c.store.list(workspaceId)) {
     if (b.status !== "in_review") continue;
     const run = await c.store.runOf(b.id);
-    const drafts = run ? (await c.store.messages(run.id)).filter((m) => m.status === "drafted" || m.status === "approved").length : 0;
+    const drafts = run ? progressOf(await c.store.messages(run.id)).ready : 0;
     const date = b.sendDate ?? localDate(c.now, b.timezone);
     out.push({
       key: b.key,
@@ -1020,6 +1032,10 @@ export interface Progress {
   cancelled: number;
   notSent: number;
   drafts: number;
+  /** Drafts that can go: to check or approved, not the "already had this link" ones. */
+  ready: number;
+  /** Sent by Kevin from the inbox (Send myself). */
+  sentByYou: number;
   drafted: number;
   failed: number;
 }
@@ -1032,6 +1048,8 @@ export function progressOf(msgs: BroadcastMessageView[]): Progress {
     cancelled: n((m) => m.skipReason === "cancelled"),
     notSent: n((m) => Boolean(m.skipReason && NOT_SENT_REASONS.includes(m.skipReason))),
     drafts: n((m) => m.status === "drafted" || m.status === "approved"),
+    ready: n((m) => (m.status === "drafted" || m.status === "approved") && !collapsed(m)),
+    sentByYou: n((m) => m.skipReason === "sent_by_kevin"),
     drafted: n((m) => m.status === "drafted" || m.status === "approved" || m.status === "draft_failed"),
     failed: n((m) => m.status === "draft_failed"),
   };
@@ -1042,7 +1060,7 @@ export function statusText(b: Pick<BroadcastView, "status">, p: Progress, drafti
     case "drafting":
       return { label: `Drafting ${Math.min(p.drafted, draftingTotal)} of ${draftingTotal}`, tone: "neutral" };
     case "in_review":
-      return { label: `In review · ${p.drafts} drafts ready`, tone: "warn" };
+      return { label: `In review · ${p.ready} ${p.ready === 1 ? "draft" : "drafts"} ready`, tone: "warn" };
     case "scheduled":
       return { label: "Scheduled", tone: "neutral" };
     case "sending":
@@ -1058,7 +1076,7 @@ export function statusText(b: Pick<BroadcastView, "status">, p: Progress, drafti
 
 function sentText(b: Pick<BroadcastView, "status">, p: Progress): string {
   if (b.status === "scheduled" || b.status === "sending") return `${p.sent} of ${p.sent + p.scheduled}`;
-  if (b.status === "sent") return `${p.sent}${p.notSent ? ` · ${p.notSent} not sent` : ""}`;
+  if (b.status === "sent") return `${p.sent + p.sentByYou}${p.notSent ? ` · ${p.notSent} not sent` : ""}`;
   if (b.status === "cancelled" && (p.sent || p.cancelled)) return `${p.sent} · ${p.cancelled} cancelled`;
   return "—";
 }
@@ -1068,6 +1086,7 @@ export async function loadBroadcastList(workspaceId: string, deps: EngineDeps = 
   const c = ctx(deps);
   const out: BroadcastListItem[] = [];
   for (const b of await c.store.list(workspaceId)) {
+    if (isBlankDraft(b)) continue;
     const run = await c.store.runOf(b.id);
     const msgs = run ? await c.store.messages(run.id) : [];
     const p = progressOf(msgs);
@@ -1129,12 +1148,13 @@ export interface BroadcastPage {
   hasDrafts: boolean;
 }
 
-function ago(iso: string | null, now: Date): string | null {
-  if (!iso) return null;
+/** "wrote 3h ago": when they last wrote (our own sends don't count). */
+export function wroteAgo(iso: string | null, now: Date): string {
+  if (!iso) return "hasn't written yet";
   const h = (now.getTime() - Date.parse(iso)) / 3_600_000;
-  if (h < 1) return "last chat <1h ago";
-  if (h < 48) return `last chat ${Math.round(h)}h ago`;
-  return `last chat ${Math.round(h / 24)}d ago`;
+  if (h < 1) return "wrote <1h ago";
+  if (h < 48) return `wrote ${Math.round(h)}h ago`;
+  return `wrote ${Math.round(h / 24)}d ago`;
 }
 
 export async function loadBroadcast(workspaceId: string, key: string, deps: EngineDeps = {}): Promise<BroadcastPage | null> {
@@ -1157,14 +1177,15 @@ export async function loadBroadcast(workspaceId: string, key: string, deps: Engi
   const item = (m: BroadcastMessageView): ReviewItem => {
     const ct = contacts.get(m.contactId);
     const handle = ct ? handleOf(ct) : m.contactId;
-    const last = ct ? Math.max(ct.theirLastAt ? Date.parse(ct.theirLastAt) : 0, ct.ourLastAt ? Date.parse(ct.ourLastAt) : 0) : 0;
     const when = had.get(m.contactId);
+    const fmt = (iso: string) => new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: b.timezone }).format(new Date(iso));
     return {
       ...m,
       handle,
       initial: handle[0]?.toUpperCase() ?? "?",
       conversationId: ct?.conversationId ?? null,
-      why: ct ? (last ? (ago(new Date(last).toISOString(), c.now) ?? "") : "no chat yet") : "",
+      // Sent: when it went. Before that: when they last wrote (not "now" for everyone).
+      why: m.sentAt ? `sent ${fmt(m.sentAt)}` : ct ? wroteAgo(ct.theirLastAt, c.now) : "",
       text: textOnly(m.bubbles),
       links: m.bubbles.filter((x) => URL_ONLY.test(x.trim())),
       collapsed: collapsed(m),

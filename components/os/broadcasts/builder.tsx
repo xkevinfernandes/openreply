@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
 import {
   approveAllAction,
   approveMessageAction,
@@ -30,9 +30,14 @@ import {
 import { Pill } from "@/components/os/ui";
 import type { BroadcastPage, ReviewItem, StepsInput } from "@/lib/os/broadcasts/engine";
 import type { PickerResource } from "@/lib/os/broadcasts/resources";
-import type { BroadcastBubble, PersonaliseMode } from "@/lib/os/broadcasts/types";
+import { NOT_SENT_REASONS, SKIP_LABEL, type BroadcastBubble, type PersonaliseMode } from "@/lib/os/broadcasts/types";
 
 type Act = (fn: () => Promise<ActionResult>, after?: (r: ActionResult) => void) => void;
+
+/** An in-app "are you sure" (never the browser's confirm()). */
+type Question = { text: string; yes: string; no?: string; onYes: () => void };
+type Ask = (q: Question) => void;
+const AskContext = createContext<Ask>(() => {});
 
 function useAct() {
   const router = useRouter();
@@ -40,26 +45,53 @@ function useAct() {
   const [msg, setMsg] = useState<{ text: string; bad: boolean } | null>(null);
   const act: Act = (fn, after) =>
     start(async () => {
-      const r = await fn();
+      // Duplicate / New broadcast redirect on the server: nothing comes back.
+      const r = (await fn()) ?? {};
       setMsg(r.error ? { text: r.error, bad: true } : r.notice ? { text: r.notice, bad: false } : null);
       if (!r.error) after?.(r);
       if (r.href) router.push(r.href);
       else router.refresh();
     });
-  return { pending, msg, act };
+  return { pending, msg, setMsg, act };
 }
 
 /** Save a step; with drafts made, ask first and save again on yes. */
-function saveStep(act: Act, key: string, input: StepsInput, done: () => void) {
+function saveStep(act: Act, ask: Ask, key: string, input: StepsInput, done: () => void) {
   act(
     () => saveStepsAction(key, input),
     (r) => {
       if (r.confirm) {
-        if (window.confirm(r.confirm)) act(() => saveStepsAction(key, input, true), done);
+        ask({ text: r.confirm, yes: "Remake drafts", no: "Keep editing", onYes: () => act(() => saveStepsAction(key, input, true), done) });
         return;
       }
       done();
     }
+  );
+}
+
+function ConfirmBar({ q, onClose, pending }: { q: Question; onClose: () => void; pending: boolean }) {
+  const no = useRef<HTMLButtonElement>(null);
+  useEffect(() => no.current?.focus(), []);
+  return (
+    <div className="os-bb-confirm os-well" role="alertdialog" aria-label={q.text} onKeyDown={(e) => e.key === "Escape" && onClose()}>
+      <span>{q.text}</span>
+      <span className="os-bb-actions">
+        <button ref={no} type="button" className="os-button" onClick={onClose}>
+          {q.no ?? "Keep it"}
+        </button>
+        <button
+          type="button"
+          className="os-button primary"
+          disabled={pending}
+          onClick={() => {
+            onClose();
+            q.onYes();
+          }}
+        >
+          {q.yes}
+        </button>
+      </span>
+    </div>
   );
 }
 
@@ -111,6 +143,7 @@ function Step({ n, label, summary, editing, canEdit, onEdit, children }: { n: nu
 }
 
 function StartStep({ data, act, pending, canEdit }: { data: BroadcastPage; act: Act; pending: boolean; canEdit: boolean }) {
+  const ask = useContext(AskContext);
   const b = data.broadcast;
   const [editing, setEditing] = useState(false);
   const [mode, setMode] = useState(b.startMode);
@@ -119,7 +152,7 @@ function StartStep({ data, act, pending, canEdit }: { data: BroadcastPage; act: 
   const [from, setFrom] = useState(b.windowStart);
   const [to, setTo] = useState(b.windowEnd);
   const save = () =>
-    saveStep(act, b.key, mode === "now" ? { startMode: "now", windowEnd: end } : { startMode: "window", sendDate: date || null, windowStart: from, windowEnd: to }, () => setEditing(false));
+    saveStep(act, ask, b.key, mode === "now" ? { startMode: "now", windowEnd: end } : { startMode: "window", sendDate: date || null, windowStart: from, windowEnd: to }, () => setEditing(false));
   return (
     <Step
       n={1}
@@ -165,6 +198,7 @@ function StartStep({ data, act, pending, canEdit }: { data: BroadcastPage; act: 
 }
 
 function WhoStep({ data, tags, act, pending, canEdit }: { data: BroadcastPage; tags: { id: string; name: string }[]; act: Act; pending: boolean; canEdit: boolean }) {
+  const ask = useContext(AskContext);
   const b = data.broadcast;
   const [editing, setEditing] = useState(!b.audienceTagId && !b.contactIds.length && canEdit);
   const [tagId, setTagId] = useState(b.audienceTagId ?? "");
@@ -228,7 +262,7 @@ function WhoStep({ data, tags, act, pending, canEdit }: { data: BroadcastPage; t
             </select>
           </span>
         </label>
-        <Actions onCancel={() => setEditing(false)} onSave={() => saveStep(act, b.key, { audienceTagId: tagId }, () => setEditing(false))} pending={pending} disabled={!tagId} />
+        <Actions onCancel={() => setEditing(false)} onSave={() => saveStep(act, ask, b.key, { audienceTagId: tagId }, () => setEditing(false))} pending={pending} disabled={!tagId} />
       </div>
     </Step>
   );
@@ -305,6 +339,7 @@ function ResourcePicker({ resources, onPick, onClose }: { resources: PickerResou
 }
 
 function MessagesStep({ data, resources, act, pending, canEdit }: { data: BroadcastPage; resources: PickerResource[]; act: Act; pending: boolean; canEdit: boolean }) {
+  const ask = useContext(AskContext);
   const b = data.broadcast;
   const blank = !b.bubbles.some((x) => x.type === "link" || x.text.trim());
   const [editing, setEditing] = useState((blank || data.emptyLink) && canEdit);
@@ -329,7 +364,7 @@ function MessagesStep({ data, resources, act, pending, canEdit }: { data: Broadc
     if (open) setPicking(at);
   };
   const save = () =>
-    saveStep(act, b.key, { bubbles: bubbles.filter((x) => x.type === "link" || x.text.trim()), followupTemplate: fuOn ? fu : null, followupDelayMin: delay }, () => setEditing(false));
+    saveStep(act, ask, b.key, { bubbles: bubbles.filter((x) => x.type === "link" || x.text.trim()), followupTemplate: fuOn ? fu : null, followupDelayMin: delay }, () => setEditing(false));
 
   return (
     <Step
@@ -403,6 +438,7 @@ function MessagesStep({ data, resources, act, pending, canEdit }: { data: Broadc
                       type="url"
                       placeholder="or paste a link"
                       aria-label="Paste a link"
+                      autoFocus
                       onBlur={(e) => {
                         const v = e.target.value.trim();
                         if (v) set(i, { type: "link", url: v, resourceId: null, label: null });
@@ -471,6 +507,7 @@ function MessagesStep({ data, resources, act, pending, canEdit }: { data: Broadc
 }
 
 function PersonaliseStep({ data, setters, act, pending, canEdit }: { data: BroadcastPage; setters: { id: string; name: string; isDefault: boolean }[]; act: Act; pending: boolean; canEdit: boolean }) {
+  const ask = useContext(AskContext);
   const b = data.broadcast;
   const def = setters.find((s) => s.isDefault) ?? setters[0];
   const current = setters.find((s) => s.id === b.setterId) ?? def;
@@ -481,6 +518,7 @@ function PersonaliseStep({ data, setters, act, pending, canEdit }: { data: Broad
   const save = () =>
     saveStep(
       act,
+      ask,
       b.key,
       {
         // The default stays "default" (null) unless another agent is picked.
@@ -567,7 +605,9 @@ function stateLabel(m: ReviewItem, tz: string): string | null {
     case "sent":
       return "Sent";
     case "skipped":
-      return m.skipReason === "sent_by_kevin" ? "Sent by you" : "Skipped";
+      // After Send, a not-sent reason says why (the "approved, not sent" list below).
+      if (m.skipReason && NOT_SENT_REASONS.includes(m.skipReason)) return `Not sent · ${SKIP_LABEL[m.skipReason]}`;
+      return m.skipReason ? SKIP_LABEL[m.skipReason] : "Skipped";
     case "failed":
       return "Failed";
     case "outside_window":
@@ -657,7 +697,11 @@ function DraftCard({ m, b, act, pending, locked }: { m: ReviewItem; b: Broadcast
   );
 }
 
-type Filter = "check" | "approved" | "skipped" | "all";
+type Filter = "check" | "approved" | "skipped" | "mine" | "all";
+
+const sentByYou = (m: ReviewItem) => m.status === "skipped" && m.skipReason === "sent_by_kevin";
+const skippedOnly = (m: ReviewItem) => m.status === "skipped" && m.skipReason !== "sent_by_kevin";
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 function Review({ data, act, pending }: { data: BroadcastPage; act: Act; pending: boolean }) {
   const b = data.broadcast;
@@ -668,15 +712,39 @@ function Review({ data, act, pending }: { data: BroadcastPage; act: Act; pending
   const items = review?.items ?? [];
   const open = items.filter((m) => !m.collapsed);
   const had = items.filter((m) => m.collapsed);
+  // Every person shows in exactly one count, so the counts add up.
   const counts = {
     check: open.filter((m) => m.status === "drafted").length,
     approved: open.filter((m) => m.status === "approved").length,
-    skipped: open.filter((m) => m.status === "skipped").length,
+    skipped: open.filter(skippedOnly).length,
+    mine: open.filter(sentByYou).length,
+    scheduled: open.filter((m) => m.status === "scheduled").length,
+    sent: open.filter((m) => m.status === "sent").length,
+    notSent: open.filter((m) => m.status === "failed" || m.status === "outside_window" || Boolean(m.skipReason && NOT_SENT_REASONS.includes(m.skipReason))).length,
+    plainSkipped: open.filter((m) => skippedOnly(m) && !(m.skipReason && NOT_SENT_REASONS.includes(m.skipReason))).length,
   };
-  const shown = open.filter((m) => (filter === "check" ? m.status === "drafted" : filter === "approved" ? m.status === "approved" : filter === "skipped" ? m.status === "skipped" : true));
+  const shown = open.filter((m) =>
+    filter === "check" ? m.status === "drafted" : filter === "approved" ? m.status === "approved" : filter === "skipped" ? skippedOnly(m) : filter === "mine" ? sentByYou(m) : true
+  );
+  const summary = (
+    inReview
+      ? [plural(counts.check, "to check", "to check"), `${counts.approved} approved`, counts.skipped ? `${counts.skipped} skipped` : null, counts.mine ? `${counts.mine} sent by you` : null]
+      : [
+          counts.sent + counts.mine ? `${counts.sent + counts.mine} sent${counts.mine ? ` (${counts.mine} by you)` : ""}` : null,
+          counts.scheduled ? `${counts.scheduled} scheduled` : null,
+          counts.notSent ? `${counts.notSent} not sent` : null,
+          counts.plainSkipped ? `${counts.plainSkipped} skipped` : null,
+        ]
+  )
+    .filter(Boolean)
+    .join(" · ");
   const plan = review?.plan;
   const notSentTotal = data.notSent.reduce((n, g) => n + g.people.length, 0);
   const canMake = b.status === "draft" || (b.status === "cancelled" && !items.length);
+  // Why Make drafts is off, said next to it (never a button that does nothing).
+  const noWho = !b.audienceTagId && !b.contactIds.length;
+  const noWords = !b.bubbles.some((x) => (x.type === "text" ? x.text.trim() : Boolean(x.url)));
+  const makeBlock = noWho ? "Pick who gets it first." : data.who?.total === 0 ? "No one has this tag" : noWords ? "Write a message first." : data.emptyLink ? "Pick a resource or paste a link first." : null;
 
   return (
     <li className="os-bb-step os-bb-review">
@@ -691,7 +759,7 @@ function Review({ data, act, pending }: { data: BroadcastPage; act: Act; pending
             </h2>
             {review ? (
               <p className="os-bb-sub">
-                {items.length} drafts · {counts.approved} approved · {counts.check} to check · {counts.skipped} skipped
+                {summary}
                 {had.length ? ` · ${had.length} already had this link` : ""}
               </p>
             ) : null}
@@ -707,17 +775,21 @@ function Review({ data, act, pending }: { data: BroadcastPage; act: Act; pending
               <button type="button" aria-pressed={filter === "skipped"} onClick={() => setFilter("skipped")}>
                 Skipped {counts.skipped}
               </button>
+              {counts.mine ? (
+                <button type="button" aria-pressed={filter === "mine"} onClick={() => setFilter("mine")}>
+                  Sent by you {counts.mine}
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>
 
         {canMake ? (
           <div className="os-bb-make">
-            <button type="button" className="os-button primary" disabled={pending || data.emptyLink || b.status === "cancelled" || data.who?.total === 0} onClick={() => act(() => makeDraftsAction(b.key))}>
+            <button type="button" className="os-button primary" disabled={pending || Boolean(makeBlock) || b.status === "cancelled"} onClick={() => act(() => makeDraftsAction(b.key))}>
               Make drafts
             </button>
-            {data.emptyLink ? <span className="os-bb-warn">Pick a resource or paste a link first.</span> : null}
-            {data.who?.total === 0 ? <span className="os-bb-warn">No one has this tag</span> : null}
+            {makeBlock ? <span className="os-bb-warn">{makeBlock}</span> : null}
           </div>
         ) : null}
 
@@ -804,9 +876,9 @@ function Review({ data, act, pending }: { data: BroadcastPage; act: Act; pending
           </div>
         ) : null}
 
-        {!inReview && review && data.progress.sent + data.progress.cancelled + data.progress.scheduled ? (
+        {!inReview && review && data.progress.sent + data.progress.sentByYou + data.progress.cancelled + data.progress.scheduled ? (
           <p className="os-bb-sub">
-            Sent {data.progress.sent}
+            Sent {data.progress.sent + data.progress.sentByYou}
             {data.progress.scheduled ? ` · ${data.progress.scheduled} to go` : ""}
             {data.progress.cancelled ? ` · cancelled ${data.progress.cancelled}` : ""}
           </p>
@@ -859,8 +931,15 @@ export default function BroadcastBuilder({
 }) {
   const b = data.broadcast;
   const router = useRouter();
-  const { pending, msg, act } = useAct();
+  const { pending, msg, setMsg, act } = useAct();
   const [name, setName] = useState(b.name);
+  const [asking, setAsking] = useState<Question | null>(null);
+  // A notice belongs to the moment it was made: a new status clears it.
+  const [shownStatus, setShownStatus] = useState(b.status);
+  if (shownStatus !== b.status) {
+    setShownStatus(b.status);
+    setMsg(null);
+  }
   const canEdit = b.status === "draft" || b.status === "in_review" || (b.status === "cancelled" && !data.review);
   const live = b.status === "scheduled" || b.status === "sending";
 
@@ -909,9 +988,14 @@ export default function BroadcastBuilder({
               type="button"
               className="os-button"
               disabled={pending}
-              onClick={() => {
-                if (window.confirm(live ? "Cancel the rest of this broadcast? What's sent stays sent." : "Cancel this broadcast? Drafts are kept.")) act(() => cancelAction(b.key));
-              }}
+              onClick={() =>
+                setAsking({
+                  text: live ? "Cancel the rest of this broadcast? What's sent stays sent." : "Cancel this broadcast? Drafts are kept.",
+                  yes: "Cancel broadcast",
+                  no: "Keep it",
+                  onYes: () => act(() => cancelAction(b.key)),
+                })
+              }
             >
               Cancel broadcast
             </button>
@@ -919,19 +1003,23 @@ export default function BroadcastBuilder({
         </div>
       </header>
 
+      {asking ? <ConfirmBar q={asking} pending={pending} onClose={() => setAsking(null)} /> : null}
+
       {msg ? (
         <div className="os-tl-msg" data-bad={msg.bad || undefined} role="status">
           {msg.text}
         </div>
       ) : null}
 
-      <ol className="os-bb-steps" key={stamp}>
-        <StartStep data={data} act={act} pending={pending} canEdit={canEdit} />
-        <WhoStep data={data} tags={tags} act={act} pending={pending} canEdit={canEdit} />
-        <MessagesStep data={data} resources={resources} act={act} pending={pending} canEdit={canEdit} />
-        <PersonaliseStep data={data} setters={setters} act={act} pending={pending} canEdit={canEdit} />
-        <Review data={data} act={act} pending={pending} />
-      </ol>
+      <AskContext.Provider value={setAsking}>
+        <ol className="os-bb-steps" key={stamp}>
+          <StartStep data={data} act={act} pending={pending} canEdit={canEdit} />
+          <WhoStep data={data} tags={tags} act={act} pending={pending} canEdit={canEdit} />
+          <MessagesStep data={data} resources={resources} act={act} pending={pending} canEdit={canEdit} />
+          <PersonaliseStep data={data} setters={setters} act={act} pending={pending} canEdit={canEdit} />
+          <Review data={data} act={act} pending={pending} />
+        </ol>
+      </AskContext.Provider>
 
       {data.earlier.length ? (
         <section className="os-card os-bb-earlier" aria-labelledby="bb-earlier">

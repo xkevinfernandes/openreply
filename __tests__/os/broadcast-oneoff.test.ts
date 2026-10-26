@@ -157,3 +157,28 @@ describe("resources in broadcasts (Part C 024)", () => {
     expect(blockers([])).toEqual([]);
   });
 });
+
+describe("Duplicate dates and blank drafts (walkthrough fixes)", async () => {
+  const { nextFreeDate, isBlankDraft, baseName } = await import("@/lib/os/broadcasts/oneoff");
+
+  it("a week later until the date is free", () => {
+    expect(nextFreeDate("2026-10-30", new Set())).toBe("2026-10-30");
+    expect(nextFreeDate("2026-10-30", new Set(["2026-10-30", "2026-11-06"]))).toBe("2026-11-13");
+    expect(nextFreeDate("2026-12-25", new Set(["2026-12-25"]))).toBe("2027-01-01");
+  });
+
+  it("the series name drops its date", () => {
+    expect(baseName("Follow-up Friday · 23 Oct")).toBe("Follow-up Friday");
+    expect(baseName("Webinar replay")).toBe("Webinar replay");
+  });
+
+  it("a blank draft is an untouched New broadcast", () => {
+    const blank = { status: "draft" as const, name: "New broadcast", audienceTagId: null, contactIds: [], bubbles: [{ type: "text" as const, text: " " }], duplicatedFromId: null, followupTemplate: null };
+    expect(isBlankDraft(blank)).toBe(true);
+    expect(isBlankDraft({ ...blank, name: "Webinar" })).toBe(false);
+    expect(isBlankDraft({ ...blank, audienceTagId: "t" })).toBe(false);
+    expect(isBlankDraft({ ...blank, bubbles: [{ type: "text", text: "hey" }] })).toBe(false);
+    expect(isBlankDraft({ ...blank, bubbles: [{ type: "link", url: null, resourceId: null, label: null }] })).toBe(false);
+    expect(isBlankDraft({ ...blank, status: "cancelled" })).toBe(false);
+  });
+});

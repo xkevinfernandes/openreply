@@ -1,6 +1,6 @@
 // Home's funnel card, inbox counts and the All · funnel board (dm-crm 031/032).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { funnelView, FUNNEL_WINDOWS, type FunnelContact } from "@/lib/os/crm-funnel";
+import { funnelBoard, funnelView, FUNNEL_WINDOWS, type FunnelContact } from "@/lib/os/crm-funnel";
 import { funnelColumns } from "@/lib/os/funnel";
 import { allBoardData, canDropOn, flowDots, funnelViews, shortAge } from "@/lib/os/home-funnel";
 
@@ -94,15 +94,18 @@ describe("mock sample", () => {
   beforeEach(() => vi.stubEnv("OS_MOCK", "1"));
   afterEach(() => vi.unstubAllEnvs());
 
-  it("looks like a real month: about 200 in, falling at each step, both revenue figures", async () => {
-    const { mockHomeContacts } = await import("@/lib/os/mock-home");
-    const v = funnelView(mockHomeContacts(now), 30, now);
-    const counts = v.steps.map((s) => s.count);
-    expect(counts[0]).toBeGreaterThan(150);
-    expect(counts[0]).toBeLessThan(260);
-    for (let i = 1; i < counts.length; i++) expect(counts[i]).toBeLessThanOrEqual(counts[i - 1]);
-    expect(counts[6]).toBeGreaterThan(0);
-    expect(v.revenue.closedInPeriod).toBeGreaterThan(v.revenue.fromCohort);
+  it("is the same people as every other screen, each in one board column", async () => {
+    const { loadWindowContacts } = await import("@/lib/os/home-funnel");
+    const { mockThreads } = await import("@/lib/os/mock");
+    const contacts = await loadWindowContacts("w1", now);
+    const ids = new Set(mockThreads().flatMap((t) => (t.contact ? [t.contact.id] : [])));
+    expect(contacts.length).toBe(ids.size);
+    for (const c of contacts) expect(ids.has(c.id)).toBe(true);
+    const board = funnelBoard(contacts, 90, now, { showArchived: true });
+    const placed = board.columns.flatMap((c) => c.contactIds);
+    expect(new Set(placed).size).toBe(placed.length);
+    const v = funnelView(contacts, 90, now);
+    for (let i = 1; i < v.steps.length; i++) expect(v.steps[i].count).toBeLessThanOrEqual(v.steps[i - 1].count);
   });
 });
 

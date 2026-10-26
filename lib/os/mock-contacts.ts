@@ -78,7 +78,7 @@ export const MOCK_CARD_NOTES: Record<string, string> = {
   c2: "agency owner, replied to SETTER",
   c3: "offered Tue 2pm / Wed 11am",
   c6: "call Thu 3:00pm",
-  c8: "no-show, rebook queued",
+  c8: "~$40k/mo, asked what the call covers",
   c9: "Setter Build · $3.5k",
 };
 

@@ -193,9 +193,44 @@ export function duplicateDate(original: Pick<BroadcastView, "sendDate" | "window
   return nextRunDate(weekdayOf(original.sendDate), original.windowEnd, original.timezone, now).date;
 }
 
+/** "YYYY-MM-DD" a week later until it isn't taken (Duplicate never lands on a date the series already has). */
+export function nextFreeDate(date: string, taken: ReadonlySet<string>): string {
+  let d = date;
+  for (let i = 0; i < 104 && taken.has(d); i++) {
+    const t = new Date(`${d}T12:00:00Z`);
+    t.setUTCDate(t.getUTCDate() + 7);
+    d = t.toISOString().slice(0, 10);
+  }
+  return d;
+}
+
+/** The name without its date: "Follow-up Friday · 24 Oct" → "Follow-up Friday". */
+export function baseName(name: string): string {
+  return name.replace(/\s*·\s*\d{1,2} [A-Z][a-z]{2}$/, "").replace(/\s*\(copy\)$/, "").trim() || "Broadcast";
+}
+
+export const NEW_BROADCAST_NAME = "New broadcast";
+
+/**
+ * A "New broadcast" nobody filled in: no name, no Who, no words, no link,
+ * never drafted. Hidden from the list and reused by the next New broadcast,
+ * so pressing New and leaving doesn't leave rows behind.
+ */
+export function isBlankDraft(b: Pick<BroadcastView, "status" | "name" | "audienceTagId" | "contactIds" | "bubbles" | "duplicatedFromId" | "followupTemplate">): boolean {
+  return (
+    b.status === "draft" &&
+    b.name === NEW_BROADCAST_NAME &&
+    !b.audienceTagId &&
+    !b.contactIds.length &&
+    !b.duplicatedFromId &&
+    !b.followupTemplate &&
+    !b.bubbles.some((x) => (x.type === "text" ? x.text.trim() : true))
+  );
+}
+
 /** "Follow-up Friday · 24 Oct" → "Follow-up Friday · 31 Oct". */
 export function datedName(name: string, date: string | null, tz: string): string {
-  const base = name.replace(/\s*·\s*\d{1,2} [A-Z][a-z]{2}$/, "").replace(/\s*\(copy\)$/, "").trim() || "Broadcast";
+  const base = baseName(name);
   if (!date) return base;
   const short = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: tz }).format(zonedInstant(date, "12:00", tz));
   return `${base} · ${short}`;

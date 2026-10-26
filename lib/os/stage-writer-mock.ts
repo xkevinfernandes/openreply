@@ -6,11 +6,10 @@ import type { ContactStage } from "@/app/generated/prisma/enums";
 import { funnelColumns } from "@/lib/os/funnel";
 import { mockContact, updateMockContact } from "@/lib/os/mock";
 import { appendMockStageLog, mockStageLog } from "@/lib/os/mock-crm";
+import { SAMPLE_ATTENDANCE } from "@/lib/os/mock-attendance";
 import { mockBookingRows } from "@/lib/os/setter/booking-store";
 import type { Attendance, StageDb, StageTx } from "@/lib/os/stage-writer";
 
-/** The sample's no-show (contacts board sample: Sam missed the call). */
-const SAMPLE_ATTENDANCE: Record<string, Attendance> = { c8: "NO_SHOW" };
 
 let chain: Promise<unknown> = Promise.resolve();
 
@@ -19,7 +18,7 @@ const tx: StageTx = {
     const c = mockContact(contactId);
     if (!c) return null;
     const rows = [...mockBookingRows().values()].filter((b) => b.contactId === contactId);
-    const att = [...rows].reverse().find((b) => b.attendance)?.attendance ?? SAMPLE_ATTENDANCE[contactId] ?? null;
+    const att = [...rows].reverse().find((b) => b.attendance)?.attendance ?? (SAMPLE_ATTENDANCE[contactId] as Attendance | undefined) ?? null;
     return {
       stage: c.contact.stage as ContactStage,
       setterStage: c.contact.setterStage ?? null,

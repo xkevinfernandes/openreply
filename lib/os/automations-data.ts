@@ -239,19 +239,22 @@ export function broadcastStatus(b: { status: string; bubbles?: { type: string; u
 /** Read-only list for the Campaigns tab; the builder is /os/automations/broadcasts. */
 export async function listBroadcastSummaries(workspaceId: string): Promise<BroadcastSummary[]> {
   // The store resolves the audience tag's name and reads OS_MOCK's memory too.
-  const [{ broadcastStore }, { startLabel }] = await Promise.all([import("@/lib/os/broadcasts/store"), import("@/lib/os/broadcasts/oneoff")]);
-  const list = await broadcastStore()
-    .list(workspaceId)
-    .catch(() => []);
+  const [{ broadcastStore }, { startLabel, isBlankDraft }] = await Promise.all([import("@/lib/os/broadcasts/store"), import("@/lib/os/broadcasts/oneoff")]);
+  const list = (
+    await broadcastStore()
+      .list(workspaceId)
+      .catch(() => [])
+  ).filter((b) => !isBlankDraft(b));
   return list.slice(0, 5).map((b) => ({ key: b.key, name: b.name, window: startLabel(b), audience: b.audienceTag, status: broadcastStatus(b) }));
 }
 
 export async function automationTabCounts(workspaceId: string, campaignCount?: number) {
   const [campaigns, broadcasts] = await Promise.all([
     campaignCount ?? prisma.automation.count({ where: { workspaceId } }).then((n) => (n || !osMockEnabled() ? n : sampleRows(new Date()).length)).catch(() => 0),
-    osMockEnabled()
-      ? import("@/lib/os/broadcasts/store").then((m) => m.broadcastStore().list(workspaceId)).then((l) => l.length).catch(() => 0)
-      : prisma.broadcast.count({ where: { workspaceId } }).catch(() => 0),
+    // As the list shows them: an untouched "New broadcast" isn't one yet.
+    Promise.all([import("@/lib/os/broadcasts/store"), import("@/lib/os/broadcasts/oneoff")])
+      .then(async ([m, o]) => (await m.broadcastStore().list(workspaceId)).filter((b) => !o.isBlankDraft(b)).length)
+      .catch(() => 0),
   ]);
   return { campaigns, broadcasts };
 }

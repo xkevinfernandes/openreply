@@ -55,13 +55,13 @@ export function allBoardData(contacts: FunnelContact[], info: Map<string, { name
 
 // --- Loaders ------------------------------------------------------------------------
 
-/** All the contacts the three windows need (OS_MOCK adds a realistic sample). */
+/** All the contacts the three windows need (OS_MOCK: the same sample people as every screen). */
 export async function loadWindowContacts(workspaceId: string, now: Date): Promise<FunnelContact[]> {
   const rows = await loadFunnelContacts(workspaceId, 90, now);
   const { osMockEnabled } = await import("@/lib/os/mock");
   if (!osMockEnabled()) return rows;
-  const { mockHomeContacts, applyMockFunnelMoves } = await import("@/lib/os/mock-home");
-  return applyMockFunnelMoves([...rows, ...mockHomeContacts(now)]);
+  const { applyMockFunnelMoves } = await import("@/lib/os/mock-home");
+  return applyMockFunnelMoves(rows);
 }
 
 async function contactNames(workspaceId: string, ids: string[]): Promise<Map<string, { name: string; setter: string; lastAt: Date | null }>> {
@@ -70,9 +70,7 @@ async function contactNames(workspaceId: string, ids: string[]): Promise<Map<str
   const { osMockEnabled } = await import("@/lib/os/mock");
   if (osMockEnabled()) {
     const { mockThreads } = await import("@/lib/os/mock");
-    const { mockHomeInfo } = await import("@/lib/os/mock-home");
     for (const t of mockThreads()) if (t.contact) out.set(t.contact.id, { name: t.username ?? t.fullName ?? "Someone", setter: "J", lastAt: t.updatedTime ? new Date(t.updatedTime) : null });
-    for (const [id, v] of mockHomeInfo()) out.set(id, v);
     return out;
   }
   const { prisma } = await import("@/lib/db/client");

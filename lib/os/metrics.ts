@@ -1,6 +1,6 @@
 // Home's outcome row: Keyword triggers → Conversations started → Lead magnets
 // sent → Offers made → Calls booked → Showed → Won, read from the OsEvent log
-// over Today / 7d / 30d. Pure helpers first (tested), loaders at the bottom.
+// over Today / 7d / 30d / 90d (Home uses 7d / 30d / 90d). Pure helpers first (tested), loaders at the bottom.
 //
 // "Conversations started" is the episode rule: a lead message that comes after
 // a setter or opener message, counted once per episode. A bare keyword hit is
@@ -15,7 +15,7 @@ import type { SetterRecord } from "@/lib/os/setter/state";
 
 const DAY = 86400_000;
 
-export type Period = "today" | "7d" | "30d";
+export type Period = "today" | "7d" | "30d" | "90d";
 export const PERIODS: { key: Period; label: string }[] = [
   { key: "today", label: "Today" },
   { key: "7d", label: "7d" },
@@ -23,13 +23,25 @@ export const PERIODS: { key: Period; label: string }[] = [
 ];
 
 export function parsePeriod(v: string | null | undefined): Period {
-  return v === "today" || v === "30d" ? v : "7d";
+  return v === "today" || v === "30d" || v === "90d" ? v : "7d";
+}
+
+/** Home's one period switch: the funnel's 7 / 30 / 90 days, so the tiles and the funnel always cover the same days. */
+export type HomePeriod = "7d" | "30d" | "90d";
+export const HOME_PERIODS: { key: HomePeriod; label: string; days: 7 | 30 | 90 }[] = [
+  { key: "7d", label: "7d", days: 7 },
+  { key: "30d", label: "30d", days: 30 },
+  { key: "90d", label: "90d", days: 90 },
+];
+/** Old links (?period=today) land on 7d; no period = 30d, the funnel's default. */
+export function parseHomePeriod(v: string | null | undefined): HomePeriod {
+  return v === "7d" || v === "90d" ? v : v === "today" ? "7d" : "30d";
 }
 
 /** Start of the period: local midnight for Today, else a rolling window. */
 export function periodStart(period: Period, now: Date, timezone: string): Date {
   if (period === "today") return localDayStart(now, timezone);
-  return new Date(now.getTime() - (period === "7d" ? 7 : 30) * DAY);
+  return new Date(now.getTime() - (period === "7d" ? 7 : period === "30d" ? 30 : 90) * DAY);
 }
 
 export const OUTCOME_STEPS: { kind: OsEventKind; label: string }[] = [
@@ -201,8 +213,49 @@ export interface HomeOutcomes {
   workflows: WorkflowCell[] | null;
 }
 
+/** What the sample people would have logged, by when they first wrote. */
+export interface SampleOutcomeContact {
+  createdAt: Date;
+  kind: string;
+  spam: boolean;
+  spamOverride: boolean | null;
+  entryPath: string | null;
+  stage: string;
+  attendance: "SHOWED" | "NO_SHOW" | null;
+  events: ReadonlySet<string>;
+}
+
+/**
+ * Pure (OS_MOCK): outcome counts from the sample people, so Home's tiles and
+ * its funnel count the same people. Every sample entry (keyword, comment,
+ * story reply) counts as a trigger and, once they replied, a lead magnet
+ * sent; the rest follow their events.
+ */
+export function sampleOutcomeCounts(contacts: SampleOutcomeContact[], since: Date, now: Date): Partial<Record<OsEventKind, number>> {
+  const counts: Partial<Record<OsEventKind, number>> = {};
+  const add = (k: OsEventKind) => (counts[k] = (counts[k] ?? 0) + 1);
+  for (const c of contacts) {
+    if (c.createdAt < since || c.createdAt > now) continue;
+    if ((c.spamOverride ?? c.spam) || (c.kind !== "SALES" && c.kind !== "UNSORTED")) continue;
+    const triggered = Boolean(c.entryPath);
+    if (triggered) add("keyword_trigger");
+    if (c.events.has("conversation_started")) add("conversation_started");
+    if (triggered && c.events.has("conversation_started")) add("lead_magnet_sent");
+    if (c.events.has("offer_made")) add("offer_made");
+    if (c.events.has("call_booked")) add("call_booked");
+    if (c.events.has("showed") || c.attendance === "SHOWED") add("showed");
+    if (c.events.has("won")) add("won");
+  }
+  return counts;
+}
+
 export async function loadOutcomes(workspaceId: string, period: Period, timezone: string, now = new Date()): Promise<HomeOutcomes> {
   const since = periodStart(period, now, timezone);
+  const { osMockEnabled } = await import("@/lib/os/mock");
+  if (osMockEnabled()) {
+    const { loadFunnelContacts } = await import("@/lib/os/crm-funnel");
+    return { cells: outcomeRow(sampleOutcomeCounts(await loadFunnelContacts(workspaceId, 90, now), since, now)), workflows: null };
+  }
   await syncKeywordTriggers(workspaceId, since).catch((err) => console.error("[OS Metrics] keyword sync:", err instanceof Error ? err.message : err));
   const [rows, started, wf] = await Promise.all([
     prisma.osEvent.groupBy({

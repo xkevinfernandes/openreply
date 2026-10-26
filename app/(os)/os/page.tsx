@@ -1,6 +1,6 @@
-// Home (Main board): greeting, "Review N drafts ⏎", the outcome row with
-// Today / 7d / 30d (campaigns, workflows and J), the Workflows row, the
-// funnel with its 7/30/90 switch and revenue (dm-crm 031), the pipeline per
+// Home (Main board): greeting, "Review N drafts ⏎", one 7d / 30d / 90d
+// switch for the whole page, the outcome row (campaigns, workflows and J),
+// the Workflows row, the funnel and revenue (dm-crm 031), the pipeline per
 // setter, the inbox counts, Yours to do and Setters.
 
 import Link from "next/link";
@@ -12,7 +12,7 @@ import { auth, getCurrentWorkspaceId } from "@/lib/auth";
 import { broadcastTodos, greeting, homeDate, loadPipeline, workflowTodos, type HomeTodo } from "@/lib/os/home";
 import { loadHomeFunnel } from "@/lib/os/home-funnel";
 import { homeInboxCounts } from "@/lib/os/inbox-stream-load";
-import { loadOutcomes, parsePeriod, PERIODS, type OutcomeCell, type Period } from "@/lib/os/metrics";
+import { HOME_PERIODS, loadOutcomes, parseHomePeriod, type HomePeriod, type OutcomeCell } from "@/lib/os/metrics";
 import type { WorkflowCell } from "@/lib/os/metrics-workflows";
 import { loadHomeFollowups } from "@/lib/os/sequences/view";
 import { getWorkspaceSettings } from "@/lib/os/workspace-settings";
@@ -27,9 +27,9 @@ const quiet = <T,>(label: string, p: Promise<T>, fallback: T) =>
     return fallback;
   });
 
-function href(period: Period, setter: string | null) {
+function href(period: HomePeriod, setter: string | null) {
   const q = new URLSearchParams();
-  if (period !== "7d") q.set("period", period);
+  if (period !== "30d") q.set("period", period);
   if (setter) q.set("setter", setter);
   const s = q.toString();
   return s ? `/os?${s}` : "/os";
@@ -92,7 +92,8 @@ export default async function OsHome({ searchParams }: PageProps) {
   const workspaceId = await getCurrentWorkspaceId();
   if (!workspaceId) return null;
   const params = await searchParams;
-  const period = parsePeriod(params.period);
+  const period = parseHomePeriod(params.period);
+  const days = HOME_PERIODS.find((p) => p.key === period)!.days;
   const now = new Date();
 
   const [session, settings] = await Promise.all([auth(), quiet("settings", getWorkspaceSettings(workspaceId), null)]);
@@ -166,7 +167,7 @@ export default async function OsHome({ searchParams }: PageProps) {
         </div>
         <div className="os-home-actions">
           <nav className="os-home-seg" aria-label="Period">
-            {PERIODS.map((p) => (
+            {HOME_PERIODS.map((p) => (
               <Link key={p.key} href={href(p.key, params.setter ?? null)} aria-current={p.key === period ? "page" : undefined} scroll={false}>
                 {p.label}
               </Link>
@@ -192,7 +193,7 @@ export default async function OsHome({ searchParams }: PageProps) {
         </section>
       ) : null}
 
-      {funnel ? <FunnelCard data={funnel} now={now.toISOString()} /> : <p className="os-home-err">Funnel didn&apos;t load.</p>}
+      {funnel ? <FunnelCard data={funnel} now={now.toISOString()} window={days} /> : <p className="os-home-err">Funnel didn&apos;t load.</p>}
 
       <div className="os-home-cols">
         <section aria-labelledby="os-home-pipe" className="os-home-sec os-home-main">
@@ -212,9 +213,9 @@ export default async function OsHome({ searchParams }: PageProps) {
             ) : null}
           </div>
           {pipe ? (
-            <div className="os-home-box">
+            <div className="os-home-box os-home-stages" style={{ ["--rows" as string]: Math.ceil(pipe.pipeline.rows.length / 2) }}>
               {pipe.pipeline.rows.map((r) => (
-                <Link key={r.key} href={`/os/contacts?stage=${encodeURIComponent(r.key)}${selected ? `&setter=${selected}` : ""}`} className="os-home-stage" data-zero={r.count === 0 || undefined}>
+                <Link key={r.key} href={`/os/pipeline?${selected ? `setter=${encodeURIComponent(selected)}&` : ""}stage=${encodeURIComponent(r.key)}`} className="os-home-stage" data-zero={r.count === 0 || undefined}>
                   <span className="lbl">{r.label}</span>
                   <span className="track" aria-hidden="true">
                     <span style={{ width: `${Math.round((r.count / max) * 100)}%` }} />
