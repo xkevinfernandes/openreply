@@ -212,6 +212,11 @@ export class WorkflowEngine {
     // DM-side id so their typed replies find it too.
     if (!run && ev.tapPayload?.startsWith("wf:")) {
       const byTap = await this.store.getRun(ev.tapPayload.split(":")[1] ?? "");
+      if (!byTap) console.info(`[OS Workflows] tap names run ${ev.tapPayload.split(":")[1]}: not found`);
+      else
+        console.info(
+          `[OS Workflows] tap names run ${byTap.id}: status=${byTap.status} node=${byTap.currentNodeId} account=${byTap.instagramAccountId}${byTap.instagramAccountId === ev.instagramAccountId ? "" : `≠${ev.instagramAccountId}`} workspace=${byTap.workspaceId === ev.workspaceId ? "same" : "different"} user=${byTap.igUserId} reason=${byTap.failReason ?? "-"}`
+        );
       if (byTap && isLive(byTap.status) && byTap.instagramAccountId === ev.instagramAccountId && byTap.workspaceId === ev.workspaceId) {
         console.info(`[OS Workflows] run ${byTap.id} re-keyed ${byTap.igUserId} → ${ev.igUserId} from a tap`);
         byTap.igUserId = ev.igUserId;
