@@ -10,7 +10,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
-import { undoContactWon, updateContacts } from "@/app/(os)/os/contacts/actions";
+import { undoContactsWon, undoContactWon, updateContacts } from "@/app/(os)/os/contacts/actions";
 import PanelHost, {
   usePanel,
   type OpenPanel,
@@ -19,12 +19,13 @@ import WonPicker from "@/components/os/contacts/won-picker";
 import { threadName } from "@/components/os/inbox/names";
 import { useOsCommand } from "@/components/os/keys";
 import MoveSheet from "@/components/os/pipeline/setter-move-sheet";
+import { BulkBar, Toast, useToast } from "@/components/os/ui";
 import PipelineBoard from "@/components/os/pipeline/setter-board";
 import { BoardSwitch } from "@/components/os/pipeline/board-switch";
 import type { PanelTab } from "@/lib/os/contact-panel/types";
 import type { ContactRow, SetterOption } from "@/lib/os/contacts-board";
 import type { ContactChange } from "@/lib/os/contacts-edit";
-import { applyChangeLocally, normalizeTag } from "@/lib/os/contacts-filter";
+import { applyChangeLocally } from "@/lib/os/contacts-filter";
 import { matchesSearch } from "@/lib/os/contacts-view";
 import {
   boardColumnsFor,
@@ -66,7 +67,8 @@ export default function PipelineScreen(p: Props) {
   } | null>(null);
   const [wonFor, setWonFor] = useState<string[] | null>(null);
   const [moving, setMoving] = useState(false);
-  const [tag, setTag] = useState("");
+  const toaster = useToast();
+  const { show: showToast } = toaster;
   const onError = useCallback(
     (text: string) => setStatus({ text, error: true }),
     [],
@@ -84,10 +86,10 @@ export default function PipelineScreen(p: Props) {
     () => boardColumnsFor(p.setters, p.setterId),
     [p.setters, p.setterId],
   );
-  const [phoneColumn, setPhoneColumn] = useState<string>(
-    p.focusKey && columns.some((c) => c.key === p.focusKey)
-      ? p.focusKey
-      : (columns[0]?.key ?? ""),
+  // The phone shows one column: the ?stage= one, else (until a tab is
+  // tapped) the first column with people in it.
+  const [phonePick, setPhoneColumn] = useState<string | null>(
+    p.focusKey && columns.some((c) => c.key === p.focusKey) ? p.focusKey : null,
   );
 
   const onThisBoard = useMemo(
@@ -105,6 +107,11 @@ export default function PipelineScreen(p: Props) {
     () => boardLanes(onThisBoard, columns),
     [onThisBoard, columns],
   );
+  const phoneColumn =
+    phonePick ??
+    lanes.find((l) => l.cards.length)?.column.key ??
+    columns[0]?.key ??
+    "";
   const picked = useMemo(
     () => onThisBoard.filter((c) => selected.has(c.id)),
     [onThisBoard, selected],
@@ -118,13 +125,15 @@ export default function PipelineScreen(p: Props) {
       change: ContactChange,
       local: (r: ContactRow[]) => ContactRow[],
       done?: string,
+      undo?: () => void,
     ) => {
       let before: ContactRow[] = [];
       setRows((r) => {
         before = r;
         return local(r);
       });
-      setStatus(done ? { text: done } : null);
+      setStatus(null);
+      if (done) showToast({ text: done, undo });
       startTransition(async () => {
         let error: string | undefined;
         try {
@@ -134,12 +143,12 @@ export default function PipelineScreen(p: Props) {
         }
         if (error) {
           setRows(before);
-          setStatus({ text: error, error: true });
+          showToast({ text: error, bad: true });
         } else if (panel.openId && ids.includes(panel.openId))
           panel.reload(panel.openId);
       });
     },
-    [panel],
+    [panel, showToast],
   );
 
   const move = useCallback(
@@ -155,6 +164,7 @@ export default function PipelineScreen(p: Props) {
         (r) => r.map((c) => (set.has(c.id) ? moveLocally(c, to, columns) : c)),
         `Moved ${one ? threadName(one.username, one.fullName) : ids.length} to ${label}.`,
       );
+      if (ids.length > 1) setSelected(new Set());
     },
     [columns, rows, save],
   );
@@ -170,7 +180,7 @@ export default function PipelineScreen(p: Props) {
       const r = await undoContactWon(id).catch(() => ({
         error: "That didn't save. Try again.",
       }));
-      if ("error" in r) return setStatus({ text: r.error, error: true });
+      if ("error" in r) return showToast({ text: r.error, bad: true });
       setRows((all) =>
         all.map((x) =>
           x.id === id
@@ -182,7 +192,7 @@ export default function PipelineScreen(p: Props) {
             : x,
         ),
       );
-      setStatus({
+      showToast({
         text: `Undid Won for ${c ? threadName(c.username, c.fullName) : "them"}.`,
       });
       if (panel.openId === id) panel.reload(id);
@@ -241,89 +251,60 @@ export default function PipelineScreen(p: Props) {
         </div>
 
         <>
-          {n ? (
-            <div
-              className="os-ct-bulk os-cv-bulk"
-              data-on="true"
-              role="region"
-              aria-label="Selected cards"
-            >
-              <span className="os-ct-count">
-                <strong>{n}</strong> selected
-              </span>
-              <form
-                className="os-ct-tag-add"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const t = normalizeTag(tag);
-                  if (!t) return;
-                  save(
-                    ids,
-                    { type: "addTag", tag: t },
-                    (r) =>
-                      applyChangeLocally(r, ids, { type: "addTag", tag: t }),
-                    `Tagged ${n} “${t}”.`,
-                  );
-                  setTag("");
-                }}
-              >
-                <input
-                  className="os-input"
-                  aria-label="Tag to add"
-                  placeholder="Tag"
-                  list="os-pl-tags"
-                  value={tag}
-                  maxLength={40}
-                  onChange={(e) => setTag(e.target.value)}
-                />
-                <datalist id="os-pl-tags">
-                  {p.tags.map((t) => (
-                    <option key={t} value={t} />
-                  ))}
-                </datalist>
-                <button
-                  type="submit"
-                  className="os-button"
-                  disabled={!normalizeTag(tag)}
-                >
-                  Add
+          <BulkBar
+            className="os-cv-bulk"
+            count={n}
+            all={{
+              checked: n > 0 && n === onThisBoard.length,
+              onChange: (on) =>
+                setSelected(on ? new Set(onThisBoard.map((c) => c.id)) : new Set()),
+            }}
+            tags={p.tags}
+            selectedTags={picked.map((c) => c.tags)}
+            onAddTag={(tag) => {
+              const fresh = picked.filter((c) => !c.tags.includes(tag)).map((c) => c.id);
+              save(
+                ids,
+                { type: "addTag", tag },
+                (r) => applyChangeLocally(r, ids, { type: "addTag", tag }),
+                `Tagged ${n} “${tag}”.`,
+                () =>
+                  save(fresh, { type: "removeTag", tag }, (r) => applyChangeLocally(r, fresh, { type: "removeTag", tag }), `Took “${tag}” off again.`),
+              );
+            }}
+            onRemoveTag={(tag) => {
+              const had = picked.filter((c) => c.tags.includes(tag)).map((c) => c.id);
+              save(
+                ids,
+                { type: "removeTag", tag },
+                (r) => applyChangeLocally(r, ids, { type: "removeTag", tag }),
+                `Removed “${tag}” from ${had.length}.`,
+                () => save(had, { type: "addTag", tag }, (r) => applyChangeLocally(r, had, { type: "addTag", tag }), `Put “${tag}” back.`),
+              );
+            }}
+            onWon={() => move(ids, "won")}
+            onLost={() => move(ids, "lost")}
+            archived={archived}
+            onArchive={(next) => {
+              const list = ids;
+              save(
+                list,
+                { type: "archive", archived: next },
+                (r) => applyChangeLocally(r, list, { type: "archive", archived: next }),
+                next ? `Archived ${n}.` : `Restored ${n}.`,
+                () => save(list, { type: "archive", archived: !next }, (r) => applyChangeLocally(r, list, { type: "archive", archived: !next }), next ? "Restored." : "Archived again."),
+              );
+              setSelected(new Set());
+            }}
+            onClear={() => setSelected(new Set())}
+            extra={
+              n === 1 ? (
+                <button type="button" className="os-button" onClick={() => setMoving(true)}>
+                  Move…
                 </button>
-              </form>
-              <button
-                type="button"
-                className="os-button primary"
-                onClick={() => setMoving(true)}
-              >
-                Move selected…
-              </button>
-              <button
-                type="button"
-                className="os-button"
-                onClick={() => {
-                  save(
-                    ids,
-                    { type: "archive", archived: !archived },
-                    (r) =>
-                      applyChangeLocally(r, ids, {
-                        type: "archive",
-                        archived: !archived,
-                      }),
-                    archived ? `Restored ${n}.` : `Archived ${n}.`,
-                  );
-                  setSelected(new Set());
-                }}
-              >
-                {archived ? "Restore" : "Archive"}
-              </button>
-              <button
-                type="button"
-                className="os-button ghost"
-                onClick={() => setSelected(new Set())}
-              >
-                Clear
-              </button>
-            </div>
-          ) : null}
+              ) : null
+            }
+          />
 
           <p
             className="os-cx-status"
@@ -348,7 +329,8 @@ export default function PipelineScreen(p: Props) {
             onPhoneColumn={setPhoneColumn}
             onOpen={(id) => panel.openId !== id && panel.show(id)}
             onToggle={toggle}
-            onMove={(id, col) => move([id], col)}
+            onMove={(list, col) => move(list, col)}
+            onBlocked={(why) => showToast({ text: why, bad: true })}
             onUndoWon={undoWon}
             focusKey={p.focusKey}
           />
@@ -363,6 +345,8 @@ export default function PipelineScreen(p: Props) {
           onClose={panel.close}
         />
       ) : null}
+
+      <Toast toast={toaster.toast} onHide={toaster.hide} />
 
       {moving ? (
         <MoveSheet
@@ -395,16 +379,26 @@ export default function PipelineScreen(p: Props) {
                 done.has(c.id)
                   ? {
                       ...c,
+                      kind: "SALES",
                       stage: "WON",
-                      won: { offer: w.offer, amount: w.amount },
+                      won:
+                        w.offer !== null && w.amount !== null
+                          ? { offer: w.offer, amount: w.amount }
+                          : null,
                     }
                   : c,
               ),
             );
-            setStatus({
+            showToast({
               text: w.refused.length
                 ? `Marked ${w.count} as Won. ${w.refused.length} couldn't move: ${w.refused[0]}`
-                : `Marked ${w.count} as Won.`,
+                : `Marked ${w.count} as Won${w.amount === null ? " with no amount" : ""}.`,
+              undo: () =>
+                startTransition(async () => {
+                  await undoContactsWon([...done], w.promoted).catch(() => null);
+                  showToast({ text: "Undid Won." });
+                  router.refresh();
+                }),
             });
             if (panel.openId && done.has(panel.openId))
               panel.reload(panel.openId);

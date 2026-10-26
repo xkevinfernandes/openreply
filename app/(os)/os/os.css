@@ -18,6 +18,15 @@
    (critically damped, no overshoot); the phone drawer moves on the iOS sheet
    curve. Reduced motion keeps fades and drops travel. */
 
+/* Every modal dialog sits in the middle of the screen. Tailwind's preflight
+   (`* { margin: 0 }`, layered) wipes the browser's `margin: auto` on
+   <dialog>, which pinned the Won picker and the Move sheet to the top left.
+   Unlayered and zero-specificity: it beats the reset, and any dialog class
+   that sets its own margin still wins. */
+:where(dialog:modal) {
+  margin: auto;
+}
+
 /* The stone ground, defined once on the root so the page behind .os
    (html/body, overscroll) and .os --bg read the same token. */
 :root:has(.os) {
@@ -2184,5 +2193,139 @@
 @media (prefers-reduced-motion: reduce) {
   .os-skel {
     animation: none;
+  }
+}
+
+/* --- The one bulk bar (components/os/ui/bulk-bar.tsx) ----------------------- */
+.os .os-bulk {
+  --ctl: var(--well);
+  --ctl-hover: var(--tint-2);
+  container-type: inline-size;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 8px 10px 8px 14px;
+  border-radius: var(--radius-card);
+  background: var(--card);
+  box-shadow: var(--pop-shadow);
+}
+.os .os-bulk-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.os .os-bulk-clear {
+  padding: 4px 6px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-xs);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.os .os-bulk-clear:hover {
+  color: var(--ink);
+}
+.os .os-bulk-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.os .os-bulk-count strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.os .os-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.os .os-bulk-actions .os-button,
+.os .os-bulk-actions .os-select select,
+.os .os-bulk-new .os-input {
+  height: 32px;
+  font-size: var(--fs-xs);
+}
+.os .os-bulk-actions .os-button {
+  padding: 0 11px;
+}
+/* Sized to "Tag…", not to the longest tag name in the menu. */
+.os .os-bulk-actions .os-bulk-tag select {
+  width: 96px;
+}
+/* The inbox list is narrow: the head on one line, the actions under it. */
+.os .os-bulk.os-ix-bulk {
+  align-items: stretch;
+}
+.os .os-bulk-new {
+  display: inline-flex;
+  gap: 6px;
+  margin: 0;
+}
+.os .os-bulk-new .os-input {
+  width: 120px;
+}
+
+/* --- Toast (components/os/ui/toast.tsx) ------------------------------------ */
+.os .os-toast-slot {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  z-index: 90;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.os .os-toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 10px 10px 16px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: var(--fs-sm);
+  box-shadow: var(--pop-shadow);
+  pointer-events: auto;
+  animation: os-toast-in 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.os .os-toast[data-bad="true"] {
+  background: var(--bad);
+  color: #fff;
+}
+.os .os-toast-undo,
+.os .os-toast-x {
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.os .os-toast-undo {
+  font-weight: 600;
+  text-decoration: underline;
+}
+.os .os-toast-x {
+  opacity: 0.7;
+}
+@keyframes os-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (max-width: 700px) {
+  /* Above the sticky bulk bar on the phone. */
+  .os .os-toast-slot {
+    bottom: calc(96px + env(safe-area-inset-bottom));
   }
 }

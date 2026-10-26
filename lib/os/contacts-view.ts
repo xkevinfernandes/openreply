@@ -16,6 +16,7 @@ export const BUILT_IN_COLUMNS = [
   { key: "name", label: "Name" },
   { key: "email", label: "Email" },
   { key: "stage", label: "Stage" },
+  { key: "won", label: "Won amount" },
   { key: "setter", label: "Setter" },
   { key: "category", label: "Category" },
   { key: "source", label: "Source" },
@@ -172,6 +173,8 @@ export function sortValue(c: ContactRow, key: string, ctx: QueryContext): string
       const cols = ctx.columnsFor(c.setterId ?? ctx.defaultSetterId);
       return cols.findIndex((x) => x.key === stageKeyOf(c, ctx));
     }
+    case "won":
+      return c.won?.amount ?? -1;
     case "setter":
       return c.setterId ?? ctx.defaultSetterId ?? "";
     case "category":

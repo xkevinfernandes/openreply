@@ -8,7 +8,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/db/client";
 import { listThreads, requestPendingDrafts, type InboxThread } from "@/lib/os/inbox";
-import { draftsWaitingCount, matchesStatus, sortStream, type StreamThread, type ThreadCrm } from "@/lib/os/inbox-stream";
+import { matchesStatus, unreadCount, sortStream, type StreamThread, type ThreadCrm } from "@/lib/os/inbox-stream";
 import type { InboxCounts } from "@/lib/os/home-funnel-view";
 import { osMockEnabled } from "@/lib/os/mock";
 
@@ -114,20 +114,10 @@ export async function loadStream(workspaceId: string): Promise<StreamLoad> {
 /** Once per request (the layout's badge and the page). */
 export const requestStream = cache((workspaceId: string) => loadStream(workspaceId));
 
-/** The Inbox nav badge: J's drafts waiting, never on spam or archived threads. */
-export async function inboxBadgeCount(workspaceId: string): Promise<number> {
-  const drafts = await requestPendingDrafts(workspaceId);
-  if (!drafts.length) return 0;
-  const ids = new Set(drafts.map((d) => d.contactId));
-  if (osMockEnabled()) {
-    const { mockStream } = await import("@/lib/os/mock-inbox");
-    return draftsWaitingCount(mockStream(), { now: Date.now(), draftContactIds: ids });
-  }
-  // Only the draft contacts: no Zernio call for the badge.
-  const hidden = await prisma.contact.count({
-    where: { workspaceId, id: { in: [...ids] }, OR: [{ archivedAt: { not: null } }, { spamOverride: true }, { spam: true, spamOverride: null }] },
-  });
-  return Math.max(0, ids.size - hidden);
+/** The Inbox nav badge: unread threads, the same number as the Unread
+ *  filter (matchesStatus over the stream's CRM fields, no Zernio call). */
+export async function inboxBadgeCount(workspaceId: string, now = Date.now()): Promise<number> {
+  return unreadCount(await countThreads(workspaceId, []), now);
 }
 
 /** Home's inbox tile: Unread, Drafts waiting and Window closing, counted by

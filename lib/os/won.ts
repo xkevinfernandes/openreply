@@ -44,27 +44,68 @@ function wonDb(deps: WonDeps): WonDb {
   return deps.won ?? (osMockEnabled() ? mockWonDb() : (prisma as unknown as WonDb));
 }
 
-export type MarkWonResult = { count: number; refused: string[]; error?: undefined } | { error: string; count?: undefined };
+export type MarkWonResult =
+  | { count: number; refused: string[]; moved?: string[]; promoted?: { id: string; kind: string }[]; error?: undefined }
+  | { error: string; count?: undefined };
 
-/** Move each contact to Won and record the offer and amount on its won event. */
-export async function markWon(workspaceId: string, ids: string[], choice: { offer?: unknown; amount?: unknown }, deps: WonDeps = {}): Promise<MarkWonResult> {
-  const v = validateWonChoice(choice);
-  if ("error" in v) return { error: v.error };
+/** What the picker sends: an offer and amount, or Won with no amount on purpose. */
+export type WonChoiceInput = { offer?: unknown; amount?: unknown; noAmount?: boolean };
+
+/** Move each contact to Won and record the offer and amount on its won event.
+ *  `noAmount`: Won only; Home lists them under "won with no amount". */
+export async function markWon(workspaceId: string, ids: string[], choice: WonChoiceInput, deps: WonDeps = {}): Promise<MarkWonResult> {
+  const v = choice.noAmount === true ? null : validateWonChoice(choice);
+  if (v && "error" in v) return { error: v.error };
   const list = [...new Set(ids.filter((id) => typeof id === "string" && id))].slice(0, 2000);
   if (!list.length) return { error: "Pick at least one contact." };
   const write = deps.write ?? writeStage;
   const refused: string[] = [];
-  let count = 0;
+  const moved: string[] = [];
   for (const contactId of list) {
     const r = await write({ workspaceId, contactId, cause: "user", change: { type: "column", column: "won" } }, deps.stage);
     // Already on Won: the picker still fills in (or corrects) the amount.
     if (r.status === "applied" || r.status === "unchanged") {
-      await setWonData({ workspaceId, contactId, offer: v.offer, amount: v.amount }, wonDb(deps));
-      count++;
+      if (v) await setWonData({ workspaceId, contactId, offer: v.offer, amount: v.amount }, wonDb(deps));
+      moved.push(contactId);
     } else refused.push(r.reason);
   }
-  if (!count && refused.length) return { error: refused[0] };
-  return { count, refused };
+  if (!moved.length && refused.length) return { error: refused[0] };
+  return { count: moved.length, refused, moved };
+}
+
+export interface PromoteDeps {
+  /** Each contact's category now. */
+  kinds?: (workspaceId: string, ids: string[]) => Promise<Map<string, string>>;
+  /** The category write (lib/os/contacts-edit.ts editContacts). */
+  setSales?: (workspaceId: string, ids: string[]) => Promise<unknown>;
+}
+
+async function contactKinds(workspaceId: string, ids: string[]): Promise<Map<string, string>> {
+  if (osMockEnabled()) {
+    const { mockContact } = await import("@/lib/os/mock");
+    return new Map(ids.flatMap((id) => { const c = mockContact(id); return c ? [[id, c.contact.kind as string] as const] : []; }));
+  }
+  const rows = await prisma.contact.findMany({ where: { workspaceId, id: { in: ids } }, select: { id: true, kind: true } });
+  return new Map(rows.map((r) => [r.id, r.kind as string]));
+}
+
+/**
+ * Whoever buys is a sales contact: Won puts an Unsorted, Personal or Pitches
+ * contact on Sales, so the Pipeline's Won column, its total and the funnel
+ * count them like every other win. Returns who moved and from where (Undo
+ * puts them back).
+ */
+export async function promoteToSales(workspaceId: string, ids: string[], deps: PromoteDeps = {}): Promise<{ id: string; kind: string }[]> {
+  if (!ids.length) return [];
+  const kinds = await (deps.kinds ?? contactKinds)(workspaceId, ids);
+  const moved = ids.filter((id) => kinds.has(id) && kinds.get(id) !== "SALES").map((id) => ({ id, kind: kinds.get(id)! }));
+  const move = moved.map((m) => m.id);
+  if (!move.length) return [];
+  const set =
+    deps.setSales ??
+    (async (ws: string, list: string[]) => (await import("@/lib/os/contacts-edit")).editContacts(ws, list, { type: "kind", kind: "SALES" }));
+  await set(workspaceId, move);
+  return moved;
 }
 
 /** Undo Won: back to Booked when a live booking exists, else in conversation. */

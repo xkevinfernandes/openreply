@@ -1,120 +1,135 @@
 "use client";
 
-// The inbox's bulk bar (dm-crm 014): sticky at the bottom of the thread list
-// once a row is ticked. Tag / untag (the tag writer), Won or Lost (the stage
-// writer), Archive or Restore, and Mark spam / Not spam (sticky).
+// The inbox's bulk bar (dm-crm 014): the shared bar (components/os/ui/bulk-bar)
+// sticky at the bottom of the thread list once a row is ticked. Tag / untag
+// (the tag writer), Won (the Won picker) or Lost (the stage writer), Archive
+// or Restore, and Mark spam / Not spam (sticky). The list shows the toast, so
+// it stays up after the selection clears.
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { archiveThreads, inboxTagOptions, markThreadsSpam, moveThreadsStage, tagThreads, type StreamActionResult } from "@/app/(os)/os/inbox/stream-actions";
+import { archiveThreads, inboxSelectionTags, inboxTagOptions, markThreadsSpam, moveThreadsStage, tagThreads, type StreamActionResult } from "@/app/(os)/os/inbox/stream-actions";
+import { undoContactsWon } from "@/app/(os)/os/contacts/actions";
+import WonPicker from "@/components/os/contacts/won-picker";
+import { BulkBar, type ToastMessage } from "@/components/os/ui";
 import type { StatusFilter } from "@/lib/os/inbox-stream";
 
 interface Props {
   ids: string[];
+  /** "maya.builds" when one is picked. */
+  oneName: string | null;
   filter: StatusFilter;
   allPicked: boolean;
   onAll: (on: boolean) => void;
   onDone: () => void;
+  toast: (m: ToastMessage) => void;
 }
 
-export default function InboxBulkBar({ ids, filter, allPicked, onAll, onDone }: Props) {
+export default function InboxBulkBar({ ids, oneName, filter, allPicked, onAll, onDone, toast }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [tags, setTags] = useState<{ name: string; color: string }[]>([]);
-  const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[][]>([]);
+  const [winning, setWinning] = useState(false);
+  const key = ids.join(",");
 
   useEffect(() => {
     let live = true;
-    inboxTagOptions().then((t) => live && setTags(t)).catch(() => null);
+    inboxTagOptions()
+      .then((t) => live && setTags(t.map((x) => x.name)))
+      .catch(() => null);
     return () => {
       live = false;
     };
   }, []);
 
-  const act = (fn: () => Promise<StreamActionResult>) =>
+  useEffect(() => {
+    let live = true;
+    inboxSelectionTags(ids)
+      .then((t) => live && setSelectedTags(t))
+      .catch(() => null);
+    return () => {
+      live = false;
+    };
+    // The selection, not the array's identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  const act = (fn: () => Promise<StreamActionResult>, undo?: () => Promise<StreamActionResult>) =>
     start(async () => {
       const r = await fn().catch(() => ({ error: "That didn't save. Try again." }) as StreamActionResult);
-      if (r.error) {
-        setMsg({ text: r.error, bad: true });
-        return;
-      }
-      setMsg(r.notice ? { text: r.notice } : null);
+      if (r.error) return toast({ text: r.error, bad: true });
+      toast({
+        text: r.notice ?? "Done.",
+        undo: undo
+          ? () =>
+              start(async () => {
+                const u = await undo().catch(() => ({ error: "That didn't undo." }) as StreamActionResult);
+                toast(u.error ? { text: u.error, bad: true } : { text: "Undone." });
+                router.refresh();
+              })
+          : undefined,
+      });
       onDone();
       router.refresh();
     });
 
-  function onTag(v: string) {
-    if (!v) return;
-    const [op, ...rest] = v.split(":");
-    const name = rest.join(":");
-    act(() => tagThreads(ids, name, op === "remove" ? "remove" : "add"));
-  }
-
+  const list = ids;
   return (
-    <div className="os-ix-bulk" role="region" aria-label="Bulk actions" aria-busy={pending || undefined}>
-      <label className="os-ix-bulk-count">
-        <input type="checkbox" className="os-ix-check" checked={allPicked} aria-label="Select all shown" onChange={(e) => onAll(e.target.checked)} />
-        <strong>{ids.length}</strong> selected
-      </label>
-      <div className="os-ix-bulk-actions">
-        <span className="os-select">
-          <select aria-label="Tag" value="" disabled={pending} onChange={(e) => onTag(e.target.value)}>
-            <option value="">Tag…</option>
-            <optgroup label="Add">
-              {tags.map((t) => (
-                <option key={`a${t.name}`} value={`add:${t.name}`}>
-                  {t.name}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="Remove">
-              {tags.map((t) => (
-                <option key={`r${t.name}`} value={`remove:${t.name}`}>
-                  {t.name}
-                </option>
-              ))}
-            </optgroup>
-          </select>
-        </span>
-        <span className="os-select">
-          <select
-            aria-label="Won or Lost"
-            value=""
-            disabled={pending}
-            onChange={(e) => e.target.value && act(() => moveThreadsStage(ids, e.target.value as "WON" | "LOST"))}
-          >
-            <option value="">Won / Lost…</option>
-            <option value="WON">Won</option>
-            <option value="LOST">Lost</option>
-          </select>
-        </span>
-        {filter === "archived" ? (
-          <button type="button" className="os-button" disabled={pending} onClick={() => act(() => archiveThreads(ids, false))}>
-            Restore
-          </button>
-        ) : (
-          <button type="button" className="os-button" disabled={pending} onClick={() => act(() => archiveThreads(ids, true))}>
-            Archive
-          </button>
-        )}
-        {filter === "spam" ? (
-          <button type="button" className="os-button" disabled={pending} onClick={() => act(() => markThreadsSpam(ids, false))}>
-            Not spam
-          </button>
-        ) : (
-          <button type="button" className="os-button ghost" disabled={pending} onClick={() => act(() => markThreadsSpam(ids, true))}>
-            Mark spam
-          </button>
-        )}
-        <button type="button" className="os-ix-iconbtn" aria-label="Clear selection" title="Clear selection" onClick={() => onAll(false)}>
-          ×
-        </button>
-      </div>
-      {msg ? (
-        <p className="os-ix-bulk-msg" role="status" data-bad={msg.bad || undefined}>
-          {msg.text}
-        </p>
+    <>
+      <BulkBar
+        className="os-ix-bulk"
+        count={ids.length}
+        all={{ checked: allPicked, onChange: onAll }}
+        tags={tags}
+        selectedTags={selectedTags}
+        pending={pending}
+        onAddTag={(tag) => {
+          const fresh = list.filter((_, i) => !(selectedTags[i] ?? []).includes(tag));
+          act(() => tagThreads(list, tag, "add"), () => tagThreads(fresh.length ? fresh : list, tag, "remove"));
+        }}
+        onRemoveTag={(tag) => {
+          const had = list.filter((_, i) => (selectedTags[i] ?? []).includes(tag));
+          act(() => tagThreads(list, tag, "remove"), () => tagThreads(had.length ? had : list, tag, "add"));
+        }}
+        onWon={() => setWinning(true)}
+        onLost={() => act(() => moveThreadsStage(list, "LOST"))}
+        archived={filter === "archived"}
+        onArchive={(archived) => act(() => archiveThreads(list, archived), () => archiveThreads(list, !archived))}
+        onClear={() => onAll(false)}
+        extra={
+          filter === "spam" ? (
+            <button type="button" className="os-button" disabled={pending} onClick={() => act(() => markThreadsSpam(list, false), () => markThreadsSpam(list, true))}>
+              Not spam
+            </button>
+          ) : (
+            <button type="button" className="os-button ghost" disabled={pending} onClick={() => act(() => markThreadsSpam(list, true), () => markThreadsSpam(list, false))}>
+              Mark spam
+            </button>
+          )
+        }
+      />
+      {winning ? (
+        <WonPicker
+          contactIds={list}
+          who={list.length === 1 ? (oneName ?? "them") : `${list.length} people`}
+          onClose={() => setWinning(false)}
+          onDone={(w) => {
+            setWinning(false);
+            toast({
+              text: w.refused.length ? `Marked ${w.count} as Won. ${w.refused.length} couldn't move: ${w.refused[0]}` : `Marked ${w.count} as Won${w.amount === null ? " with no amount" : ""}.`,
+              undo: () =>
+                start(async () => {
+                  await undoContactsWon(list, w.promoted).catch(() => null);
+                  toast({ text: "Undid Won." });
+                  router.refresh();
+                }),
+            });
+            onDone();
+            router.refresh();
+          }}
+        />
       ) : null}
-    </div>
+    </>
   );
 }

@@ -141,7 +141,13 @@ export function filterCounts(threads: StreamThread[], cat: CategoryFilter, ctx: 
   return Object.fromEntries(STATUS_FILTERS.map((f) => [f.key, inCat.filter((t) => matchesStatus(t, f.key, ctx)).length])) as Record<StatusFilter, number>;
 }
 
-/** The nav badge and Home: drafts waiting, never spam or archived. */
+/** The Inbox nav badge: what the Unread filter shows (never spam or archived). */
+export function unreadCount(threads: StreamThread[], now: number): number {
+  const ctx: FilterContext = { now, draftContactIds: new Set() };
+  return threads.filter((t) => matchesStatus(t, "unread", ctx)).length;
+}
+
+/** Home: drafts waiting, never spam or archived. */
 export function draftsWaitingCount(threads: StreamThread[], ctx: FilterContext): number {
   return threads.filter((t) => matchesStatus(t, "drafts", ctx)).length;
 }

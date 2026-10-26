@@ -10,6 +10,8 @@ import { getCurrentWorkspaceId } from "@/lib/auth";
 import { editContacts } from "@/lib/os/contacts-edit";
 import { markUnread, setArchived, setSpamOverride, setStarred } from "@/lib/os/inbox-crm";
 import { syncFollowupsQuietly } from "@/lib/os/sequences/engine";
+import { prisma } from "@/lib/db/client";
+import { mockContactExtras, osMockEnabled } from "@/lib/os/mock";
 import { listTags } from "@/lib/os/tags/store";
 
 export interface StreamActionResult {
@@ -68,14 +70,12 @@ export async function tagThreads(contactIds: string[], tag: string, op: "add" | 
 }
 
 /**
- * Bulk Won or Lost through the stage writer (move table, stage log, the
- * stage-changed hook that records the won event). Bulk Won records no amount:
- * the Won picker (Contacts stream) fills it in later, and the funnel lists
- * them under "won with no amount".
+ * Bulk Lost through the stage writer (move table, stage log). Bulk Won goes
+ * through the Won picker (markContactsWon), like Contacts and Pipeline.
  */
-export async function moveThreadsStage(contactIds: string[], stage: "WON" | "LOST") {
+export async function moveThreadsStage(contactIds: string[], stage: "LOST") {
   return run(async (ws) => {
-    if (stage !== "WON" && stage !== "LOST") return { error: "Only Won or Lost in bulk." };
+    if (stage !== "LOST") return { error: "Won goes through the Won picker." };
     const r = await editContacts(ws, contactIds, { type: "stage", stage });
     if (r.error !== undefined) return { error: r.error };
     revalidatePath("/os/contacts");
@@ -83,7 +83,7 @@ export async function moveThreadsStage(contactIds: string[], stage: "WON" | "LOS
     revalidatePath("/os/follow-ups");
     for (const id of contactIds.slice(0, 100)) await syncFollowupsQuietly(id, { workspaceId: ws });
     const skipped = contactIds.length - r.count;
-    return { notice: `${plural(r.count, "contact")} moved to ${stage === "WON" ? "Won" : "Lost"}.${skipped > 0 ? ` ${skipped} unchanged.` : ""}` };
+    return { notice: `${plural(r.count, "contact")} moved to Lost.${skipped > 0 ? ` ${skipped} unchanged.` : ""}` };
   });
 }
 
@@ -93,6 +93,20 @@ export async function inboxTagOptions(): Promise<{ name: string; color: string }
   if (!workspaceId) return [];
   try {
     return (await listTags(workspaceId)).map((t) => ({ name: t.name, color: t.color }));
+  } catch {
+    return [];
+  }
+}
+
+/** Each selected contact's tags (the bulk bar's Remove tag list). */
+export async function inboxSelectionTags(contactIds: string[]): Promise<string[][]> {
+  const workspaceId = await getCurrentWorkspaceId();
+  if (!workspaceId || !Array.isArray(contactIds)) return [];
+  const ids = contactIds.filter((id) => typeof id === "string").slice(0, 2000);
+  try {
+    if (osMockEnabled()) return ids.map((id) => [...mockContactExtras(id).tags]);
+    const rows = await prisma.contact.findMany({ where: { workspaceId, id: { in: ids } }, select: { tags: true } });
+    return rows.map((r) => r.tags);
   } catch {
     return [];
   }

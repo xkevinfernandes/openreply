@@ -18,8 +18,8 @@ interface Props {
   /** "maya.builds" or "3 people". */
   who: string;
   onClose: () => void;
-  /** After the save: the offer and amount stored. */
-  onDone: (won: { offer: string; amount: number; count: number; refused: string[] }) => void;
+  /** After the save: the offer and amount stored (null both: Won with no amount). */
+  onDone: (won: { offer: string | null; amount: number | null; count: number; refused: string[]; promoted: { id: string; kind: string }[] }) => void;
   /** Another save for the same choice (the All board, Home's fill-in); default markContactsWon. */
   save?: (offer: string, amount: number) => Promise<MarkWonResult>;
   /** "Mark as Won" by default; "Save" when the win is already there. */
@@ -71,6 +71,16 @@ export default function WonPicker({ contactIds, who, onClose, onDone, save, subm
     if (o) setAmount(o.price != null ? String(o.price) : "");
   }
 
+  /** "No amount": Won now, the amount filled in later (Home lists them). */
+  function noAmount() {
+    setError(null);
+    start(async () => {
+      const r = await markContactsWon(contactIds, "", null).catch(() => ({ error: "That didn't save. Try again." }) as const);
+      if (r.error !== undefined) return setError(r.error);
+      onDone({ offer: null, amount: null, count: r.count, refused: r.refused, promoted: r.promoted ?? [] });
+    });
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const offer = pick === OTHER ? typed.trim() : pick;
@@ -81,7 +91,7 @@ export default function WonPicker({ contactIds, who, onClose, onDone, save, subm
     start(async () => {
       const r = await (save ? save(offer, n) : markContactsWon(contactIds, offer, n)).catch(() => ({ error: "That didn't save. Try again." }) as const);
       if (r.error !== undefined) return setError(r.error);
-      onDone({ offer, amount: n, count: r.count, refused: r.refused });
+      onDone({ offer, amount: n, count: r.count, refused: r.refused, promoted: r.promoted ?? [] });
     });
   }
 
@@ -156,6 +166,11 @@ export default function WonPicker({ contactIds, who, onClose, onDone, save, subm
           <button type="button" className="os-button ghost" onClick={onClose}>
             Cancel
           </button>
+          {save ? null : (
+            <button type="button" className="os-button" disabled={pending} onClick={noAmount} title="Mark as Won now and add the amount later">
+              No amount
+            </button>
+          )}
           <button type="submit" className="os-button primary" disabled={pending || !data}>
             {pending ? "Saving…" : submitLabel}
           </button>

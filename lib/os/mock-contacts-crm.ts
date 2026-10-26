@@ -34,7 +34,7 @@ function seedViews(): SavedViewRow[] {
     view("view-all", "All contacts", {}, true),
     view("view-hot", "Hot leads", { tagIds: ["tag-hot"] }),
     view("view-agency", "Agencies", { tagIds: ["tag-agency"] }, false, ["name", "email", "field:business", "stage", "tags", "last"]),
-    view("view-archived", "Archived", { archived: true }),
+    // Archived is the filter bar's checkbox, not a view of its own.
   ];
 }
 
