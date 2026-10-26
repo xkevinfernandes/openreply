@@ -5,6 +5,7 @@
 import { createHash } from "node:crypto";
 import { prisma } from "@/lib/db/client";
 import { getUserFollowStatus, sendCommentReply, sendDirectMessage, sendPrivateReply, type InstagramContext } from "@/lib/instagram/provider";
+import { stampSend } from "@/lib/os/send-stamp";
 import { createInstagramContext } from "@/lib/instagram/context";
 import { matchKeywords } from "@/lib/utils/keyword-matcher";
 import { zernioRequest } from "@/lib/zernio/client";
@@ -146,6 +147,8 @@ export function dbPorts(): Ports {
         else await sendPrivateReply({ context: ctx, instagramAccountId: instagramId, commentId, message: plain(msg), postId: postId ?? undefined });
       });
       await recordSend(sc.workspaceId, { key: `wf-pr:${commentId}`, source: "workflow" });
+      // An automated send: last outbound only, never marks the thread read.
+      await stampSend({ workspaceId: sc.workspaceId, instagramAccountId: sc.instagramAccountId, igUserId: sc.igUserId }, { human: false });
     },
     async dm(sc: SendContext, msg, opts) {
       const { ctx, instagramId } = await accountContext(sc.instagramAccountId, `wf:${opts.key}`);
@@ -156,6 +159,7 @@ export function dbPorts(): Ports {
         else await sendDirectMessage({ context: ctx, instagramAccountId: instagramId, userId: sc.igUserId, message: plain(msg) });
       });
       await recordSend(sc.workspaceId, { key: `wf:${opts.key}`, source: "workflow" });
+      await stampSend({ workspaceId: sc.workspaceId, instagramAccountId: sc.instagramAccountId, igUserId: sc.igUserId }, { human: false });
     },
     async canSend(workspaceId, n): Promise<CanSend> {
       return checkSend(await capState(workspaceId), n, "workflow") === "paused" ? "paused" : "ok";

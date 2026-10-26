@@ -29,6 +29,7 @@ import { columnFor, funnelColumns } from "@/lib/os/funnel";
 import { addTag } from "@/lib/os/fields/write";
 import { createTag, deleteTag, ensureTag, listTags, renameTag, resolveTag } from "@/lib/os/tags/store";
 import { clearWonData, setWonData, wonDataOf } from "@/lib/os/events";
+import { stampSend } from "@/lib/os/send-stamp";
 
 const schema = `crm_writers_${randomBytes(4).toString("hex")}`;
 let sql: Client;
@@ -50,6 +51,8 @@ describe.skipIf(!DB)("DM CRM writers (real Postgres)", () => {
     for (const d of dirs) await sql.query(readFileSync(path.join(DIR, d, "migration.sql"), "utf8"));
     await sql.query(`INSERT INTO "User" ("id", "updatedAt") VALUES ('u1', now())`);
     await sql.query(`INSERT INTO "Workspace" ("id", "name", "ownerId", "updatedAt") VALUES ('w1', 'Kevin', 'u1', now())`);
+    // The send stamp skips work without a database url; the client is mocked above.
+    process.env.DATABASE_URL ??= DB;
     state.db = new PrismaClient({ adapter: new PrismaPg({ connectionString: DB!, max: 6, options: `-c search_path="${schema}"` }, { schema }) });
     await state.db.setter.create({ data: { id: "set1", workspaceId: "w1", name: "J", isDefault: true, settings: { tag_options: ["hot", "friday"] } } });
   }, 120_000);
@@ -155,6 +158,31 @@ describe.skipIf(!DB)("DM CRM writers (real Postgres)", () => {
       expect(refused).toMatchObject({ ok: false, error: "Used by VIP push." });
       expect((await deleteTag("w1", t.tag.id, { force: true })).ok).toBe(true);
       expect((await state.db.contact.findUniqueOrThrow({ where: { id: "t4" } })).tags).toEqual([]);
+    });
+  });
+
+  describe("send stamps", () => {
+    it("human: outbound, personal send and opened; automated: outbound only; never backwards", async () => {
+      await contact("p1", { lastInboundAt: new Date("2026-10-20T10:00:00Z"), lastOpenedAt: new Date("2026-10-19T00:00:00Z") });
+      await stampSend({ contactId: "p1", workspaceId: "w1" }, { human: false, at: new Date("2026-10-20T11:00:00Z") });
+      let c = await state.db.contact.findUniqueOrThrow({ where: { id: "p1" } });
+      expect(c.lastOutboundAt?.toISOString()).toBe("2026-10-20T11:00:00.000Z");
+      expect(c.lastPersonalSendAt).toBeNull();
+      expect(c.lastOpenedAt?.toISOString()).toBe("2026-10-19T00:00:00.000Z");
+      await stampSend({ contactId: "p1", workspaceId: "w1" }, { human: true, at: new Date("2026-10-20T12:00:00Z") });
+      c = await state.db.contact.findUniqueOrThrow({ where: { id: "p1" } });
+      expect([c.lastOutboundAt, c.lastPersonalSendAt, c.lastOpenedAt, c.lastMessageAt].map((d) => d?.toISOString())).toEqual(Array(4).fill("2026-10-20T12:00:00.000Z"));
+      await stampSend({ contactId: "p1" }, { human: true, at: new Date("2026-10-20T09:00:00Z") });
+      c = await state.db.contact.findUniqueOrThrow({ where: { id: "p1" } });
+      expect(c.lastOpenedAt?.toISOString()).toBe("2026-10-20T12:00:00.000Z");
+    });
+
+    it("keyword paths find the contact by account and Instagram user id, and stamp nothing without one", async () => {
+      await state.db.instagramAccount.create({ data: { id: "acc1", workspaceId: "w1", instagramId: "IGBIZ", username: "kevin", accessToken: "x" } as never });
+      await state.db.contact.create({ data: { id: "p2", workspaceId: "w1", instagramAccountId: "acc1", igUserId: "IGSID9" } });
+      expect(await stampSend({ instagramId: "IGBIZ", igUserId: "IGSID9" }, { human: false })).toBe(1);
+      expect((await state.db.contact.findUniqueOrThrow({ where: { id: "p2" } })).lastOutboundAt).not.toBeNull();
+      expect(await stampSend({ instagramId: "IGBIZ", igUserId: "nobody" }, { human: false })).toBe(0);
     });
   });
 });

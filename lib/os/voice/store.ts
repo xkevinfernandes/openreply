@@ -83,6 +83,8 @@ async function sendClip(contact: VoiceContact, clip: BankClip, sendId: string, h
     durationMs: clip.durationMs,
     humanAgent,
     sendKey: sendId,
+    contactId: contact.id,
+    human: false,
   });
   return r.messageId;
 }
@@ -224,6 +226,9 @@ export async function sendManualVoice(m: ManualVoice): Promise<void> {
       durationMs: audio.durationMs,
       humanAgent: m.humanAgent,
       sendKey: sendId,
+      contactId: m.contact.id,
+      // Kevin's own voice note from the composer: a human send.
+      human: true,
     });
     if (row) await prisma.voiceSend.update({ where: { id: row.id }, data: { status: "sent", messageId: r.messageId, sentAt: new Date() } });
     // A bank clip sent by hand counts as heard: J won't play it to them again.

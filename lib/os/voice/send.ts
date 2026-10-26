@@ -12,6 +12,7 @@ import { getBaseUrl, getMetaGraphApiVersion } from "@/lib/env";
 import { createInstagramContext } from "@/lib/instagram/provider";
 import { appendMockVoice, osMockEnabled } from "@/lib/os/mock";
 import { getInboxAccount } from "@/lib/os/inbox";
+import { stampSend } from "@/lib/os/send-stamp";
 import { assertCanSend, recordSend } from "@/lib/os/sending/cap";
 import { zernioRequest, ZernioApiError, ZernioDeliveryUnconfirmedError } from "@/lib/zernio/client";
 
@@ -37,6 +38,10 @@ export interface AudioSend {
   humanAgent?: boolean;
   /** Stable per send (the VoiceSend id), so a retried request never doubles. */
   sendKey: string;
+  /** Kevin's own voice note from the composer (marks the thread read). J's clips: false. */
+  human?: boolean;
+  /** The OS contact, for the send stamp. */
+  contactId?: string | null;
 }
 
 export async function sendAudioMessage(s: AudioSend): Promise<{ messageId: string | null }> {
@@ -44,6 +49,7 @@ export async function sendAudioMessage(s: AudioSend): Promise<{ messageId: strin
   await assertCanSend(s.workspaceId, 1, { source: "voice" });
   const result = await sendAudioUnguarded(s);
   await recordSend(s.workspaceId, { key: `voice:${s.sendKey}`, source: "voice" });
+  await stampSend(s.contactId ? { contactId: s.contactId, workspaceId: s.workspaceId } : { workspaceId: s.workspaceId, igUserId: s.igUserId }, { human: s.human === true });
   return result;
 }
 

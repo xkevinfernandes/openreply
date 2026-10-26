@@ -216,7 +216,7 @@ const dbStore: SetterStore = {
     return rows.map(view);
   },
   async send(contact, text, humanAgent) {
-    await sendReply(contact.workspaceId, contact.igUserId, text, { humanAgent, conversationId: contact.conversationId, source: "setter" });
+    await sendReply(contact.workspaceId, contact.igUserId, text, { humanAgent, conversationId: contact.conversationId, contactId: contact.id, source: "setter", human: false });
   },
   async setSetterStage(contactId, stage) {
     // J's stage hint, through the one stage writer (cause setter).
@@ -362,7 +362,7 @@ const mockStore: SetterStore = {
     return [...mem.drafts.values()].filter((d) => d.status === "PENDING");
   },
   async send(contact, text, humanAgent) {
-    await sendReply(contact.workspaceId, contact.igUserId, text, { humanAgent, conversationId: contact.conversationId, source: "setter" });
+    await sendReply(contact.workspaceId, contact.igUserId, text, { humanAgent, conversationId: contact.conversationId, contactId: contact.id, source: "setter", human: false });
   },
   async setSetterStage(contactId, stage) {
     const m = mockContact(contactId);

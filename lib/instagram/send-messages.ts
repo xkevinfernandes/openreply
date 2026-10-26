@@ -67,6 +67,19 @@ async function sendZernioMessage({
   };
 }
 
+/**
+ * DM OS send stamp (dm-crm issue 010): after a DM to a person, move their OS
+ * contact's last outbound time later. These paths run on the legacy models,
+ * so the contact is looked up by account and Instagram user id; nothing is
+ * stamped when there is none yet. Never throws, never changes the send.
+ */
+async function stamped<T>(instagramAccountId: string, userId: string, send: Promise<T>): Promise<T> {
+  const result = await send;
+  const { stampSend } = await import("@/lib/os/send-stamp");
+  await stampSend({ instagramId: instagramAccountId, igUserId: userId }, { human: false });
+  return result;
+}
+
 function linkButtons(buttons: meta.LinkButton[]): Button[] {
   return buttons
     .slice(0, 3)
@@ -147,20 +160,20 @@ export async function sendDirectMessageWithButton({
   payload: string;
 }) {
   if (context.provider === "META")
-    return meta.sendDirectMessageWithButton(
+    return stamped(instagramAccountId, userId, meta.sendDirectMessageWithButton(
       context.accessToken,
       instagramAccountId,
       userId,
       text,
       buttonTitle,
       payload
-    );
-  return sendZernioMessage({
+    ));
+  return stamped(instagramAccountId, userId, sendZernioMessage({
     context,
     recipientId: userId,
     text: text,
     buttons: [{ type: "postback", title: buttonTitle.slice(0, 20), payload }],
-  });
+  }));
 }
 
 export async function sendPrivateReplyWithLinkButton({
@@ -207,13 +220,13 @@ export async function sendDirectMessage({
   message: string;
 }) {
   if (context.provider === "META")
-    return meta.sendDirectMessage(
+    return stamped(instagramAccountId, userId, meta.sendDirectMessage(
       context.accessToken,
       instagramAccountId,
       userId,
       message
-    );
-  return sendZernioMessage({ context, recipientId: userId, text: message });
+    ));
+  return stamped(instagramAccountId, userId, sendZernioMessage({ context, recipientId: userId, text: message }));
 }
 
 export async function sendDirectMessageWithLinkButton({
@@ -230,19 +243,19 @@ export async function sendDirectMessageWithLinkButton({
   buttons: meta.LinkButton[];
 }) {
   if (context.provider === "META")
-    return meta.sendDirectMessageWithLinkButton(
+    return stamped(instagramAccountId, userId, meta.sendDirectMessageWithLinkButton(
       context.accessToken,
       instagramAccountId,
       userId,
       text,
       buttons
-    );
-  return sendZernioMessage({
+    ));
+  return stamped(instagramAccountId, userId, sendZernioMessage({
     context,
     recipientId: userId,
     text: text,
     buttons: linkButtons(buttons),
-  });
+  }));
 }
 
 export async function sendCommentReply({

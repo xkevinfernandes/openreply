@@ -56,6 +56,7 @@ import {
 } from "@/lib/os/setter/state";
 import { dbKnowledge } from "@/lib/os/setter/setters";
 import { setterStore, type DraftView, type SetterContact, type SetterStore } from "@/lib/os/setter/store";
+import { stampSend } from "@/lib/os/send-stamp";
 import { planBubbles, voiceBlock, type BankClip, type BubblePlan } from "@/lib/os/voice/match";
 import { voiceBank, type VoiceBank } from "@/lib/os/voice/store";
 
@@ -75,6 +76,13 @@ function hooksFor(opts: { hooks?: OsEventHooks | null; store?: SetterStore }): O
 type CapGuard = (workspaceId: string, bubbles: number) => Promise<unknown>;
 function capGuardFor(opts: { capGuard?: CapGuard | null; store?: SetterStore }): CapGuard | null {
   return opts.capGuard !== undefined ? opts.capGuard : opts.store ? null : assertCanSend;
+}
+
+/** The send stamp: real unless a test store is passed (the real store counts as real). */
+function stampFor(opts: ApproveOptions): ApproveOptions["stamp"] {
+  if (opts.stamp !== undefined) return opts.stamp;
+  if (opts.store && opts.store !== setterStore()) return null;
+  return stampSend;
 }
 
 export interface DraftOptions {
@@ -452,6 +460,11 @@ export interface ApproveOptions {
   hooks?: OsEventHooks | null;
   /** Default: lib/os/sending/cap.ts assertCanSend unless `store` is a test store. */
   capGuard?: CapGuard | null;
+  /** Who sent it: Kevin's Approve (a human send: marks the thread read, sets
+   *  last personal send) or autopilot (automated). Default "kevin". */
+  sentBy?: "kevin" | "autopilot";
+  /** The send stamp (lib/os/send-stamp.ts); null = none. Default: the real one unless `store` is a test store. */
+  stamp?: ((target: { contactId: string; workspaceId: string }, opts: { human: boolean; at?: Date }) => Promise<unknown>) | null;
 }
 
 export interface ApproveResult {
@@ -623,11 +636,14 @@ export async function approveDraft(draftId: string, workspaceId: string, opts: A
     }
     // Some bubbles are out: record what went, never resend those.
     await store.markSent(d.id, { bubbles: bubbles.slice(0, sentCount), editedText: edited ? opts.editedText! : null, edited });
+    await stampFor(opts)?.({ contactId: contact.id, workspaceId: contact.workspaceId }, { human: opts.sentBy !== "autopilot", at: now() });
     // A test line in the bubbles that went out still counts.
     await recordSent({ person: abPerson(contact), draftId: d.id, abVariants: d.abVariants, bubbles: bubbles.slice(0, sentCount), edited, at: now(), store: opts.experiments });
     return { error: `Sent ${sentCount} of ${bubbles.length} bubbles, then: ${message}` };
   }
   await store.markSent(d.id, { bubbles, editedText: edited ? opts.editedText! : null, edited });
+  // Kevin's Approve is a human send (marks the thread read); autopilot isn't.
+  await stampFor(opts)?.({ contactId: contact.id, workspaceId: contact.workspaceId }, { human: opts.sentBy !== "autopilot", at: now() });
   await recordSent({ person: abPerson(contact), draftId: d.id, abVariants: d.abVariants, bubbles, edited, at: now(), store: opts.experiments });
   await hooksFor(opts)?.onDraftSent({ workspaceId: contact.workspaceId, contactId: contact.id, setterId: d.setterId ?? null, draftId: d.id, kind: d.kind, bubbles, at: now() });
   // Workflows + J's actions on send: tags, exit_step, stop, booking email, releases. Never throws.

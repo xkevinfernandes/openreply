@@ -16,6 +16,7 @@ import { appendMockMessage, mockThreads, osMockEnabled } from "@/lib/os/mock";
 import { assertCanSend, recordSend, type SendSource } from "@/lib/os/sending/cap";
 import { fillStoryCards, mediaForMessages, type MediaView } from "@/lib/os/media";
 import { parseZernioMessages, splitLinks } from "@/lib/os/messages/parse";
+import { stampSend } from "@/lib/os/send-stamp";
 import type { RichMessage } from "@/lib/os/messages/types";
 import { leadMagnetsByMessage, markSetterMessages, sentBubbleSet, type ThreadExtras } from "@/lib/os/messages/view";
 import { MOCK_OPENER_BY_AUTOMATION, markMockHeld, mockLeadMagnets, mockSentDrafts, mockThreadMedia, mockThreadMessages } from "@/lib/os/mock-thread";
@@ -302,6 +303,9 @@ export interface SendReplyOptions {
   contactId?: string | null;
   /** Who is sending: only "setter" (J's drafts) counts toward the daily limit. */
   source: SendSource;
+  /** Kevin's own send (the composer): stamps last personal send and marks the
+   *  thread read (lib/os/send-stamp.ts). J's drafts, broadcasts: false. */
+  human?: boolean;
 }
 
 export async function sendReply(workspaceId: string, igUserId: string, text: string, options: SendReplyOptions) {
@@ -312,6 +316,7 @@ export async function sendReply(workspaceId: string, igUserId: string, text: str
   const { sendNotedOs } = await import("@/lib/os/workflows/hooks");
   await sendNotedOs(workspaceId, igUserId, text, () => sendReplyUnguarded(workspaceId, igUserId, text, options));
   await recordSend(workspaceId, { contactId: options.contactId, key: options.sendKey, source: options.source });
+  await stampSend(options.contactId ? { contactId: options.contactId, workspaceId } : { workspaceId, igUserId }, { human: options.human === true });
 }
 
 async function sendReplyUnguarded(workspaceId: string, igUserId: string, text: string, options: SendReplyOptions) {

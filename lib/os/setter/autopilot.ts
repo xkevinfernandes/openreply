@@ -191,7 +191,7 @@ function defaultDeps(): AutopilotDeps {
     },
     async approve(draftId, workspaceId) {
       const { approveDraft } = await import("@/lib/os/setter/service");
-      return approveDraft(draftId, workspaceId);
+      return approveDraft(draftId, workspaceId, { sentBy: "autopilot" });
     },
     async logSent(e) {
       const { prisma } = await import("@/lib/db/client");

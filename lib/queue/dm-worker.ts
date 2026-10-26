@@ -829,6 +829,9 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
       }
 
       delivered = true;
+      // DM OS send stamp (dm-crm 010): the private reply is a DM to the
+      // commenter. Automated, never marks read; no OS contact = no stamp.
+      await stampSendQuietly(automation.workspaceId, automation.instagramAccount.instagramId, commenterId);
       await prisma.dmLog.update({
         where: {
           automationId_commentId: {
@@ -1834,4 +1837,14 @@ export function createDMWorker(): Worker<DmQueueJob> {
   });
 
   return worker;
+}
+
+/** DM OS send stamp for a private reply (lib/os/send-stamp.ts). Never throws. */
+async function stampSendQuietly(workspaceId: string, instagramId: string, igUserId: string) {
+  try {
+    const { stampSend } = await import("@/lib/os/send-stamp");
+    await stampSend({ workspaceId, instagramId, igUserId }, { human: false });
+  } catch {
+    // A stamp never fails a send.
+  }
 }
