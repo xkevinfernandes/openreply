@@ -151,7 +151,6 @@ function waitlistGraph(trigger: GraphNode): WorkflowGraph {
       node("waitlist", "action", 4, {
         ops: [
           { op: "add_tag", key: "waitlist-founder-engine" },
-          { op: "set_field", key: "lead_magnet", value: "Founder Engine Mini-Series" },
         ],
       }),
       // Already answered all three (an earlier waitlist, J, an import): just confirm.

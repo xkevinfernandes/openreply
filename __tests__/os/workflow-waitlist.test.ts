@@ -70,7 +70,7 @@ describe("Waitlist + questions", () => {
     await h.dm("ana", "sure it's ana@example.com");
     expect(field(h, "ana", "email")).toBe("ana@example.com");
     expect(tagsOf(h, "ana")).toContain("waitlist-founder-engine");
-    expect(field(h, "ana", "lead_magnet")).toBe("Founder Engine Mini-Series");
+    expect(field(h, "ana", "lead_magnet")).toBeUndefined(); // the tag says which waitlist; no lead_magnet field
     expect(text(lastSent(h, "ana").msg)).toMatch(/You're on the early-access list/);
 
     await h.tap("ana", `wf:${run.id}:listed:sure`);
