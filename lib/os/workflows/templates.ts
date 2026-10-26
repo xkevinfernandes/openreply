@@ -113,10 +113,10 @@ function waitlistGraph(keyword: string): WorkflowGraph {
     { id: "20plus", label: "$20K+", qualifies: true },
   ];
   const blocker = [
-    { id: "leads", label: "Getting leads" },
-    { id: "convert", label: "Converting leads" },
-    { id: "scale", label: "Delivering at scale" },
-    { id: "unsure", label: "Not sure" },
+    { id: "leads", label: "Getting more leads" },
+    { id: "convert", label: "Closing more sales" },
+    { id: "scale", label: "Scaling delivery" },
+    { id: "unsure", label: "Not sure yet" },
   ];
   return {
     version: 1,
@@ -148,7 +148,7 @@ function waitlistGraph(keyword: string): WorkflowGraph {
       // Already answered all three (an earlier waitlist, J, an import): just confirm.
       node("all_role", "condition", 5, { rule: { kind: "field_set", value: "business" } }),
       node("all_rev", "condition", 6, { rule: { kind: "field_set", value: "monthly_revenue" } }, -260),
-      node("all_blk", "condition", 7, { rule: { kind: "field_set", value: "their_challenge" } }, -260),
+      node("all_blk", "condition", 7, { rule: { kind: "field_set", value: "their_goal" } }, -260),
       node("listed_only", "message", 8, {
         bubbles: [{ kind: "text", text: "You're on the early-access list! ✅ Keep an eye out for a confirmation email.\n\nI'll send you an update on the mini-series within the next 14 days." }],
       }, -260),
@@ -176,9 +176,9 @@ function waitlistGraph(keyword: string): WorkflowGraph {
       node("q_revenue", "message", 11, {
         bubbles: [{ kind: "quick_replies", text: "Roughly how much revenue is your business currently generating per month?", options: revenue, saveTo: "monthly_revenue" }],
       }, 120),
-      node("has_blk", "condition", 12, { rule: { kind: "field_set", value: "their_challenge" } }, 120),
+      node("has_blk", "condition", 12, { rule: { kind: "field_set", value: "their_goal" } }, 120),
       node("q_blocker", "message", 13, {
-        bubbles: [{ kind: "quick_replies", text: "And what's the biggest thing holding your business back right now?", options: blocker, saveTo: "their_challenge" }],
+        bubbles: [{ kind: "quick_replies", text: "And what's the main thing you're working on improving in your business right now?", options: blocker, saveTo: "their_goal" }],
       }, 120),
       node("complete", "action", 14, { ops: [{ op: "add_tag", key: "qual-complete" }] }, 120),
       node("wrapup", "message", 15, {

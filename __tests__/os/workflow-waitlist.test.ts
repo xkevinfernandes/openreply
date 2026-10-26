@@ -87,10 +87,10 @@ describe("Waitlist + questions", () => {
 
     await h.tap("ana", `wf:${run.id}:q_revenue:10to20`);
     expect(field(h, "ana", "monthly_revenue")).toBe("$10K–$20K");
-    expect(text(lastSent(h, "ana").msg)).toMatch(/biggest thing holding/);
+    expect(text(lastSent(h, "ana").msg)).toMatch(/main thing you're working on/);
 
-    await h.dm("ana", "getting LEADS");
-    expect(field(h, "ana", "their_challenge")).toBe("Getting leads");
+    await h.dm("ana", "getting  MORE leads");
+    expect(field(h, "ana", "their_goal")).toBe("Getting more leads");
     expect(h.picks).toEqual([]); // exact labels never reach the model
     expect(tagsOf(h, "ana")).toContain("qual-complete");
     expect(tagsOf(h, "ana")).not.toContain("qualified");
@@ -132,7 +132,7 @@ describe("Waitlist + questions", () => {
     await h.tap("ana", `wf:${id}:q_revenue:u5k`);
     await h.tap("ana", `wf:${id}:q_blocker:scale`);
     expect(field(h, "ana", "monthly_revenue")).toBe("Under $5K");
-    expect(field(h, "ana", "their_challenge")).toBe("Delivering at scale");
+    expect(field(h, "ana", "their_goal")).toBe("Scaling delivery");
     expect(tagsOf(h, "ana")).toContain("qual-complete");
     expect(tagsOf(h, "ana")).not.toContain("qualified");
     expect((await h.run("ana"))!.status).toBe("completed");
@@ -154,7 +154,7 @@ describe("Waitlist + questions", () => {
     expect(h2.picks).toEqual(["about 7 grand a month give or take"]);
     expect(field(h2, "ben", "monthly_revenue")).toBe("$5K–$10K");
     expect(tagsOf(h2, "ben")).not.toContain("qualified");
-    expect(text(lastSent(h2, "ben").msg)).toMatch(/biggest thing holding/);
+    expect(text(lastSent(h2, "ben").msg)).toMatch(/main thing you're working on/);
     // No first-option default: nothing else was sent in between.
     expect(h2.sentTo("ben").filter((s) => text(s.msg) === QUICK_REPLY_RETRY)).toHaveLength(0);
   });
@@ -278,7 +278,7 @@ describe("Waitlist + questions", () => {
     await h.tap("eve", `wf:${id}:q_revenue:5to10`);
     id = await toRevenue(h, "ben", "reel1");
     await h.tap("ben", `wf:${id}:q_revenue:none`);
-    await h.dm("ben", "not sure");
+    await h.dm("ben", "not sure YET");
     await h.comment("cat", "FOUNDER", { postId: "reel1" });
     // reel2: dan gives the email and stops at the revenue question; fay goes Under $5K.
     await toRevenue(h, "dan", "reel2");
@@ -340,12 +340,12 @@ describe("quick replies: parts", () => {
         id: "e1",
         event: "message.received",
         account: { id: "z1", platform: "instagram" },
-        message: { platformMessageId: "m2", direction: "incoming", text: "Not sure", sender: { id: "u2" } },
+        message: { platformMessageId: "m2", direction: "incoming", text: "Not sure yet", sender: { id: "u2" } },
         metadata: { quickReplyPayload: "wf:r1:q2:unsure" },
       },
       account: { zernioAccountId: "z1", instagramId: "ig1" },
     });
-    expect(parseMessageEvents(z!)[0]).toMatchObject({ messageText: "Not sure", quickReplyPayload: "wf:r1:q2:unsure" });
+    expect(parseMessageEvents(z!)[0]).toMatchObject({ messageText: "Not sure yet", quickReplyPayload: "wf:r1:q2:unsure" });
   });
 });
 
@@ -353,7 +353,7 @@ describe("Waitlist + questions: already-answered questions are skipped", () => {
   it("all three already filled: just the confirmation, no questions", async () => {
     const h = harness();
     h.publish(waitlist());
-    for (const [k, v] of [["business", "Coach"], ["monthly_revenue", "$20K+"], ["their_challenge", "Getting leads"]]) h.fields.set(`c_ana:${k}`, v);
+    for (const [k, v] of [["business", "Coach"], ["monthly_revenue", "$20K+"], ["their_goal", "Getting more leads"]]) h.fields.set(`c_ana:${k}`, v);
     await h.comment("ana", "FOUNDER", { postId: "reel1" });
     const run = (await h.run("ana"))!;
     await h.tap("ana", `wf:${run.id}:join:join`);
@@ -373,7 +373,7 @@ describe("Waitlist + questions: already-answered questions are skipped", () => {
     const id = await toRole(h);
     expect((lastSent(h, "ana").msg as QR).text).toMatch(/what do you do/);
     await h.tap("ana", `wf:${id}:q_role:consultant`);
-    expect((lastSent(h, "ana").msg as QR).text).toMatch(/biggest thing holding/);
+    expect((lastSent(h, "ana").msg as QR).text).toMatch(/main thing you're working on/);
     await h.tap("ana", `wf:${id}:q_blocker:leads`);
     expect(field(h, "ana", "monthly_revenue")).toBe("$5K–$10K");
     expect(tagsOf(h, "ana")).toContain("qual-complete");
@@ -386,6 +386,6 @@ describe("Waitlist + questions: already-answered questions are skipped", () => {
     h.fields.set("c_ana:business", "Agency owner");
     h.fields.set("c_ana:monthly_revenue", "Under $5K");
     await toRole(h);
-    expect((lastSent(h, "ana").msg as QR).text).toMatch(/biggest thing holding/);
+    expect((lastSent(h, "ana").msg as QR).text).toMatch(/main thing you're working on/);
   });
 });
