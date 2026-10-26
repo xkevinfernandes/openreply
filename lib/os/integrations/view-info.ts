@@ -9,7 +9,7 @@ export const PROVIDER_INFO: Record<SyncProviderId, { name: string; category: Int
     category: "email",
     blurb: "Add people who give you their email to your Kit list, with their stage and tags.",
     explain: [
-      "When someone gives their email in a DM, they become a Kit subscriber. Campaign email gates already did this; now stage, tags and J's notes come along too.",
+      "When someone gives their email in a DM, they become a Kit subscriber. Campaign email gates already did this; now stage, tags and your custom fields come along too.",
       "When you change their stage or tags here, Kit is updated within seconds. Kit needs an email, so people who never gave one stay out.",
       "One way only: edits made in Kit never come back to DM OS.",
     ],
@@ -20,7 +20,7 @@ export const PROVIDER_INFO: Record<SyncProviderId, { name: string; category: Int
     blurb: "Send your Instagram leads to a GoHighLevel sub-account as contacts, tagged and staged.",
     explain: [
       "Each sales contact becomes a GoHighLevel contact: first name, Instagram handle, email once they give it, stage and tags.",
-      "What J learns while qualifying (their goal, challenge, what they've tried) can fill custom fields, and stages can move an opportunity through a pipeline.",
+      "Your custom fields (their goal, business, what they've tried…) fill GoHighLevel custom fields, and stages can move an opportunity through a pipeline.",
       "Pushed when an email is captured or the stage, tags or type change. One way only: edits made in GoHighLevel never come back.",
     ],
   },

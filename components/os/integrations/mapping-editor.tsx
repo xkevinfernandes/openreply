@@ -1,16 +1,30 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { loadProviderFields, saveMapping, type IntegrationActionResult } from "@/app/(os)/os/integrations/actions";
+import { editField } from "@/app/(os)/os/settings/actions";
 import type { ContactStage } from "@/app/generated/prisma/enums";
+import { BUILT_IN_FIELDS, type CustomFieldView } from "@/lib/os/fields/types";
 import { stageLabels, stageOrder } from "@/lib/os/labels";
-import { QUALIFICATION_FIELDS, type FieldMapping, type QualificationKey, type SyncProviderId } from "@/lib/os/integrations/mapping";
+import { mappingFieldRows, type FieldMapping, type MappingFieldRow, type SyncProviderId } from "@/lib/os/integrations/mapping";
 import type { ProviderFields } from "@/lib/os/integrations/provider";
+
+/** The global custom fields (Settings › Custom fields), in their order. */
+export type MappingFieldSource = Pick<CustomFieldView, "id" | "key" | "label" | "ghlField" | "kitField" | "sortOrder">;
 
 interface Props {
   provider: SyncProviderId;
   initial: FieldMapping;
+  fields: MappingFieldSource[];
   onSaved: (r: IntegrationActionResult) => void;
+}
+
+/** Every custom field for the section, with First name and Email always there
+ *  (their switches live on those rows even if the built-in rows are missing). */
+export function customFieldRows(fields: MappingFieldSource[], provider: SyncProviderId): MappingFieldRow[] {
+  const rows = mappingFieldRows(fields, provider);
+  const missing = BUILT_IN_FIELDS.filter((b) => !rows.some((r) => r.key === b.key)).map((b) => ({ id: "", key: b.key, label: b.label, native: true, target: null }));
+  return [...missing, ...rows];
 }
 
 function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
@@ -31,7 +45,28 @@ interface FieldSelectProps {
 }
 
 /** A provider custom field picker; a text box when the list couldn't load. */
-function FieldSelect({ value, onChange, label, fields, fieldsError, provider }: FieldSelectProps) {
+/**
+ * Save the targets picked here onto each field (kitField / ghlField), through
+ * the same update as Settings › Custom fields. Built-ins are never remapped.
+ * Returns the first error, or null.
+ */
+export async function saveFieldTargets(
+  rows: MappingFieldRow[],
+  picked: Record<string, string | null>,
+  provider: SyncProviderId,
+  save: (id: string, input: { kitField?: string | null; ghlField?: string | null }) => Promise<{ error: string } | object>
+): Promise<string | null> {
+  for (const row of rows) {
+    if (!row.id || row.native || !(row.id in picked)) continue;
+    const v = picked[row.id] ?? null;
+    if (v === row.target) continue;
+    const r = await save(row.id, provider === "kit" ? { kitField: v } : { ghlField: v });
+    if ("error" in r) return `${row.label}: ${(r as { error: string }).error}`;
+  }
+  return null;
+}
+
+export function FieldSelect({ value, onChange, label, fields, fieldsError, provider }: FieldSelectProps) {
   const name = provider === "kit" ? "Kit" : "GoHighLevel";
   if (!fields) {
     return (
@@ -63,8 +98,11 @@ function FieldSelect({ value, onChange, label, fields, fieldsError, provider }: 
   );
 }
 
-export default function MappingEditor({ provider, initial, onSaved }: Props) {
+export default function MappingEditor({ provider, initial, fields: customFields, onSaved }: Props) {
   const [m, setM] = useState<FieldMapping>(initial);
+  const rows = useMemo(() => customFieldRows(customFields, provider), [customFields, provider]);
+  // Field id -> the target picked here, saved onto the field itself.
+  const [targets, setTargets] = useState<Record<string, string | null>>({});
   const [fields, setFields] = useState<ProviderFields | null>(null);
   const [fieldsError, setFieldsError] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
@@ -89,7 +127,11 @@ export default function MappingEditor({ provider, initial, onSaved }: Props) {
   }
 
   const ctx = { fields, fieldsError, provider };
-  const setQual = (key: QualificationKey, v: string | null) => patch({ qualification: { ...m.qualification, [key]: v } });
+  const setTarget = (id: string, v: string | null) => {
+    setTargets((cur) => ({ ...cur, [id]: v }));
+    setDirty(true);
+  };
+  const targetOf = (r: MappingFieldRow) => (r.id in targets ? targets[r.id] : r.target);
   const pipeline = fields?.pipelines.find((p) => p.id === m.pipelineId) ?? null;
 
   return (
@@ -99,7 +141,11 @@ export default function MappingEditor({ provider, initial, onSaved }: Props) {
         e.preventDefault();
         startSaving(async () => {
           const r = await saveMapping(provider, m);
-          if (!r.error) setDirty(false);
+          if (r.error) return onSaved(r);
+          const err = await saveFieldTargets(rows, targets, provider, editField);
+          if (err) return onSaved({ error: err });
+          setTargets({});
+          setDirty(false);
           onSaved(r);
         });
       }}
@@ -130,24 +176,6 @@ export default function MappingEditor({ provider, initial, onSaved }: Props) {
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <th scope="row">
-              First name<small>First word of their Instagram name</small>
-            </th>
-            <td>
-              <span className="os-int-native">First name</span>
-              <Switch checked={m.firstName} onChange={(v) => patch({ firstName: v })} label="Send first name" />
-            </td>
-          </tr>
-          <tr>
-            <th scope="row">
-              Email<small>{provider === "kit" ? "Kit needs it: no email, no subscriber" : "Once they give it in a DM"}</small>
-            </th>
-            <td>
-              <span className="os-int-native">Email</span>
-              <Switch checked={provider === "kit" ? true : m.email} disabled={provider === "kit"} onChange={(v) => patch({ email: v })} label="Send email" />
-            </td>
-          </tr>
           <tr>
             <th scope="row">
               Tags<small>Removed here, removed there</small>
@@ -191,17 +219,39 @@ export default function MappingEditor({ provider, initial, onSaved }: Props) {
         <tbody>
           <tr className="os-int-map-group">
             <th scope="colgroup" colSpan={2}>
-              J&apos;s qualification answers<small>What J has heard them say, in their words. Filled as the conversation goes.</small>
+              Custom fields<small>Every field in Settings › Custom fields. Picking a {name} field here sets it there too.</small>
             </th>
           </tr>
-          {QUALIFICATION_FIELDS.map((f) => (
-            <tr key={f.key}>
-              <th scope="row">{f.label}</th>
-              <td>
-                <FieldSelect {...ctx} label={f.label} value={m.qualification[f.key]} onChange={(v) => setQual(f.key, v)} />
-              </td>
-            </tr>
-          ))}
+          {rows.map((r) =>
+            r.key === "first_name" ? (
+              <tr key={r.key}>
+                <th scope="row">
+                  {r.label}<small>Their first name, or the first word of their Instagram name</small>
+                </th>
+                <td>
+                  <span className="os-int-native">{name}&apos;s first name</span>
+                  <Switch checked={m.firstName} onChange={(v) => patch({ firstName: v })} label="Send first name" />
+                </td>
+              </tr>
+            ) : r.key === "email" ? (
+              <tr key={r.key}>
+                <th scope="row">
+                  {r.label}<small>{provider === "kit" ? "Kit needs it: no email, no subscriber" : "Once they give it in a DM"}</small>
+                </th>
+                <td>
+                  <span className="os-int-native">{name}&apos;s email</span>
+                  <Switch checked={provider === "kit" ? true : m.email} disabled={provider === "kit"} onChange={(v) => patch({ email: v })} label="Send email" />
+                </td>
+              </tr>
+            ) : (
+              <tr key={r.id || r.key}>
+                <th scope="row">{r.label}</th>
+                <td>
+                  <FieldSelect {...ctx} label={r.label} value={targetOf(r)} onChange={(v) => setTarget(r.id, v)} />
+                </td>
+              </tr>
+            )
+          )}
         </tbody>
         {provider === "ghl" && (
           <tbody>

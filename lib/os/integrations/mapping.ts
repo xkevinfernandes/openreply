@@ -8,8 +8,9 @@ export type SyncProviderId = "kit" | "ghl";
 
 export type SyncEvent = "email_captured" | "stage_changed" | "tags_changed" | "kind_changed" | "backfill" | "manual";
 
-/** J's qualification read (Draft.raw.qualification + raw.invite), in the
- *  order the mapping screen lists it. */
+/** The setter's qualification read (Draft.raw.qualification + raw.invite).
+ *  Each key is also a global custom field (Settings › Custom fields), and the
+ *  field's ghlField / kitField says where it goes. */
 export const QUALIFICATION_FIELDS = [
   { key: "their_goal", label: "Their goal" },
   { key: "their_challenge", label: "Their challenge" },
@@ -41,6 +42,9 @@ export interface FieldMapping {
   igHandle: string | null;
   stage: string | null;
   kind: string | null;
+  /** Legacy, read-only: where each qualification key went before custom
+   *  fields carried their own target. Only used for a key no custom field
+   *  has a target for; never written by the mapping screen any more. */
   qualification: Partial<Record<QualificationKey, string | null>>;
   /** GoHighLevel only: also move an opportunity through this pipeline. */
   pipelineId?: string | null;
@@ -84,6 +88,12 @@ export function normalizeMapping(raw: unknown): FieldMapping {
   };
 }
 
+/** The mapping to save from the form: everything from the form except the
+ *  legacy qualification targets, which stay as stored (read-only fallback). */
+export function withStoredQualification(fromForm: unknown, stored: unknown): FieldMapping {
+  return { ...normalizeMapping(fromForm), qualification: normalizeMapping(stored).qualification };
+}
+
 /** The contact as the sync engine sees it. */
 export interface ContactSnapshot {
   id: string;
@@ -97,6 +107,15 @@ export interface ContactSnapshot {
   /** Global custom fields with a value (CustomField + ContactFieldValue).
    *  Each field carries its own GoHighLevel / Kit target. */
   fields?: SnapshotField[];
+  /** Every global custom field's targets, with or without a value, so a
+   *  qualification answer from a draft lands on its field's target. */
+  targets?: FieldTarget[];
+}
+
+export interface FieldTarget {
+  key: string;
+  ghlField: string | null;
+  kitField: string | null;
 }
 
 export interface SnapshotField {
@@ -134,10 +153,23 @@ export function firstNameOf(fullName: string | null | undefined): string | null 
 
 const KIND_LABELS: Record<ContactKind, string> = { SALES: "Sales", PERSONAL: "Personal", UNSORTED: "Unsorted", PITCHES: "Pitches" };
 
+/** first_name / email have their own slots in the payload (firstName, email),
+ *  so a custom field target on them is never used. */
+export const NATIVE_FIELD_KEYS = ["first_name", "email"] as const;
+
+export function isNativeFieldKey(key: string): boolean {
+  return (NATIVE_FIELD_KEYS as readonly string[]).includes(key);
+}
+
+/** A field's target for one provider. */
+export function targetFor(f: { ghlField: string | null; kitField: string | null }, provider: SyncProviderId): string | null {
+  return (provider === "ghl" ? f.ghlField : f.kitField) || null;
+}
+
 /**
  * The push for one provider. Custom fields come from the global field list
- * (each field's ghlField / kitField); the old per-provider qualification
- * mapping only fills keys that no custom field covers for this provider.
+ * (each field's ghlField / kitField). The old per-provider qualification
+ * mapping is a fallback only for a key whose custom field has no target.
  */
 export function buildPayload(c: ContactSnapshot, m: FieldMapping, provider?: SyncProviderId): SyncPayload {
   const custom: Record<string, string> = {};
@@ -150,9 +182,8 @@ export function buildPayload(c: ContactSnapshot, m: FieldMapping, provider?: Syn
   const covered = new Set<string>();
   if (provider) {
     for (const f of c.fields ?? []) {
-      const target = provider === "ghl" ? f.ghlField : f.kitField;
-      // first_name / email have their own slots in the payload.
-      if (!target || f.key === "first_name" || f.key === "email" || f.pushable === false) continue;
+      const target = targetFor(f, provider);
+      if (!target || isNativeFieldKey(f.key) || f.pushable === false) continue;
       put(target, f.value);
       covered.add(f.key);
     }
@@ -160,7 +191,8 @@ export function buildPayload(c: ContactSnapshot, m: FieldMapping, provider?: Syn
   for (const f of QUALIFICATION_FIELDS) {
     if (covered.has(f.key)) continue;
     const field = c.fields?.find((x) => x.key === f.key);
-    put(m.qualification[f.key], field ? (field.pushable === false ? null : field.value) : c.qualification[f.key]);
+    const own = provider ? c.targets?.find((t) => t.key === f.key) : undefined;
+    put((own && provider ? targetFor(own, provider) : null) ?? m.qualification[f.key], field ? (field.pushable === false ? null : field.value) : c.qualification[f.key]);
   }
 
   const tags = m.tags ? [...new Set(c.tags.map((t) => t.trim()).filter(Boolean).map((t) => `${m.tagPrefix}${t}`))].sort() : [];
@@ -186,7 +218,7 @@ export function inScope(c: Pick<ContactSnapshot, "kind">, m: FieldMapping): bool
   return m.scope === "all" || c.kind === "SALES";
 }
 
-/** Latest non-empty answer per qualification key, from J's draft JSON (newest first). */
+/** Latest non-empty answer per qualification key, from the setter's draft JSON (newest first). */
 export function qualificationFromDrafts(raws: unknown[]): QualificationAnswers {
   const out: QualificationAnswers = {};
   for (const raw of raws) {
@@ -204,4 +236,26 @@ export function qualificationFromDrafts(raws: unknown[]): QualificationAnswers {
     }
   }
   return out;
+}
+
+/** One row of the mapping screen's Custom fields section. */
+export interface MappingFieldRow {
+  id: string;
+  key: string;
+  label: string;
+  /** "first_name" / "email": sent in the provider's own slot, not remappable. */
+  native: boolean;
+  /** The field's own target for this provider (Settings › Custom fields). */
+  target: string | null;
+}
+
+/** Every global custom field, in the fields' order, with its target for the provider. */
+export function mappingFieldRows(
+  fields: { id: string; key: string; label: string; ghlField: string | null; kitField: string | null; sortOrder?: number }[],
+  provider: SyncProviderId
+): MappingFieldRow[] {
+  return [...fields]
+    .map((f, i) => ({ f, i }))
+    .sort((a, b) => (a.f.sortOrder ?? a.i) - (b.f.sortOrder ?? b.i) || a.i - b.i)
+    .map(({ f }) => ({ id: f.id, key: f.key, label: f.label, native: isNativeFieldKey(f.key), target: isNativeFieldKey(f.key) ? null : targetFor(f, provider) }));
 }

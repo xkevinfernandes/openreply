@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { createGhlSync } from "@/lib/os/integrations/ghl";
-import { normalizeMapping, type SyncProviderId } from "@/lib/os/integrations/mapping";
+import { withStoredQualification, type SyncProviderId } from "@/lib/os/integrations/mapping";
 import { friendlyError, type ProviderFields } from "@/lib/os/integrations/provider";
 import { enqueueBackfill } from "@/lib/os/integrations/queue";
 import { disconnectDataOs, saveDataOs } from "@/lib/os/integrations/dataos";
@@ -108,7 +108,10 @@ export async function saveMapping(provider: SyncProviderId, mapping: unknown): P
   return run(async () => {
     const workspaceId = await requireManager();
     const p = providerSchema.parse(provider);
-    const clean = JSON.parse(JSON.stringify(normalizeMapping(mapping)));
+    // Custom field targets live on each field now (saved with editField). The
+    // legacy qualification mapping is kept as stored, never taken from the form.
+    const stored = await prisma.osIntegration.findUnique({ where: { workspaceId_provider: { workspaceId, provider: p } }, select: { mapping: true } });
+    const clean = JSON.parse(JSON.stringify(withStoredQualification(mapping, stored?.mapping)));
     await prisma.osIntegration.upsert({
       where: { workspaceId_provider: { workspaceId, provider: p } },
       create: { workspaceId, provider: p, mapping: clean },

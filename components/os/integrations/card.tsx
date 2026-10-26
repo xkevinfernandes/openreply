@@ -13,7 +13,7 @@ import {
 import { shortAgo } from "@/lib/os/labels";
 import type { IntegrationView } from "@/lib/os/integrations/view";
 import { PROVIDER_INFO } from "@/lib/os/integrations/view-info";
-import MappingEditor from "./mapping-editor";
+import MappingEditor, { type MappingFieldSource } from "./mapping-editor";
 
 function Logo({ provider }: { provider: IntegrationView["provider"] }) {
   return (
@@ -42,7 +42,20 @@ function status(v: IntegrationView): { tone: "good" | "warn" | "bad" | "off"; la
 type Message = { kind: "error" | "notice"; text: string } | null;
 
 /** embedded: inside a Settings row (the row has the name, status and Manage), so only the managed part shows, open. */
-export default function IntegrationCard({ view, canManage, now, embedded = false }: { view: IntegrationView; canManage: boolean; now: number; embedded?: boolean }) {
+export default function IntegrationCard({
+  view,
+  fields = [],
+  canManage,
+  now,
+  embedded = false,
+}: {
+  view: IntegrationView;
+  /** Global custom fields (Settings › Custom fields) for the mapping. */
+  fields?: MappingFieldSource[];
+  canManage: boolean;
+  now: number;
+  embedded?: boolean;
+}) {
   const info = PROVIDER_INFO[view.provider];
   const router = useRouter();
   const [explainOpen, setExplainOpen] = useState(false);
@@ -147,7 +160,15 @@ export default function IntegrationCard({ view, canManage, now, embedded = false
             <>
               <section className="os-int-section" aria-label="Fields">
                 <h3>What gets sent</h3>
-                <MappingEditor provider={view.provider} initial={view.mapping} onSaved={(r) => setMessage(r.error ? { kind: "error", text: r.error } : { kind: "notice", text: r.notice ?? "Saved." })} />
+                <MappingEditor
+                  provider={view.provider}
+                  initial={view.mapping}
+                  fields={fields}
+                  onSaved={(r) => {
+                    setMessage(r.error ? { kind: "error", text: r.error } : { kind: "notice", text: r.notice ?? "Saved." });
+                    if (!r.error) router.refresh();
+                  }}
+                />
               </section>
 
               <section className="os-int-section" aria-label="Sync">

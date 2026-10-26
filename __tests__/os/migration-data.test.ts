@@ -80,3 +80,21 @@ describe("dev seed", () => {
     }
   });
 });
+
+describe("20261026010000_os_field_targets", () => {
+  const s = sql("20261026010000_os_field_targets");
+  const body = s.replace(/--.*$/gm, "");
+  it("copies the legacy target onto the field only when the field has none", () => {
+    expect(body).toMatch(/SET "kitField" = left\(btrim\(i."mapping" -> 'qualification' ->> f."key"\), 120\)/);
+    expect(body).toMatch(/SET "ghlField" = left\(btrim\(i."mapping" -> 'qualification' ->> f."key"\), 120\)/);
+    expect(body).toContain(`f."kitField" IS NULL`);
+    expect(body).toContain(`f."ghlField" IS NULL`);
+    expect(body).toContain(`f."key" NOT IN ('first_name', 'email')`);
+  });
+
+  it("drops only the legacy keys a field now carries, keeping the rest as the fallback", () => {
+    expect(body).toMatch(/jsonb_set\(i."mapping", '\{qualification\}'/);
+    expect(body).toContain(`CASE WHEN i."provider" = 'kit' THEN f."kitField" ELSE f."ghlField" END) IS NOT NULL`);
+    expect(body).not.toMatch(/DROP|DELETE/);
+  });
+});

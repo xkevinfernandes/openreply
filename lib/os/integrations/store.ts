@@ -61,12 +61,13 @@ export async function contactSnapshot(contactId: string, workspaceId: string): P
     select: { id: true, kind: true, stage: true, username: true, fullName: true, email: true, tags: true },
   });
   if (!c) return null;
-  const [drafts, values] = await Promise.all([
+  const [drafts, values, targets] = await Promise.all([
     prisma.draft.findMany({ where: { contactId }, orderBy: { createdAt: "desc" }, take: 20, select: { raw: true } }),
     prisma.contactFieldValue.findMany({
       where: { contactId },
       select: { value: true, field: { select: { key: true, type: true, options: true, ghlField: true, kitField: true } } },
     }),
+    prisma.customField.findMany({ where: { workspaceId }, select: { key: true, ghlField: true, kitField: true } }),
   ]);
   return {
     ...c,
@@ -78,6 +79,7 @@ export async function contactSnapshot(contactId: string, workspaceId: string): P
       kitField: v.field.kitField,
       pushable: isPushable({ type: v.field.type, options: Array.isArray(v.field.options) ? (v.field.options as unknown[]).map(String) : [] }, v.value),
     })),
+    targets,
   };
 }
 

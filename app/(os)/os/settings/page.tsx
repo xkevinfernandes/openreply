@@ -13,6 +13,7 @@ import { accountProblems } from "@/lib/os/automations";
 import { listCustomFields } from "@/lib/os/fields/store";
 import { calendarBoard } from "@/lib/os/integrations/calendar/view";
 import { dataOsView } from "@/lib/os/integrations/dataos";
+import { isNativeFieldKey } from "@/lib/os/integrations/mapping";
 import { integrationsView } from "@/lib/os/integrations/view";
 import { osMockEnabled } from "@/lib/os/mock";
 import { parseSettingsTab, SETTINGS_TABS, settingsHref } from "@/lib/os/settings";
@@ -126,7 +127,8 @@ async function IntegrationsTab({ workspaceId, canManage }: { workspaceId: string
       dataos={dataos}
       views={views}
       calendars={calendars}
-      mapped={{ ghl: fields.filter((f) => f.ghlField).length, kit: fields.filter((f) => f.kitField).length }}
+      mapped={{ ghl: fields.filter((f) => f.ghlField && !isNativeFieldKey(f.key)).length, kit: fields.filter((f) => f.kitField && !isNativeFieldKey(f.key)).length }}
+      fields={fields}
       kitTags={tags}
       canManage={canManage}
       now={Date.now()}

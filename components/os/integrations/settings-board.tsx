@@ -15,6 +15,7 @@ import type { IntegrationView } from "@/lib/os/integrations/view";
 import { shortAgo } from "@/lib/os/labels";
 import CalendarCard from "./calendar-card";
 import IntegrationCard from "./card";
+import type { MappingFieldSource } from "./mapping-editor";
 
 export interface InstagramStrip {
   username: string | null;
@@ -30,6 +31,8 @@ interface Props {
   calendars: CalendarBoard;
   /** Custom fields mapped per provider (Settings › Custom fields). */
   mapped: { ghl: number; kit: number };
+  /** The global custom fields, for each CRM's Custom fields mapping. */
+  fields?: MappingFieldSource[];
   kitTags: string[];
   canManage: boolean;
   now: number;
@@ -97,7 +100,7 @@ const DB_ICON = (
   </svg>
 );
 
-export default function SettingsIntegrations({ instagram, dataos, views, calendars, mapped, kitTags, canManage, now }: Props) {
+export default function SettingsIntegrations({ instagram, dataos, views, calendars, mapped, fields = [], kitTags, canManage, now }: Props) {
   const ghl = views.find((v) => v.provider === "ghl");
   const kit = views.find((v) => v.provider === "kit");
   const lastSync = views.map((v) => v.lastSyncedAt).filter((v): v is string => Boolean(v)).sort().pop() ?? null;
@@ -203,7 +206,7 @@ export default function SettingsIntegrations({ instagram, dataos, views, calenda
               primary={!ghl.connected}
               canManage={canManage}
             >
-              <IntegrationCard view={ghl} canManage={canManage} now={now} embedded />
+              <IntegrationCard view={ghl} fields={fields} canManage={canManage} now={now} embedded />
             </Row>
           ) : null}
           {kit ? (
@@ -227,7 +230,7 @@ export default function SettingsIntegrations({ instagram, dataos, views, calenda
               action={kit.connected ? "Manage" : "Connect"}
               canManage={canManage}
             >
-              <IntegrationCard view={kit} canManage={canManage} now={now} embedded />
+              <IntegrationCard view={kit} fields={fields} canManage={canManage} now={now} embedded />
             </Row>
           ) : null}
         </div>
