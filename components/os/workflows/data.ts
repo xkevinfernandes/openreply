@@ -7,11 +7,12 @@
 // tom.k and jordan.ops active), so the screens work without the engine.
 
 import { detailFromApi, publishProblems, rowFromSummary, runFromApi, statsFromApi } from "@/components/os/workflows/api-map";
-import { friendlyProblems, STEP_LABEL } from "@/components/os/workflows/forms";
-import { fillResource, layoutFor, templateGraph, TEMPLATES, type TemplateKey } from "@/components/os/workflows/templates";
+import { friendlyProblems, parseKeywords, STEP_LABEL } from "@/components/os/workflows/forms";
+import { fillResource, layoutFor, templateGraph, TEMPLATES, type TemplateKey, type TriggerKind } from "@/components/os/workflows/templates";
 import type { ContactRun, FunnelStrip, NodeStat, Period, WorkflowDetail, WorkflowMode, WorkflowRow, WorkflowStats } from "@/components/os/workflows/types";
 import { osMockEnabled } from "@/lib/os/mock";
 import { portsOf, WorkflowGraph, type GraphProblem, type StepData } from "@/lib/os/workflows/graph";
+import { clashMessage, normKeyword } from "@/lib/os/workflows/triggers";
 
 const api = () => import("@/lib/os/workflows/api");
 
@@ -91,11 +92,38 @@ export async function workflowNames(workspaceId: string): Promise<{ id: string; 
 }
 
 // ---------------------------------------------------------------- writes
-/** New workflow from a template, laid out left to right with the first lead magnet filled in. */
-export async function createWorkflow(workspaceId: string, template: TemplateKey, resourceSlug?: string): Promise<{ id: string }> {
-  if (osMockEnabled()) return mockCreateWorkflow(workspaceId, template, resourceSlug);
+export interface NewWorkflowInput {
+  /** Required: "FOUNDER", or several comma-separated. */
+  keyword: string;
+  /** Defaults to the template's name, made unique ("Blank 2"). */
+  name?: string;
+  kind?: TriggerKind;
+  resourceSlug?: string;
+}
+
+const TRIGGER_KINDS: TriggerKind[] = ["comment", "story_reply", "dm"];
+
+/** The keyword(s) and kind "New workflow" asked for, checked; throws with the words to show. */
+function newTrigger(input: NewWorkflowInput): { keywords: string[]; kind: TriggerKind } {
+  const keywords = parseKeywords(input.keyword ?? "");
+  if (!keywords.length) throw new Error("Add a keyword.");
+  const kind = input.kind ?? "comment";
+  if (!TRIGGER_KINDS.includes(kind)) throw new Error("Pick a trigger.");
+  return { keywords, kind };
+}
+
+/**
+ * New workflow from a template, with its keyword and trigger kind set, laid
+ * out left to right with the first lead magnet filled in. A keyword that
+ * already lives somewhere (a live workflow, an OpenReply campaign, Zernio)
+ * is refused and nothing is created.
+ */
+export async function createWorkflow(workspaceId: string, template: TemplateKey, input: NewWorkflowInput): Promise<{ id: string }> {
+  const trigger = newTrigger(input);
+  const resourceSlug = input.resourceSlug;
+  if (osMockEnabled()) return mockCreateWorkflow(workspaceId, template, trigger, input.name, resourceSlug);
   const a = await api();
-  const { id } = ok(await a.createWorkflow(workspaceId, { templateId: template }));
+  const { id } = ok(await a.createWorkflow(workspaceId, { templateId: template, name: input.name, keywords: trigger.keywords, triggerKind: trigger.kind }));
   const d = await a.getWorkflow(workspaceId, id);
   if (d) ok(await a.saveDraft(workspaceId, id, layoutFor(template, fillResource(d.draft, resourceSlug))));
   return { id };
@@ -222,14 +250,18 @@ async function mockWorkflowStats(_workspaceId: string, id: string, _period: Peri
 }
 
 // ---------------------------------------------------------------- writes
-async function mockCreateWorkflow(_workspaceId: string, template: TemplateKey, resourceSlug?: string): Promise<{ id: string }> {
+async function mockCreateWorkflow(_workspaceId: string, template: TemplateKey, trigger: { keywords: string[]; kind: TriggerKind }, wanted: string | undefined, resourceSlug?: string): Promise<{ id: string }> {
   const s = store();
   const t = TEMPLATES.find((x) => x.key === template)!;
+  const draft = templateGraph(template, resourceSlug, trigger);
+  const clash = keywordClash("", draft);
+  if (clash) throw new Error(clash);
   const id = `wf${++s.seq}`;
   const taken = new Set([...s.workflows.values()].map((w) => w.name));
-  let name = t.label;
-  for (let i = 2; taken.has(name); i++) name = `${t.label} ${i}`;
-  s.workflows.set(id, { id, name, mode: "draft", on: false, draft: templateGraph(template, resourceSlug), versions: [], updatedAt: now(), triggered: 0 });
+  const base = (wanted ?? "").trim().slice(0, 80) || t.label;
+  let name = base;
+  for (let i = 2; taken.has(name); i++) name = `${base} ${i}`;
+  s.workflows.set(id, { id, name, mode: "draft", on: false, draft, versions: [], updatedAt: now(), triggered: 0 });
   return { id };
 }
 
@@ -251,7 +283,7 @@ async function mockPublishWorkflow(_workspaceId: string, id: string): Promise<{ 
   if (!w) throw new Error("That workflow is gone. Refresh the page.");
   const problems = friendlyProblems(w.draft);
   if (problems.length) return { problems };
-  const clash = keywordClash(w);
+  const clash = keywordClash(w.id, w.draft);
   if (clash) return { problems: [{ nodeId: w.draft.nodes.find((n) => n.type === "trigger")?.id, message: clash }] };
   const version = (w.versions.at(-1)?.version ?? 0) + 1;
   w.versions.push({ version, graph: clone(w.draft), at: now() });
@@ -260,15 +292,17 @@ async function mockPublishWorkflow(_workspaceId: string, id: string): Promise<{ 
   return { version };
 }
 
-/** E12: one keyword lives in one live workflow. */
-function keywordClash(w: StoredWorkflow): string | null {
-  const mine = (w.draft.nodes.find((n) => n.type === "trigger")?.data as StepData<"trigger"> | undefined)?.keywords ?? [];
+/** E12: one keyword lives in one live workflow (same words as the engine's check). */
+function keywordClash(id: string, draft: WorkflowGraph): string | null {
+  const trig = (g: WorkflowGraph | undefined) => g?.nodes.find((n) => n.type === "trigger")?.data as StepData<"trigger"> | undefined;
+  const mine = trig(draft);
+  if (!mine) return null;
   for (const other of store().workflows.values()) {
-    if (other.id === w.id || !other.on) continue;
-    const graph = other.versions.at(-1)?.graph;
-    const theirs = (graph?.nodes.find((n) => n.type === "trigger")?.data as StepData<"trigger"> | undefined)?.keywords ?? [];
-    const hit = mine.find((k) => theirs.includes(k));
-    if (hit) return `${hit} is already live in ${other.name}`;
+    if (other.id === id || !other.on) continue;
+    const theirs = trig(other.versions.at(-1)?.graph);
+    if (!theirs || theirs.kind !== mine.kind) continue;
+    const hit = mine.keywords.find((k) => theirs.keywords.some((t) => normKeyword(t) === normKeyword(k)));
+    if (hit) return clashMessage({ keyword: hit, with: "workflow", id: other.id, name: other.name });
   }
   return null;
 }

@@ -125,6 +125,12 @@ export function keywordClashes(graph: WorkflowGraph, others: OtherWorkflow[], ca
   return out;
 }
 
+/** "FOUNDER already lives in the workflow "X". One keyword, one place." */
+export function clashMessage(c: KeywordClash): string {
+  const where = c.with === "workflow" ? `the workflow "${c.name}"` : c.with === "campaign" ? `the campaign "${c.name}"` : `Zernio (${c.name})`;
+  return `${c.keyword.toUpperCase()} already lives in ${where}. One keyword, one place.`;
+}
+
 /** Zernio keywords from the catalog: active resources not run by OpenReply. */
 export function zernioKeywordsOf(rows: { slug: string; name: string; keyword: string | null; status: string; data: unknown }[]): ZernioKeywords[] {
   const out: ZernioKeywords[] = [];

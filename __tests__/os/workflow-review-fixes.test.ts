@@ -186,7 +186,7 @@ describe("delete a workflow", () => {
     try {
       const data = await import("@/components/os/workflows/data");
       expect((await data.getWorkflow("w", "wf1"))?.live).toBe(3);
-      const { id } = await data.createWorkflow("w", "send_link", "script-vault");
+      const { id } = await data.createWorkflow("w", "send_link", { keyword: "FRESHKW", resourceSlug: "script-vault" });
       const graph = (await data.getWorkflow("w", id))!.graph;
       (graph.nodes[0].data as StepData<"trigger">).keywords = ["SETTER"];
       await data.saveDraft("w", id, { graph });

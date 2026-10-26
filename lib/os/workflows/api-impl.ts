@@ -9,7 +9,7 @@ import { fromDbStatus, runFromRow, versionFromRow, wfFromRow } from "@/lib/os/wo
 import { validateGraph, WorkflowGraph, type GraphProblem } from "@/lib/os/workflows/graph";
 import { computeStats } from "@/lib/os/workflows/stats";
 import { templateGraph, TEMPLATES } from "@/lib/os/workflows/templates";
-import { graphKeywords, keywordClashes, triggerNode, zernioKeywordsOf, type CampaignKeywords, type OtherWorkflow } from "@/lib/os/workflows/triggers";
+import { clashMessage, graphKeywords, keywordClashes, triggerNode, zernioKeywordsOf, type CampaignKeywords, type OtherWorkflow } from "@/lib/os/workflows/triggers";
 import { graphWarnings } from "@/lib/os/workflows/warnings";
 
 const LIVE = ["ACTIVE", "WAITING", "PAUSED"] as const;
@@ -123,14 +123,21 @@ export async function getWorkflow(workspaceId: string, id: string): Promise<A.Wo
 }
 
 // ---------------------------------------------------------------- writes
-export async function createWorkflow(workspaceId: string, input: { templateId: A.TemplateId; name?: string; instagramAccountId?: string | null }): Promise<A.ApiResult<{ id: string }>> {
+export async function createWorkflow(
+  workspaceId: string,
+  input: { templateId: A.TemplateId; name?: string; instagramAccountId?: string | null; keywords?: string[]; triggerKind?: A.WorkflowTriggerSummary["kind"] }
+): Promise<A.ApiResult<{ id: string }> | { ok: false; error: string; clashes: A.KeywordClash[] }> {
   const t = TEMPLATES.find((x) => x.id === input.templateId);
   if (!t) return err("Unknown template.");
+  const graph = templateGraph(t.id, { keywords: input.keywords, kind: input.triggerKind });
+  // Same check as Publish: one keyword, one place.
+  const clashes = graphKeywords(graph).length ? await clashesFor(workspaceId, "", graph) : [];
+  if (clashes.length) return { ok: false, error: clashMessage(clashes[0]), clashes };
   const base = ((input.name ?? "").trim() || t.name).slice(0, 110);
   const taken = await prisma.workflow.findMany({ where: { workspaceId, name: { startsWith: base } }, select: { name: true } });
   const name = uniqueName(base, taken.map((x) => x.name));
   const w = await prisma.workflow.create({
-    data: { workspaceId, name: name.slice(0, 120), instagramAccountId: input.instagramAccountId ?? null, draftGraph: json(templateGraph(t.id)) },
+    data: { workspaceId, name: name.slice(0, 120), instagramAccountId: input.instagramAccountId ?? null, draftGraph: json(graph) },
   });
   return { ok: true, id: w.id };
 }
@@ -168,9 +175,7 @@ export async function publishWorkflow(workspaceId: string, id: string, opts: A.P
   if (problems.length) return { ok: false, error: "Fix the marked steps first.", problems };
   const clashes = await clashesFor(workspaceId, id, graph);
   if (clashes.length) {
-    const c = clashes[0];
-    const where = c.with === "workflow" ? `the workflow "${c.name}"` : c.with === "campaign" ? `the campaign "${c.name}"` : `Zernio (${c.name})`;
-    return { ok: false, error: `"${c.keyword}" already lives in ${where}. One keyword, one place.`, problems: [], clashes };
+    return { ok: false, error: clashMessage(clashes[0]), problems: [], clashes };
   }
   const liveRuns = await prisma.workflowRun.findMany({ where: { workflowId: id, status: { in: [...LIVE] } } });
   const moves = opts.moves ?? {};
@@ -182,7 +187,8 @@ export async function publishWorkflow(workspaceId: string, id: string, opts: A.P
   const number = (last?.number ?? 0) + 1;
   const v = await prisma.$transaction(async (tx) => {
     const v = await tx.workflowVersion.create({ data: { workflowId: id, number, graph: json(graph), keywords: graphKeywords(graph) } });
-    await tx.workflow.update({ where: { id }, data: { currentVersionId: v.id } });
+    // Publish puts it live (as the builder and the mock show it): "nobody enters until you publish".
+    await tx.workflow.update({ where: { id }, data: { currentVersionId: v.id, active: true } });
     return v;
   });
 
@@ -220,7 +226,7 @@ export async function setWorkflowActive(workspaceId: string, id: string, active:
     if (!w.currentVersionId) return err("Publish it first.");
     const v = await prisma.workflowVersion.findUnique({ where: { id: w.currentVersionId } });
     const clashes = v ? await clashesFor(workspaceId, id, versionFromRow(v).graph) : [];
-    if (clashes.length) return err(`"${clashes[0].keyword}" already lives in ${clashes[0].with === "workflow" ? `"${clashes[0].name}"` : clashes[0].with === "campaign" ? `the campaign "${clashes[0].name}"` : "Zernio"}.`);
+    if (clashes.length) return err(clashMessage(clashes[0]));
   }
   await prisma.workflow.update({ where: { id }, data: { active } });
   return { ok: true };

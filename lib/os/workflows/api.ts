@@ -184,10 +184,15 @@ export async function getWorkflow(workspaceId: string, id: string): Promise<Work
   return (await impl()).getWorkflow(workspaceId, id);
 }
 
+/**
+ * New workflow from a template. With keywords the trigger starts with them
+ * (and the kind); a keyword that already lives in a live workflow, an
+ * OpenReply campaign or Zernio is refused (same check as Publish).
+ */
 export async function createWorkflow(
   workspaceId: string,
-  input: { templateId: TemplateId; name?: string; instagramAccountId?: string | null }
-): Promise<ApiResult<{ id: string }>> {
+  input: { templateId: TemplateId; name?: string; instagramAccountId?: string | null; keywords?: string[]; triggerKind?: WorkflowTriggerSummary["kind"] }
+): Promise<ApiResult<{ id: string }> | { ok: false; error: string; clashes: KeywordClash[] }> {
   return (await impl()).createWorkflow(workspaceId, input);
 }
 
@@ -196,7 +201,7 @@ export async function saveDraft(workspaceId: string, id: string, graph: Workflow
   return (await impl()).saveDraft(workspaceId, id, graph, opts);
 }
 
-/** Validate (graph + keyword uniqueness) and make a new version. */
+/** Validate (graph + keyword uniqueness), make a new version and put it live (on). */
 export async function publishWorkflow(workspaceId: string, id: string, opts: PublishOptions = {}): Promise<PublishResult> {
   return (await impl()).publishWorkflow(workspaceId, id, opts);
 }

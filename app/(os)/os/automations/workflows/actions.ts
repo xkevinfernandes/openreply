@@ -34,10 +34,17 @@ function refresh(id?: string) {
   if (id) revalidatePath(`/os/automations/workflows/${id}`);
 }
 
-/** New workflow from a template, then straight into the builder. */
-export async function createWorkflowAction(template: string, resourceSlug?: string): Promise<{ error: string }> {
+/**
+ * New workflow from a template with its keyword (required) and trigger kind,
+ * then straight into the builder. A keyword that already lives somewhere
+ * comes back as the error and nothing is created.
+ */
+export async function createWorkflowAction(template: string, input: { keyword: string; name?: string; kind?: string }, resourceSlug?: string): Promise<{ error: string }> {
   if (!isTemplateKey(template)) return { error: "Pick a starting point." };
-  const r = await guard((w) => data.createWorkflow(w, template, resourceSlug));
+  if (!input?.keyword?.trim()) return { error: "Add a keyword." };
+  const kind = input.kind ?? "comment";
+  if (kind !== "comment" && kind !== "story_reply" && kind !== "dm") return { error: "Pick a trigger." };
+  const r = await guard((w) => data.createWorkflow(w, template, { keyword: input.keyword, name: input.name, kind, resourceSlug }));
   if (r.error !== undefined) return { error: r.error };
   refresh();
   redirect(`/os/automations/workflows/${(r as { id: string }).id}`);

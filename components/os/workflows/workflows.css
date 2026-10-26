@@ -236,6 +236,23 @@
   gap: 8px;
 }
 
+/* Step 2 of New workflow: keyword, name, trigger. */
+.wf-picker-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wf-picker-form .wf-seg-full {
+  flex: 0 0 auto;
+}
+
+.wf-picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .wf-tpl {
   display: flex;
   flex-direction: column;

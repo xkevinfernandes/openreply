@@ -4,7 +4,9 @@
 
 import { portsOf, type StepData, type WorkflowGraph } from "@/lib/os/workflows/graph";
 import type { TemplateId } from "@/lib/os/workflows/api";
-import { HAND_LAID, TEMPLATES as ENGINE_TEMPLATES, templateGraph as engineTemplate } from "@/lib/os/workflows/templates";
+import { HAND_LAID, TEMPLATES as ENGINE_TEMPLATES, templateGraph as engineTemplate, type TriggerKind } from "@/lib/os/workflows/templates";
+
+export type { TriggerKind };
 
 export type TemplateKey = TemplateId;
 export const TEMPLATE_KEYS: TemplateKey[] = ENGINE_TEMPLATES.map((t) => t.id);
@@ -97,7 +99,7 @@ export function layoutFor(key: TemplateKey, graph: WorkflowGraph): WorkflowGraph
   return HAND_LAID.includes(key) ? graph : layoutGraph(graph);
 }
 
-/** A template as the canvas opens it. */
-export function templateGraph(key: TemplateKey, resource?: string): WorkflowGraph {
-  return layoutFor(key, fillResource(engineTemplate(key, { resource }), resource));
+/** A template as the canvas opens it, with the keyword(s) and trigger kind "New workflow" asked for. */
+export function templateGraph(key: TemplateKey, resource?: string, trigger: { keywords?: string[]; kind?: TriggerKind } = {}): WorkflowGraph {
+  return layoutFor(key, fillResource(engineTemplate(key, { resource, keywords: trigger.keywords, kind: trigger.kind }), resource));
 }

@@ -1,18 +1,19 @@
 "use client";
 
 // Automations › Workflows (WorkflowsList board): one row per workflow, the
-// whole row clickable; "New workflow" opens the template picker; the row's
-// ⋯ menu deletes it (inline confirm).
+// whole row clickable; "New workflow" opens the template picker (template,
+// then its keyword); the row's ⋯ menu deletes it (inline confirm).
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createWorkflowAction } from "@/app/(os)/os/automations/workflows/actions";
 import { DeleteWorkflowConfirm } from "@/components/os/workflows/delete-workflow";
 import { WfIcon } from "@/components/os/workflows/icons";
-import { TRIGGER_KIND_LABEL } from "@/components/os/workflows/forms";
+import { Seg } from "@/components/os/workflows/controls";
+import { parseKeywords, TRIGGER_KIND_LABEL } from "@/components/os/workflows/forms";
 import { listFunnel } from "@/components/os/workflows/view";
 import { callAction, hasUnpublishedChanges, MODE_SHORT, MODE_TIP, STATUS_LABEL, STATUS_TIP, workflowStatus } from "@/components/os/workflows/status";
-import { TEMPLATES, type TemplateKey } from "@/components/os/workflows/templates";
+import { TEMPLATES, type TemplateInfo, type TemplateKey, type TriggerKind } from "@/components/os/workflows/templates";
 import type { WorkflowRow } from "@/components/os/workflows/types";
 import { InfoTip } from "@/components/os/ui";
 import "@/components/os/workflows/workflows.css";
@@ -59,70 +60,150 @@ function Sketch({ k }: { k: TemplateKey }) {
   );
 }
 
-export function TemplatePicker({ onClose, resourceSlug }: { onClose: () => void; resourceSlug?: string }) {
-  const [pending, start] = useTransition();
-  const [picked, setPicked] = useState<TemplateKey | null>(null);
-  const [error, setError] = useState<string | null>(null);
+const TRIGGER_OPTIONS: { value: TriggerKind; label: string }[] = [
+  { value: "comment", label: TRIGGER_KIND_LABEL.comment },
+  { value: "story_reply", label: TRIGGER_KIND_LABEL.story_reply },
+  { value: "dm", label: TRIGGER_KIND_LABEL.dm },
+];
+
+/**
+ * "New workflow": 1. pick a template; 2. its keyword (required), an optional
+ * name and the trigger kind, then Create. A keyword that already lives
+ * somewhere shows here and nothing is created. Esc/Back on step 2 returns
+ * to step 1; Esc on step 1 (or a click outside) closes. `initial` opens on
+ * step 2 (tests).
+ */
+export function TemplatePicker({ onClose, resourceSlug, initial = null }: { onClose: () => void; resourceSlug?: string; initial?: TemplateKey | null }) {
+  const [picked, setPicked] = useState<TemplateKey | null>(initial);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (picked) setPicked(null);
+      else onClose();
+    };
     const onDown = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node) && !(e.target as HTMLElement).closest?.("[data-wf-new]")) onClose();
     };
     document.addEventListener("keydown", onKey);
     document.addEventListener("mousedown", onDown);
-    ref.current?.querySelector<HTMLButtonElement>("button[data-default]")?.focus();
     return () => {
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("mousedown", onDown);
     };
-  }, [onClose]);
+  }, [onClose, picked]);
 
-  function pick(k: TemplateKey) {
-    setPicked(k);
+  // Step 1 focuses the default template; step 2's keyword input autofocuses.
+  useEffect(() => {
+    if (!picked) ref.current?.querySelector<HTMLButtonElement>("button[data-default]")?.focus();
+  }, [picked]);
+
+  const template = picked ? TEMPLATES.find((t) => t.key === picked) : undefined;
+  return (
+    <div className="wf-picker" role="dialog" aria-label="New workflow" ref={ref}>
+      {template ? (
+        <NewWorkflowForm key={template.key} template={template} resourceSlug={resourceSlug} onBack={() => setPicked(null)} />
+      ) : (
+        <>
+          <div className="wf-picker-head">
+            <h2>Start from</h2>
+            <InfoTip label="About new workflows">New workflows start in Approve each DM: every message waits for you in the Inbox. They stay Not published until you publish them.</InfoTip>
+          </div>
+          <div className="wf-picker-grid">
+            {TEMPLATES.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                className="wf-tpl"
+                title={t.description}
+                data-default={t.isDefault || undefined}
+                data-blank={t.key === "blank" || undefined}
+                onClick={() => setPicked(t.key)}
+              >
+                <span className="wf-tpl-art">
+                  <Sketch k={t.key} />
+                </span>
+                <span className="wf-tpl-name">
+                  {t.label}
+                  {t.isDefault ? <span className="wf-tpl-tag">Default</span> : null}
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Step 2: the keyword (required), the name (optional) and the trigger kind. */
+function NewWorkflowForm({ template, resourceSlug, onBack }: { template: TemplateInfo; resourceSlug?: string; onBack: () => void }) {
+  const [pending, start] = useTransition();
+  const [keyword, setKeyword] = useState("");
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState<TriggerKind>("comment");
+  const [error, setError] = useState<string | null>(null);
+  const ready = parseKeywords(keyword).length > 0;
+
+  function create(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ready || pending) return;
     setError(null);
     start(async () => {
-      const r = await callAction(() => createWorkflowAction(k, resourceSlug));
+      const r = await callAction(() => createWorkflowAction(template.key, { keyword, name: name.trim() || undefined, kind }, resourceSlug));
       if (r?.error) setError(r.error);
     });
   }
 
   return (
-    <div className="wf-picker" role="dialog" aria-label="New workflow" ref={ref}>
+    <form className="wf-picker-form" onSubmit={create} aria-busy={pending || undefined}>
       <div className="wf-picker-head">
-        <h2>Start from</h2>
-        <InfoTip label="About new workflows">New workflows start in Approve each DM: every message waits for you in the Inbox. They stay Not published until you publish them.</InfoTip>
+        <button type="button" className="wf-iconbtn" aria-label="Back to templates" onClick={onBack}>
+          <WfIcon name="back" />
+        </button>
+        <h2>{template.label}</h2>
       </div>
-      <div className="wf-picker-grid">
-        {TEMPLATES.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            className="wf-tpl"
-            title={t.description}
-            data-default={t.isDefault || undefined}
-            data-blank={t.key === "blank" || undefined}
-            aria-busy={pending && picked === t.key}
-            disabled={pending}
-            onClick={() => pick(t.key)}
-          >
-            <span className="wf-tpl-art">
-              <Sketch k={t.key} />
-            </span>
-            <span className="wf-tpl-name">
-              {t.label}
-              {t.isDefault ? <span className="wf-tpl-tag">Default</span> : null}
-            </span>
-          </button>
-        ))}
+      <label className="wf-group">
+        <span className="wf-lab">Keyword</span>
+        <input
+          className="os-input"
+          name="keyword"
+          value={keyword}
+          placeholder="e.g. FOUNDER"
+          autoFocus
+          required
+          autoComplete="off"
+          spellCheck={false}
+          aria-invalid={error ? true : undefined}
+          onChange={(e) => {
+            setKeyword(e.target.value.toUpperCase());
+            setError(null);
+          }}
+        />
+      </label>
+      <label className="wf-group">
+        <span className="wf-lab">Name</span>
+        <input className="os-input" name="name" value={name} placeholder={template.label} maxLength={80} autoComplete="off" onChange={(e) => setName(e.target.value)} />
+      </label>
+      <div className="wf-group">
+        <span className="wf-lab">Trigger</span>
+        <Seg label="Trigger" value={kind} options={TRIGGER_OPTIONS} onChange={setKind} />
       </div>
       {error ? (
         <p className="wf-error" role="alert">
           {error}
         </p>
       ) : null}
-    </div>
+      <div className="wf-picker-actions">
+        <button type="button" className="os-button" onClick={onBack}>
+          Back
+        </button>
+        <button type="submit" className="os-button primary" disabled={!ready || pending}>
+          {pending ? "Creating…" : "Create"}
+        </button>
+      </div>
+    </form>
   );
 }
 
