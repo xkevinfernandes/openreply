@@ -61,7 +61,7 @@ export async function removeField(id: string): Promise<{ ok: true } | { error: s
   }
 }
 
-/** Daily send cap and timezone (Pause all lives in the sidebar foot). */
+/** Daily setter send limit and timezone (Pause all lives in the sidebar foot). */
 export async function saveSending(input: { sendCapPerDay?: number; timezone?: string }): Promise<WorkspaceSettings | { error: string }> {
   const ws = await manager();
   if (typeof ws !== "string") return ws;

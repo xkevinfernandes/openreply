@@ -40,8 +40,8 @@ export interface AudioSend {
 }
 
 export async function sendAudioMessage(s: AudioSend): Promise<{ messageId: string | null }> {
-  // Send cap + Pause all: a voice note is one bubble.
-  await assertCanSend(s.workspaceId);
+  // Pause all (a voice note is Kevin's, so the setter limit doesn't hold it).
+  await assertCanSend(s.workspaceId, 1, { source: "voice" });
   const result = await sendAudioUnguarded(s);
   await recordSend(s.workspaceId, { key: `voice:${s.sendKey}`, source: "voice" });
   return result;

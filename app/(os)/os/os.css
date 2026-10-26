@@ -756,6 +756,11 @@
   justify-content: space-between;
   font-size: 11px;
   color: var(--muted);
+  text-decoration: none;
+}
+
+.os-side-sends:hover {
+  color: var(--ink);
 }
 
 .os-side-sends-n {

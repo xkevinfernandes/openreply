@@ -1,5 +1,6 @@
 // The starting graphs on "New workflow". Each is a valid WorkflowGraph; the
-// builder fills in the keyword and resource before Publish.
+// builder fills in the keyword and resource before Publish. No keyword by
+// default: a new workflow would clash with the ones already live.
 
 import type { TemplateId, TemplateInfo } from "@/lib/os/workflows/api";
 import type { GraphEdge, GraphNode, WorkflowGraph } from "@/lib/os/workflows/graph";
@@ -31,9 +32,9 @@ const PUBLIC_REPLIES = ["sent you a DM 🙌", "check your DMs!", "just sent it o
 export const HAND_LAID: TemplateId[] = ["waitlist_questions"];
 
 export function templateGraph(id: TemplateId, opts: { keyword?: string; resource?: string } = {}): WorkflowGraph {
-  const keyword = opts.keyword ?? "GUIDE";
+  const keywords = opts.keyword ? [opts.keyword] : [];
   const resources = opts.resource ? [opts.resource] : [];
-  const trigger = node("trigger", "trigger", 0, { kind: "comment", keywords: [keyword], postIds: "any", publicReplies: PUBLIC_REPLIES, reentry: { mode: "after_days", days: 30 } });
+  const trigger = node("trigger", "trigger", 0, { kind: "comment", keywords, postIds: "any", publicReplies: PUBLIC_REPLIES, reentry: { mode: "after_days", days: 30 } });
   switch (id) {
     case "hold_lead_magnet":
       return {
@@ -82,7 +83,7 @@ export function templateGraph(id: TemplateId, opts: { keyword?: string; resource
         edges: [edge("trigger", "next", "opener"), edge("opener", "next", "setter"), edge("setter", "exit:goal_met", "end")],
       };
     case "waitlist_questions":
-      return waitlistGraph(opts.keyword ?? "FOUNDER");
+      return waitlistGraph(keywords);
     case "blank":
       return { version: 1, nodes: [trigger], edges: [] };
   }
@@ -98,7 +99,7 @@ export function templateGraph(id: TemplateId, opts: { keyword?: string; resource
  * By reel counts them; the Revenue field stays the source of truth, no tag.
  * No email (refused, or wrong twice) ends the run before "you're on the list".
  */
-function waitlistGraph(keyword: string): WorkflowGraph {
+function waitlistGraph(keywords: string[]): WorkflowGraph {
   const role = [
     { id: "coach", label: "Coach" },
     { id: "consultant", label: "Consultant" },
@@ -121,7 +122,7 @@ function waitlistGraph(keyword: string): WorkflowGraph {
   return {
     version: 1,
     nodes: [
-      node("trigger", "trigger", 0, { kind: "comment", keywords: [keyword], postIds: "any", publicReplies: PUBLIC_REPLIES, reentry: { mode: "after_days", days: 30 } }),
+      node("trigger", "trigger", 0, { kind: "comment", keywords, postIds: "any", publicReplies: PUBLIC_REPLIES, reentry: { mode: "after_days", days: 30 } }),
       node("join", "message", 1, {
         bubbles: [
           {

@@ -22,7 +22,7 @@ import {
 } from "@/components/os/workflows/graph-edit";
 import { friendlyProblems } from "@/components/os/workflows/forms";
 import { isTemplateKey, layoutGraph, templateGraph, TEMPLATE_KEYS, TEMPLATES } from "@/components/os/workflows/templates";
-import { portsOf, STEP_DATA, STEP_TYPES, validateGraph, type StepData, type WorkflowGraph } from "@/lib/os/workflows/graph";
+import { portsOf, STEP_DATA, STEP_TYPES, validateGraph, WorkflowGraph, type StepData } from "@/lib/os/workflows/graph";
 
 function withKeyword(g: WorkflowGraph, kw = "SETTER"): WorkflowGraph {
   const t = g.nodes.find((n) => n.type === "trigger")!;
@@ -32,10 +32,8 @@ function withKeyword(g: WorkflowGraph, kw = "SETTER"): WorkflowGraph {
 describe("defaultData", () => {
   it("is valid for every step except the ones that need Kevin's input", () => {
     for (const type of STEP_TYPES) {
-      const ok = STEP_DATA[type].safeParse(defaultData(type)).success;
-      // A trigger needs a keyword, Go to needs a workflow (empty string is allowed by zod but flagged by friendlyProblems).
-      if (type === "trigger") expect(ok).toBe(false);
-      else expect(ok, type).toBe(true);
+      // A trigger's empty keyword saves fine (Publish flags it); Go to's empty workflow is flagged by friendlyProblems.
+      expect(STEP_DATA[type].safeParse(defaultData(type)).success, type).toBe(true);
     }
   });
 });
@@ -108,7 +106,7 @@ describe("graph editing", () => {
   });
 
   it("deleting a step removes its arrows; the trigger can't be deleted", () => {
-    let g = templateGraph("send_link", "setter-starter");
+    let g = withKeyword(templateGraph("send_link", "setter-starter"));
     const before = g.edges.length;
     g = removeNodes(g, ["link", "trigger"]);
     expect(g.nodes.some((n) => n.id === "trigger")).toBe(true);
@@ -221,9 +219,22 @@ describe("templates (New workflow picker)", () => {
     expect(isTemplateKey("nope")).toBe(false);
   });
 
-  it("every template is publishable as it comes (Blank only needs an arrow)", () => {
+  it("every template starts with no keyword: it saves, and Publish asks for one at the trigger", () => {
     for (const k of TEMPLATE_KEYS) {
       const g = templateGraph(k, "setter-starter");
+      const trigger = g.nodes.find((n) => n.type === "trigger")!;
+      expect((trigger.data as StepData<"trigger">).keywords, k).toEqual([]);
+      expect(WorkflowGraph.safeParse(g).success, k).toBe(true);
+      expect(validateGraph(g), k).toEqual([{ nodeId: trigger.id, message: "Add a keyword" }]);
+      const problems = friendlyProblems(g).map((p) => `${p.nodeId}:${p.message}`);
+      if (k === "blank") expect(problems).toEqual(["trigger:Add a keyword", "trigger:Connect the trigger"]);
+      else expect(problems, k).toEqual(["trigger:Add a keyword"]);
+    }
+  });
+
+  it("every template is publishable once it has a keyword (Blank only needs an arrow)", () => {
+    for (const k of TEMPLATE_KEYS) {
+      const g = withKeyword(templateGraph(k, "setter-starter"));
       expect(validateGraph(g), k).toEqual([]);
       const problems = friendlyProblems(g);
       if (k === "blank") expect(problems.map((p) => p.message)).toEqual(["Connect the trigger"]);

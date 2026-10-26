@@ -43,6 +43,14 @@ export function moveProblems(waiting: { nodeId: string; count: number }[], moves
     .map((w) => ({ nodeId: w.nodeId, message: `${w.count} ${w.count === 1 ? "person is" : "people are"} waiting on a step you removed: choose where they go` }));
 }
 
+/** "Waitlist + questions", then "Waitlist + questions 2", 3, … */
+export function uniqueName(base: string, taken: string[]): string {
+  const used = new Set(taken);
+  let name = base;
+  for (let i = 2; used.has(name); i++) name = `${base} ${i}`;
+  return name;
+}
+
 // ---------------------------------------------------------------- reads
 async function counts(workflowIds: string[]) {
   const rows = workflowIds.length ? await prisma.workflowRun.groupBy({ by: ["workflowId", "status"], where: { workflowId: { in: workflowIds } }, _count: { _all: true } }) : [];
@@ -118,7 +126,9 @@ export async function getWorkflow(workspaceId: string, id: string): Promise<A.Wo
 export async function createWorkflow(workspaceId: string, input: { templateId: A.TemplateId; name?: string; instagramAccountId?: string | null }): Promise<A.ApiResult<{ id: string }>> {
   const t = TEMPLATES.find((x) => x.id === input.templateId);
   if (!t) return err("Unknown template.");
-  const name = (input.name ?? "").trim() || t.name;
+  const base = ((input.name ?? "").trim() || t.name).slice(0, 110);
+  const taken = await prisma.workflow.findMany({ where: { workspaceId, name: { startsWith: base } }, select: { name: true } });
+  const name = uniqueName(base, taken.map((x) => x.name));
   const w = await prisma.workflow.create({
     data: { workspaceId, name: name.slice(0, 120), instagramAccountId: input.instagramAccountId ?? null, draftGraph: json(templateGraph(t.id)) },
   });

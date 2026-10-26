@@ -11,7 +11,7 @@ import { zernioRequest } from "@/lib/zernio/client";
 import { upsertContact } from "@/lib/os/contacts";
 import { addTag, markStopped, removeTag, writeField } from "@/lib/os/fields/write";
 import { FOLLOW_UP_FRIDAY } from "@/lib/os/broadcasts/types";
-import { capState, checkSend, localDayStart, recordSend } from "@/lib/os/sending/cap";
+import { capState, checkSend, recordSend } from "@/lib/os/sending/cap";
 import { getSetterConfig } from "@/lib/os/setter/config";
 import { draft as runDrafter } from "@/lib/os/setter/drafter";
 import { sendMessageWithQuickReplies } from "@/lib/meta/client";
@@ -158,13 +158,7 @@ export function dbPorts(): Ports {
       await recordSend(sc.workspaceId, { key: `wf:${opts.key}`, source: "workflow" });
     },
     async canSend(workspaceId, n): Promise<CanSend> {
-      const st = await capState(workspaceId);
-      return checkSend(st, n) ?? "ok";
-    },
-    async nextCapReset(workspaceId) {
-      const st = await capState(workspaceId);
-      const today = localDayStart(new Date(), st.timezone);
-      return localDayStart(new Date(today.getTime() + 30 * 3600_000), st.timezone);
+      return checkSend(await capState(workspaceId), n, "workflow") === "paused" ? "paused" : "ok";
     },
     async follows(sc) {
       const { ctx } = await accountContext(sc.instagramAccountId);

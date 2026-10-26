@@ -12,7 +12,7 @@ import { normalizeZernioEvent } from "@/lib/zernio/normalize-event";
 import { harness, text, type Harness } from "./workflow-harness";
 
 const DAY = 24 * 3600_000;
-const waitlist = () => templateGraph("waitlist_questions");
+const waitlist = () => templateGraph("waitlist_questions", { keyword: "FOUNDER" });
 
 /** Comment FOUNDER, tap Join, give the email, tap Sure: the run waits on the role question. */
 async function toRole(h: Harness, who = "ana", post = "reel1") {

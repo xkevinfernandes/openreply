@@ -38,7 +38,8 @@ describe("checkSend", () => {
   });
 });
 
-function fakeDb(settings: { sendCapPerDay?: number; pausedAll?: boolean; timezone?: string }, sent: Date[]) {
+/** Sent bubbles: a Date is one of J's (source "setter"). */
+function fakeDb(settings: { sendCapPerDay?: number; pausedAll?: boolean; timezone?: string }, sent: (Date | { at: Date; source: string })[]) {
   const s = { workspaceId: "w", sendCapPerDay: 80, pausedAll: false, timezone: LUX, ...settings };
   const seenSince: Date[] = [];
   const created: object[] = [];
@@ -46,9 +47,12 @@ function fakeDb(settings: { sendCapPerDay?: number; pausedAll?: boolean; timezon
     osWorkspace: { upsert: async () => s },
     osEvent: {
       async count({ where }) {
-        const since = (where as { at?: { gte?: Date } }).at?.gte;
+        const w = where as { at?: { gte?: Date }; data?: { path: string[]; equals: string } };
+        const since = w.at?.gte;
         if (since) seenSince.push(since);
-        return sent.filter((d) => !since || d >= since).length;
+        return sent
+          .map((x) => (x instanceof Date ? { at: x, source: "setter" } : x))
+          .filter((x) => (!since || x.at >= since) && (!w.data || x.source === w.data.equals)).length;
       },
       async createMany({ data }) {
         created.push(...data);
@@ -72,6 +76,27 @@ describe("assertCanSend", () => {
     await expect(assertCanSend("w", 2, { db, now })).rejects.toBeInstanceOf(SendBlockedError);
   });
 
+  it("only J's sends count: workflow, opener, broadcast and manual sends don't, and aren't held by the limit", async () => {
+    const t = new Date("2026-10-19T07:00:00Z");
+    const others = ["workflow", "workflow", "campaign_opener", "broadcast", "manual", "voice"].map((source) => ({ at: t, source }));
+    const { db } = fakeDb({ sendCapPerDay: 1 }, [...others, t]);
+    const s = await capState("w", { db, now });
+    expect(s).toMatchObject({ sentToday: 1, cap: 1, remaining: 0 });
+    await expect(assertCanSend("w", 1, { db, now })).rejects.toMatchObject({ reason: "cap" });
+    await expect(assertCanSend("w", 1, { db, now, source: "workflow" })).resolves.toBeTruthy();
+    await expect(assertCanSend("w", 1, { db, now, source: "manual" })).resolves.toBeTruthy();
+    expect(checkSend({ sentToday: 80, cap: 80, pausedAll: false }, 1, "workflow")).toBeNull();
+    expect(checkSend({ sentToday: 80, cap: 80, pausedAll: false }, 1, "setter")).toBe("cap");
+  });
+
+  it("Pause all still blocks every source", async () => {
+    const { db } = fakeDb({ pausedAll: true }, []);
+    for (const source of ["setter", "workflow", "broadcast", "manual"] as const) {
+      expect((await assertCanSend("w", 1, { db, now, source }).catch((e) => e)).reason).toBe("paused");
+    }
+    expect(checkSend({ sentToday: 0, cap: 80, pausedAll: true }, 1, "workflow")).toBe("paused");
+  });
+
   it("Pause all throws with reason paused", async () => {
     const { db } = fakeDb({ pausedAll: true }, []);
     const err = await assertCanSend("w", 1, { db, now }).catch((e) => e);
@@ -82,10 +107,10 @@ describe("assertCanSend", () => {
 
   it("recordSend writes one dm_sent per call, idempotent by key", async () => {
     const { db, created } = fakeDb({}, []);
-    await recordSend("w", { key: "d1:0", contactId: "c1", db });
+    await recordSend("w", { key: "d1:0", contactId: "c1", source: "setter", db });
     await recordSend("w", { db });
     expect(created).toHaveLength(2);
-    expect(created[0]).toMatchObject({ kind: "dm_sent", dedupeKey: "dm_sent:d1:0", contactId: "c1" });
+    expect(created[0]).toMatchObject({ kind: "dm_sent", dedupeKey: "dm_sent:d1:0", contactId: "c1", data: { source: "setter" } });
     expect((created[1] as { dedupeKey: string }).dedupeKey).toMatch(/^dm_sent:[0-9a-f-]{36}$/);
   });
 });
@@ -95,6 +120,8 @@ describe("workspace settings patch", () => {
     expect(validatePatch({ sendCapPerDay: "120" })).toEqual({ patch: { sendCapPerDay: 120 } });
     expect(validatePatch({ sendCapPerDay: 0 })).toHaveProperty("error");
     expect(validatePatch({ sendCapPerDay: 2.5 })).toHaveProperty("error");
+    expect(validatePatch({ sendCapPerDay: 500 })).toEqual({ patch: { sendCapPerDay: 500 } });
+    expect(validatePatch({ sendCapPerDay: 501 })).toHaveProperty("error");
     expect(validatePatch({ pausedAll: "yes" })).toHaveProperty("error");
     expect(validatePatch({ timezone: "Mars/Olympus" })).toHaveProperty("error");
     expect(validatePatch({ timezone: "Europe/Luxembourg", pausedAll: true })).toEqual({ patch: { timezone: "Europe/Luxembourg", pausedAll: true } });

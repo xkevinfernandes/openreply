@@ -9,6 +9,7 @@
 
 import { prisma } from "@/lib/db/client";
 import { eventKey, recordEvents, type OsEventInput, type OsEventKind } from "@/lib/os/events";
+import { loadWorkflowActivity, withWorkflows, workflowRow, type WorkflowCell } from "@/lib/os/metrics-workflows";
 import { localDayStart } from "@/lib/os/sending/cap";
 import type { SetterRecord } from "@/lib/os/setter/state";
 
@@ -193,15 +194,30 @@ export async function syncKeywordTriggers(workspaceId: string, since: Date): Pro
 
 // --- Loader ------------------------------------------------------------------
 
-export async function loadOutcomes(workspaceId: string, period: Period, timezone: string, now = new Date()): Promise<OutcomeCell[]> {
+export interface HomeOutcomes {
+  /** The whole funnel: campaigns (DmLog), J (OsEvent) and workflows. */
+  cells: OutcomeCell[];
+  /** Workflows on their own; null when the workspace has none. */
+  workflows: WorkflowCell[] | null;
+}
+
+export async function loadOutcomes(workspaceId: string, period: Period, timezone: string, now = new Date()): Promise<HomeOutcomes> {
   const since = periodStart(period, now, timezone);
   await syncKeywordTriggers(workspaceId, since).catch((err) => console.error("[OS Metrics] keyword sync:", err instanceof Error ? err.message : err));
-  const rows = await prisma.osEvent.groupBy({
-    by: ["kind"],
-    where: { workspaceId, at: { gte: since, lte: now }, kind: { in: OUTCOME_STEPS.map((s) => s.kind) } },
-    _count: { _all: true },
-  });
-  const counts: Partial<Record<OsEventKind, number>> = {};
+  const [rows, started, wf] = await Promise.all([
+    prisma.osEvent.groupBy({
+      by: ["kind"],
+      where: { workspaceId, at: { gte: since, lte: now }, kind: { in: OUTCOME_STEPS.map((s) => s.kind) } },
+      _count: { _all: true },
+    }),
+    prisma.osEvent.findMany({ where: { workspaceId, kind: "conversation_started", at: { gte: since, lte: now }, contactId: { not: null } }, select: { contactId: true } }),
+    loadWorkflowActivity(workspaceId, since, now).catch((err) => {
+      console.error("[OS Metrics] workflows:", err instanceof Error ? err.message : err);
+      return null;
+    }),
+  ]);
+  let counts: Partial<Record<OsEventKind, number>> = {};
   for (const r of rows) counts[r.kind as OsEventKind] = r._count._all;
-  return outcomeRow(counts);
+  if (wf) counts = withWorkflows(counts, wf.activity, { counted: new Set(started.map((e) => e.contactId!)), repliedContacts: wf.repliedContacts });
+  return { cells: outcomeRow(counts), workflows: wf?.any ? workflowRow(wf.activity) : null };
 }

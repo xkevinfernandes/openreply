@@ -620,17 +620,9 @@ export class WorkflowEngine {
           }
           return { wait: "reply", until: new Date(last!.getTime() + HUMAN_AGENT_MS) };
         }
+        // Only Pause all stops a workflow send: the daily limit is J's (lib/os/sending/cap.ts).
         const can = await this.ports.canSend(run.workspaceId, 1);
         if (can === "paused") return { blocked: "Pause all is on", until: new Date(now.getTime() + PAUSED_RECHECK_MS) };
-        if (can === "cap") {
-          const reset = await this.ports.nextCapReset(run.workspaceId);
-          const closes = new Date(last!.getTime() + FREE_WINDOW_MS);
-          if (reset >= closes && !run.state.blockedTodo && run.contactId) {
-            await this.ports.todo(run.workspaceId, run.contactId, `wf-cap:${run.id}:${nodeId}`, "Send cap reached and their window closes before tomorrow: send it yourself?", { runId: run.id, nodeId });
-            run.state.blockedTodo = true;
-          }
-          return { blocked: "Today's send cap is reached", until: reset };
-        }
         await this.ports.dm(ctxOf(run, contact), msg, { humanAgent: false, key: `${run.id}:${nodeId}:${run.state.bubble ?? 0}` });
       }
       run.state.lastSentAt = iso(now);

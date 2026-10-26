@@ -10,7 +10,7 @@ import { checkAction } from "@/lib/os/setter/agent/actions";
 import { newTurnState, stepView, type AgentEnv } from "@/lib/os/setter/agent/context";
 import { decideAutoSend } from "@/lib/os/setter/autopilot";
 import { newRecord } from "@/lib/os/setter/state";
-import { moveProblems, waitingOnRemoved } from "@/lib/os/workflows/api-impl";
+import { moveProblems, uniqueName, waitingOnRemoved } from "@/lib/os/workflows/api-impl";
 import { validateGraph, type WorkflowGraph } from "@/lib/os/workflows/graph";
 import { readWebhook, readZernio } from "@/lib/os/workflows/hooks";
 import { heuristicClassify, nextSetterTimer, onSignal, quietReleaseAt, releaseRulesView, stepBlock } from "@/lib/os/workflows/setter-step";
@@ -291,5 +291,14 @@ describe("E11 story replies through Zernio", () => {
     expect(story).toEqual({ outgoing: null, story: { igUserId: "u1", mid: "mid1", text: "GUIDE" } });
     expect(readZernio({ event: "message.received", message: { platformMessageId: "mid2", direction: "incoming", text: "GUIDE", sender: { id: "u1" } } }).story).toBeNull();
     expect(readZernio({ event: "message.received", message: { direction: "outgoing", text: "hey" }, conversation: { participantId: "u2" } }).outgoing).toEqual({ igUserId: "u2", text: "hey" });
+  });
+});
+
+describe("new workflow names", () => {
+  it("each new workflow gets its own name: the template's, then 2, 3, …", () => {
+    expect(uniqueName("Waitlist + questions", [])).toBe("Waitlist + questions");
+    expect(uniqueName("Waitlist + questions", ["Waitlist + questions"])).toBe("Waitlist + questions 2");
+    expect(uniqueName("Waitlist + questions", ["Waitlist + questions", "Waitlist + questions 2", "Waitlist + questions 3"])).toBe("Waitlist + questions 4");
+    expect(uniqueName("Blank", ["Blank 2"])).toBe("Blank");
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
-// Workspace › Sending: the daily send cap (every bubble counts) and the
-// timezone its "today" is read in. Pause all lives in the sidebar foot.
+// Workspace › Sending: the daily setter send limit (only J's sends count) and
+// the timezone its "today" is read in. Pause all lives in the sidebar foot.
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -21,7 +21,7 @@ export default function SendingPanel({ sendCap, timezone, canManage }: { sendCap
       <header className="os-set-section-head">
         <h2 id="os-set-sending">
           Sending
-          <InfoTip label="About the send cap">Every bubble J, broadcasts and follow-ups send counts toward the cap. Openers count but are never blocked.</InfoTip>
+          <InfoTip label="About the setter send limit">Every bubble J sends (approved or on autopilot) counts toward the limit. Workflows, campaign openers, broadcasts and your own replies don&apos;t count and aren&apos;t held by it. Pause all stops everything.</InfoTip>
         </h2>
       </header>
       <form
@@ -39,8 +39,8 @@ export default function SendingPanel({ sendCap, timezone, canManage }: { sendCap
         }}
       >
         <label>
-          <span>Daily send cap</span>
-          <input type="number" min={1} max={500} value={cap} onChange={(e) => setCap(e.target.value)} disabled={!canManage} />
+          <span>Daily setter send limit</span>
+          <input type="number" min={1} max={500} step={1} value={cap} onChange={(e) => setCap(e.target.value)} disabled={!canManage} />
         </label>
         <label>
           <span>Timezone</span>

@@ -93,7 +93,7 @@ export async function recordEventQuietly(e: OsEventInput, db?: EventsDb): Promis
 export async function countEvents(
   workspaceId: string,
   kind: OsEventKind,
-  range: { since?: Date; until?: Date; setterId?: string | null } = {},
+  range: { since?: Date; until?: Date; setterId?: string | null; /** data.source, e.g. "setter" for dm_sent. */ source?: string } = {},
   db: EventsDb = defaultDb()
 ): Promise<number> {
   return db.osEvent.count({
@@ -102,6 +102,7 @@ export async function countEvents(
       kind,
       ...(range.since || range.until ? { at: { ...(range.since ? { gte: range.since } : {}), ...(range.until ? { lt: range.until } : {}) } } : {}),
       ...(range.setterId ? { setterId: range.setterId } : {}),
+      ...(range.source ? { data: { path: ["source"], equals: range.source } } : {}),
     },
   });
 }

@@ -80,7 +80,7 @@ export async function sendInboxMessage(
   if (!bubbles.length) return { error: "Write a message first." };
   try {
     for (const message of bubbles) {
-      await sendReply(workspaceId, igUserId, message, { conversationId: where.conversationId ?? null, contactId: where.contactId ?? null });
+      await sendReply(workspaceId, igUserId, message, { conversationId: where.conversationId ?? null, contactId: where.contactId ?? null, source: "manual" });
     }
     // Kevin wrote by hand: a workflow run (and J) pause for this person (K1).
     await workflowKevinSent(workspaceId, where.contactId, bubbles.join("\n"));

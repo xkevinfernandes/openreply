@@ -1,5 +1,5 @@
 // Home (Main board): greeting, "Review N drafts ⏎", the outcome row with
-// Today / 7d / 30d, the pipeline per setter, Yours to do and Setters.
+// Today / 7d / 30d (campaigns, workflows and J), the Workflows row, the pipeline per setter, Yours to do and Setters.
 
 import Link from "next/link";
 import ReviewButton from "@/components/os/home/review-button";
@@ -7,6 +7,7 @@ import TodoCheck from "@/components/os/home/todo-check";
 import { auth, getCurrentWorkspaceId } from "@/lib/auth";
 import { broadcastTodos, greeting, homeDate, loadPipeline, workflowTodos, type HomeTodo } from "@/lib/os/home";
 import { loadOutcomes, parsePeriod, PERIODS, type OutcomeCell, type Period } from "@/lib/os/metrics";
+import type { WorkflowCell } from "@/lib/os/metrics-workflows";
 import { loadHomeFollowups } from "@/lib/os/sequences/view";
 import { getWorkspaceSettings } from "@/lib/os/workspace-settings";
 
@@ -28,11 +29,11 @@ function href(period: Period, setter: string | null) {
   return s ? `/os?${s}` : "/os";
 }
 
-function Outcomes({ cells }: { cells: OutcomeCell[] }) {
+function Outcomes({ cells, label }: { cells: (OutcomeCell | WorkflowCell)[]; label?: string }) {
   return (
-    <ol className="os-home-outcomes">
+    <ol className="os-home-outcomes" aria-label={label}>
       {cells.map((c) => (
-        <li key={c.kind}>
+        <li key={"kind" in c ? c.kind : c.key}>
           <span className="lbl">{c.label}</span>
           <span className="n">{c.n.toLocaleString("en-GB")}</span>
           <span className="pct">{c.pct === null ? "—" : `${c.pct}%`}</span>
@@ -142,8 +143,20 @@ export default async function OsHome({ searchParams }: PageProps) {
             ))}
           </nav>
         </div>
-        {outcomes ? <Outcomes cells={outcomes} /> : <p className="os-home-err">Numbers didn&apos;t load.</p>}
+        {outcomes ? <Outcomes cells={outcomes.cells} label="Campaigns, workflows and J" /> : <p className="os-home-err">Numbers didn&apos;t load.</p>}
       </section>
+
+      {outcomes?.workflows ? (
+        <section aria-labelledby="os-home-wf" className="os-home-sec">
+          <div className="os-home-sechead">
+            <h2 id="os-home-wf">Workflows</h2>
+            <Link href="/os/automations/workflows" className="os-home-more">
+              All workflows
+            </Link>
+          </div>
+          <Outcomes cells={outcomes.workflows} label="Workflows" />
+        </section>
+      ) : null}
 
       <div className="os-home-cols">
         <section aria-labelledby="os-home-pipe" className="os-home-sec os-home-main">

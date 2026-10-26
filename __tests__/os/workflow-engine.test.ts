@@ -600,31 +600,19 @@ describe("5.4 Kevin", () => {
     expect(text(h.sentTo("ann").at(-1)!.msg)).toBe("later");
   });
 
-  it("K8 the daily cap: the opener still goes, later steps wait for tomorrow (listed if the window closes first)", async () => {
+  it("K8 the daily limit is J's: workflow steps never wait on it, only Pause all holds them", async () => {
     const h = harness();
     h.publish(sendLink());
-    h.state.can = "cap";
     await h.comment("ann", "VAULT");
-    expect(h.sentTo("ann").map((s) => s.via)).toEqual(["public", "private"]);
     const run = (await h.run("ann"))!;
+    h.state.can = "paused";
     await h.tap("ann", `wf:${run.id}:opener:send`);
     expect(h.sentTo("ann")).toHaveLength(2);
-    const r = (await h.run("ann"))!;
-    expect(r.state.blocked).toMatch(/cap/);
-    expect(r.waitUntil).toEqual(h.state.capReset);
-    expect(h.todos).toHaveLength(0);
+    expect((await h.run("ann"))!.state.blocked).toMatch(/Pause all/);
     h.state.can = "ok";
-    await h.wait(15 * H);
+    await h.wait(1 * H);
     expect(h.sentTo("ann").map((s) => text(s.msg))).toContain("https://kevin.link/vault");
-    // Window closes before the reset: listed for Kevin.
-    const h2 = harness();
-    h2.publish(sendLink());
-    h2.state.can = "cap";
-    h2.state.capReset = new Date(h2.now.getTime() + 30 * H);
-    await h2.comment("bo", "VAULT");
-    const r2 = (await h2.run("bo"))!;
-    await h2.tap("bo", `wf:${r2.id}:opener:send`);
-    expect(h2.todos[0].title).toMatch(/cap/);
+    expect(h.todos).toHaveLength(0);
   });
 });
 

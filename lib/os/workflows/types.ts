@@ -242,7 +242,8 @@ export interface SendContext {
   conversationId: string | null;
 }
 
-export type CanSend = "ok" | "paused" | "cap";
+/** Workflow sends are never held by the daily limit (that is J's); only Pause all stops them. */
+export type CanSend = "ok" | "paused";
 
 export interface ResourceInfo {
   slug: string;
@@ -290,8 +291,6 @@ export interface Ports {
   /** A DM. The caller checked canSend. */
   dm(ctx: SendContext, msg: OutMessage, opts: { humanAgent: boolean; key: string }): Promise<void>;
   canSend(workspaceId: string, n: number): Promise<CanSend>;
-  /** Start of the next local day (when the cap resets). */
-  nextCapReset(workspaceId: string): Promise<Date>;
   follows(ctx: SendContext): Promise<boolean | null>;
   resource(workspaceId: string, slug: string): Promise<ResourceInfo | null>;
   /** Queue J's turn for this contact (the setter queue; J reads the step). */

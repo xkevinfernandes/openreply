@@ -51,7 +51,8 @@ export type Bubble = z.infer<typeof Bubble>;
 
 export const TriggerData = z.object({
   kind: z.enum(["comment", "story_reply", "dm"]),
-  keywords: z.array(z.string().min(1)).min(1),
+  /** Empty in a fresh draft; Publish needs at least one (validateGraph). */
+  keywords: z.array(z.string().min(1)),
   /** Comment triggers: these posts, or every post. Ignored for DMs and story replies. */
   postIds: z.union([z.array(z.string()), z.literal("any")]).default("any"),
   /** Public comment replies, one picked at random. Comment triggers only. */
@@ -190,6 +191,7 @@ export function validateGraph(input: unknown): GraphProblem[] {
     ids.add(n.id);
     const r = STEP_DATA[n.type].safeParse(n.data);
     if (!r.success) problems.push({ nodeId: n.id, message: r.error.issues[0]?.message ?? "Step is incomplete" });
+    else if (n.type === "trigger" && !(r.data as StepData<"trigger">).keywords.length) problems.push({ nodeId: n.id, message: "Add a keyword" });
     else if (n.type === "message") {
       const bubbles = (r.data as StepData<"message">).bubbles;
       const qr = bubbles.findIndex((b) => b.kind === "quick_replies");

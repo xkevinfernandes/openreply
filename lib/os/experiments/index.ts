@@ -51,8 +51,8 @@ export interface CampaignOpenerInput {
  *  ({username} etc.), and records the send in DmLog, which is how the send
  *  is attributed (lib/os/experiments/data.ts). */
 export async function campaignOpenerText(input: CampaignOpenerInput): Promise<string> {
-  // The opener is about to go out: it counts toward today's send cap
-  // (lib/os/sending/cap.ts). Counted, never blocked: OpenReply owns this send.
+  // The opener is about to go out: recorded as a send (lib/os/sending/cap.ts),
+  // but only J's sends count toward the daily limit; never blocked: OpenReply owns this send.
   if (!input.store) await recordSend(input.workspaceId, { key: `opener:${input.automationId}:${input.igUserId}`, source: "campaign_opener" });
   try {
     const store = input.store ?? experimentStore();

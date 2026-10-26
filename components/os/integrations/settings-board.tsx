@@ -130,9 +130,9 @@ export default function SettingsIntegrations({ instagram, dataos, views, calenda
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M8 2.5 14 13H2L8 2.5ZM8 6.5v3M8 11.3v.1" />
           </svg>
-          Send cap {instagram.sendCap}/day
+          Setter limit {instagram.sendCap}/day
         </span>
-        <InfoTip label="Why is there a send cap?">Instagram limits how many DMs a new or flagged account may send. Every bubble counts; change the cap in Workspace.</InfoTip>
+        <InfoTip label="Why is there a setter send limit?">Instagram limits how many DMs a new or flagged account may send. Every bubble J sends counts (workflows and openers don&apos;t); change the limit in Workspace.</InfoTip>
         <Link href="/os/settings" className="os-si-link">
           Manage
         </Link>

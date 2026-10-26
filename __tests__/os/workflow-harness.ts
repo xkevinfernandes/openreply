@@ -38,7 +38,7 @@ export function harness() {
   let picker: (text: string, options: { id: string; label: string }[]) => string | null = () => null;
   const picks: string[] = [];
   const resources: Record<string, string> = { "setter-starter": "https://kevin.link/starter", "script-vault": "https://kevin.link/vault", quiz: "https://kevin.link/quiz" };
-  const state = { can: "ok" as CanSend, failNext: 0, follows: false as boolean | null, campaignOwns: false, capReset: new Date(T0.getTime() + 14 * 3600_000) };
+  const state = { can: "ok" as CanSend, failNext: 0, follows: false as boolean | null, campaignOwns: false };
 
   const contactFor = (igUserId: string, create?: { username?: string | null; entryPath?: string | null }): ContactInfo | null => {
     let c = contacts.get(igUserId);
@@ -120,9 +120,6 @@ export function harness() {
     },
     async canSend() {
       return state.can;
-    },
-    async nextCapReset() {
-      return state.capReset;
     },
     async follows() {
       return state.follows;

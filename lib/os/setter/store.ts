@@ -216,7 +216,7 @@ const dbStore: SetterStore = {
     return rows.map(view);
   },
   async send(contact, text, humanAgent) {
-    await sendReply(contact.workspaceId, contact.igUserId, text, { humanAgent, conversationId: contact.conversationId });
+    await sendReply(contact.workspaceId, contact.igUserId, text, { humanAgent, conversationId: contact.conversationId, source: "setter" });
   },
   async setSetterStage(contactId, stage) {
     await prisma.contact.update({ where: { id: contactId }, data: { setterStage: stage } });
@@ -358,7 +358,7 @@ const mockStore: SetterStore = {
     return [...mem.drafts.values()].filter((d) => d.status === "PENDING");
   },
   async send(contact, text, humanAgent) {
-    await sendReply(contact.workspaceId, contact.igUserId, text, { humanAgent, conversationId: contact.conversationId });
+    await sendReply(contact.workspaceId, contact.igUserId, text, { humanAgent, conversationId: contact.conversationId, source: "setter" });
   },
   async setSetterStage(contactId, stage) {
     const m = mockContact(contactId);

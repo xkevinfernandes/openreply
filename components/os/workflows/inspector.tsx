@@ -182,7 +182,7 @@ function TriggerForm({ data, onChange }: FormProps<StepData<"trigger">>) {
         onChange={(kind) => set({ kind })}
       />
       <Group label="Keywords">
-        <input className="os-input" value={kw} placeholder="SETTER" aria-label="Keywords" onChange={(e) => {
+        <input className="os-input" value={kw} placeholder="Pick a keyword" aria-label="Keywords" onChange={(e) => {
             setKw(e.target.value);
             set({ keywords: parseKeywords(e.target.value) });
           }} onBlur={() => setKw(parseKeywords(kw).join(", "))} />

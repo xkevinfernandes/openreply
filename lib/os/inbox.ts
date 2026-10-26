@@ -13,7 +13,7 @@ import { enqueueTriageMany } from "@/lib/os/setter/queue";
 import { triageDisabled } from "@/lib/os/setter/triage";
 import { voiceByMessage } from "@/lib/os/voice/store";
 import { appendMockMessage, mockThreads, osMockEnabled } from "@/lib/os/mock";
-import { assertCanSend, recordSend } from "@/lib/os/sending/cap";
+import { assertCanSend, recordSend, type SendSource } from "@/lib/os/sending/cap";
 import { fillStoryCards, mediaForMessages, type MediaView } from "@/lib/os/media";
 import { parseZernioMessages, splitLinks } from "@/lib/os/messages/parse";
 import type { RichMessage } from "@/lib/os/messages/types";
@@ -300,16 +300,18 @@ export interface SendReplyOptions {
   /** Makes the cap count idempotent on retry, e.g. "<draftId>:<bubble>". */
   sendKey?: string | null;
   contactId?: string | null;
+  /** Who is sending: only "setter" (J's drafts) counts toward the daily limit. */
+  source: SendSource;
 }
 
-export async function sendReply(workspaceId: string, igUserId: string, text: string, options: SendReplyOptions = {}) {
-  // Send cap + Pause all (lib/os/sending/cap.ts): every bubble counts.
-  await assertCanSend(workspaceId);
+export async function sendReply(workspaceId: string, igUserId: string, text: string, options: SendReplyOptions) {
+  // Pause all + the daily setter limit (lib/os/sending/cap.ts): only J's bubbles count.
+  await assertCanSend(workspaceId, 1, { source: options.source });
   // Its Instagram echo must not read as Kevin typing in the IG app (workflows
   // pause on that): noted before the send, since the echo can arrive first.
   const { sendNotedOs } = await import("@/lib/os/workflows/hooks");
   await sendNotedOs(workspaceId, igUserId, text, () => sendReplyUnguarded(workspaceId, igUserId, text, options));
-  await recordSend(workspaceId, { contactId: options.contactId, key: options.sendKey, source: "reply" });
+  await recordSend(workspaceId, { contactId: options.contactId, key: options.sendKey, source: options.source });
 }
 
 async function sendReplyUnguarded(workspaceId: string, igUserId: string, text: string, options: SendReplyOptions) {

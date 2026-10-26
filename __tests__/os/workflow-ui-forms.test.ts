@@ -283,6 +283,7 @@ describe("mock adapter (OS_MOCK=1)", () => {
     delete process.env.OS_MOCK;
     vi.resetModules();
     const draft = templateGraph("hold_lead_magnet");
+    (draft.nodes.find((n) => n.type === "trigger")!.data as { keywords: string[] }).keywords = ["GUIDE"];
     const summary = { id: "w9", name: "Hold", mode: "draft" as const, active: true, trigger: { kind: "comment" as const, keywords: ["GUIDE"], postIds: "any" as const }, version: 2, unpublished: true, runs: { active: 1, paused: 0, failed: 0, total: 3 }, updatedAt: "2026-10-19T10:00:00Z" };
     const saved: unknown[] = [];
     vi.doMock("@/lib/os/workflows/api", () => ({

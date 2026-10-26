@@ -2,7 +2,8 @@
 
 // The DM OS shell (Sidebar board): no top bar. "DM OS" and the account sit at
 // the top of the sidebar with the collapse toggle and the ⌘K field; 7 nav
-// items with counts; the foot holds the mode, Pause all and today's sends.
+// items with counts; the foot holds the mode, Pause all and J's sends today
+// against the daily setter send limit (links to Settings › Workspace).
 // Collapsed, it is a 64px icon rail (cookie os_sidebar=rail, read by the
 // layout so the first paint is right). Phones get a drawer behind a small bar.
 
@@ -12,6 +13,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { setPauseAll } from "@/app/(os)/os/actions";
 import { openPalette } from "@/components/os/keys";
 import PaletteMount from "@/components/os/palette/mount";
+import { settingsHref } from "@/lib/os/settings";
 import { activeNav, BADGED, badgeLabel, isActive, osNav, sidebarCookie, type NavItem, type SidebarMode } from "@/lib/os/nav";
 
 export interface ShellSends {
@@ -163,7 +165,7 @@ export default function OsShell({ workspaceName, instagramUsername, counts = {},
             })}
           </nav>
 
-          <div className="os-side-foot" title={rail ? `${modeLabel} · ${sends.sentToday} / ${sends.cap} sends today` : undefined}>
+          <div className="os-side-foot" title={rail ? `${modeLabel} · ${sends.sentToday} / ${sends.cap} setter sends today` : undefined}>
             <div className="os-side-mode">
               <span className="os-side-status">
                 <span className="os-dot" data-tone={paused ? "warn" : "mark"} role="img" aria-label={modeLabel} />
@@ -174,13 +176,17 @@ export default function OsShell({ workspaceName, instagramUsername, counts = {},
                 <span className="os-side-pause-text">{paused ? "Resume" : "Pause all"}</span>
               </button>
             </div>
-            <div className="os-side-sends">
-              <span className="os-side-sends-label">Sends today</span>
+            <Link
+              href={`${settingsHref("workspace")}#os-set-sending`}
+              className="os-side-sends"
+              title="J's sends today against the daily setter send limit. Workflows, openers and your own replies don't count. Change the limit in Settings."
+            >
+              <span className="os-side-sends-label">Setter sends today</span>
               <span className="os-side-sends-n">
                 {sends.sentToday}
                 <span className="os-side-sends-cap"> / {sends.cap}</span>
               </span>
-            </div>
+            </Link>
             <div className="os-side-meter" aria-hidden="true">
               <div style={{ width: `${pct}%` }} data-full={pct >= 100 || undefined} />
             </div>

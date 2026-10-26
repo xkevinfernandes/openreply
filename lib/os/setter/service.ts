@@ -71,7 +71,7 @@ function hooksFor(opts: { hooks?: OsEventHooks | null; store?: SetterStore }): O
   return opts.hooks !== undefined ? opts.hooks : opts.store ? null : osEventHooks;
 }
 
-/** The daily send cap / Pause all check for a whole draft (lib/os/sending/cap.ts). */
+/** The daily setter send limit / Pause all check for a whole draft (lib/os/sending/cap.ts). */
 type CapGuard = (workspaceId: string, bubbles: number) => Promise<unknown>;
 function capGuardFor(opts: { capGuard?: CapGuard | null; store?: SetterStore }): CapGuard | null {
   return opts.capGuard !== undefined ? opts.capGuard : opts.store ? null : assertCanSend;

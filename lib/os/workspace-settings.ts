@@ -1,4 +1,4 @@
-// Workspace switches (OsWorkspace): daily send cap, Pause all, timezone.
+// Workspace switches (OsWorkspace): daily setter send limit (sendCapPerDay), Pause all, timezone.
 // The row is created with defaults on first read.
 
 import { prisma } from "@/lib/db/client";
@@ -42,7 +42,7 @@ export function validatePatch(input: Record<string, unknown>): { patch: Settings
   const patch: SettingsPatch = {};
   if (input.sendCapPerDay !== undefined) {
     const n = Number(input.sendCapPerDay);
-    if (!Number.isInteger(n) || n < 1 || n > SEND_CAP_MAX) return { error: `The daily cap must be a whole number from 1 to ${SEND_CAP_MAX}.` };
+    if (!Number.isInteger(n) || n < 1 || n > SEND_CAP_MAX) return { error: `The daily setter send limit must be a whole number from 1 to ${SEND_CAP_MAX}.` };
     patch.sendCapPerDay = n;
   }
   if (input.pausedAll !== undefined) {

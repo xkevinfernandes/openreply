@@ -34,7 +34,7 @@ export interface SendDeps {
 async function defaultSendBubble(workspaceId: string, contact: BroadcastContact, text: string, key: string) {
   const { sendReply } = await import("@/lib/os/inbox");
   if (!contact.igUserId) throw new Error("No Instagram id for this contact.");
-  await sendReply(workspaceId, contact.igUserId, text, { conversationId: contact.conversationId, contactId: contact.contactId, sendKey: key });
+  await sendReply(workspaceId, contact.igUserId, text, { conversationId: contact.conversationId, contactId: contact.contactId, sendKey: key, source: "broadcast" });
 }
 
 /**
