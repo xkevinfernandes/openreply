@@ -9,7 +9,7 @@ import { syncContact, type SyncDeps } from "@/lib/os/integrations/engine";
 import { defaultMapping } from "@/lib/os/integrations/mapping";
 import type { PushedState, SyncProvider } from "@/lib/os/integrations/provider";
 import { addTag, type TagDeps } from "@/lib/os/fields/write";
-import { planTagSeed, SYSTEM_TAGS, tagKey } from "@/lib/os/tags/key";
+import { planTagSeed, renamePlan, SYSTEM_TAGS, tagKey } from "@/lib/os/tags/key";
 import { kitNamesFor, kitTagNames } from "@/lib/os/tags/kit";
 import { TAG_COLORS, tagColor } from "@/lib/os/tags/palette";
 import { createTag, ensureTag, nameTaken, resolveTag, tagView, type TagStoreDb } from "@/lib/os/tags/store";
@@ -113,7 +113,17 @@ describe("resolving names", () => {
   });
 
   it("system tags carry what reads them (the badge's tooltip)", () => {
-    expect(tagView({ id: "x", name: "follow-up-friday", key: "follow-up-friday", color: "gray", kitNames: [], system: true })).toMatchObject({ readBy: "Follow-up Friday", kitNames: ["follow-up-friday"] });
+    expect(tagView({ id: "x", name: "follow-up-friday", key: "follow-up-friday", color: "gray", kitNames: [], system: true })).toMatchObject({ readBy: expect.stringContaining("the Friday broadcast picks people by it"), kitNames: ["follow-up-friday"] });
+  });
+
+  it("a rename keeps Kit's name and the old name only once something has seen the tag", () => {
+    const t = { name: "warm-lead", kitNames: ["warm-lead"] };
+    // Never synced, never used: it just takes the new name (no "Was …").
+    expect(renamePlan(t, "hot-lead", { kit: false, used: false })).toEqual({ kitNames: ["hot-lead"], keepAlias: false });
+    // On contacts but never in Kit: the old name still lands on it, Kit takes the new name.
+    expect(renamePlan(t, "hot-lead", { kit: false, used: true })).toEqual({ kitNames: ["hot-lead"], keepAlias: true });
+    // Kit has it: Kit keeps receiving the original name.
+    expect(renamePlan(t, "hot-lead", { kit: true, used: false })).toEqual({ kitNames: ["warm-lead"], keepAlias: true });
   });
 
   it("the tag writer writes the managed name (J writing an old name)", async () => {

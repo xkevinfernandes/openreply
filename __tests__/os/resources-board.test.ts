@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { osNav } from "../../lib/os/nav";
 import { removeAgentQuestion, saveSheet } from "../../lib/os/resource-sheet";
-import { buildBoard, deleteBlockers, kindLabel, linkLabel, matchesFilter, offeringAgents, pillCounts, usedByOf } from "../../lib/os/resources-board";
+import { buildBoard, deleteBlockers, kindLabel, linkLabel, matchesFilter, offeringAgents, pillCounts, usedByOf, usedChips } from "../../lib/os/resources-board";
 import type { ResourceView } from "../../lib/os/knowledge";
 
 const res = (id: string, slug: string, kind: ResourceView["kind"], setters: { id: string; name: string }[] = [], link: string | null = "https://x.com/a"): ResourceView => ({
@@ -43,6 +43,17 @@ describe("Resources: used by", () => {
     expect(used.find((u) => u.kind === "campaign")!.href).toBe("/os/automations/a1");
     expect(used.find((u) => u.kind === "workflow")!.href).toBe("/os/automations/workflows/w1");
     expect(usedByOf({ id: "r9", slug: "x" }, [], inputs)).toEqual([]);
+    // Sequences go out from the setter that offers it, by its real name.
+    expect(usedByOf({ id: "r1", slug: "vault" }, ["n"], inputs).at(-1)!.name).toBe("Sequences via Nova");
+  });
+
+  it("two users with the same name show as one chip", () => {
+    const chips = usedChips([
+      { kind: "broadcast", id: "a", name: "Follow-up Friday · 30 Oct", href: "/a" },
+      { kind: "broadcast", id: "b", name: "Follow-up Friday · 30 Oct", href: "/b" },
+      { kind: "agent", id: "j", name: "J", href: "/j" },
+    ]);
+    expect(chips.map((c) => `${c.name}:${c.count}`)).toEqual(["Follow-up Friday · 30 Oct:2", "J:1"]);
   });
 
   it("delete is refused by campaigns and workflows; agents are only named in the confirm", () => {
@@ -64,7 +75,8 @@ describe("Resources: used by", () => {
 
   it("pill counts leave entry paths out; kinds read as Lead magnet / Video", () => {
     const rows = [res("r1", "a", "resource"), res("r2", "b", "resource"), res("r3", "c", "episode"), res("r4", "d", "setter")];
-    expect(pillCounts(rows, 3)).toEqual({ all: 3, magnets: 2, videos: 1, docs: 3 });
+    // All lists the knowledge docs too, so its count includes them.
+    expect(pillCounts(rows, 3)).toEqual({ all: 6, magnets: 2, videos: 1, docs: 3 });
     expect(kindLabel("resource")).toBe("Lead magnet");
     expect(kindLabel("episode")).toBe("Video");
     expect(matchesFilter("setter", "all")).toBe(false);

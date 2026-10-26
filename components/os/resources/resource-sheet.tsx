@@ -128,7 +128,9 @@ export default function ResourceSheet({ initial = EMPTY_RESOURCE, agents, agentI
               </label>
             ))}
           </fieldset>
-        ) : null}
+        ) : (
+          <p className="os-tg-hint">No setters yet, so no agent can offer it. Add one in Setters.</p>
+        )}
         {error ? (
           <p className="os-tg-error" role="alert">
             {error}

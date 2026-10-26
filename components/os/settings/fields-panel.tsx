@@ -308,12 +308,12 @@ function FieldEditor({
         </label>
       ) : null}
       <label>
-        <span>GoHighLevel field</span>
-        <input value={ghl} onChange={(e) => setGhl(e.target.value)} placeholder="contact.company_name" autoFocus={focus === "ghl"} />
-      </label>
-      <label>
         <span>Kit field</span>
         <input value={kit} onChange={(e) => setKit(e.target.value)} placeholder="business" autoFocus={focus === "kit"} />
+      </label>
+      <label>
+        <span>GoHighLevel field</span>
+        <input value={ghl} onChange={(e) => setGhl(e.target.value)} placeholder="contact.company_name" autoFocus={focus === "ghl"} />
       </label>
       <div className="os-cf-form-actions">
         {field && !locked ? (

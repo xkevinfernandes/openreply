@@ -1,12 +1,11 @@
 import { redirect } from "next/navigation";
-import { KbTabs } from "@/components/os/knowledge/kb-tabs";
 import { ImportButton, NewSetter } from "@/components/os/knowledge/setter-list-actions";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
 
 export const dynamic = "force-dynamic";
 
-/** Knowledge bases opens on the default setter (J). */
+/** Setters (the Knowledge bases screens) opens on the default setter (J). */
 export default async function KnowledgePage({ searchParams }: { searchParams: Promise<{ s?: string | string[] }> }) {
   const workspaceId = await getCurrentWorkspaceId();
   if (!workspaceId) return null;
@@ -21,9 +20,8 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
   return (
     <div className="kb-ws">
       <header className="kb-bar">
-        <h1 className="kb-title">Knowledge bases</h1>
+        <h1 className="kb-title">Setters</h1>
       </header>
-      <KbTabs active="setters" />
       <div className="kb-pad">
         <div className="os-empty os-kb-empty">
           <strong>No setter yet</strong>

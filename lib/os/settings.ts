@@ -114,13 +114,8 @@ export const STATUS_PENDING = "…";
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-export function instagramStatus(a: { username: string | null; problem: string | null }): string {
-  if (!a.username) return "Not connected";
-  return a.problem ?? `@${a.username} · connected`;
-}
-
 export function integrationsStatus(connected: string[]): string {
-  return connected.length ? connected.join(", ") : "None connected";
+  return connected.length ? `${connected.join(", ")} connected` : "None connected";
 }
 
 export function fieldsStatus(builtIn: number, custom: number): string {
@@ -152,14 +147,4 @@ export async function withCap<T>(work: Promise<T>, ms: number): Promise<T | null
   } finally {
     clearTimeout(timer);
   }
-}
-
-// --- Instagram › Reconnect ----------------------------------------------------
-
-/** Which fix the one Reconnect button runs: a token/link problem goes through
- *  Zernio's connect flow; a webhook-only problem repairs the webhook. */
-export function reconnectKind(problems: string[]): "connect" | "webhook" | null {
-  if (!problems.length) return null;
-  const webhook = (p: string) => /webhook/i.test(p);
-  return problems.every(webhook) ? "webhook" : "connect";
 }

@@ -15,7 +15,7 @@ export default async function NewSetterPage() {
     <div className="kb-ws">
       <header className="kb-bar">
         <nav aria-label="Breadcrumb" className="kb-crumb">
-          <Link href="/os/knowledge">Knowledge bases</Link>
+          <Link href="/os/knowledge">Setters</Link>
           <KbIcon name="chevron" size={12} />
           <span className="kb-crumb-now">New setter</span>
         </nav>

@@ -9,7 +9,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { addTagAction, deleteTagAction, editTagAction, freeAliasAction } from "@/app/(os)/os/settings/tags-actions";
 import { TagColorSelect, TagPill } from "@/components/os/settings/tag-color-select";
-import { usedByWords, type TagBoard, type TagRow } from "@/lib/os/tags/board-view";
+import DeleteCheck from "@/components/os/settings/delete-check";
+import type { TagBoard, TagRow } from "@/lib/os/tags/board-view";
 import { DEFAULT_TAG_COLOR } from "@/lib/os/tags/palette";
 
 type Open = { kind: "new" } | { kind: "edit"; row: TagRow } | { kind: "delete"; row: TagRow; used: TagRow["usedBy"] } | null;
@@ -78,7 +79,7 @@ export default function TagsPanel({ board, canManage }: { board: TagBoard; canMa
                     <span className="os-tg-name">
                       <TagPill name={r.name} color={r.color} />
                       {r.system ? (
-                        <span className="os-tg-system" tabIndex={0} title={`System: read by ${r.readBy}. Can't be renamed or deleted.`} aria-label={`System tag, read by ${r.readBy}`}>
+                        <span className="os-tg-system" tabIndex={0} title={`System tag, read by ${r.readBy}. Can't be renamed or deleted.`} aria-label={`System tag, read by ${r.readBy}`}>
                           System
                         </span>
                       ) : null}
@@ -91,8 +92,8 @@ export default function TagsPanel({ board, canManage }: { board: TagBoard; canMa
                   <td data-label="Used by" className="os-tg-muted">
                     {r.system ? r.readBy : r.usedBy.length ? r.usedBy.map((u) => u.name).join(", ") : "—"}
                   </td>
-                  <td data-label="Kit name" className="os-tg-muted">
-                    {r.kitNames[0] ?? r.name}
+                  <td data-label="Kit name" className="os-tg-muted" title={r.kitSynced ? undefined : "Kit hasn't received it yet. It goes under its name then."}>
+                    {r.kitSynced ? (r.kitNames[0] ?? r.name) : "Not sent yet"}
                   </td>
                   <td className="os-tg-actions">
                     {canManage ? (
@@ -142,7 +143,8 @@ function TagEditor({ row, onClose }: { row?: TagRow; onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const locked = Boolean(row?.system);
-  const kitName = row?.kitNames[0] ?? row?.name;
+  // Only a tag Kit has received keeps its Kit name on a rename.
+  const kitName = row?.kitSynced ? (row.kitNames[0] ?? row.name) : null;
 
   const save = () =>
     start(async () => {
@@ -257,28 +259,14 @@ function DeleteTag({ row, used, onClose, onRefused }: { row: TagRow; used: TagRo
     });
 
   return (
-    <Modal label={blocked ? `Can't delete ${row.name}` : `Delete ${row.name}`} onClose={onClose}>
-      <div className="os-tg-form">
-        <h2>{blocked ? `Can't delete "${row.name}"` : `Delete "${row.name}"?`}</h2>
-        <p className="os-tg-hint">
-          {blocked
-            ? `It's used by ${usedByWords(used)}. Remove it there first, or delete anyway and they stop matching.`
-            : `It comes off ${row.contacts} contact${row.contacts === 1 ? "" : "s"}.`}
-        </p>
-        {error ? (
-          <p className="os-tg-error" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <div className="os-tg-form-actions">
-          <button type="button" className="os-button" onClick={onClose} disabled={pending}>
-            Keep it
-          </button>
-          <button type="button" className="os-button danger" onClick={() => run(blocked)} disabled={pending}>
-            {pending ? "Deleting…" : blocked ? "Delete anyway" : "Delete"}
-          </button>
-        </div>
-      </div>
-    </Modal>
+    <DeleteCheck
+      name={row.name}
+      used={used}
+      note={row.contacts ? `It comes off ${row.contacts} contact${row.contacts === 1 ? "" : "s"}.` : null}
+      error={error}
+      pending={pending}
+      onClose={onClose}
+      onConfirm={() => run(blocked)}
+    />
   );
 }

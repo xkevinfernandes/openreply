@@ -9,6 +9,8 @@ export interface TagRow extends ManagedTag {
   usedBy: { kind: "broadcast" | "workflow"; id: string; name: string }[];
   /** Old names that still land on it. */
   aliases: { id: string; name: string }[];
+  /** Kit has received it (under its Kit name); until then there's no Kit name to keep. */
+  kitSynced: boolean;
 }
 
 export interface TagBoard {
@@ -23,7 +25,9 @@ export function buildTagBoard(
   aliases: TagAliasView[],
   contactsByName: Map<string, number>,
   broadcasts: { id: string; name: string; audienceTagId: string | null }[],
-  workflows: { id: string; name: string; text: string }[]
+  workflows: { id: string; name: string; text: string }[],
+  /** Tag names Kit has received (ContactSync.pushedTags). */
+  kitSeen: ReadonlySet<string> = new Set()
 ): TagBoard {
   const rows = tags.map((t): TagRow => {
     const mine = aliases.filter((a) => a.tagId === t.id);
@@ -36,16 +40,12 @@ export function buildTagBoard(
         ...workflows.filter((w) => names.some((n) => w.text.includes(n))).map((w) => ({ kind: "workflow" as const, id: w.id, name: w.name })),
       ],
       aliases: mine.map((a) => ({ id: a.id, name: a.name })),
+      kitSynced: (t.kitNames.length ? t.kitNames : [t.name]).some((n) => kitSeen.has(n)),
     };
   });
   rows.sort((a, b) => Number(b.system) - Number(a.system) || a.name.localeCompare(b.name));
   return { rows, total: rows.length, system: rows.filter((r) => r.system).length };
 }
 
-/** Plain words for a tag's users: "the broadcast "Guide drop" and the workflow "SEND keyword"". */
-export function usedByWords(used: { kind: "broadcast" | "workflow"; name: string }[]): string {
-  const parts = used.map((u) => `the ${u.kind} "${u.name}"`);
-  if (parts.length <= 1) return parts[0] ?? "";
-  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
-}
+export { usedByWords } from "@/lib/os/in-use";
 

@@ -134,6 +134,8 @@ describe.skipIf(!DB)("DM CRM writers (real Postgres)", () => {
     it("rename rewrites contacts and the setters' tag options; the old name keeps landing on it", async () => {
       await contact("t2", { tags: ["hot", "x"] });
       const hot = (await ensureTag("w1", "hot"))!;
+      // Kit has received "hot" (so it keeps its Kit name below).
+      await state.db.contactSync.create({ data: { workspaceId: "w1", contactId: "t2", provider: "kit", pushedTags: ["hot"] } });
       const r = await renameTag("w1", hot.id, "warm lead");
       expect(r.ok).toBe(true);
       expect((await state.db.contact.findUniqueOrThrow({ where: { id: "t2" } })).tags).toEqual(["warm lead", "x"]);
@@ -148,6 +150,14 @@ describe.skipIf(!DB)("DM CRM writers (real Postgres)", () => {
       expect((await resolveTag("w1", "warm lead"))!.kitNames).toEqual(["hot"]);
       // A live alias can't become a new tag.
       expect(await createTag("w1", { name: "Hot" })).toEqual({ ok: false, error: "This was the old name of warm lead." });
+    });
+
+    it("a tag nothing used and Kit never saw just takes the new name (no old name, no old Kit name)", async () => {
+      const made = await createTag("w1", { name: "fresh-one" });
+      if (!made.ok) throw new Error(made.error);
+      const r = await renameTag("w1", made.tag.id, "fresh-two");
+      expect(r.ok && r.tag.kitNames).toEqual(["fresh-two"]);
+      expect(await state.db.tagAlias.count({ where: { workspaceId: "w1", name: "fresh-one" } })).toBe(0);
     });
 
     it("delete is refused while an unsent broadcast uses the tag, unless forced", async () => {

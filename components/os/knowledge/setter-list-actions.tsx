@@ -76,9 +76,15 @@ export function ImportButton() {
   const saver = useSaver();
   return (
     <>
-      <button type="button" className="os-button primary" disabled={saver.pending} onClick={() => saver.run(() => importKnowledge())}>
+      {/* Secondary: New setter is the page's one primary action. */}
+      <button type="button" className="os-button" disabled={saver.pending} aria-busy={saver.pending || undefined} onClick={() => saver.run(() => importKnowledge())}>
         {saver.pending ? "Importing…" : "Import the claudepreneur files"}
       </button>
+      {saver.pending ? (
+        <span className="os-kb-note" role="status">
+          Reading J&apos;s files and lead magnets. This takes a few seconds.
+        </span>
+      ) : null}
       {saver.note?.kind === "error" && <span className="os-kb-note" data-kind="error">{saver.note.text}</span>}
     </>
   );

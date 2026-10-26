@@ -3,6 +3,7 @@
 // the facts and app/api/os/diagnostics/route.ts serves them. Nothing here
 // calls Instagram, Zernio, Kit or Cal.com: every fact is our own state.
 
+import type { InstagramFix } from "@/lib/os/connections-view";
 import { ago } from "@/lib/os/settings";
 
 export const CHECK_KEYS = ["instagram", "webhook", "queue", "worker", "zernio", "kit", "calcom"] as const;
@@ -24,6 +25,8 @@ export type CheckTone = "good" | "warn" | "bad" | "off";
 export interface NextStep {
   label: string;
   href?: string;
+  /** Runs the Instagram fix in place (the same button as Settings › Instagram account). */
+  fix?: InstagramFix;
 }
 
 export interface CheckRow {
@@ -53,7 +56,9 @@ export function parseOnly(raw: string | null | undefined): CheckKey[] {
 
 const row = (key: CheckKey, tone: CheckTone, line: string, next: NextStep[] = []): CheckRow => ({ key, name: CHECK_NAMES[key], tone, line, next });
 
-const RECONNECT: NextStep = { label: "Reconnect", href: "/os/settings?tab=instagram" };
+const RECONNECT: NextStep = { label: "Reconnect", href: "/os/settings?tab=instagram", fix: "connect" };
+const FIX_WEBHOOK: NextStep = { label: "Fix webhook", href: "/os/settings?tab=instagram", fix: "webhook" };
+const SET_UP_ZERNIO: NextStep = { label: "Set up Zernio", href: "/os/settings?tab=instagram#zernio", fix: "zernio" };
 const LOGS: NextStep = { label: "Open DM logs", href: "/os/settings?tab=logs" };
 const INTEGRATIONS: NextStep = { label: "Open Integrations", href: "/os/settings?tab=integrations" };
 
@@ -74,7 +79,7 @@ export interface InstagramFacts {
 export function instagramCheck({ account, zernioReady, now }: InstagramFacts): CheckRow {
   if (!account) return row("instagram", "bad", "No account connected", [RECONNECT]);
   if (account.provider === "ZERNIO") {
-    if (!zernioReady) return row("instagram", "bad", `@${account.username} · Zernio isn't set up`, [RECONNECT]);
+    if (!zernioReady) return row("instagram", "bad", `@${account.username} · Zernio isn't set up`, [SET_UP_ZERNIO]);
     if (!account.zernioAccountId) return row("instagram", "bad", `@${account.username} · not linked in Zernio`, [RECONNECT]);
     return row("instagram", "good", `@${account.username} · connected through Zernio`);
   }
@@ -93,7 +98,7 @@ export interface WebhookFacts {
 
 export function webhookCheck({ connected, subscribed, failedToday }: WebhookFacts): CheckRow {
   if (!connected) return row("webhook", "off", "No account connected");
-  if (!subscribed) return row("webhook", "bad", "Not subscribed, so new DMs and comments don't arrive", [RECONNECT]);
+  if (!subscribed) return row("webhook", "bad", "Not subscribed, so new DMs and comments don't arrive", [FIX_WEBHOOK]);
   if (failedToday) return row("webhook", "warn", `${failedToday} event${failedToday === 1 ? "" : "s"} failed today`, [LOGS]);
   return row("webhook", "good", "Subscribed · events arriving");
 }
@@ -138,8 +143,8 @@ export interface ZernioFacts {
 }
 
 export function zernioCheck({ configured, webhookReady, used }: ZernioFacts): CheckRow {
-  if (!configured) return used ? row("zernio", "bad", "No key saved", [INTEGRATIONS]) : row("zernio", "off", "Not connected");
-  if (!webhookReady) return row("zernio", "bad", "Key saved · webhook not set up", [INTEGRATIONS]);
+  if (!configured) return used ? row("zernio", "bad", "No key saved", [SET_UP_ZERNIO]) : row("zernio", "off", "Not connected");
+  if (!webhookReady) return row("zernio", "bad", "Key saved · webhook not set up", [SET_UP_ZERNIO]);
   return row("zernio", "good", "Connected · inbox access");
 }
 

@@ -1,5 +1,5 @@
 // Settings › Tags: one row per managed tag with its contact count, what uses
-// it, its Kit name and its old names. The rules (rename, delete, free an
+// it, its Kit name (once Kit has received it) and its old names. The rules (rename, delete, free an
 // alias) live in lib/os/tags/store.ts; this only reads, in one pass.
 
 import { prisma } from "@/lib/db/client";
@@ -18,10 +18,11 @@ export async function loadTagBoard(workspaceId: string): Promise<TagBoard> {
     const broadcasts = usage.flatMap((u, i) => u.broadcasts.map((b) => ({ id: b.id, name: b.name, audienceTagId: tags[i].id })));
     return buildTagBoard(tags, aliases, counts, broadcasts, []);
   }
-  const [counts, broadcasts, workflows] = await Promise.all([
+  const [counts, broadcasts, workflows, kit] = await Promise.all([
     prisma.$queryRaw<{ name: string; n: bigint }[]>`SELECT t AS name, COUNT(*)::bigint AS n FROM "Contact", unnest("tags") AS t WHERE "workspaceId" = ${workspaceId} GROUP BY t`,
     prisma.broadcast.findMany({ where: { workspaceId, audienceTagId: { not: null }, status: { notIn: ["sent", "cancelled"] } }, select: { id: true, name: true, audienceTagId: true } }),
     prisma.workflow.findMany({ where: { workspaceId }, select: { id: true, name: true, draftGraph: true, currentVersionId: true, versions: { select: { id: true, graph: true } } } }),
+    prisma.$queryRaw<{ t: string }[]>`SELECT DISTINCT unnest("pushedTags") AS t FROM "ContactSync" WHERE "workspaceId" = ${workspaceId} AND "provider" = 'kit'`.catch(() => []),
   ]);
   return buildTagBoard(
     tags,
@@ -32,6 +33,7 @@ export async function loadTagBoard(workspaceId: string): Promise<TagBoard> {
       id: w.id,
       name: w.name,
       text: JSON.stringify(w.draftGraph ?? null) + JSON.stringify(w.versions.find((v) => v.id === w.currentVersionId)?.graph ?? null),
-    }))
+    })),
+    new Set(kit.map((k) => k.t))
   );
 }

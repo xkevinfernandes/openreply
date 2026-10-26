@@ -9,8 +9,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { connectDataOs, removeDataOs } from "@/app/(os)/os/integrations/actions";
-import { DisconnectButton, ZernioPanel } from "@/components/os/settings/instagram-panel";
-import { InfoTip } from "@/components/os/ui";
+import { DisconnectButton, InstagramFixButton, ZernioPanel } from "@/components/os/settings/instagram-panel";
+import type { InstagramProblem } from "@/lib/os/connections-view";
 import type { CalendarBoard } from "@/lib/os/integrations/calendar/view";
 import type { DataOsView } from "@/lib/os/integrations/dataos";
 import type { IntegrationView } from "@/lib/os/integrations/view";
@@ -25,8 +25,10 @@ export interface InstagramStrip {
   id: string | null;
   username: string | null;
   provider: string | null;
-  problem: string | null;
-  sendCap: number;
+  /** The first problem and its fix (lib/os/connections.ts), the same as every screen. */
+  problem: InstagramProblem | null;
+  /** OS_MOCK sample account. */
+  sample: boolean;
 }
 
 interface Props {
@@ -170,14 +172,18 @@ export default function SettingsIntegrations({ instagram, zernio, dataos, views,
                 : "Connect an account to start."
             }
             tone={instagram.username ? (instagram.problem ? "bad" : "good") : "off"}
-            status={instagram.username ? (instagram.problem ?? "Connected") : "Not connected"}
+            status={instagram.username ? (instagram.problem?.text ?? "Connected") : "Not connected"}
             action="Manage"
             canManage={canManage}
             actions={
               <>
-                <Link href="/os/settings?tab=instagram" className={`os-si-btn${instagram.problem || !instagram.username ? " primary" : ""}`}>
-                  {instagram.problem ? "Reconnect" : instagram.username ? "Manage" : "Connect"}
-                </Link>
+                {instagram.problem && canManage ? (
+                  <InstagramFixButton fix={instagram.problem.fix} sample={instagram.sample} className="os-si-btn primary" />
+                ) : (
+                  <Link href="/os/settings?tab=instagram" className={`os-si-btn${!instagram.username ? " primary" : ""}`}>
+                    {instagram.username ? "Manage" : "Connect"}
+                  </Link>
+                )}
                 {canManage && instagram.id && instagram.username ? <DisconnectButton id={instagram.id} username={instagram.username} /> : null}
               </>
             }
@@ -194,7 +200,7 @@ export default function SettingsIntegrations({ instagram, zernio, dataos, views,
             primary={!zernio.configured}
             canManage={canManage}
           >
-            <ZernioPanel canManage={canManage} />
+            <ZernioPanel canManage={canManage} embedded sample={instagram.sample && instagram.username ? { username: instagram.username } : null} />
           </Row>
           {kit ? (
             <Row
@@ -229,13 +235,6 @@ export default function SettingsIntegrations({ instagram, zernio, dataos, views,
           ) : null}
           {calcom ? calendarRow(calcom) : null}
         </div>
-        {calendars.sample ? <p className="os-si-note">Sample calendar (OS_MOCK).</p> : null}
-        <p className="os-si-note">
-          Setter limit {instagram.sendCap}/day{" "}
-          <InfoTip label="Why is there a setter send limit?">
-            Instagram limits how many DMs a new or flagged account may send. Every bubble J sends counts (workflows and openers don&apos;t); change the limit in Workspace.
-          </InfoTip>
-        </p>
       </section>
 
       <section className="os-si-group" aria-labelledby="si-more">

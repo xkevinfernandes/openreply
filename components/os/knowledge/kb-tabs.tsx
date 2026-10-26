@@ -3,20 +3,6 @@ import { KbIcon } from "@/components/os/knowledge/icons";
 import { NewSetter } from "@/components/os/knowledge/setter-list-actions";
 import { SetterChatToggle } from "@/components/os/knowledge/setter-chat";
 
-/** Setters · Resources, under the header. */
-export function KbTabs({ active, settersHref = "/os/knowledge" }: { active: "setters" | "resources"; settersHref?: string }) {
-  return (
-    <nav className="kb-tabs" aria-label="Knowledge bases">
-      <Link href={settersHref} aria-current={active === "setters" ? "page" : undefined}>
-        Setters
-      </Link>
-      <Link href="/os/resources" aria-current={active === "resources" ? "page" : undefined}>
-        Resources
-      </Link>
-    </nav>
-  );
-}
-
 interface SetterBarProps {
   id: string;
   name: string;
@@ -26,13 +12,14 @@ interface SetterBarProps {
   active?: "knowledge" | "sandbox";
 }
 
-/** Knowledge bases › J, the setter switcher, Download .md and Test in sandbox. */
+/** Setters › J, the setter switcher, Download .md and Test in sandbox. Resources
+ *  has its own nav item, so there's no second Setters · Resources switch here. */
 export function SetterBar({ id, name, setters, query = "", active = "knowledge" }: SetterBarProps) {
   return (
     <>
       <header className="kb-bar">
         <nav aria-label="Breadcrumb" className="kb-crumb">
-          <Link href="/os/knowledge">Knowledge bases</Link>
+          <Link href="/os/knowledge">Setters</Link>
           <KbIcon name="chevron" size={12} />
           {active === "sandbox" ? <Link href={`/os/knowledge/${id}`}>{name}</Link> : <span className="kb-crumb-now">{name}</span>}
           {active === "sandbox" && (
@@ -60,10 +47,8 @@ export function SetterBar({ id, name, setters, query = "", active = "knowledge" 
           <NewSetter setters={setters} compact />
         </div>
       </header>
-      {/* Setters · Resources with the actions on the same row: the setter bar
-          above stays one row even with the chat open (R2-5). */}
+      {/* The actions under the setter bar, so it stays one row even with the chat open (R2-5). */}
       <div className="kb-subbar">
-        <KbTabs active="setters" settersHref={`/os/knowledge/${id}`} />
         <div className="kb-bar-acts">
           <a href={`/os/knowledge/${id}/export`} className="kb-btn kb-btn-dl" download>
             <KbIcon name="download" />

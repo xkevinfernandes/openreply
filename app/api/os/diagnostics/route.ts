@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { diagnosticsSummary, parseOnly } from "@/lib/os/diagnostics";
-import { diagnosticsDetails, readChecks, sendingToday } from "@/lib/os/diagnostics-reads";
+import { diagnosticsDetails, mockDetails, readChecks, sendingToday } from "@/lib/os/diagnostics-reads";
 import { osMockEnabled } from "@/lib/os/mock";
 import { getCurrentWorkspaceContext } from "@/lib/workspace-access";
 
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
   const [checks, sending, details] = await Promise.all([
     readChecks(context.workspaceId, keys),
     onlyRaw ? null : sendingToday(context.workspaceId).catch(() => null),
-    url.searchParams.get("details") === "1" && !osMockEnabled() ? diagnosticsDetails(context.workspaceId).catch(() => null) : null,
+    url.searchParams.get("details") !== "1" ? null : osMockEnabled() ? mockDetails() : diagnosticsDetails(context.workspaceId).catch(() => null),
   ]);
   const body = { success: true, data: { checks, summary: diagnosticsSummary(checks), sending, details, checkedAt: new Date().toISOString() } };
   if (cacheKey) cache.set(cacheKey, { at: Date.now(), body });
