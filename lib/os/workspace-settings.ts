@@ -1,4 +1,5 @@
-// Workspace switches (OsWorkspace): daily setter send limit (sendCapPerDay), Pause all, timezone.
+// Workspace switches (OsWorkspace): daily setter send limit (sendCapPerDay), Pause all, timezone,
+// currency (offer prices and won amounts are read in it; no conversion).
 // The row is created with defaults on first read.
 
 import { prisma } from "@/lib/db/client";
@@ -8,19 +9,37 @@ export interface WorkspaceSettings {
   sendCapPerDay: number;
   pausedAll: boolean;
   timezone: string;
+  /** ISO 4217, e.g. "EUR". */
+  currency: string;
 }
 
 export const DEFAULT_SETTINGS: Omit<WorkspaceSettings, "workspaceId"> = {
   sendCapPerDay: 80,
   pausedAll: false,
   timezone: "Europe/Luxembourg",
+  currency: "EUR",
 };
+
+/** The currencies Settings › Workspace offers. */
+export const CURRENCIES = ["EUR", "USD", "GBP", "CHF", "CAD", "AUD"] as const;
+
+/** A won amount or offer price in the workspace currency, e.g. "€1,200". */
+export function formatMoney(amount: number, currency: string, locale = "en-GB"): string {
+  try {
+    return new Intl.NumberFormat(locale, { style: "currency", currency, maximumFractionDigits: amount % 1 ? 2 : 0 }).format(amount);
+  } catch {
+    return `${amount} ${currency}`;
+  }
+}
 
 export const SEND_CAP_MAX = 500;
 
+/** A row as storage returns it (older fakes have no currency). */
+export type SettingsRow = Omit<WorkspaceSettings, "currency"> & { currency?: string | null };
+
 export interface SettingsDb {
   osWorkspace: {
-    upsert(args: { where: { workspaceId: string }; create: object; update: object }): Promise<WorkspaceSettings>;
+    upsert(args: { where: { workspaceId: string }; create: object; update: object }): Promise<SettingsRow>;
   };
 }
 
@@ -53,11 +72,16 @@ export function validatePatch(input: Record<string, unknown>): { patch: Settings
     if (typeof input.timezone !== "string" || !isValidTimezone(input.timezone)) return { error: "Unknown timezone." };
     patch.timezone = input.timezone;
   }
+  if (input.currency !== undefined) {
+    const c = typeof input.currency === "string" ? input.currency.trim().toUpperCase() : "";
+    if (!/^[A-Z]{3}$/.test(c)) return { error: "Pick a currency." };
+    patch.currency = c;
+  }
   return { patch };
 }
 
-function view(r: WorkspaceSettings): WorkspaceSettings {
-  return { workspaceId: r.workspaceId, sendCapPerDay: r.sendCapPerDay, pausedAll: r.pausedAll, timezone: r.timezone };
+function view(r: SettingsRow): WorkspaceSettings {
+  return { workspaceId: r.workspaceId, sendCapPerDay: r.sendCapPerDay, pausedAll: r.pausedAll, timezone: r.timezone, currency: r.currency ?? DEFAULT_SETTINGS.currency };
 }
 
 export async function getWorkspaceSettings(workspaceId: string, db: SettingsDb = defaultDb()): Promise<WorkspaceSettings> {

@@ -30,6 +30,7 @@ import { addTag } from "@/lib/os/fields/write";
 import { createTag, deleteTag, ensureTag, listTags, renameTag, resolveTag } from "@/lib/os/tags/store";
 import { clearWonData, setWonData, wonDataOf } from "@/lib/os/events";
 import { stampSend } from "@/lib/os/send-stamp";
+import { funnelView, loadFunnelContacts } from "@/lib/os/crm-funnel";
 
 const schema = `crm_writers_${randomBytes(4).toString("hex")}`;
 let sql: Client;
@@ -183,6 +184,23 @@ describe.skipIf(!DB)("DM CRM writers (real Postgres)", () => {
       expect(await stampSend({ instagramId: "IGBIZ", igUserId: "IGSID9" }, { human: false })).toBe(1);
       expect((await state.db.contact.findUniqueOrThrow({ where: { id: "p2" } })).lastOutboundAt).not.toBeNull();
       expect(await stampSend({ instagramId: "IGBIZ", igUserId: "nobody" }, { human: false })).toBe(0);
+    });
+  });
+
+  describe("funnel loader", () => {
+    it("reads the cohort, events, stage log and won data into the shared funnel", async () => {
+      await state.db.contact.create({ data: { id: "f1", workspaceId: "w1", instagramAccountId: "ig1", igUserId: "f1", kind: "SALES", stage: "WON", setterStage: "assure" } });
+      await state.db.contact.create({ data: { id: "f2", workspaceId: "w1", instagramAccountId: "ig1", igUserId: "f2", kind: "PERSONAL" } });
+      await state.db.osEvent.create({ data: { workspaceId: "w1", contactId: "f1", kind: "conversation_started", dedupeKey: "cs:f1" } });
+      await setWonData({ workspaceId: "w1", contactId: "f1", offer: "Coaching", amount: 900 });
+      const contacts = await loadFunnelContacts("w1", 30);
+      expect(contacts.some((c) => c.id === "f2")).toBe(false);
+      const f1 = contacts.find((c) => c.id === "f1")!;
+      expect(f1).toMatchObject({ wonAmount: 900 });
+      expect(f1.events.has("conversation_started")).toBe(true);
+      const view = funnelView(contacts.filter((c) => c.id === "f1"), 30, new Date());
+      expect(view.steps.at(-1)?.count).toBe(1);
+      expect(view.revenue).toMatchObject({ fromCohort: 900, closedInPeriod: 900 });
     });
   });
 });
