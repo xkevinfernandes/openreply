@@ -2,8 +2,6 @@
 // arranges. Postgres, or the sample inbox with OS_MOCK=1.
 
 import { prisma } from "@/lib/db/client";
-import { broadcastNeeds } from "@/lib/os/broadcasts/engine";
-import { broadcastStore } from "@/lib/os/broadcasts/store";
 import { buildTimeline, type PausedContact, type SentStep, type Timeline, type Who } from "@/lib/os/followups-timeline";
 import { mockThreads, osMockEnabled } from "@/lib/os/mock";
 import { sequenceStore } from "@/lib/os/sequences/store";
@@ -87,10 +85,9 @@ async function setterNames(workspaceId: string): Promise<Map<string, string>> {
 }
 
 export async function loadTimeline(workspaceId: string, now = new Date()): Promise<Timeline> {
-  const [screen, rows, needs, sent, paused, names, tz] = await Promise.all([
+  // Broadcasts are one-off records under Automations now: not on this timeline.
+  const [screen, sent, paused, names, tz] = await Promise.all([
     loadFollowupScreen(workspaceId, now),
-    broadcastStore().rows(workspaceId, { statuses: ["scheduled", "sent"], take: 300 }),
-    broadcastNeeds(workspaceId, { now }),
     sentSteps(workspaceId),
     pausedContacts(workspaceId),
     setterNames(workspaceId),
@@ -98,13 +95,13 @@ export async function loadTimeline(workspaceId: string, now = new Date()): Promi
       .then((s) => s.timezone)
       .catch(() => DEFAULT_SETTINGS.timezone),
   ]);
-  const people = await peopleFor(workspaceId, [...new Set(rows.map((r) => r.contactId))]);
+  const people = await peopleFor(workspaceId, []);
   return buildTimeline({
     queue: screen.queue,
     tasks: screen.tasks,
     attendance: screen.attendance,
-    broadcasts: rows,
-    needs,
+    broadcasts: [],
+    needs: [],
     sentSteps: sent,
     pausedContacts: paused,
     people,

@@ -60,13 +60,12 @@ export async function seedFollowupsMock() {
 }
 
 /** The sidebar number: the same as the Follow-ups "Yours to do" tab (calls
- *  to mark, Kevin's tasks, broadcasts that need a link or a review). J's
- *  drafted steps show on Scheduled and in the Inbox count instead. */
+ *  to mark, Kevin's tasks). J's drafted steps show on Scheduled and in the
+ *  Inbox count instead; broadcasts in review badge Automations. */
 export async function followupsDue(workspaceId: string, now: Date = new Date()): Promise<number> {
   const { loadFollowupScreen } = await import("@/lib/os/sequences/view");
-  const { broadcastNeeds } = await import("@/lib/os/broadcasts/engine");
-  const [screen, needs] = await Promise.all([loadFollowupScreen(workspaceId, now).catch(() => null), broadcastNeeds(workspaceId, { now }).catch(() => [])]);
-  return (screen ? screen.attendance.length + screen.tasks.length : 0) + needs.length;
+  const screen = await loadFollowupScreen(workspaceId, now).catch(() => null);
+  return screen ? screen.attendance.length + screen.tasks.length : 0;
 }
 
 /** Add to / take off the Friday list. */

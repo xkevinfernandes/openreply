@@ -1,6 +1,6 @@
 // Who a broadcast run goes to. Pure.
 //   - contacts carrying the audience tag (follow-up-friday)
-//   - minus paused contacts, Personal and Pitches
+//   - minus archived, spam, paused contacts, Personal and Pitches
 //   - nobody while Pause all is on
 //   - only people inside Instagram's 24h messaging window at send time;
 //     everyone else is listed as "outside window" and skipped. No HUMAN_AGENT
@@ -27,7 +27,9 @@ export interface AudienceResult {
 }
 
 /** Why a tagged contact is never sent a broadcast (null = fine). */
-export function excludedReason(c: Pick<BroadcastContact, "kind" | "paused">): string | null {
+export function excludedReason(c: Pick<BroadcastContact, "kind" | "paused" | "archived" | "spam">): string | null {
+  if (c.archived) return "Archived";
+  if (c.spam) return "Spam";
   if (c.paused) return "Paused";
   if (c.kind === "PERSONAL") return "Personal";
   if (c.kind === "PITCHES") return "Pitches";
@@ -53,9 +55,10 @@ export function selectAudience(
   opts: { tag: string; from: Date; until: Date; pausedAll?: boolean; cfg?: StateConfig }
 ): AudienceResult {
   const out: AudienceResult = { eligible: [], outside: [], excluded: [] };
+  // tag "" = a fixed list: every contact passed in is in it.
   const tag = opts.tag.toLowerCase();
   for (const c of contacts) {
-    if (!c.tags.some((t) => t.toLowerCase() === tag)) continue;
+    if (tag && !c.tags.some((t) => t.toLowerCase() === tag)) continue;
     const ex = opts.pausedAll ? "Pause all is on" : (excludedReason(c) ?? (workflowBusy(c, opts.from) ? "In a workflow" : null));
     if (ex) {
       out.excluded.push({ contact: c, verdict: "excluded", reason: ex, deadline: null });
@@ -79,4 +82,10 @@ export function selectAudience(
 /** Re-check one person right before a send (the window moves while we wait). */
 export function stillInWindow(theirLastAt: string | null, at: Date, cfg?: StateConfig): boolean {
   return windowState(theirLastAt, at, cfg)[0] === "free";
+}
+
+/** The skip reason code for an excluded reason (send-time re-check). */
+export function excludedCode(reason: string): "archived" | "spam" | "paused" | "personal" | "pitches" | null {
+  const r = reason.toLowerCase();
+  return r === "archived" || r === "spam" || r === "paused" || r === "personal" || r === "pitches" ? r : null;
 }
