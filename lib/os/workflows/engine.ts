@@ -754,7 +754,10 @@ export class WorkflowEngine {
 
   /** Nothing can be sent 7 days after their last message (or the comment): the run ends Quiet (E2). */
   private replyDeadline(run: RunRecord, contact: ContactInfo | null): Date {
-    const base = this.theirLast(run, contact) ?? run.startedAt;
+    // From whichever is later: their last message, or this run's start (the
+    // comment). An old DM from weeks ago must not end a fresh run at once.
+    const last = this.theirLast(run, contact);
+    const base = last && last > run.startedAt ? last : run.startedAt;
     return new Date(base.getTime() + HUMAN_AGENT_MS);
   }
 

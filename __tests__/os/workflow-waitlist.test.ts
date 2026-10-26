@@ -408,3 +408,17 @@ describe("Waitlist + questions: Instagram ids differ between the comment and the
   });
 
 });
+
+describe("Waitlist + questions: someone who DMed you weeks ago", () => {
+  it("their old last message doesn't end the run: the comment starts a fresh 7 days", async () => {
+    const h = harness();
+    h.publish(waitlist());
+    h.contact("ana", { theirLastAt: new Date(Date.now() - 30 * DAY) });
+    await h.comment("ana", "FOUNDER", { postId: "reel1" });
+    await h.wait(60_000);
+    const run = (await h.run("ana"))!;
+    expect(run.status).toBe("waiting");
+    await h.tap("ana", `wf:${run.id}:join:join`);
+    expect(text(lastSent(h, "ana").msg)).toMatch(/best email address/);
+  });
+});
