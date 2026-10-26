@@ -3,8 +3,11 @@ import { commandForKey, isTypingTarget } from "@/components/os/keys";
 import { activeNav, BADGED, isActive, osNav, parseSidebarCookie, SIDEBAR_COOKIE, sidebarCookie } from "@/lib/os/nav";
 
 describe("nav", () => {
-  it("has the spec's 7 items in order; Integrations moved into Settings", () => {
-    expect(osNav.map((n) => n.label)).toEqual(["Home", "Inbox", "Contacts", "Follow-ups", "Automations", "Knowledge bases", "Settings"]);
+  it("has the CRM nav in order (Setters = Knowledge bases, same route); Integrations moved into Settings", () => {
+    expect(osNav.map((n) => n.label)).toEqual(["Home", "Inbox", "Contacts", "Pipeline", "Follow-ups", "Automations", "Setters", "Resources", "Settings"]);
+    expect(osNav.find((n) => n.label === "Setters")?.href).toBe("/os/knowledge");
+    expect(osNav.find((n) => n.key === "pipeline")?.href).toBe("/os/pipeline");
+    expect(osNav.find((n) => n.key === "resources")?.href).toBe("/os/resources");
     expect(osNav.some((n) => n.href === "/os/integrations")).toBe(false);
     for (const n of osNav) expect(n.icon).toMatch(/^M/);
   });
@@ -18,6 +21,9 @@ describe("nav", () => {
     expect(activeNav("/os/integrations")?.key).toBe("settings");
     expect(activeNav("/os/settings")?.key).toBe("settings");
     expect(activeNav("/elsewhere")).toBeNull();
+    expect(activeNav("/os/knowledge/abc")?.key).toBe("knowledge");
+    expect(activeNav("/os/pipeline")?.key).toBe("pipeline");
+    expect(activeNav("/os/resources")?.key).toBe("resources");
   });
 
   it("only Inbox and Follow-ups carry counts", () => {

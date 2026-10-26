@@ -68,9 +68,25 @@ export const { handlers, signIn, signOut } = nextAuth;
 // is signed in as a local test user, so the mock OS opens without a magic link.
 const MOCK_USER = { id: "os-mock-user", email: "mock@dm-os.local", name: "Kevin" };
 
-async function mockSession() {
-  await prisma.user.upsert({ where: { id: MOCK_USER.id }, update: {}, create: MOCK_USER });
+async function ensureMockUser() {
+  try {
+    await prisma.user.upsert({ where: { id: MOCK_USER.id }, update: {}, create: MOCK_USER });
+  } catch (err) {
+    // The layout and the page sign in at once on a fresh database: the other one made it.
+    if ((err as { code?: string })?.code !== "P2002") throw err;
+  }
   await ensureWorkspaceForUser(MOCK_USER.id, MOCK_USER.email);
+}
+
+async function mockSession() {
+  // One sign-up per process, shared by concurrent requests (globalThis: dev
+  // can load this module more than once).
+  const g = globalThis as { __osMockUser?: Promise<void> };
+  g.__osMockUser ??= ensureMockUser().catch((err) => {
+    g.__osMockUser = undefined;
+    throw err;
+  });
+  await g.__osMockUser;
   return { user: MOCK_USER, expires: new Date(Date.now() + 86400_000).toISOString() };
 }
 

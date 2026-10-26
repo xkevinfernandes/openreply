@@ -242,3 +242,16 @@ describe("moveTargets (board drop targets, the panel's dropdown)", () => {
     expect(decideMove({ ...s, stage: "IN_CONVERSATION", setterStage: "open", liveBooking: false }, { type: "column", column: "nope" }, "user")).toMatchObject({ kind: "refuse", reason: "Unknown column." });
   });
 });
+
+describe("OS_MOCK", () => {
+  it("moves a sample contact and logs it in memory", async () => {
+    const { mockStageDb } = await import("@/lib/os/stage-writer-mock");
+    const { mockContact } = await import("@/lib/os/mock");
+    const { mockStageLog } = await import("@/lib/os/mock-crm");
+    const r = await writeStage({ workspaceId: "ws", contactId: "c2", cause: "user", change: { type: "column", column: "qualify" } }, { db: mockStageDb(), onStageChanged: null });
+    expect(r).toMatchObject({ status: "applied", to: "qualify" });
+    expect(mockContact("c2")?.contact.setterStage).toBe("qualify");
+    expect(mockStageLog("c2")[0]).toMatchObject({ cause: "user", toColumn: "qualify", outcome: "applied" });
+    expect((await writeStage({ workspaceId: "ws", contactId: "c2", cause: "user", change: { type: "column", column: "booked" } }, { db: mockStageDb(), onStageChanged: null })).status).toBe("refused");
+  });
+});

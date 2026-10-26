@@ -191,3 +191,18 @@ describe("Kit always sees the same tag name", () => {
     expect(removed.pushes[0].removeTags?.sort()).toEqual(["Not-Now", "not_now"]);
   });
 });
+
+describe("OS_MOCK tags", () => {
+  it("seeds the sample's tags plus the system ones, and renames them on the sample contacts", async () => {
+    const { mockTagStore, mockRenameTag, mockTags } = await import("@/lib/os/mock-crm");
+    const { mockContactExtras } = await import("@/lib/os/mock");
+    const names = mockTags("ws-mock").map((t) => t.name);
+    for (const s of SYSTEM_TAGS) expect(names).toContain(s.name);
+    expect(names).toContain("hot");
+    expect((await resolveTag("ws-mock", "Not-Now", mockTagStore()))?.name).toBe("not_now");
+    const hot = mockTags("ws-mock").find((t) => t.name === "hot")!;
+    expect(mockRenameTag("ws-mock", hot.id, "warm").ok).toBe(true);
+    expect(mockContactExtras("c1").tags).toContain("warm");
+    expect(mockRenameTag("ws-mock", mockTags("ws-mock").find((t) => t.name === "client")!.id, "x").ok).toBe(false);
+  });
+});
