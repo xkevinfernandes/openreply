@@ -9,6 +9,7 @@
 // contacts get J's sales/personal guess, and a Personal contact's new message
 // is checked for "move to Sales?". Triage is held to TRIAGE_PER_MINUTE.
 
+import { recordInbound } from "@/lib/os/inbox-crm";
 import { DelayedError, Queue, Worker, type Job } from "bullmq";
 import { prisma } from "@/lib/db/client";
 import { campaignHoldsSetter } from "@/lib/os/automations-handoff";
@@ -183,6 +184,8 @@ export async function queueSetterForInbound(event: {
       igUserId: event.igUserId,
       entryPath: commented ? "comment" : null,
     });
+    // The inbox's fields (dm-crm 009/012): last inbound, un-archive, spam check. Never throws.
+    await recordInbound({ workspaceId: event.workspaceId, contactId: contact.id, text: event.text ?? null });
     const debounceMs = getSetterConfig().debounce_seconds * 1000;
     const bucket = Math.floor(Date.now() / debounceMs);
     // Their voice notes and photos are saved now (CDN urls expire); Personal

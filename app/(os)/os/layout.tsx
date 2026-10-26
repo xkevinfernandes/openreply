@@ -9,7 +9,7 @@ import { followupsDue } from "@/lib/os/followups-data";
 import { osMockEnabled } from "@/lib/os/mock";
 import { parseSidebarCookie, SIDEBAR_COOKIE, type NavItem } from "@/lib/os/nav";
 import { capState } from "@/lib/os/sending/cap";
-import { requestPendingDrafts } from "@/lib/os/inbox";
+import { inboxBadgeCount } from "@/lib/os/inbox-stream-load";
 import { ensureWorkspaceForUser } from "@/lib/workspace";
 import "./os.css";
 import "./inbox.css";
@@ -43,7 +43,8 @@ const THEME_SCRIPT = `try{var t=localStorage.getItem('theme');if(t==='light'||t=
 /** Sidebar counts. Cheap reads only; a failure just hides the number. */
 async function navCounts(workspaceId: string): Promise<Partial<Record<NavItem["key"], number>>> {
   const [drafts, followups] = await Promise.all([
-    requestPendingDrafts(workspaceId).then((d) => d.length).catch(() => 0),
+    // Drafts waiting, never on spam or archived threads (dm-crm 012).
+    inboxBadgeCount(workspaceId).catch(() => 0),
     followupsDue(workspaceId).catch(() => 0),
   ]);
   return { inbox: drafts, followups };

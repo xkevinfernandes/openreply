@@ -1,14 +1,19 @@
-// Inbox A: three panes. The thread list (collapsible to an avatar rail), the
-// conversation as Instagram shows it with the one composer under it, and the
-// contact panel. Keys: J/K move, ⏎ approve, H hold, R regenerate, E edit.
-// Owner: S1.
+// Inbox A: three panes. The thread list (one newest-first stream with
+// filters, dm-crm 009-014; collapsible to an avatar rail), the conversation as
+// Instagram shows it with the window line and the one composer under it, and
+// today's contact panel (a sheet on narrow screens). Opening a thread marks it
+// read. Old tab URLs (?tab=sales) land on the category filter.
+// Keys: J/K move, ⏎ approve, H hold, R regenerate, E edit. Owner: S1.
 
 import Link from "next/link";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import ContactPanel from "@/components/os/contact-panel/panel";
 import PanelResizer from "@/components/os/contact-panel/resizer";
-import { draftBlockedReason, INBOX_LIST_COOKIE, inboxHref, threadDisplayName } from "@/components/os/inbox/categories";
+import { draftBlockedReason, INBOX_LIST_COOKIE, threadDisplayName } from "@/components/os/inbox/categories";
+import ThreadActions from "@/components/os/inbox/thread-actions";
+import WindowLine from "@/components/os/inbox/window-line";
 import InboxList from "@/components/os/inbox/inbox-list";
 import MockReply from "@/components/os/inbox/mock-reply";
 import Composer, { type ComposerResource } from "@/components/os/thread/composer";
@@ -21,9 +26,11 @@ import { getCurrentWorkspaceId } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
 import { loadContactPanel } from "@/lib/os/contact-panel/load";
 import type { ContactPanelData } from "@/lib/os/contact-panel/types";
-import { listThreads, loadThreadData, requestPendingDrafts, threadFromContact, type InboxThread, type ThreadData } from "@/lib/os/inbox";
-import { kindTabs } from "@/lib/os/labels";
-import { windowHoursLeft } from "@/lib/os/messages/view";
+import { loadThreadData, requestPendingDrafts, threadFromContact, type InboxThread, type ThreadData } from "@/lib/os/inbox";
+import { markOpened } from "@/lib/os/inbox-crm";
+import { filterCounts, filterStream, inboxStreamHref, laterIso, matchesStatus, parseInboxParams, STATUS_FILTERS, type InboxParams, type StatusFilter, type StreamThread } from "@/lib/os/inbox-stream";
+import { loadThreadCrm, requestStream } from "@/lib/os/inbox-stream-load";
+import { isSpam } from "@/lib/os/spam";
 import { osMockEnabled } from "@/lib/os/mock";
 import { mockFollowupTick } from "@/lib/os/sequences/mock-seed";
 import { resolveSetterId } from "@/lib/os/setter/setters";
@@ -31,8 +38,9 @@ import { setterStore, type DraftView } from "@/lib/os/setter/store";
 import { clearSampleSuggestionsOnce, triageDisabled } from "@/lib/os/setter/triage";
 import { sendableClips, type VoiceClipView } from "@/lib/os/voice/clips";
 import { previewDraftVoice, type DraftVoicePreview } from "@/lib/os/voice/preview";
+import "./inbox-stream.css";
 
-type PageProps = { searchParams: Promise<{ tab?: string; c?: string; voice?: string; sim?: string }> };
+type PageProps = { searchParams: Promise<{ tab?: string; f?: string; cat?: string; c?: string; voice?: string; sim?: string; drafts?: string; filter?: string }> };
 
 const quiet = <T,>(p: Promise<T>, fallback: T, what: string): Promise<T> =>
   p.catch((err) => {
@@ -40,13 +48,37 @@ const quiet = <T,>(p: Promise<T>, fallback: T, what: string): Promise<T> =>
     return fallback;
   });
 
-async function loadList(workspaceId: string) {
+const EMPTY_COUNTS = Object.fromEntries(STATUS_FILTERS.map((f) => [f.key, 0])) as Record<StatusFilter, number>;
+
+async function loadList(workspaceId: string, view: InboxParams) {
+  const now = Date.now();
   try {
-    const [{ account, threads }, drafts] = await Promise.all([listThreads(workspaceId), quiet(requestPendingDrafts(workspaceId), [] as DraftView[], "drafts")]);
-    return { connected: Boolean(account) || osMockEnabled(), threads, drafts, error: null as string | null, now: Date.now() };
+    const [{ connected, threads }, drafts] = await Promise.all([requestStream(workspaceId), quiet(requestPendingDrafts(workspaceId), [] as DraftView[], "drafts")]);
+    const ctx = { now, draftContactIds: new Set(drafts.map((d) => d.contactId)) };
+    const open = threads.filter((t) => matchesStatus(t, "all", ctx));
+    const unsorted = open.filter((t) => t.contact?.kind === "UNSORTED");
+    return {
+      connected: connected || osMockEnabled(),
+      all: threads,
+      rows: filterStream(threads, view.filter, view.cat, ctx),
+      counts: filterCounts(threads, view.cat, ctx),
+      unsorted: { total: unsorted.length, suggested: unsorted.filter((t) => t.contact?.suggestedKind).length },
+      drafts,
+      error: null as string | null,
+      now,
+    };
   } catch (err) {
     console.error("[OS Inbox] load failed:", err);
-    return { connected: true, threads: [] as InboxThread[], drafts: [] as DraftView[], error: "Instagram didn't answer. Refresh in a minute.", now: Date.now() };
+    return {
+      connected: true,
+      all: [] as StreamThread[],
+      rows: [] as StreamThread[],
+      counts: EMPTY_COUNTS,
+      unsorted: { total: 0, suggested: 0 },
+      drafts: [] as DraftView[],
+      error: "Instagram didn't answer. Refresh in a minute.",
+      now,
+    };
   }
 }
 
@@ -74,31 +106,33 @@ export default async function InboxPage({ searchParams }: PageProps) {
   if (!workspaceId) return null;
 
   const params = await searchParams;
-  const tab = kindTabs.some((k) => k.tab === params.tab) ? params.tab! : "sales";
+  const parsed = parseInboxParams(params);
+  if (parsed.redirect) redirect(parsed.redirect);
+  const view: InboxParams = { filter: parsed.filter, cat: parsed.cat };
   const collapsed = (await cookies()).get(INBOX_LIST_COOKIE)?.value === "rail";
   // One-off: drop fake "(sample)" guesses an ungated deploy wrote (no-op after the first load).
   await clearSampleSuggestionsOnce(workspaceId);
   // Sample data has no worker: due follow-ups are drafted here (no-op otherwise).
   await mockFollowupTick().catch(() => null);
 
-  // Everything starts now and streams in by pane: the list waits on Zernio's
-  // thread list; the open thread is found in the database so its messages and
-  // panel load next to the list, not after it.
+  // Everything starts now and streams in by pane. The open thread is found in
+  // the database and marked read first, so the list shows it read; its
+  // messages and panel load next to the list, not after it.
   const c = params.c ?? null;
-  const list = loadList(workspaceId);
-  const selected: Promise<InboxThread | null> = c
-    ? quiet(threadFromContact(workspaceId, c), null, "thread contact").then((t) => t ?? list.then((l) => l.threads.find((x) => x.conversationId === c) ?? null))
-    : Promise.resolve(null);
+  const fromDb: Promise<InboxThread | null> = c ? quiet(threadFromContact(workspaceId, c), null, "thread contact") : Promise.resolve(null);
+  const opened = fromDb.then((t) => (t?.contact ? quiet(markOpened(workspaceId, t.contact.id), 0, "mark read") : 0));
+  const list = opened.then(() => loadList(workspaceId, view));
+  const selected: Promise<InboxThread | null> = fromDb.then((t) => t ?? (c ? list.then((l) => l.all.find((x) => x.conversationId === c) ?? null) : null));
   const panel: Promise<ContactPanelData | null> = selected.then((sel) => (sel?.contact ? quiet(loadContactPanel(workspaceId, sel.contact.id), null, "panel") : null));
 
   return (
     <div className="os-ix" data-thread-open={c ? "true" : "false"} data-list={collapsed ? "rail" : "full"}>
       <InboxKeys />
       <Suspense fallback={<ThreadListSkeleton collapsed={collapsed} />}>
-        <ListPane list={list} tab={tab} selected={c} collapsed={collapsed} />
+        <ListPane list={list} view={view} selected={c} collapsed={collapsed} />
       </Suspense>
       <Suspense key={`conv:${c ?? ""}`} fallback={c ? <ConversationSkeleton /> : <section className="os-ix-conv" />}>
-        <ConversationPane workspaceId={workspaceId} list={list} selected={selected} panel={panel} tab={tab} params={params} />
+        <ConversationPane workspaceId={workspaceId} list={list} selected={selected} panel={panel} view={view} params={params} />
       </Suspense>
       {c ? (
         <Suspense key={`panel:${c}`} fallback={<PanelSkeleton />}>
@@ -109,8 +143,8 @@ export default async function InboxPage({ searchParams }: PageProps) {
   );
 }
 
-async function ListPane({ list, tab, selected, collapsed }: { list: Promise<ListData>; tab: string; selected: string | null; collapsed: boolean }) {
-  const { connected, threads, drafts, now } = await list;
+async function ListPane({ list, view, selected, collapsed }: { list: Promise<ListData>; view: InboxParams; selected: string | null; collapsed: boolean }) {
+  const { connected, rows, counts, drafts, now, unsorted } = await list;
   if (!connected) {
     return (
       <div className="os-empty">
@@ -121,13 +155,15 @@ async function ListPane({ list, tab, selected, collapsed }: { list: Promise<List
   }
   return (
     <InboxList
-      threads={threads}
-      tab={tab}
+      threads={rows}
+      counts={counts}
+      params={view}
       selected={selected}
       now={now}
       draftContactIds={drafts.map((d) => d.contactId)}
       collapsed={collapsed}
       triageDisabled={triageDisabled()}
+      unsorted={unsorted}
     />
   );
 }
@@ -137,11 +173,11 @@ interface ConversationPaneProps {
   list: Promise<ListData>;
   selected: Promise<InboxThread | null>;
   panel: Promise<ContactPanelData | null>;
-  tab: string;
+  view: InboxParams;
   params: Awaited<PageProps["searchParams"]>;
 }
 
-async function ConversationPane({ workspaceId, list, selected: selectedP, panel: panelP, tab, params }: ConversationPaneProps) {
+async function ConversationPane({ workspaceId, list, selected: selectedP, panel: panelP, view, params }: ConversationPaneProps) {
   const selected = await selectedP;
   if (!selected) {
     const { error, connected } = await list;
@@ -163,14 +199,25 @@ async function ConversationPane({ workspaceId, list, selected: selectedP, panel:
   const draft = contact ? (drafts.find((d) => d.contactId === contact.id) ?? null) : null;
   const now = Date.now();
 
-  const [thread, panel, resources, voiceClips, draftVoice]: [ThreadData | null, ContactPanelData | null, ComposerResource[], VoiceClipView[], DraftVoicePreview | null] =
-    await Promise.all([
+  const [thread, panel, resources, voiceClips, draftVoice, crm]: [
+    ThreadData | null,
+    ContactPanelData | null,
+    ComposerResource[],
+    VoiceClipView[],
+    DraftVoicePreview | null,
+    Awaited<ReturnType<typeof loadThreadCrm>>,
+  ] = await Promise.all([
       quiet(loadThreadData(workspaceId, selected.conversationId, contact?.id ?? null), null, "thread"),
       panelP,
       quiet(loadResources(workspaceId), [], "resources"),
       contact ? quiet(loadVoiceClips(workspaceId, contact.id), [], "voice clips") : [],
       draft ? quiet(previewDraftVoice(workspaceId, draft), null, "draft voice") : null,
+      contact ? quiet(loadThreadCrm(workspaceId, contact.id), null, "thread crm") : null,
     ]);
+  // Their last message: the stored time or the newest incoming one we can see.
+  const lastIncoming = thread ? ([...thread.messages].reverse().find((m) => m.direction === "incoming" && m.at)?.at ?? null) : null;
+  const lastInboundAt = laterIso(crm?.crm.lastInboundAt ?? null, lastIncoming);
+  const listHref = inboxStreamHref(view);
 
   const name = threadDisplayName(selected);
   const stageLabel = panel ? (panel.stage.columns.find((c) => c.key === panel.stage.column)?.label ?? null) : null;
@@ -185,11 +232,23 @@ async function ConversationPane({ workspaceId, list, selected: selectedP, panel:
       <ThreadHead
         name={name}
         username={selected.username}
-        backHref={inboxHref(tab)}
+        backHref={listHref}
         stage={contact?.kind === "SALES" ? stageLabel : null}
         stageKey={panel?.stage.column ?? null}
-        windowHours={thread ? windowHoursLeft(thread.messages, now) : null}
+        windowHours={null}
         triage={triage}
+        actions={
+          contact && crm ? (
+            <ThreadActions
+              contactId={contact.id}
+              starred={crm.crm.starred}
+              archived={Boolean(crm.crm.archivedAt)}
+              spam={isSpam(crm.crm)}
+              listHref={listHref}
+              hasPanel={Boolean(panel)}
+            />
+          ) : null
+        }
       />
       {thread ? (
         <ThreadView key={selected.conversationId} data={thread} contactId={contact?.id ?? null} who={name} avatarUrl={selected.avatarUrl ?? null} now={now} />
@@ -197,6 +256,7 @@ async function ConversationPane({ workspaceId, list, selected: selectedP, panel:
         <div className="os-ix-placeholder">Messages didn&apos;t load. Refresh in a minute.</div>
       )}
       {osMockEnabled() && params.sim === "1" ? <MockReply conversationId={selected.conversationId} who={name} /> : null}
+      <WindowLine lastInboundAt={lastInboundAt} zernio={crm?.zernio ?? false} tz={thread?.tz ?? "UTC"} now={now} />
       <Composer
         key={`${selected.conversationId}:${draft ? `${draft.id}:${draft.bubbles.join("|")}` : "none"}`}
         contactId={contact?.id ?? null}

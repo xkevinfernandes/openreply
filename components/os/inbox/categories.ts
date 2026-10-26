@@ -6,6 +6,8 @@ import type { ContactKind } from "@/app/generated/prisma/enums";
 import { columnFor, funnelColumns, type FunnelColumn } from "@/lib/os/funnel";
 import type { InboxThread } from "@/lib/os/inbox";
 import { kindTabs, shortAgo } from "@/lib/os/labels";
+import { inboxStreamHref, unreadMark, type InboxParams, type StreamThread } from "@/lib/os/inbox-stream";
+import { isSpam } from "@/lib/os/spam";
 
 /** "rail" = the list collapsed to avatars (InboxA2). */
 export const INBOX_LIST_COOKIE = "os_inbox_list";
@@ -98,7 +100,7 @@ export function inboxListView(
 }
 
 /** J/K: the next or previous row's href (wraps at neither end). */
-export function neighbourHref(rows: InboxRow[], dir: 1 | -1): string | null {
+export function neighbourHref(rows: Pick<InboxRow, "current" | "href">[], dir: 1 | -1): string | null {
   const i = rows.findIndex((r) => r.current);
   const next = i < 0 ? (dir === 1 ? rows[0] : rows[rows.length - 1]) : rows[i + dir];
   return next?.href ?? null;
@@ -112,4 +114,45 @@ export function draftBlockedReason(c: { kind: string; paused: boolean; suggested
   if (c.kind !== "SALES") return "J drafts for Sales only.";
   if (c.paused) return "J is paused for this contact.";
   return null;
+}
+
+// --- One stream (dm-crm 009-014) -------------------------------------------------
+
+export interface StreamRow extends Omit<InboxRow, "unread"> {
+  /** Zernio's count when local says unread, null = a dot; absent = read. */
+  unread: { count: number | null } | null;
+  starred: boolean;
+  spam: boolean;
+  archived: boolean;
+}
+
+/** The stream's rows (already filtered and sorted by the page): search,
+ *  stage pill on Sales contacts, Draft, unread mark. */
+export function streamRows(
+  threads: StreamThread[],
+  opts: { params: InboxParams; query?: string; draftContactIds: Iterable<string>; selected: string | null; now: number; columns?: FunnelColumn[] }
+): StreamRow[] {
+  const drafts = new Set(opts.draftContactIds);
+  const columns = opts.columns ?? funnelColumns(null);
+  const label = new Map(columns.map((c) => [c.key, c.label]));
+  const q = (opts.query ?? "").trim().toLowerCase().replace(/^@/, "");
+  return threads
+    .filter((t) => !q || [t.username, t.fullName, t.preview].some((v) => (v ?? "").toLowerCase().includes(q)))
+    .map((t) => ({
+      conversationId: t.conversationId,
+      contactId: t.contact?.id ?? null,
+      name: threadDisplayName(t),
+      avatarUrl: t.avatarUrl ?? null,
+      preview: t.preview || "No preview",
+      time: shortAgo(t.updatedTime, opts.now),
+      stage: t.contact?.kind === "SALES" ? (label.get(columnFor({ stage: t.contact.stage, setterStage: t.contact.setterStage }, columns)) ?? null) : null,
+      draft: Boolean(t.contact && drafts.has(t.contact.id)),
+      note: note(t),
+      href: inboxStreamHref(opts.params, t.conversationId),
+      current: t.conversationId === opts.selected,
+      unread: unreadMark(t),
+      starred: t.crm.starred,
+      spam: isSpam(t.crm),
+      archived: Boolean(t.crm.archivedAt),
+    }));
 }
