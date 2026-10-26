@@ -5,7 +5,7 @@
 // bases action (saveResource); this adds the agent links and the checks.
 
 import { revalidatePath } from "next/cache";
-import { deleteResource, saveResource, type ResourceForm } from "@/app/(os)/os/knowledge/actions";
+import { saveResource, type ResourceForm } from "@/app/(os)/os/knowledge/actions";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
 import { deleteBlockers, loadResourcesBoard, offeringAgents, type UsedBy } from "@/lib/os/resources-board";
@@ -49,8 +49,9 @@ export async function saveResourceSheet(form: ResourceForm, agentIds: string[]):
 }
 
 /**
- * Delete: refused while a campaign or a workflow's current version uses it
- * (naming each). When agents offer it, the first call returns them to
+ * Delete: refused while a campaign, a workflow's current version or an
+ * unsent broadcast (a link bubble) uses it, naming each. Sent broadcasts keep
+ * the link they stored. When agents offer it, the first call returns them to
  * confirm; the agent links go with the resource.
  */
 export async function deleteResourceChecked(id: string, confirmed = false): Promise<{ ok?: true; error?: string; blockers?: UsedBy[]; agents?: UsedBy[] }> {
@@ -64,8 +65,13 @@ export async function deleteResourceChecked(id: string, confirmed = false): Prom
   if (blockers.length) return { error: `Used by ${blockers.map((b) => b.name).join(", ")}. Remove it there first.`, blockers };
   const agents = offeringAgents(row.usedByAll);
   if (agents.length && !confirmed) return { agents };
-  const r = await deleteResource(id);
-  if (r.error) return { error: r.error };
+  try {
+    const r = await prisma.resource.deleteMany({ where: { id, workspaceId } });
+    if (!r.count) return { error: "That resource is gone. Refresh the page." };
+  } catch (err) {
+    console.error("[OS Resources]", err);
+    return { error: "That didn't delete. Try again." };
+  }
   refresh();
   return { ok: true };
 }

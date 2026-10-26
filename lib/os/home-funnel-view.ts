@@ -1,7 +1,8 @@
 // Client-safe half of Home's funnel and the All · funnel board (dm-crm
 // 031/032): types, the switch's constants and pure display helpers. No
 // server imports here (client components use it); lib/os/home-funnel.ts has
-// the loaders. The constants mirror lib/os/crm-funnel.ts (a test pins them).
+// the loaders. The window constants mirror lib/os/crm-funnel.ts (a test
+// pins them; crm-funnel also holds the server loader). Money: lib/os/money.ts.
 
 import type { FunnelBoardColumn, FunnelView, FunnelWindow } from "@/lib/os/crm-funnel";
 
@@ -25,15 +26,6 @@ export function windowLabel(window: FunnelWindow): string {
 
 export function windowFrom(window: FunnelWindow, now: Date): Date {
   return new Date(now.getTime() - window * DAY);
-}
-
-/** A won amount in the workspace currency (workspace-settings formatMoney). */
-export function money(amount: number, currency: string, locale = "en-GB"): string {
-  try {
-    return new Intl.NumberFormat(locale, { style: "currency", currency, maximumFractionDigits: amount % 1 ? 2 : 0 }).format(amount);
-  } catch {
-    return `${amount} ${currency}`;
-  }
 }
 
 export interface InboxCounts {

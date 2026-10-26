@@ -4,11 +4,13 @@
 // bought, from the setter's structured offers with the price filled in and
 // editable, or a typed offer and amount when there are none. One choice is
 // applied to every contact passed in. Saves through markContactsWon (stage
-// writer, then the won event's data).
+// writer, then the won event's data). Used by Contacts, Pipeline, the
+// contact panel, the All · funnel board and Home's "won with no amount".
 
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { loadWonPicker, markContactsWon } from "@/app/(os)/os/contacts/actions";
 import { formatMoney } from "@/lib/os/money";
+import type { MarkWonResult } from "@/lib/os/won";
 import { parsePrice, type WonPickerData } from "@/lib/os/won-offers";
 
 interface Props {
@@ -18,13 +20,17 @@ interface Props {
   onClose: () => void;
   /** After the save: the offer and amount stored. */
   onDone: (won: { offer: string; amount: number; count: number; refused: string[] }) => void;
+  /** Another save for the same choice (the All board, Home's fill-in); default markContactsWon. */
+  save?: (offer: string, amount: number) => Promise<MarkWonResult>;
+  /** "Mark as Won" by default; "Save" when the win is already there. */
+  submitLabel?: string;
 }
 
 const OTHER = "__other";
 
 const symbolOf = (currency: string) => formatMoney(0, currency).replace(/[\d.,\s]/g, "") || currency;
 
-export default function WonPicker({ contactIds, who, onClose, onDone }: Props) {
+export default function WonPicker({ contactIds, who, onClose, onDone, save, submitLabel = "Mark as Won" }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const [data, setData] = useState<WonPickerData | null>(null);
@@ -73,7 +79,7 @@ export default function WonPicker({ contactIds, who, onClose, onDone }: Props) {
     if (n === null) return setError("Type the amount.");
     setError(null);
     start(async () => {
-      const r = await markContactsWon(contactIds, offer, n).catch(() => ({ error: "That didn't save. Try again." }) as const);
+      const r = await (save ? save(offer, n) : markContactsWon(contactIds, offer, n)).catch(() => ({ error: "That didn't save. Try again." }) as const);
       if (r.error !== undefined) return setError(r.error);
       onDone({ offer, amount: n, count: r.count, refused: r.refused });
     });
@@ -151,7 +157,7 @@ export default function WonPicker({ contactIds, who, onClose, onDone }: Props) {
             Cancel
           </button>
           <button type="submit" className="os-button primary" disabled={pending || !data}>
-            {pending ? "Saving…" : "Mark as Won"}
+            {pending ? "Saving…" : submitLabel}
           </button>
         </div>
       </form>

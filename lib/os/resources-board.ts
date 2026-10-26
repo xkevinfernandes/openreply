@@ -19,7 +19,12 @@ export async function loadResourcesBoard(workspaceId: string): Promise<Resources
     prisma.campaignResource.findMany({ where: { workspaceId }, select: { automationId: true, resourceId: true } }).catch(() => []),
     prisma.workflow.findMany({ where: { workspaceId }, select: { id: true, name: true, currentVersionId: true, versions: { select: { id: true, graph: true } } } }).catch(() => []),
   ]);
-  if (!resources.length && osMockEnabled()) return (await import("@/lib/os/mock-resources")).mockResourcesBoard();
+  if (!resources.length && osMockEnabled()) {
+    const { MOCK_LEAD_MAGNETS, mockResourcesBoard } = await import("@/lib/os/mock-resources");
+    const { resourceBroadcastUse } = await import("@/lib/os/broadcasts/resources");
+    const used = await resourceBroadcastUse(workspaceId, MOCK_LEAD_MAGNETS.map((r) => r.id)).catch(() => new Map());
+    return mockResourcesBoard(used);
+  }
   const docs = agents.length
     ? await prisma.setterDoc.findMany({ where: { setterId: { in: agents.map((a) => a.id) }, body: { not: "" } }, select: { setterId: true, key: true } }).catch(() => [])
     : [];

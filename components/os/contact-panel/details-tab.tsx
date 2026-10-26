@@ -147,7 +147,7 @@ function DetailsBody({ data, details, onChange }: { data: ContactPanelData; deta
                     <svg className="os-cd-arrow" viewBox="0 0 16 16" aria-hidden="true">
                       <path d="M3 8h10M9.5 4.5 13 8l-3.5 3.5" />
                     </svg>
-                    <Link href="/os/knowledge/resources" className="os-cd-res">
+                    <Link href="/os/resources" className="os-cd-res">
                       {k.resource}
                     </Link>
                   </>

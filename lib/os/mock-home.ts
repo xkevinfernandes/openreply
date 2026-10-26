@@ -7,9 +7,6 @@
 
 import type { FunnelContact } from "@/lib/os/crm-funnel";
 import { funnelColumns } from "@/lib/os/funnel";
-import type { InboxCountContact } from "@/lib/os/home-funnel";
-import { mockThreads } from "@/lib/os/mock";
-import { mockCrmState } from "@/lib/os/mock-crm";
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
@@ -154,20 +151,3 @@ export function applyMockFunnelMoves(contacts: FunnelContact[]): FunnelContact[]
   });
 }
 
-/** The inbox tile's sample: the sample threads' CRM fields plus a few quiet leads. */
-export function mockInboxContacts(now: Date): InboxCountContact[] {
-  const iso = (v: string | null) => (v ? new Date(v) : null);
-  const threads = mockThreads().flatMap((t) => {
-    if (!t.contact) return [];
-    const s = mockCrmState(t.contact.id);
-    return [{ id: t.contact.id, kind: t.contact.kind, lastInboundAt: iso(s.lastInboundAt), lastOutboundAt: iso(s.lastOutboundAt), lastOpenedAt: iso(s.lastOpenedAt), spam: s.spam, spamOverride: s.spamOverride, archivedAt: iso(s.archivedAt) }];
-  });
-  const ago = (h: number) => new Date(now.getTime() - h * HOUR);
-  const extra: InboxCountContact[] = [
-    { id: "mi1", kind: "SALES", lastInboundAt: ago(21), lastOutboundAt: ago(23), lastOpenedAt: ago(20), spam: false, spamOverride: null, archivedAt: null },
-    { id: "mi2", kind: "SALES", lastInboundAt: ago(22.5), lastOutboundAt: ago(30), lastOpenedAt: null, spam: false, spamOverride: null, archivedAt: null },
-    { id: "mi3", kind: "UNSORTED", lastInboundAt: ago(0.4), lastOutboundAt: ago(2), lastOpenedAt: null, spam: false, spamOverride: null, archivedAt: null },
-    { id: "mi4", kind: "SALES", lastInboundAt: ago(1.5), lastOutboundAt: ago(3), lastOpenedAt: null, spam: false, spamOverride: null, archivedAt: null },
-  ];
-  return [...threads, ...extra];
-}

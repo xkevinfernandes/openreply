@@ -10,7 +10,8 @@ import ReviewButton from "@/components/os/home/review-button";
 import TodoCheck from "@/components/os/home/todo-check";
 import { auth, getCurrentWorkspaceId } from "@/lib/auth";
 import { broadcastTodos, greeting, homeDate, loadPipeline, workflowTodos, type HomeTodo } from "@/lib/os/home";
-import { loadHomeFunnel, loadInboxCounts } from "@/lib/os/home-funnel";
+import { loadHomeFunnel } from "@/lib/os/home-funnel";
+import { homeInboxCounts } from "@/lib/os/inbox-stream-load";
 import { loadOutcomes, parsePeriod, PERIODS, type OutcomeCell, type Period } from "@/lib/os/metrics";
 import type { WorkflowCell } from "@/lib/os/metrics-workflows";
 import { loadHomeFollowups } from "@/lib/os/sequences/view";
@@ -104,7 +105,7 @@ export default async function OsHome({ searchParams }: PageProps) {
     quiet("follow-ups", loadHomeFollowups(workspaceId, now), null),
     quiet("broadcasts", Promise.all([broadcastTodos(workspaceId, now), workflowTodos(workspaceId, now)]).then((x) => x.flat()), [] as HomeTodo[]),
     quiet("funnel", loadHomeFunnel(workspaceId, settings?.currency ?? "EUR", now), null),
-    quiet("inbox", loadInboxCounts(workspaceId, now), null),
+    quiet("inbox", homeInboxCounts(workspaceId, now.getTime()), null),
   ]);
 
   const todos: TodoRow[] = [

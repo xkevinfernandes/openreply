@@ -10,12 +10,13 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import "./funnel-board.css";
 import { markFunnelLost, markFunnelWon } from "@/app/(os)/os/pipeline/all/actions";
+import WonPicker from "@/components/os/contacts/won-picker";
 import { useFunnelWindow } from "@/components/os/pipeline/use-funnel-window";
 import { WindowSwitch } from "@/components/os/pipeline/window-switch";
-import { WonDialog } from "@/components/os/pipeline/won-dialog";
+import { formatMoney } from "@/lib/os/money";
 import { InfoTip } from "@/components/os/ui/info-tip";
 import type { FunnelBoardColumn } from "@/lib/os/crm-funnel";
-import { canDropOn, money as formatMoney, windowLabel as cohortLabel, type AllBoardData, type BoardCard } from "@/lib/os/home-funnel-view";
+import { canDropOn, windowLabel as cohortLabel, type AllBoardData, type BoardCard } from "@/lib/os/home-funnel-view";
 
 /** Cards drawn per column; the rest is "+N more". */
 const SHOWN = 40;
@@ -149,15 +150,14 @@ export function FunnelBoard({ data, currency }: { data: AllBoardData; currency: 
       </div>
 
       {winning ? (
-        <WonDialog
-          name={winning.name}
-          currency={currency}
-          defaultDate={new Date().toISOString()}
+        <WonPicker
+          contactIds={[winning.id]}
+          who={winning.name}
           onClose={() => setWinning(null)}
-          onSubmit={async (v) => {
-            const r = await markFunnelWon(winning.id, v);
-            if (!r.error) router.refresh();
-            return r;
+          save={(offer, amount) => markFunnelWon(winning.id, offer, amount)}
+          onDone={() => {
+            setWinning(null);
+            router.refresh();
           }}
         />
       ) : null}

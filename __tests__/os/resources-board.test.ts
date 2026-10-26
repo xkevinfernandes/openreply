@@ -18,6 +18,7 @@ const res = (id: string, slug: string, kind: ResourceView["kind"], setters: { id
   setterCount: setters.length,
   keywords: [],
   usedBy: setters,
+  broadcasts: [],
   sent: 0,
   when: "",
   sortOrder: 0,
@@ -49,6 +50,16 @@ describe("Resources: used by", () => {
     expect(deleteBlockers(used).map((b) => b.name)).toEqual(["Campaign SETTER", "Workshop reminder"]);
     expect(offeringAgents(used).map((b) => b.name)).toEqual(["J"]);
     expect(deleteBlockers(usedByOf({ id: "r2", slug: "free" }, ["j"], inputs))).toEqual([]);
+  });
+
+  it("unsent broadcasts are listed and refuse delete; sent ones are listed only", () => {
+    const broadcasts = [
+      { key: "fff-30-oct", name: "Follow-up Friday · 30 Oct", unsent: true },
+      { key: "fff-23-oct", name: "Follow-up Friday · 23 Oct", unsent: false },
+    ];
+    const used = usedByOf({ id: "r2", slug: "free", broadcasts }, [], inputs);
+    expect(used.map((u) => `${u.kind}:${u.href}`)).toEqual(["broadcast:/os/automations/broadcasts/fff-30-oct", "broadcast:/os/automations/broadcasts/fff-23-oct"]);
+    expect(deleteBlockers(used).map((b) => b.name)).toEqual(["Follow-up Friday · 30 Oct"]);
   });
 
   it("pill counts leave entry paths out; kinds read as Lead magnet / Video", () => {
@@ -105,5 +116,25 @@ describe("Resources: its own place", () => {
     expect(b.counts.magnets).toBeGreaterThan(0);
     expect(b.counts.videos).toBeGreaterThan(0);
     expect(b.rows.some((r) => r.link === null)).toBe(true);
+  });
+
+  it("the OS_MOCK sample shows the sample broadcasts that link the vault, and the picker lists the same resources", async () => {
+    const prev = process.env.OS_MOCK;
+    process.env.OS_MOCK = "1";
+    try {
+      const { MOCK_LEAD_MAGNETS, mockResourcesBoard } = await import("../../lib/os/mock-resources");
+      const { listPickerResources, resourceBroadcastUse } = await import("../../lib/os/broadcasts/resources");
+      const { MOCK_VAULT } = await import("../../lib/os/mock-followups");
+      // What loadResourcesBoard does when the database has no resources.
+      const b = mockResourcesBoard(await resourceBroadcastUse("w", MOCK_LEAD_MAGNETS.map((r) => r.id)));
+      const vault = b.rows.find((r) => r.id === MOCK_VAULT.id)!;
+      expect(vault.usedByAll.some((u) => u.kind === "broadcast")).toBe(true);
+      expect(deleteBlockers(vault.usedByAll).some((u) => u.kind === "broadcast")).toBe(true);
+      const picker = (await listPickerResources("w")).map((r) => r.id);
+      expect(picker).toEqual(b.rows.filter((r) => r.kind === "resource").map((r) => r.id));
+    } finally {
+      if (prev === undefined) delete process.env.OS_MOCK;
+      else process.env.OS_MOCK = prev;
+    }
   });
 });

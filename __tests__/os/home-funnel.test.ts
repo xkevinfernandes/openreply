@@ -2,16 +2,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { funnelView, FUNNEL_WINDOWS, type FunnelContact } from "@/lib/os/crm-funnel";
 import { funnelColumns } from "@/lib/os/funnel";
-import { allBoardData, canDropOn, flowDots, funnelViews, inboxCounts, isUnread, isWindowClosing, shortAge, type InboxCountContact } from "@/lib/os/home-funnel";
+import { allBoardData, canDropOn, flowDots, funnelViews, shortAge } from "@/lib/os/home-funnel";
 
 const now = new Date("2026-10-26T12:00:00Z");
 const HOUR = 3_600_000;
 const ago = (h: number) => new Date(now.getTime() - h * HOUR);
 const daysAgo = (d: number) => ago(d * 24);
-
-function thread(id: string, over: Partial<InboxCountContact> = {}): InboxCountContact {
-  return { id, kind: "SALES", lastInboundAt: ago(1), lastOutboundAt: ago(2), lastOpenedAt: ago(0.5), spam: false, spamOverride: null, archivedAt: null, ...over };
-}
 
 function person(id: string, over: Partial<FunnelContact> = {}): FunnelContact {
   return {
@@ -34,34 +30,6 @@ function person(id: string, over: Partial<FunnelContact> = {}): FunnelContact {
     ...over,
   };
 }
-
-describe("inbox counts", () => {
-  it("unread: inbound later than last opened, or never opened", () => {
-    expect(isUnread(thread("a"))).toBe(false);
-    expect(isUnread(thread("a", { lastOpenedAt: ago(3) }))).toBe(true);
-    expect(isUnread(thread("a", { lastOpenedAt: null }))).toBe(true);
-    expect(isUnread(thread("a", { lastInboundAt: null, lastOpenedAt: null }))).toBe(false);
-  });
-
-  it("window closing: they wrote last and the 24h window ends within 4 hours", () => {
-    expect(isWindowClosing(thread("a", { lastInboundAt: ago(21), lastOutboundAt: ago(22) }), now)).toBe(true);
-    expect(isWindowClosing(thread("a", { lastInboundAt: ago(19.9), lastOutboundAt: null }), now)).toBe(false); // 4.1h left
-    expect(isWindowClosing(thread("a", { lastInboundAt: ago(20), lastOutboundAt: null }), now)).toBe(true); // exactly 4h left
-    expect(isWindowClosing(thread("a", { lastInboundAt: ago(24.1), lastOutboundAt: null }), now)).toBe(false); // gone
-    expect(isWindowClosing(thread("a", { lastInboundAt: ago(21), lastOutboundAt: ago(20) }), now)).toBe(false); // we replied
-  });
-
-  it("spam and archived never count; drafts of hidden contacts don't either", () => {
-    const rows = [
-      thread("unread", { lastOpenedAt: null }),
-      thread("closing", { lastInboundAt: ago(22), lastOutboundAt: ago(30), lastOpenedAt: ago(21) }),
-      thread("spam", { lastOpenedAt: null, spam: true }),
-      thread("spam-cleared", { lastOpenedAt: null, spam: true, spamOverride: false }),
-      thread("archived", { lastOpenedAt: null, lastInboundAt: ago(22), lastOutboundAt: null, archivedAt: ago(1) }),
-    ];
-    expect(inboxCounts(rows, ["unread", "spam", "archived", "not-read", "unread"], now)).toEqual({ unread: 2, draftsWaiting: 2, windowClosing: 1 });
-  });
-});
 
 describe("funnel shapes", () => {
   const people = [
@@ -139,10 +107,9 @@ describe("mock sample", () => {
 });
 
 describe("client-safe copies stay in step with the shared funnel", () => {
-  it("window key, windows, labels and money", async () => {
+  it("window key, windows and labels", async () => {
     const f = await import("@/lib/os/crm-funnel");
     const v = await import("@/lib/os/home-funnel-view");
-    const { formatMoney } = await import("@/lib/os/workspace-settings");
     expect(v.WINDOW_KEY).toBe(f.FUNNEL_WINDOW_KEY);
     expect([...v.WINDOWS]).toEqual([...f.FUNNEL_WINDOWS]);
     expect(v.DEFAULT_WINDOW).toBe(f.DEFAULT_FUNNEL_WINDOW);
@@ -151,6 +118,5 @@ describe("client-safe copies stay in step with the shared funnel", () => {
       expect(v.windowFrom(w, now)).toEqual(f.windowStart(w, now));
     }
     for (const x of ["7", 7, "x", null, 45]) expect(v.parseWindow(x)).toBe(f.parseFunnelWindow(x));
-    for (const [a, c] of [[14400, "EUR"], [1234.5, "USD"], [0, "GBP"], [5, "XXX1"]] as const) expect(v.money(a, c)).toBe(formatMoney(a, c));
   });
 });

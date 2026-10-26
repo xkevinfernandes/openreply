@@ -1,4 +1,4 @@
-// Home's funnel card, its inbox counts and the Pipeline "All · funnel" board
+// Home's funnel card and the Pipeline "All · funnel" board
 // (dm-crm issues 031/032). The counting is lib/os/crm-funnel.ts (funnelView,
 // funnelBoard); this module reads once for the widest window (90 days) and
 // shapes all three windows, so the 7/30/90 switch is instant and Home and
@@ -14,56 +14,15 @@ import {
   type FunnelWindow,
 } from "@/lib/os/crm-funnel";
 
-import type { AllBoardData, BoardCard, BoardColumnView, FunnelViews, HomeFunnelData, InboxCounts } from "@/lib/os/home-funnel-view";
+import type { AllBoardData, BoardCard, BoardColumnView, FunnelViews, HomeFunnelData } from "@/lib/os/home-funnel-view";
 import { shortAge } from "@/lib/os/home-funnel-view";
 
 export * from "@/lib/os/home-funnel-view";
 
 const DAY = 86_400_000;
-const HOUR = 3_600_000;
 
-// --- Inbox counts ----------------------------------------------------------------
-
-/** What the inbox counts need about one contact (the foundation's columns). */
-export interface InboxCountContact {
-  id: string;
-  kind: string;
-  lastInboundAt: Date | null;
-  lastOutboundAt: Date | null;
-  lastOpenedAt: Date | null;
-  spam: boolean;
-  spamOverride: boolean | null;
-  archivedAt: Date | null;
-}
-
-/** Hours before the 24-hour window ends that a thread counts as closing. */
-export const WINDOW_CLOSING_HOURS = 4;
-
-const hidden = (c: InboxCountContact) => (c.spamOverride ?? c.spam) || Boolean(c.archivedAt);
-
-/** Unread: last inbound later than last opened, or never opened. */
-export function isUnread(c: InboxCountContact): boolean {
-  return !!c.lastInboundAt && (!c.lastOpenedAt || c.lastInboundAt > c.lastOpenedAt);
-}
-
-/** They wrote last and their 24-hour window ends within 4 hours (still open). */
-export function isWindowClosing(c: InboxCountContact, now: Date): boolean {
-  if (!c.lastInboundAt) return false;
-  if (c.lastOutboundAt && c.lastOutboundAt >= c.lastInboundAt) return false;
-  const left = c.lastInboundAt.getTime() + 24 * HOUR - now.getTime();
-  return left > 0 && left <= WINDOW_CLOSING_HOURS * HOUR;
-}
-
-/** Pure: Home's inbox tile. Spam and archived never count (issues 011, 012). */
-export function inboxCounts(contacts: InboxCountContact[], draftContactIds: string[], now: Date): InboxCounts {
-  const shown = contacts.filter((c) => !hidden(c));
-  const hiddenIds = new Set(contacts.filter(hidden).map((c) => c.id));
-  return {
-    unread: shown.filter(isUnread).length,
-    draftsWaiting: new Set(draftContactIds.filter((id) => !hiddenIds.has(id))).size,
-    windowClosing: shown.filter((c) => isWindowClosing(c, now)).length,
-  };
-}
+// Home's inbox counts are the inbox's own filters: homeInboxCounts in
+// lib/os/inbox-stream-load.ts.
 
 // --- Funnel shapes -----------------------------------------------------------------
 
@@ -169,29 +128,4 @@ export async function loadAllBoard(workspaceId: string, now = new Date()): Promi
   const contacts = await loadWindowContacts(workspaceId, now);
   const ids = contacts.map((c) => c.id);
   return allBoardData(contacts, await contactNames(workspaceId, ids), now);
-}
-
-export async function loadInboxCounts(workspaceId: string, now = new Date()): Promise<InboxCounts> {
-  const { pendingDrafts } = await import("@/lib/os/setter/service");
-  const drafts = await pendingDrafts(workspaceId).catch(() => []);
-  const draftIds = drafts.map((d) => d.contactId);
-  const { osMockEnabled } = await import("@/lib/os/mock");
-  if (osMockEnabled()) {
-    const { mockInboxContacts } = await import("@/lib/os/mock-home");
-    return inboxCounts(mockInboxContacts(now), draftIds, now);
-  }
-  const { prisma } = await import("@/lib/db/client");
-  // Unread compares two columns, which Prisma's filters can't: ids first.
-  const unread = await prisma.$queryRaw<{ id: string }[]>`
-    SELECT "id" FROM "Contact"
-    WHERE "workspaceId" = ${workspaceId} AND "lastInboundAt" IS NOT NULL
-      AND ("lastOpenedAt" IS NULL OR "lastInboundAt" > "lastOpenedAt")`;
-  const rows = await prisma.contact.findMany({
-    where: {
-      workspaceId,
-      OR: [{ id: { in: unread.map((u) => u.id) } }, { id: { in: draftIds } }, { lastInboundAt: { gte: new Date(now.getTime() - DAY) } }],
-    },
-    select: { id: true, kind: true, lastInboundAt: true, lastOutboundAt: true, lastOpenedAt: true, spam: true, spamOverride: true, archivedAt: true },
-  });
-  return inboxCounts(rows, draftIds, now);
 }

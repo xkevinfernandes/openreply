@@ -10,6 +10,7 @@
 import type { BroadcastCreate, BroadcastPatch, BroadcastStore, MessagePatch, RunPatch } from "@/lib/os/broadcasts/store";
 import { nextRunDate, windowBounds, zonedInstant } from "@/lib/os/broadcasts/schedule";
 import { asWritten } from "@/lib/os/broadcasts/oneoff";
+import { MOCK_LEAD_MAGNETS } from "@/lib/os/mock-resources";
 import { localDate } from "@/lib/os/sending/cap";
 import {
   FOLLOW_UP_FRIDAY,
@@ -243,7 +244,9 @@ function blankMessage(): BroadcastMessageView {
 // ---------------------------------------------------------------- the OS_MOCK sample
 
 const TAG_ID = "tag-follow-up-friday";
-export const MOCK_VAULT = { id: "res-vault", name: "DM Script Vault", link: "https://kevinfernandes.me/script-vault" } as const;
+// The vault is the Resources sample's own row (lib/os/mock-resources.ts), so
+// Resources › Used by shows the sample broadcasts that link it.
+export const MOCK_VAULT = { id: "mock-res-script-vault", name: "DM Script Vault", link: "https://kevinfernandes.me/script-vault" } as const;
 const CASE_STUDY = "https://kevinfernandes.me/case-study";
 
 /** Who is on the Friday list in the sample (nora is paused, alex is Personal). */
@@ -444,9 +447,5 @@ export function mockBroadcastStore(): Mocked {
 
 /** Sample resources for the picker (OS_MOCK=1). */
 export function mockResources(): { id: string; name: string; link: string | null }[] {
-  return [
-    { ...MOCK_VAULT },
-    { id: "res-starter", name: "Claude starter kit", link: "https://kevinfernandes.me/starter" },
-    { id: "res-checklist", name: "DM audit checklist", link: null },
-  ];
+  return MOCK_LEAD_MAGNETS.map((r) => ({ ...r }));
 }

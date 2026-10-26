@@ -131,6 +131,12 @@ export function funnelOf(json: unknown): FunnelStageLike[] {
     : [];
 }
 
+/** The setters for Pipeline's board switcher (the OS_MOCK sample when there are none). */
+export async function boardSetters(workspaceId: string): Promise<SetterOption[]> {
+  const setters = await setterOptions(workspaceId).catch(() => []);
+  return setters.length || !osMockEnabled() ? setters : MOCK_SETTERS;
+}
+
 async function setterOptions(workspaceId: string): Promise<SetterOption[]> {
   const rows = await prisma.setter.findMany({ where: { workspaceId }, select: { id: true, name: true, funnel: true, isDefault: true }, orderBy: [{ isDefault: "desc" }, { name: "asc" }] });
   return rows.map((r) => ({ id: r.id, name: r.name, funnel: funnelOf(r.funnel), isDefault: r.isDefault }));

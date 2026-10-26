@@ -8,7 +8,8 @@
 import { cache } from "react";
 import { prisma } from "@/lib/db/client";
 import { listThreads, requestPendingDrafts, type InboxThread } from "@/lib/os/inbox";
-import { draftsWaitingCount, sortStream, type StreamThread, type ThreadCrm } from "@/lib/os/inbox-stream";
+import { draftsWaitingCount, matchesStatus, sortStream, type StreamThread, type ThreadCrm } from "@/lib/os/inbox-stream";
+import type { InboxCounts } from "@/lib/os/home-funnel-view";
 import { osMockEnabled } from "@/lib/os/mock";
 
 /** Most rows the stream reads (filters run over all of them). */
@@ -129,43 +130,48 @@ export async function inboxBadgeCount(workspaceId: string): Promise<number> {
   return Math.max(0, ids.size - hidden);
 }
 
-/** Home's "Window closing" tile: the same count as the inbox filter. */
-export async function windowClosingCount(workspaceId: string, now = Date.now()): Promise<number> {
-  const { matchesStatus } = await import("@/lib/os/inbox-stream");
-  const ctx = { now, draftContactIds: new Set<string>() };
+/** Home's inbox tile: Unread, Drafts waiting and Window closing, counted by
+ *  the inbox's own filters (matchesStatus) over the same rows the stream
+ *  reads, so each tile's number is what its filter shows. */
+export async function homeInboxCounts(workspaceId: string, now = Date.now()): Promise<InboxCounts> {
+  const drafts = await requestPendingDrafts(workspaceId).catch(() => []);
+  const ctx = { now, draftContactIds: new Set(drafts.map((d) => d.contactId)) };
+  const threads = await countThreads(workspaceId, [...ctx.draftContactIds]);
+  const n = (f: "unread" | "drafts" | "closing") => threads.filter((t) => matchesStatus(t, f, ctx)).length;
+  return { unread: n("unread"), draftsWaiting: n("drafts"), windowClosing: n("closing") };
+}
+
+/** The stream's rows, CRM fields only (no Zernio call): the ones a count
+ *  can match (an inbound DM, or a draft waiting). */
+async function countThreads(workspaceId: string, draftContactIds: string[]): Promise<StreamThread[]> {
   if (osMockEnabled()) {
     const { mockStream } = await import("@/lib/os/mock-inbox");
-    return mockStream().filter((t) => matchesStatus(t, "closing", ctx)).length;
+    return mockStream();
   }
-  const since = new Date(now - 24 * 3600_000);
   const rows = await prisma.contact.findMany({
-    where: { workspaceId, zernioConversationId: { not: null }, archivedAt: null, lastInboundAt: { gt: since } },
-    select: { lastInboundAt: true, lastOutboundAt: true, lastOpenedAt: true, lastPersonalSendAt: true, starred: true, spam: true, spamOverride: true, archivedAt: true, lastMessageAt: true },
+    where: { workspaceId, zernioConversationId: { not: null }, archivedAt: null, OR: [{ lastInboundAt: { not: null } }, { id: { in: draftContactIds } }] },
+    orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } },
+    take: STREAM_MAX,
+    select: { id: true, kind: true, lastInboundAt: true, lastOutboundAt: true, lastOpenedAt: true, lastPersonalSendAt: true, starred: true, spam: true, spamOverride: true, archivedAt: true, lastMessageAt: true },
   });
-  return rows.filter((r) =>
-    matchesStatus(
-      {
-        conversationId: "",
-        igUserId: "",
-        username: null,
-        preview: null,
-        updatedTime: iso(r.lastMessageAt),
-        contact: null,
-        crm: {
-          lastInboundAt: iso(r.lastInboundAt),
-          lastOutboundAt: iso(r.lastOutboundAt),
-          lastOpenedAt: iso(r.lastOpenedAt),
-          lastPersonalSendAt: iso(r.lastPersonalSendAt),
-          starred: r.starred,
-          spam: r.spam,
-          spamOverride: r.spamOverride,
-          archivedAt: iso(r.archivedAt),
-        },
-      },
-      "closing",
-      ctx
-    )
-  ).length;
+  return rows.map((r) => ({
+    conversationId: "",
+    igUserId: "",
+    username: null,
+    preview: null,
+    updatedTime: iso(r.lastMessageAt),
+    contact: { id: r.id, kind: r.kind } as StreamThread["contact"],
+    crm: {
+      lastInboundAt: iso(r.lastInboundAt),
+      lastOutboundAt: iso(r.lastOutboundAt),
+      lastOpenedAt: iso(r.lastOpenedAt),
+      lastPersonalSendAt: iso(r.lastPersonalSendAt),
+      starred: r.starred,
+      spam: r.spam,
+      spamOverride: r.spamOverride,
+      archivedAt: iso(r.archivedAt),
+    },
+  }));
 }
 
 /** The open thread's CRM fields and whether Zernio sends for it (the

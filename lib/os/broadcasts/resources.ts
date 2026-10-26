@@ -2,7 +2,7 @@
 // picker lists resources (only ones with a link can be picked), "+ New
 // resource" makes one with its link required, Resources › Used by lists the
 // broadcasts whose link bubbles use it, and delete is refused while an
-// unsent broadcast uses it. Sent broadcasts keep the link they stored.
+// unsent broadcast uses it (deleteBlockers in lib/os/resources-view.ts). Sent broadcasts keep the link they stored.
 
 import { prisma } from "@/lib/db/client";
 import { osMockEnabled } from "@/lib/os/mock";
@@ -73,11 +73,4 @@ export async function resourceBroadcastUse(workspaceId: string, resourceIds: str
     : await prisma.broadcast.findMany({ where: { workspaceId }, select: { key: true, name: true, status: true, bubbles: true }, orderBy: { createdAt: "desc" } });
   for (const id of resourceIds) out.set(id, broadcastsUsing(id, rows));
   return out;
-}
-
-/** Why a resource can't be deleted (an unsent broadcast uses it as a link), or null. */
-export function deleteBlockedBy(uses: ResourceBroadcastUse[]): string | null {
-  const unsent = uses.filter((u) => u.unsent);
-  if (!unsent.length) return null;
-  return `${unsent.map((u) => u.name).join(", ")} ${unsent.length === 1 ? "uses" : "use"} it as a link. Change ${unsent.length === 1 ? "that broadcast" : "those broadcasts"} first.`;
 }

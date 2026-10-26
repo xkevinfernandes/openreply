@@ -249,6 +249,19 @@ describe("on sample data (OS_MOCK)", () => {
     else process.env.OS_MOCK = prev;
   });
 
+  it("Home's inbox tile counts what each inbox filter shows (?filter=unread|drafts|window)", async () => {
+    const { homeInboxCounts, loadStream } = await import("@/lib/os/inbox-stream-load");
+    const { requestPendingDrafts } = await import("@/lib/os/inbox");
+    const now = Date.now();
+    const drafts = await requestPendingDrafts("w");
+    const counts = filterCounts((await loadStream("w")).threads, "any", { now, draftContactIds: new Set(drafts.map((d) => d.contactId)) });
+    const home = await homeInboxCounts("w", now);
+    expect(home).toEqual({ unread: counts.unread, draftsWaiting: counts.drafts, windowClosing: counts.closing });
+    expect(parseInboxParams({ filter: "window" }).filter).toBe("closing");
+    expect(parseInboxParams({ filter: "unread" }).filter).toBe("unread");
+    expect(parseInboxParams({ filter: "drafts" }).filter).toBe("drafts");
+  });
+
   it("inbound un-archives and makes unread; opening reads; Mark unread puts it back", async () => {
     const { recordInbound, markOpened, markUnread } = await import("@/lib/os/inbox-crm");
     const { mockCrmState } = await import("@/lib/os/mock-crm");

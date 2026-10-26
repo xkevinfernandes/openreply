@@ -21,12 +21,22 @@ const r = (id: string, kind: ResourceView["kind"], name: string, link: string | 
   setterCount: setters.length,
   keywords: [],
   usedBy: agents.filter((a) => setters.includes(a.id)),
+  broadcasts: [],
   sent,
   when,
   sortOrder,
 });
 
-export function mockResourcesBoard(): ResourcesBoard {
+/** The sample lead magnets, shared with the broadcast picker's sample (lib/os/mock-followups.ts). */
+export const MOCK_LEAD_MAGNETS = [
+  { id: "mock-res-setter-starter", name: "Claude Code Setter Starter", link: "https://kevinfernandes.me/setter-starter" },
+  { id: "mock-res-script-vault", name: "DM Script Vault", link: "https://kevinfernandes.me/script-vault" },
+  { id: "mock-res-workshop", name: "The AI DM setter workshop", link: "https://ai.claudepreneur.com" },
+  { id: "mock-res-10k-course", name: "The extra $10k course", link: null },
+] as const;
+
+/** `broadcasts`: the sample broadcasts using each resource (resourceBroadcastUse on the mock store). */
+export function mockResourcesBoard(broadcasts: Map<string, ResourceView["broadcasts"]> = new Map()): ResourcesBoard {
   const resources = [
     r("mock-res-setter-starter", "resource", "Claude Code Setter Starter", "https://kevinfernandes.me/setter-starter", 42, ["mock-setter-j", "mock-setter-nova"], 1),
     r("mock-res-script-vault", "resource", "DM Script Vault", "https://kevinfernandes.me/script-vault", 31, ["mock-setter-j"], 2),
@@ -35,6 +45,7 @@ export function mockResourcesBoard(): ResourcesBoard {
     r("mock-res-built-setter", "episode", "How I built a DM setter with Claude", "https://youtube.com/watch?v=sample1", 12, ["mock-setter-j"], 5, "Wants to build it themselves"),
     r("mock-res-dm-scripts", "episode", "The DM scripts that book my calls", "https://youtube.com/watch?v=sample2", 9, ["mock-setter-j", "mock-setter-nova"], 6, "Asks how the calls get booked"),
   ];
+  for (const res of resources) res.broadcasts = (broadcasts.get(res.id) ?? []).map((b) => ({ key: b.key, name: b.name, unsent: b.unsent }));
   return buildBoard(
     resources,
     new Map(),

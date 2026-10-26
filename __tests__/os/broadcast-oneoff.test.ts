@@ -19,7 +19,8 @@ import {
 import { fallbackVariations, parseVariationsDraft, writeVariations } from "@/lib/os/broadcasts/personalise";
 import { seededRng, zonedInstant } from "@/lib/os/broadcasts/schedule";
 import type { BroadcastBubble } from "@/lib/os/broadcasts/types";
-import { broadcastsUsing, deleteBlockedBy } from "@/lib/os/broadcasts/resources";
+import { broadcastsUsing } from "@/lib/os/broadcasts/resources";
+import { deleteBlockers, usedByOf } from "@/lib/os/resources-view";
 
 const LUX = "Europe/Luxembourg";
 const local = (date: string, hhmm: string) => zonedInstant(date, hhmm, LUX);
@@ -149,8 +150,10 @@ describe("resources in broadcasts (Part C 024)", () => {
     ]);
   });
   it("delete is refused for an unsent broadcast, allowed for a sent one", () => {
-    expect(deleteBlockedBy(broadcastsUsing("r1", rows))).toBe("Follow-up Friday · 30 Oct uses it as a link. Change that broadcast first.");
-    expect(deleteBlockedBy(broadcastsUsing("r1", rows.slice(1)))).toBeNull();
-    expect(deleteBlockedBy([])).toBeNull();
+    const none = { agents: [], campaigns: [], workflows: [] };
+    const blockers = (rs: typeof rows) => deleteBlockers(usedByOf({ id: "r1", slug: "r1", broadcasts: broadcastsUsing("r1", rs) }, [], none));
+    expect(blockers(rows).map((b) => [b.kind, b.name, b.href])).toEqual([["broadcast", "Follow-up Friday · 30 Oct", "/os/automations/broadcasts/fff-30-oct"]]);
+    expect(blockers(rows.slice(1))).toEqual([]);
+    expect(blockers([])).toEqual([]);
   });
 });

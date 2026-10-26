@@ -2,15 +2,18 @@
 // helpers. The loader is lib/os/resources-board.ts.
 
 import type { ResourceKind, ResourceView } from "@/lib/os/knowledge";
+import { shortLink } from "@/lib/os/setter/knowledge/resources-view";
 import { DOC_FILES, DOC_KEYS, type DocKey } from "@/lib/os/setter/knowledge/docs";
 
-export type UsedByKind = "agent" | "campaign" | "workflow" | "sequences";
+export type UsedByKind = "agent" | "campaign" | "workflow" | "broadcast" | "sequences";
 
 export interface UsedBy {
   kind: UsedByKind;
   id: string;
   name: string;
   href: string;
+  /** Broadcasts only: not sent yet (refuses delete). */
+  unsent?: boolean;
 }
 
 export interface ResourceRow extends ResourceView {
@@ -65,8 +68,7 @@ export function pillCounts(rows: { kind: ResourceKind }[], docs: number): Resour
 
 /** "kevinfernandes.me/setter-starter", or null for "No link yet". */
 export function linkLabel(link: string | null): string | null {
-  if (!link) return null;
-  return link.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") || null;
+  return (link && shortLink(link)) || null;
 }
 
 export interface UsageInputs {
@@ -77,8 +79,8 @@ export interface UsageInputs {
   workflows: { id: string; name: string; slugs: string[] }[];
 }
 
-/** Everything that uses one resource, agents first. */
-export function usedByOf(r: { id: string; slug: string }, agentIds: string[], inputs: UsageInputs): UsedBy[] {
+/** Everything that uses one resource, agents first. Broadcasts come from the row itself (ResourceView.broadcasts). */
+export function usedByOf(r: { id: string; slug: string; broadcasts?: ResourceView["broadcasts"] }, agentIds: string[], inputs: UsageInputs): UsedBy[] {
   const out: UsedBy[] = [];
   for (const id of agentIds) {
     const a = inputs.agents.find((x) => x.id === id);
@@ -86,14 +88,17 @@ export function usedByOf(r: { id: string; slug: string }, agentIds: string[], in
   }
   for (const c of inputs.campaigns.filter((x) => x.resourceId === r.id)) out.push({ kind: "campaign", id: c.automationId, name: c.name, href: `/os/automations/${c.automationId}` });
   for (const w of inputs.workflows.filter((x) => x.slugs.includes(r.slug))) out.push({ kind: "workflow", id: w.id, name: w.name, href: `/os/automations/workflows/${w.id}` });
+  for (const b of r.broadcasts ?? []) out.push({ kind: "broadcast", id: b.key, name: b.name, href: `/os/automations/broadcasts/${b.key}`, unsent: b.unsent });
   if (agentIds.length) out.push({ kind: "sequences", id: "sequences", name: "Sequences via J", href: `/os/knowledge/${agentIds[0]}` });
   return out;
 }
 
-/** Why a resource can't be deleted yet: the campaigns and workflows using it. */
+/** Why a resource can't be deleted yet: the campaigns, workflows and unsent broadcasts using it. */
 export function deleteBlockers(used: UsedBy[]): UsedBy[] {
-  return used.filter((u) => u.kind === "campaign" || u.kind === "workflow");
+  return used.filter((u) => u.kind === "campaign" || u.kind === "workflow" || (u.kind === "broadcast" && u.unsent));
 }
+
+export const USED_BY_LABEL: Record<UsedByKind, string> = { agent: "Agent", campaign: "Campaign", workflow: "Workflow", broadcast: "Broadcast", sequences: "Sequences" };
 
 /** The agents to name in the delete confirm (their links go with it). */
 export function offeringAgents(used: UsedBy[]): UsedBy[] {

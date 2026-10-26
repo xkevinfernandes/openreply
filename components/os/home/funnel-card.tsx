@@ -8,12 +8,13 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import "./home-funnel.css";
-import { fillWonAmount } from "@/app/(os)/os/pipeline/all/actions";
+import { markFunnelWon } from "@/app/(os)/os/pipeline/all/actions";
+import WonPicker from "@/components/os/contacts/won-picker";
 import { useFunnelWindow } from "@/components/os/pipeline/use-funnel-window";
 import { WindowSwitch } from "@/components/os/pipeline/window-switch";
-import { WonDialog } from "@/components/os/pipeline/won-dialog";
 import { InfoTip } from "@/components/os/ui/info-tip";
-import { flowDots, money as formatMoney, windowFrom as windowStart, windowLabel as cohortLabel, type HomeFunnelData } from "@/lib/os/home-funnel-view";
+import { formatMoney } from "@/lib/os/money";
+import { flowDots, windowFrom as windowStart, windowLabel as cohortLabel, type HomeFunnelData } from "@/lib/os/home-funnel-view";
 
 const heightOf = (max: number) => (n: number) => (max ? Math.max(14, Math.round((n / max) * 100)) : 14);
 
@@ -125,16 +126,15 @@ export function FunnelCard({ data, now }: { data: HomeFunnelData; now: string })
       {showNote ? <p className="os-fn-note">Qualified counts stage history since {shortDate(data.stageLogSince)}, plus anyone who reached a later step.</p> : null}
 
       {fill ? (
-        <WonDialog
-          name={fill.name}
-          currency={data.currency}
-          defaultDate={fill.wonAt}
+        <WonPicker
+          contactIds={[fill.id]}
+          who={fill.name}
           submitLabel="Save"
           onClose={() => setFilling(null)}
-          onSubmit={async (v) => {
-            const r = await fillWonAmount(fill.id, v);
-            if (!r.error) router.refresh();
-            return r;
+          save={(offer, amount) => markFunnelWon(fill.id, offer, amount, fill.wonAt)}
+          onDone={() => {
+            setFilling(null);
+            router.refresh();
           }}
         />
       ) : null}

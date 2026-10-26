@@ -20,14 +20,13 @@ import { threadName } from "@/components/os/inbox/names";
 import { useOsCommand } from "@/components/os/keys";
 import MoveSheet from "@/components/os/pipeline/setter-move-sheet";
 import PipelineBoard from "@/components/os/pipeline/setter-board";
-import { Tabs } from "@/components/os/ui";
+import { BoardSwitch } from "@/components/os/pipeline/board-switch";
 import type { PanelTab } from "@/lib/os/contact-panel/types";
 import type { ContactRow, SetterOption } from "@/lib/os/contacts-board";
 import type { ContactChange } from "@/lib/os/contacts-edit";
 import { applyChangeLocally, normalizeTag } from "@/lib/os/contacts-filter";
 import { matchesSearch } from "@/lib/os/contacts-view";
 import {
-  ALL_BOARD,
   boardColumnsFor,
   boardLanes,
   moveLocally,
@@ -201,10 +200,6 @@ export default function PipelineScreen(p: Props) {
   }
 
   const ids = picked.map((c) => c.id);
-  const switcher = [
-    { key: ALL_BOARD, label: "All · funnel" },
-    ...p.setters.map((s) => ({ key: s.id, label: s.name })),
-  ];
 
   return (
     <div className="os-cx os-pl" data-panel={panel.open ? "open" : undefined}>
@@ -234,16 +229,7 @@ export default function PipelineScreen(p: Props) {
         </header>
 
         <div className="os-pl-switch">
-          <Tabs
-            tabs={switcher}
-            value={p.setterId}
-            ariaLabel="Board"
-            hrefFor={(k) =>
-              k === ALL_BOARD
-                ? "/os/pipeline/all"
-                : `/os/pipeline?setter=${encodeURIComponent(k)}`
-            }
-          />
+          <BoardSwitch setters={p.setters} value={p.setterId} />
           <label className="os-cv-archived">
             <input
               type="checkbox"

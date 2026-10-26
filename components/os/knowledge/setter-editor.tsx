@@ -160,7 +160,7 @@ export function LeadMagnetsSetup({ view }: { view: SetterEditorView }) {
       description={
         <>
           The resources J may offer. Only <strong>active</strong> ones that are switched on reach J. Manage the list in{" "}
-          <Link href="/os/knowledge/resources">Resources</Link>.
+          <Link href="/os/resources">Resources</Link>.
         </>
       }
     >

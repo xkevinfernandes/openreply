@@ -11,7 +11,7 @@ import { useRef, useState, useTransition } from "react";
 import { reorderResources } from "@/app/(os)/os/knowledge/actions";
 import { deleteResourceChecked } from "@/app/(os)/os/resources/actions";
 import ResourceSheet, { formOf } from "@/components/os/resources/resource-sheet";
-import { deleteBlockers, kindLabel, linkLabel, matchesFilter, offeringAgents, type ResourceFilter, type ResourceRow, type ResourcesBoard, type UsedBy } from "@/lib/os/resources-view";
+import { deleteBlockers, kindLabel, linkLabel, matchesFilter, offeringAgents, type ResourceFilter, type ResourceRow, type ResourcesBoard, type UsedBy, USED_BY_LABEL } from "@/lib/os/resources-view";
 import { moveId } from "@/lib/os/setter/knowledge/resources-view";
 
 const PILLS: { key: ResourceFilter; label: string; count: keyof ResourcesBoard["counts"] }[] = [
@@ -328,7 +328,7 @@ function DeleteDialog({ del, pending, onClose, onConfirm }: { del: NonNullable<D
               {del.blockers!.map((b) => (
                 <li key={`${b.kind}-${b.id}`}>
                   <Link href={b.href}>
-                    {b.kind === "campaign" ? "Campaign" : "Workflow"} {b.name}
+                    {USED_BY_LABEL[b.kind]} {b.name}
                   </Link>
                 </li>
               ))}
