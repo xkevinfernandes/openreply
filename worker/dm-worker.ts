@@ -6,6 +6,8 @@ import os from "node:os";
 // DM OS (our fork): J's setter queue runs on the same worker process.
 import { createSetterWorker } from "@/lib/os/setter/queue";
 import { createSyncWorker } from "@/lib/os/integrations/queue";
+import { DM_EVENTS_INTERVAL_MS, syncDmEvents } from "@/lib/os/dataos/dm-events";
+import { dbDmEvents } from "@/lib/os/dataos/dm-events-db";
 
 const worker = createDMWorker();
 const setterWorker = createSetterWorker();
@@ -53,10 +55,31 @@ async function poll() {
 setTimeout(() => void poll(), 10_000);
 const pollTimer = setInterval(() => void poll(), POLL_INTERVAL_MS);
 
+// dataos-sync: workflow events → DataOS (lib/os/dataos/dm-events.ts). Off
+// for every workspace without a "dataos_events" config; one tick at a time.
+let dataosSyncing = false;
+async function dataosSync() {
+  if (dataosSyncing) return;
+  dataosSyncing = true;
+  try {
+    for (const r of await syncDmEvents({ db: dbDmEvents })) {
+      if (r.error) console.error(`[DM Worker] dataos-sync ${r.workspaceId}: ${r.error}`);
+      else if (r.sent) console.log(`[DM Worker] dataos-sync ${r.workspaceId}: ${r.sent} events in ${r.posts} posts`);
+    }
+  } catch (error) {
+    console.error("[DM Worker] dataos-sync failed:", error instanceof Error ? error.message : "Unknown error");
+  } finally {
+    dataosSyncing = false;
+  }
+}
+setTimeout(() => void dataosSync(), 60_000);
+const dataosTimer = setInterval(() => void dataosSync(), DM_EVENTS_INTERVAL_MS);
+
 async function shutdown(signal: string) {
   console.log(`[DM Worker] ${signal} received, closing worker`);
   clearInterval(heartbeatTimer);
   clearInterval(pollTimer);
+  clearInterval(dataosTimer);
   await worker.close();
   await setterWorker.close();
   await syncWorker.close();
