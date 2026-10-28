@@ -8,6 +8,12 @@ const { mockPrisma } = vi.hoisted(() => ({
     linkClick: {
       create: vi.fn(),
     },
+    workflowRun: {
+      findUnique: vi.fn(),
+    },
+    workflowRunEvent: {
+      create: vi.fn(),
+    },
   },
 }));
 
@@ -106,5 +112,36 @@ describe("tracked link redirect route", () => {
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe("https://manychat-alternative.com/");
     expect(mockPrisma.linkClick.create).not.toHaveBeenCalled();
+  });
+
+  it("a workflow link (no automation): a link_clicked event on its run, no LinkClick, then the redirect", async () => {
+    mockPrisma.trackedLink.findUnique.mockResolvedValue({
+      id: "link_wf",
+      workspaceId: "workspace_123",
+      automationId: null,
+      destinationUrl: "https://kevin.link/vault",
+      runId: "run_1",
+      nodeId: "link",
+      resourceSlug: "script-vault",
+      automation: null,
+    });
+    mockPrisma.workflowRun.findUnique.mockResolvedValue({ id: "run_1", workspaceId: "workspace_123", workflowId: "wf_1", versionId: "wf_1_v1" });
+    mockPrisma.workflowRunEvent.create.mockResolvedValue({});
+
+    const response = await GET(new Request("https://app.test/r/wfslug?r=AbCdEfGhIjKlMnOpQrSt_-") as Parameters<typeof GET>[0], { params: Promise.resolve({ slug: "wfslug" }) });
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("https://kevin.link/vault");
+    expect(mockPrisma.linkClick.create).not.toHaveBeenCalled();
+    expect(mockPrisma.workflowRunEvent.create).toHaveBeenCalledWith({
+      data: { workspaceId: "workspace_123", workflowId: "wf_1", versionId: "wf_1_v1", runId: "run_1", nodeId: "link", kind: "link_clicked", data: { slug: "script-vault", link: "link_wf" } },
+    });
+  });
+
+  it("a workflow click that can't be logged still redirects", async () => {
+    mockPrisma.trackedLink.findUnique.mockResolvedValue({ id: "l", workspaceId: "w", automationId: null, destinationUrl: "https://kevin.link/vault", runId: "run_1", nodeId: "link", resourceSlug: null, automation: null });
+    mockPrisma.workflowRun.findUnique.mockRejectedValue(new Error("db down"));
+    const response = await GET(new Request("https://app.test/r/x") as Parameters<typeof GET>[0], { params: Promise.resolve({ slug: "x" }) });
+    expect(response.headers.get("location")).toBe("https://kevin.link/vault");
   });
 });

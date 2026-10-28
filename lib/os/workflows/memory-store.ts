@@ -2,7 +2,7 @@
 // one live run per person (liveKey), sticky Randomizer branches, idempotent
 // inbound keys.
 
-import { isLive, type NewRun, type RunEventRow, type RunRecord, type VersionDef, type WorkflowDef, type WorkflowStore } from "@/lib/os/workflows/types";
+import { isLive, type NewRun, type RunEventRow, type RunRecord, type SkipInput, type VersionDef, type WorkflowDef, type WorkflowStore } from "@/lib/os/workflows/types";
 
 export interface MemoryWorkflowStore extends WorkflowStore {
   workflows: Map<string, WorkflowDef>;
@@ -11,6 +11,8 @@ export interface MemoryWorkflowStore extends WorkflowStore {
   events: RunEventRow[];
   assignments: Map<string, string>;
   inbound: Set<string>;
+  /** Skipped comments, one per comment id (like OsEvent's dedupeKey). */
+  skips: SkipInput[];
   addWorkflow(wf: WorkflowDef, version?: VersionDef): void;
 }
 
@@ -24,6 +26,7 @@ export function memoryWorkflowStore(): MemoryWorkflowStore {
   const events: RunEventRow[] = [];
   const assignments = new Map<string, string>();
   const inbound = new Set<string>();
+  const skips: SkipInput[] = [];
   const liveKeys = new Map<string, string>();
   const locks = new Map<string, { token: string; until: number }>();
   const key = (a: string, u: string) => `${a}:${u}`;
@@ -35,6 +38,7 @@ export function memoryWorkflowStore(): MemoryWorkflowStore {
     events,
     assignments,
     inbound,
+    skips,
     addWorkflow(wf, version) {
       workflows.set(wf.id, wf);
       if (version) versionsById.set(version.id, version);
@@ -157,6 +161,9 @@ export function memoryWorkflowStore(): MemoryWorkflowStore {
     },
     async unlockRun(runId, token) {
       if (locks.get(runId)?.token === token) locks.delete(runId);
+    },
+    async skipped(e) {
+      if (!skips.some((x) => x.commentId === e.commentId)) skips.push({ ...e });
     },
   };
 }

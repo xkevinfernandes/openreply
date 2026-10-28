@@ -287,7 +287,8 @@ model ProcessedComment {
 model TrackedLink {
   id             String   @id @default(cuid())
   workspaceId    String
-  automationId   String
+  // Null for a DM OS workflow link (the four workflow columns below say whose it is).
+  automationId   String?
   slug           String   @unique
   label          String?
   destinationUrl String
@@ -296,15 +297,22 @@ model TrackedLink {
   // links saved in one request share a createdAt, and Postgres returns tied
   // rows in no fixed order.
   position       Int      @default(0)
+  // DM OS workflow links (lib/os/workflows): the workflow, run, step and
+  // resource a click belongs to. Plain columns, like the rest of os-workflows.
+  workflowId     String?
+  runId          String?
+  nodeId         String?
+  resourceSlug   String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   workspace  Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  automation Automation  @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  automation Automation? @relation(fields: [automationId], references: [id], onDelete: Cascade)
   clicks     LinkClick[]
 
   @@index([workspaceId])
   @@index([automationId])
+  @@index([runId])
 }
 
 model LinkClick {

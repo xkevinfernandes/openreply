@@ -19,6 +19,8 @@ import { sendMessageWithQuickReplies } from "@/lib/meta/client";
 import { CLASSIFY_SYSTEM, heuristicClassify, PICK_OPTION_SYSTEM, pickOptionPrompt, readClassification, readPickedOption } from "@/lib/os/workflows/setter-step";
 import type { CanSend, ContactInfo, JRequest, OutMessage, Ports, SendContext } from "@/lib/os/workflows/types";
 import { sendNoted, textHash } from "@/lib/os/workflows/outbound";
+import { buildTrackedUrl } from "@/lib/tracking/message";
+import { generateTrackedLinkSlug, hashRecipientId } from "@/lib/tracking/server";
 
 export { textHash };
 
@@ -222,6 +224,19 @@ export function dbPorts(): Ports {
       if (!redisConfigured()) return;
       const delay = Math.max(0, at.getTime() - Date.now()) + 1_000;
       await getSetterQueue().add(WORKFLOW_TICK_JOB, { runId }, { delay, jobId: `wf_tick_${runId}_${at.getTime()}` });
+    },
+    async trackLink(l) {
+      // One TrackedLink per run, step and URL: a retried send reuses it.
+      const found = await prisma.trackedLink.findFirst({ where: { runId: l.runId, nodeId: l.nodeId, destinationUrl: l.url }, select: { slug: true } });
+      const slug =
+        found?.slug ??
+        (
+          await prisma.trackedLink.create({
+            data: { workspaceId: l.workspaceId, slug: generateTrackedLinkSlug(), destinationUrl: l.url, workflowId: l.workflowId, runId: l.runId, nodeId: l.nodeId, resourceSlug: l.resourceSlug },
+            select: { slug: true },
+          })
+        ).slug;
+      return buildTrackedUrl(slug, undefined, hashRecipientId(l.igUserId));
     },
     async campaignOwns(workspaceId, instagramAccountId, ev) {
       const autos = await prisma.automation.findMany({

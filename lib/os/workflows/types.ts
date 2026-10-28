@@ -15,6 +15,8 @@ export interface TriggerInfo {
   keyword?: string | null;
   commentId?: string | null;
   postId?: string | null;
+  /** A trial reel / ad: the original post behind postId (it can match the trigger too). */
+  originalPostId?: string | null;
   mid?: string | null;
   text?: string | null;
   /** Go to: the run it replaced. */
@@ -161,7 +163,8 @@ export interface NewRun {
 export interface RunEventInput {
   run: Pick<RunRecord, "id" | "workspaceId" | "workflowId" | "versionId">;
   nodeId: string;
-  kind: "enter" | "leave" | "replied" | "released" | "booked" | "showed" | "sent" | "failed" | "note";
+  /** end: the run finished ({status, exit}); link_clicked: written by /r/[slug]. */
+  kind: "enter" | "leave" | "replied" | "released" | "booked" | "showed" | "sent" | "failed" | "note" | "end" | "link_clicked";
   port?: string | null;
   data?: Record<string, unknown>;
   at: Date;
@@ -171,6 +174,19 @@ export interface RunEventRow extends Omit<RunEventInput, "run"> {
   runId: string;
   workflowId: string;
   versionId: string;
+}
+
+/** A comment a matched (or post-targeted) workflow did not take. It has no run. */
+export interface SkipInput {
+  workspaceId: string;
+  workflowId: string;
+  contactId: string | null;
+  /** Idempotency: the comment id. */
+  commentId: string;
+  postId: string;
+  originalPostId: string | null;
+  reason: string;
+  at: Date;
 }
 
 export interface WorkflowStore {
@@ -204,6 +220,8 @@ export interface WorkflowStore {
    */
   lockRun(runId: string, ttlMs: number): Promise<string | null>;
   unlockRun(runId: string, token: string): Promise<void>;
+  /** Log a skipped comment (no run). Never throws. */
+  skipped(e: SkipInput): Promise<void>;
 }
 
 // ---------------------------------------------------------------- ports
@@ -308,6 +326,12 @@ export interface Ports {
   schedule(runId: string, at: Date): Promise<void>;
   /** A live OpenReply campaign answers this comment / DM itself (O4). */
   campaignOwns(workspaceId: string, instagramAccountId: string, ev: { surface: "comment" | "dm"; text: string; postId?: string | null }): Promise<boolean>;
+  /**
+   * The tracked redirect (/r/<slug>) for a link this run sends, so a click is
+   * tied to the workflow, run, step and resource. Optional: without it (tests,
+   * mock) the raw URL goes out. Returns the raw URL when tracking fails.
+   */
+  trackLink?(link: { workspaceId: string; workflowId: string; runId: string; nodeId: string; igUserId: string; resourceSlug: string | null; url: string }): Promise<string>;
 }
 
 export interface EngineDeps {

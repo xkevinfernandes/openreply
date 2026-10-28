@@ -15,6 +15,8 @@ export const OS_EVENT_KINDS = [
   "showed",
   "won",
   "dm_sent",
+  /** A comment a workflow did not take ({workflowId, postId, originalPostId, reason}); it has no run. DataOS `skipped`. */
+  "workflow_skipped",
 ] as const;
 
 export type OsEventKind = (typeof OS_EVENT_KINDS)[number];

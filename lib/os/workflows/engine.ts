@@ -76,6 +76,30 @@ export type Outcome =
 // ---------------------------------------------------------------- helpers
 const iso = (d: Date) => d.toISOString();
 
+/** A comment trigger's outcome as a skip reason (DataOS `skipped`), or null when the workflow took it. */
+export function skipReason(out: Outcome): string | null {
+  switch (out.status) {
+    case "repeat":
+      return "already_running";
+    case "resent":
+      return "reentry_resent";
+    case "todo":
+      return "paused_by_kevin";
+    case "skipped":
+      return (
+        {
+          stopped: "stopped",
+          "rate limit": "rate_limit",
+          "re-entry not allowed yet": "reentry_blocked",
+          "already in a run": "already_running",
+          "no trigger": "no_trigger",
+        }[out.reason] ?? out.reason.replace(/\W+/g, "_")
+      );
+    default:
+      return null;
+  }
+}
+
 function nodeById(graph: WorkflowGraph, id: string | null): GraphNode | null {
   return id ? (graph.nodes.find((n) => n.id === id) ?? null) : null;
 }
@@ -185,13 +209,49 @@ export class WorkflowEngine {
   }): Promise<Outcome> {
     if (!(await this.store.claimInbound(`comment:${ev.commentId}`, ev.workspaceId))) return { status: "skipped", reason: "duplicate" };
     const live = await this.store.liveWorkflows(ev.workspaceId, ev.instagramAccountId);
-    const m = matchTrigger(live, { surface: "comment", text: ev.text, postIds: [ev.postId, ...(ev.originalPostId ? [ev.originalPostId] : [])] });
-    if (!m) return { status: "skipped", reason: "no workflow" };
-    if (await this.ports.campaignOwns(ev.workspaceId, ev.instagramAccountId, { surface: "comment", text: ev.text, postId: ev.postId }))
+    const postIds = [ev.postId, ...(ev.originalPostId ? [ev.originalPostId] : [])];
+    const m = matchTrigger(live, { surface: "comment", text: ev.text, postIds });
+    // Skips are logged (DataOS: comments on a reel a workflow did not take). Read-only contact lookup: a skip never creates one.
+    const skip = async (workflowId: string, reason: string, contactId?: string | null) =>
+      this.store.skipped({
+        workspaceId: ev.workspaceId,
+        workflowId,
+        contactId: contactId !== undefined ? contactId : ((await this.ports.contact(ev.workspaceId, ev.instagramAccountId, ev.igUserId).catch(() => null))?.id ?? null),
+        commentId: ev.commentId,
+        postId: ev.postId,
+        originalPostId: ev.originalPostId ?? null,
+        reason,
+        at: this.now(),
+      });
+    if (!m) {
+      // Only a workflow aimed at this very post counts the miss ("any post" would log every comment).
+      const aimed = live.find(({ version }) => {
+        const t = triggerNode(version.graph);
+        return t?.data.kind === "comment" && t.data.postIds !== "any" && t.data.postIds.some((p) => postIds.includes(p));
+      });
+      if (aimed) await skip(aimed.wf.id, "no_keyword");
+      return { status: "skipped", reason: "no workflow" };
+    }
+    if (await this.ports.campaignOwns(ev.workspaceId, ev.instagramAccountId, { surface: "comment", text: ev.text, postId: ev.postId })) {
+      await skip(m.wf.id, "owned_by_automation");
       return { status: "skipped", reason: "an OpenReply campaign owns it" };
+    }
     const contact = await this.ports.contact(ev.workspaceId, ev.instagramAccountId, ev.igUserId, { username: ev.username, entryPath: "comment" });
-    if (!contact) return { status: "skipped", reason: "no contact" };
-    return this.onTrigger(m.wf, m.version, m.keyword, contact, { kind: "comment", keyword: m.keyword, commentId: ev.commentId, postId: ev.postId, text: ev.text });
+    if (!contact) {
+      await skip(m.wf.id, "no_contact", null);
+      return { status: "skipped", reason: "no contact" };
+    }
+    const out = await this.onTrigger(m.wf, m.version, m.keyword, contact, {
+      kind: "comment",
+      keyword: m.keyword,
+      commentId: ev.commentId,
+      postId: ev.postId,
+      originalPostId: ev.originalPostId ?? null,
+      text: ev.text,
+    });
+    const reason = skipReason(out);
+    if (reason) await skip(m.wf.id, reason, contact.id);
+    return out;
   }
 
   /**
@@ -389,7 +449,7 @@ export class WorkflowEngine {
           const links = await this.links(ws, last.setter.released);
           let sent = false;
           const used = { privateReply: false };
-          for (const l of links) sent = (await this.firstSend(last, contact, trig, { url: l.url }, used)) || sent;
+          for (const l of links) sent = (await this.firstSend(last, contact, trig, { url: await this.tracked(last, t.id, l.url, l.slug) }, used)) || sent;
           if (sent) {
             last.state.resent = true;
             await this.store.saveRun(last);
@@ -452,7 +512,7 @@ export class WorkflowEngine {
       const links = await this.links(ws, resourcesOfGraph(version.graph));
       const used = { privateReply: false };
       for (const l of links) {
-        const ok = await this.firstSend(run, contact, trig, { url: l.url }, used);
+        const ok = await this.firstSend(run, contact, trig, { url: await this.tracked(run, t.id, l.url, l.slug) }, used);
         if (ok) run.setter.released.push(l.slug);
       }
       run.state.privateSent = used.privateReply;
@@ -474,6 +534,16 @@ export class WorkflowEngine {
       if (r?.url) out.push({ slug: s, url: r.url });
     }
     return out;
+  }
+
+  /** A link this run sends, through the tracked redirect when the ports have one (a click becomes a link_clicked event). */
+  private async tracked(run: RunRecord, nodeId: string, url: string, resourceSlug: string | null): Promise<string> {
+    if (!this.ports.trackLink) return url;
+    try {
+      return await this.ports.trackLink({ workspaceId: run.workspaceId, workflowId: run.workflowId, runId: run.id, nodeId, igUserId: run.igUserId, resourceSlug, url });
+    } catch {
+      return url;
+    }
   }
 
   /** A send outside the step flow (re-entry resend, simple send): the comment's private reply if unused, else a DM. */
@@ -570,6 +640,7 @@ export class WorkflowEngine {
     run.waitingFor = null;
     run.endedAt = this.now();
     await this.store.saveRun(run);
+    await this.event(run, nodeId ?? run.currentNodeId ?? "end", "end", null, { status, exit });
     const pending = run.state.pending ?? [];
     if (pending.length && status !== "replaced" && status !== "failed" && exit !== "stopped") {
       const p = pending[0];
@@ -587,7 +658,6 @@ export class WorkflowEngine {
         }
       }
     }
-    void nodeId;
   }
 
   // -------------------------------------------------------------- sending
@@ -645,9 +715,9 @@ export class WorkflowEngine {
       case "image":
         return { image: b.assetUrl };
       case "link": {
-        if (b.url) return { url: b.url };
+        if (b.url) return { url: await this.tracked(run, node.id, b.url, b.resourceSlug ?? null) };
         const r = b.resourceSlug ? await this.ports.resource(run.workspaceId, b.resourceSlug) : null;
-        return r?.url ? { url: r.url } : null;
+        return r?.url ? { url: await this.tracked(run, node.id, r.url, r.slug) } : null;
       }
       case "buttons":
         return { text: b.text, buttons: b.buttons.map((x) => ({ id: x.id, label: x.label, payload: `wf:${run.id}:${node.id}:${x.id}` })) };
@@ -976,7 +1046,7 @@ export class WorkflowEngine {
       // Send first, then talk: the links go now (Kevin's template, sends by itself).
       if (d.leadMagnet.mode === "send_first") {
         for (const l of await this.links(run.workspaceId, d.leadMagnet.resources.filter((s) => !released.includes(s)))) {
-          const r = await this.send(run, contact, { url: l.url }, node.id);
+          const r = await this.send(run, contact, { url: await this.tracked(run, node.id, l.url, l.slug) }, node.id);
           if (r === "gate") return { wait: "reply", until: this.replyDeadline(run, contact) };
           if (r !== "sent") return r;
           run.setter.released.push(l.slug);

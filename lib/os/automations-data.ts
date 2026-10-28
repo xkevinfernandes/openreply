@@ -112,7 +112,7 @@ export async function listAutomationRows(workspaceId: string, now = new Date()):
   const idBySlug = new Map(resources.map((r) => [r.slug, r.id]));
   const firstLink = new Map<string, string>();
   for (const l of [...links].sort((a, b) => a.position - b.position || a.createdAt.getTime() - b.createdAt.getTime())) {
-    if (!firstLink.has(l.automationId)) firstLink.set(l.automationId, l.destinationUrl);
+    if (l.automationId && !firstLink.has(l.automationId)) firstLink.set(l.automationId, l.destinationUrl);
   }
 
   const ws: WorkspaceHealth = { zernioReady: Boolean(zernio?.webhookId), kitConnected: Boolean(kit) };

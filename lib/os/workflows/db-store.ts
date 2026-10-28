@@ -2,6 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { Prisma, type WorkflowRunStatus } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db/client";
+import { recordEventQuietly } from "@/lib/os/events";
 import { WorkflowGraph } from "@/lib/os/workflows/graph";
 import { isLive, type RunRecord, type RunStatus, type SetterRunState, type TriggerInfo, type VersionDef, type WorkflowDef, type WorkflowStore } from "@/lib/os/workflows/types";
 
@@ -188,5 +189,16 @@ export const dbWorkflowStore: WorkflowStore = {
   },
   async unlockRun(runId, token) {
     await prisma.workflowRun.updateMany({ where: { id: runId, lockToken: token }, data: { lockToken: null, lockedUntil: null } });
+  },
+  async skipped(e) {
+    // OsEvent, not WorkflowRunEvent: a skip has no run, and the comment id is its dedupeKey (a retried webhook logs it once).
+    await recordEventQuietly({
+      workspaceId: e.workspaceId,
+      kind: "workflow_skipped",
+      dedupeKey: `workflow_skipped:${e.commentId}`,
+      contactId: e.contactId,
+      at: e.at,
+      data: { workflowId: e.workflowId, postId: e.postId, originalPostId: e.originalPostId, reason: e.reason },
+    });
   },
 };
