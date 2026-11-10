@@ -6,6 +6,7 @@
 // Keys arrive on the DM OS event bus (components/os/keys.ts), so the ⌘K
 // palette drives the same actions. Owner: S1.
 
+import { MenuButton } from "@claudepreneur/brand/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { composerDraftAction } from "@/app/(os)/os/automations/broadcasts/actions";
@@ -101,7 +102,6 @@ export default function Composer({
   const router = useRouter();
   const [state, setState] = useState<ComposerState>(() => initialComposer(draft?.bubbles));
   const [why, setWhy] = useState(false);
-  const [attach, setAttach] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(voiceAtStart);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -233,7 +233,6 @@ export default function Composer({
   }
 
   function addResource(r: ComposerResource) {
-    setAttach(false);
     setState((s) => appendLink(s, r.link));
   }
 
@@ -382,22 +381,13 @@ export default function Composer({
           </button>
           <span className="os-cmp-sp" />
           {resources.length ? (
-            <span className="os-cmp-attach">
-              <button type="button" className="os-cmp-ghost" aria-label="Attach lead magnet" title="Attach lead magnet" aria-expanded={attach} onClick={() => setAttach((a) => !a)}>
-                {icon(I_CLIP)}
-              </button>
-              {attach ? (
-                <ul className="os-cmp-menu" role="menu">
-                  {resources.map((r) => (
-                    <li key={r.id} role="none">
-                      <button type="button" role="menuitem" onClick={() => addResource(r)}>
-                        {r.name}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </span>
+            <MenuButton
+              aria-label="Attach lead magnet"
+              size="sm"
+              className="os-cmp-ghost os-cmp-attach"
+              icon={icon(I_CLIP)}
+              items={resources.map((r) => ({ label: r.name, onSelect: () => addResource(r) }))}
+            />
           ) : null}
           <button
             type="button"

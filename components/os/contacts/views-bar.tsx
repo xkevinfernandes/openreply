@@ -6,6 +6,7 @@
 // menu with Set default / Rename / Delete (never the default).
 
 import { useState, useTransition } from "react";
+import { MenuButton } from "@claudepreneur/brand/react";
 import { deleteContactView, renameContactView, saveContactView, saveContactViewAs, setDefaultContactView } from "@/app/(os)/os/contacts/actions";
 import type { ViewState } from "@/lib/os/contacts-view";
 import type { SavedViewRecord } from "@/lib/os/saved-views";
@@ -58,32 +59,32 @@ export default function ViewsBar(p: Props) {
       </div>
       {/* Right by the pills, so it reads as "this view's" options. */}
       {current && !naming ? (
-        <span className="os-select os-cv-more">
-          <select
-            aria-label={`More for ${current.name}`}
-            value=""
-            disabled={pending}
-            onChange={(e) => {
-              const v = e.target.value;
-              e.target.value = "";
-              if (v === "default") run(() => setDefaultContactView(current.id), `${current.name} is the default.`);
-              if (v === "rename") {
+        <MenuButton
+          label="View options"
+          aria-label={`More for ${current.name}`}
+          size="sm"
+          align="start"
+          className="os-cv-more"
+          disabled={pending}
+          items={[
+            { label: "Make default", disabled: current.isDefault, onSelect: () => run(() => setDefaultContactView(current.id), `${current.name} is the default.`) },
+            {
+              label: "Rename",
+              onSelect: () => {
                 setNaming("rename");
                 setName(current.name);
-              }
-              if (v === "delete" && window.confirm(`Delete the view “${current.name}” for everyone?`)) run(() => deleteContactView(current.id), `Deleted “${current.name}”.`);
-            }}
-          >
-            <option value="">View options</option>
-            <option value="default" disabled={current.isDefault}>
-              Make default
-            </option>
-            <option value="rename">Rename</option>
-            <option value="delete" disabled={current.isDefault}>
-              {current.isDefault ? "Delete (not the default)" : "Delete"}
-            </option>
-          </select>
-        </span>
+              },
+            },
+            {
+              label: current.isDefault ? "Delete (not the default)" : "Delete",
+              danger: true,
+              disabled: current.isDefault,
+              onSelect: () => {
+                if (window.confirm(`Delete the view “${current.name}” for everyone?`)) run(() => deleteContactView(current.id), `Deleted “${current.name}”.`);
+              },
+            },
+          ]}
+        />
       ) : null}
       {p.edited ? <span className="os-cv-edited">Edited</span> : null}
       <span className="os-cx-grow" />

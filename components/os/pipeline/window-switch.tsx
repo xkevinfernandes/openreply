@@ -1,18 +1,18 @@
 "use client";
 
-import "./funnel-shared.css";
+import { SegmentedSwitch } from "@claudepreneur/brand/react";
 import type { FunnelWindow } from "@/lib/os/crm-funnel";
 import { WINDOWS } from "@/lib/os/home-funnel-view";
 
-/** The 7d / 30d / 90d pill switch (Home's funnel and the All board). */
+/** The 7d / 30d / 90d switch (Home's funnel and the All board): the shared SegmentedSwitch. */
 export function WindowSwitch({ value, onChange }: { value: FunnelWindow; onChange: (w: FunnelWindow) => void }) {
   return (
-    <div className="os-fn-switch" role="group" aria-label="Window">
-      {WINDOWS.map((w) => (
-        <button key={w} type="button" aria-pressed={w === value} onClick={() => onChange(w)}>
-          {w}d
-        </button>
-      ))}
-    </div>
+    <SegmentedSwitch
+      label="Window"
+      className="os-fn-switch"
+      value={String(value)}
+      onChange={(v) => onChange(Number(v) as FunnelWindow)}
+      options={WINDOWS.map((w) => ({ value: String(w), label: `${w}d` }))}
+    />
   );
 }

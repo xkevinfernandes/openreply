@@ -426,7 +426,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -485,10 +485,6 @@
 
 .os-cx-status[data-error="true"] {
   color: var(--bad);
-}
-
-.os-cx-none {
-  color: var(--muted);
 }
 
 .os-cx-scroll,
@@ -557,7 +553,7 @@
   padding: 3px 10px;
   border-radius: 999px;
   background: var(--sage);
-  color: var(--sage-text);
+  color: var(--on-sage);
 }
 
 .os-cx-col[data-focus="true"] h2 span {
@@ -643,7 +639,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -669,7 +665,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ghost);
   font-variant-numeric: tabular-nums;
 }
@@ -877,7 +873,7 @@
 }
 
 .os-cd-field input,
-.os-cd-field select {
+.os-cd-select .cp-select-trigger {
   min-width: 0;
   height: 26px;
   padding: 0 6px;
@@ -903,14 +899,28 @@
 }
 
 .os-cd-field input:hover,
-.os-cd-field select:hover {
+.os-cd-select .cp-select-trigger:hover {
   border-color: var(--line-strong);
 }
 
 .os-cd-field input:focus,
-.os-cd-field select:focus {
+.os-cd-select .cp-select-trigger:focus-visible {
   border-color: var(--ink);
   outline: 0;
+}
+
+.os-cd-select {
+  display: flex;
+  min-width: 0;
+}
+.os-cd-select .cp-field {
+  flex: 1;
+}
+.os-cd-select .cp-select-trigger {
+  display: flex;
+  width: auto;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .os-cd-src {

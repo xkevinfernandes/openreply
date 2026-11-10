@@ -7,6 +7,7 @@
 // Won picker (the host opens it). The host shows the toast.
 
 import { useEffect, useRef, useState } from "react";
+import { MenuButton } from "@claudepreneur/brand/react";
 import { bulkTagMenu } from "@/lib/os/bulk-tags";
 import { normalizeTag } from "@/lib/os/contacts-filter";
 
@@ -88,28 +89,20 @@ export default function BulkBar(p: BulkBarProps) {
             </button>
           </form>
         ) : (
-          <span className="os-select os-bulk-tag">
-            <select aria-label="Tag" value="" disabled={p.pending} onChange={(e) => onTag(e.target.value)}>
-              <option value="">Tag…</option>
-              <optgroup label="Add tag">
-                {menu.add.map((t) => (
-                  <option key={`a${t}`} value={`add:${t}`}>
-                    {t}
-                  </option>
-                ))}
-                <option value={NEW}>New tag…</option>
-              </optgroup>
-              {menu.remove.length ? (
-                <optgroup label="Remove tag">
-                  {menu.remove.map((t) => (
-                    <option key={`r${t}`} value={`remove:${t}`}>
-                      {t}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
-            </select>
-          </span>
+          <MenuButton
+            label="Tag…"
+            aria-label="Tag"
+            size="sm"
+            align="start"
+            className="os-bulk-tag"
+            disabled={p.pending}
+            items={[
+              { heading: "Add tag" },
+              ...menu.add.map((t) => ({ label: t, onSelect: () => onTag(`add:${t}`) })),
+              { label: "New tag…", onSelect: () => onTag(NEW) },
+              ...(menu.remove.length ? [{ heading: "Remove tag" }, ...menu.remove.map((t) => ({ label: t, onSelect: () => onTag(`remove:${t}`) }))] : []),
+            ]}
+          />
         )}
         <button type="button" className="os-button" disabled={p.pending} onClick={p.onWon}>
           Won…

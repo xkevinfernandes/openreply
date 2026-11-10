@@ -4,6 +4,7 @@
 // edit, CRM sync state, keywords triggered → resource, lead magnets sent and
 // Kit tags. Owner: S3. Hosts without the data (the Inbox) get it on mount.
 
+import { Select } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { loadDetails, saveFieldValue, syncContactNow, updateContacts } from "@/app/(os)/os/contacts/actions";
@@ -222,12 +223,14 @@ function FieldRow({ f, contactId, setter, onSaved, onError }: { f: DetailsField;
     <div className="os-cd-field" data-pending={pending ? "true" : undefined}>
       <label htmlFor={id}>{f.label}</label>
       {f.type === "SELECT" && f.options.length ? (
-        <select id={id} value={value} onChange={(e) => setValue(e.target.value)} onBlur={save}>
-          <option value="">Empty</option>
-          {f.options.map((o) => (
-            <option key={o}>{o}</option>
-          ))}
-        </select>
+        <span
+          className="os-cd-select"
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) save();
+          }}
+        >
+          <Select id={id} aria-label={f.label} placeholder="Empty" value={value} onChange={setValue} options={[{ value: "", label: "Empty" }, ...f.options.map((o) => ({ value: o, label: o }))]} />
+        </span>
       ) : (
         <input
           id={id}

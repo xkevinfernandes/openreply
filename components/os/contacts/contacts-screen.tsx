@@ -17,7 +17,7 @@ import ViewsBar from "@/components/os/contacts/views-bar";
 import WonPicker from "@/components/os/contacts/won-picker";
 import { useOsCommand } from "@/components/os/keys";
 import { threadName } from "@/components/os/inbox/names";
-import { BulkBar, Toast, useToast, type ToastMessage } from "@/components/os/ui";
+import { BulkBar, EmptyState, Toast, useToast, type ToastMessage } from "@/components/os/ui";
 import type { PanelTab } from "@/lib/os/contact-panel/types";
 import type { ContactRow, SetterOption } from "@/lib/os/contacts-board";
 import type { ContactChange } from "@/lib/os/contacts-edit";
@@ -242,11 +242,12 @@ export default function ContactsScreen(p: Props) {
         {p.truncated ? <p className="os-cx-status">Showing the 2,000 most recent.</p> : null}
 
         {rows.length === 0 ? (
-          <div className="os-cx-none">No contacts yet. They appear when someone DMs or comments.</div>
+          <EmptyState title="No contacts yet.">They appear when someone DMs or comments.</EmptyState>
         ) : result.total === 0 ? (
-          <div className="os-cx-none">
-            {state.filters.archived ? "No archived contacts match." : "No contacts match."}{" "}
-            <button
+          <EmptyState
+            title={state.filters.archived ? "No archived contacts match." : "No contacts match."}
+            action={
+              <button
               type="button"
               className="os-link"
               onClick={() => {
@@ -256,7 +257,8 @@ export default function ContactsScreen(p: Props) {
             >
               Clear filters
             </button>
-          </div>
+            }
+          />
         ) : (
           <div className="os-cx-table">
             <ContactsTable

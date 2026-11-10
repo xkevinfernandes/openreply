@@ -11,6 +11,7 @@
 // Lost stay pinned on the right, so they're always in view.
 // At 400px one column shows at a time under column tabs (no drag).
 
+import { Tabs } from "@claudepreneur/brand/react";
 import { useEffect, useRef, useState } from "react";
 import { threadName } from "@/components/os/inbox/names";
 import { Avatar } from "@/components/os/ui/avatar";
@@ -194,14 +195,13 @@ export default function PipelineBoard(p: Props) {
 
   return (
     <>
-      <div className="os-pl-tabs" role="tablist" aria-label="Columns">
-        {p.lanes.map((l) => (
-          <button key={l.column.key} type="button" role="tab" aria-selected={p.phoneColumn === l.column.key} onClick={() => p.onPhoneColumn(l.column.key)}>
-            {l.column.label}
-            <span>{l.cards.length}</span>
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Columns"
+        className="os-pl-tabs"
+        value={p.phoneColumn}
+        onChange={(k) => p.onPhoneColumn(k)}
+        tabs={p.lanes.map((l) => ({ value: l.column.key, label: l.column.label, count: l.cards.length }))}
+      />
       <div className="os-pl-scroll">
         <div className="os-pl-board" ref={board} data-dragging={dragging ? "true" : undefined}>
           <p id="os-pl-kb-hint" className="sr-only">

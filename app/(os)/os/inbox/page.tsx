@@ -19,6 +19,7 @@ import MockReply from "@/components/os/inbox/mock-reply";
 import Composer, { type ComposerResource } from "@/components/os/thread/composer";
 import InboxKeys from "@/components/os/thread/inbox-keys";
 import { ConversationSkeleton, PanelSkeleton, ThreadListSkeleton } from "@/components/os/ui/skeleton";
+import { EmptyState } from "@/components/os/ui/empty-state";
 import StageMover from "@/components/os/thread/stage-mover";
 import ThreadHead from "@/components/os/thread/thread-head";
 import ThreadView from "@/components/os/thread/thread-view";
@@ -147,10 +148,9 @@ async function ListPane({ list, view, selected, collapsed }: { list: Promise<Lis
   const { connected, rows, counts, drafts, now, unsorted } = await list;
   if (!connected) {
     return (
-      <div className="os-empty">
-        <strong>Connect Instagram first</strong>
+      <EmptyState title="Connect Instagram first">
         The inbox reads your DMs through Zernio. Connect it in <Link href="/os/settings">Settings</Link>, then come back.
-      </div>
+      </EmptyState>
     );
   }
   return (

@@ -6,6 +6,7 @@
 // history from the stage log. Other moves still go out on the event bus
 // ("move-stage"), performed by the screen hosting the panel.
 
+import { Select } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { loadStageHistory, undoContactWon, type StageHistoryRow } from "@/app/(os)/os/contacts/actions";
@@ -91,19 +92,18 @@ export default function StageControl({ data }: { data: ContactPanelData }) {
 
   return (
     <div className="os-panel-stagebox">
-      <label className="os-panel-pill">
-        <span className="sr-only">Stage</span>
-        <select value={column} onChange={(e) => choose(e.target.value)} aria-label="Stage" disabled={pending}>
-          {columns.map((c) => {
-            const o = option(c.key);
-            return (
-              <option key={c.key} value={c.key} disabled={o.disabled}>
-                {`${c.label}${o.note}`}
-              </option>
-            );
-          })}
-        </select>
-      </label>
+      <Select
+        compact
+        aria-label="Stage"
+        fieldClassName="os-panel-pill"
+        value={column}
+        disabled={pending}
+        onChange={(v) => choose(v)}
+        options={columns.map((c) => {
+          const o = option(c.key);
+          return { value: c.key, label: `${c.label}${o.note}`, disabled: o.disabled };
+        })}
+      />
 
       {column === "won" ? (
         <span className="os-panel-won">
