@@ -2090,3 +2090,10 @@
     bottom: calc(96px + env(safe-area-inset-bottom));
   }
 }
+
+/* Shared Select / Combobox triggers on the OS's own cards (not .cp-card):
+   the control surface is --ctl, a well inside a card, like os-input. */
+.os .cp-select-trigger:not(.is-compact),
+.os .cp-multi {
+  background-color: var(--ctl);
+}
