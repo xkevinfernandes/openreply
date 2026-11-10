@@ -108,7 +108,7 @@
   background: var(--well);
   color: var(--muted);
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
 }
 
@@ -125,7 +125,7 @@
 
 .os-pal-group {
   padding: 12px 10px 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--muted);
 }
@@ -190,7 +190,7 @@
   align-items: center;
   justify-content: center;
   background: var(--well);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -198,7 +198,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--warn); /* a draft waiting is "decide this": amber, never green */
   white-space: nowrap;
 }
@@ -210,7 +210,7 @@
 .os-pal-enter {
   min-width: 28px;
   text-align: right;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ghost);
 }
 
@@ -220,7 +220,7 @@
 }
 
 .os-pal-note {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ghost);
   white-space: nowrap;
 }
@@ -240,7 +240,7 @@
   height: 36px;
   padding: 0 16px;
   background: var(--well);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 

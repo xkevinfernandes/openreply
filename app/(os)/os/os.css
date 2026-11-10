@@ -197,7 +197,7 @@
   border-radius: 8px;
   background: var(--tint-2);
   color: var(--muted);
-  font: 500 11px/1 var(--font);
+  font: 500 12px/1 var(--font);
 }
 
 /* --- Controls ------------------------------------------------------------ */
@@ -615,7 +615,7 @@
   border-radius: var(--radius);
   background: var(--ink);
   color: var(--on-ink);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -633,7 +633,7 @@
 }
 
 .os-side-handle {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -697,7 +697,7 @@
 }
 
 .os-side-search-kbd {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ghost);
 }
 
@@ -760,7 +760,7 @@
   border-radius: 999px;
   background: var(--mark-bg);
   color: var(--mark);
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -806,7 +806,7 @@
   background: var(--paper);
   color: var(--ink);
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
   cursor: pointer;
   transition: border-color 120ms ease, transform 100ms ease;
@@ -833,7 +833,7 @@
 .os-side-sends {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   text-decoration: none;
 }
@@ -943,7 +943,7 @@
 }
 
 .os-shell[data-sidebar="rail"] .os-side-sends {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .os-shell[data-sidebar="rail"] .os-side-meter {
@@ -1222,7 +1222,7 @@
   border-radius: 999px;
   background: var(--ink);
   color: var(--on-ink);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1;
 }
@@ -1230,7 +1230,7 @@
 .os-setter-mark[data-size="20"] {
   width: 20px;
   height: 20px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .os-setter-mark[data-size="24"] {
@@ -1252,7 +1252,7 @@
   background: var(--tint-2);
   color: var(--muted);
   font-family: var(--font);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 1;
 }
@@ -1321,7 +1321,7 @@
 .os-avatar[data-size="24"] {
   width: 24px;
   height: 24px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .os-avatar[data-size="40"] {
@@ -1650,7 +1650,7 @@
     border-radius: 999px;
     background: var(--neutral-bg);
     color: var(--neutral-fg);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
   }
@@ -1775,7 +1775,7 @@
     border-radius: 999px;
     background: var(--neutral-bg);
     color: var(--neutral-fg);
-    font-size: 11px;
+    font-size: 12px;
     box-shadow: none;
   }
 
@@ -2072,58 +2072,10 @@
   width: 120px;
 }
 
-/* --- Toast (components/os/ui/toast.tsx) ------------------------------------ */
-.os .os-toast-slot {
-  position: fixed;
-  left: 50%;
-  bottom: calc(20px + env(safe-area-inset-bottom));
-  z-index: 90;
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-.os .os-toast {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  max-width: calc(100vw - 32px);
-  padding: 10px 10px 10px 16px;
-  border-radius: 999px;
-  background: var(--ink);
-  color: var(--bg);
-  font-size: var(--fs-sm);
-  box-shadow: var(--pop-shadow);
-  pointer-events: auto;
-  animation: os-toast-in 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.os .os-toast[data-bad="true"] {
-  background: var(--bad);
-  color: #fff;
-}
-.os .os-toast-undo,
-.os .os-toast-x {
-  padding: 2px 6px;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-.os .os-toast-undo {
-  font-weight: 600;
-  text-decoration: underline;
-}
-.os .os-toast-x {
-  opacity: 0.7;
-}
-@keyframes os-toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-}
+/* --- Toast: the shared one (cp-toasts, ui/toast.tsx). On the phone it sits
+   above the sticky bulk bar, as the OS's own toast did. */
 @media (max-width: 700px) {
-  /* Above the sticky bulk bar on the phone. */
-  .os .os-toast-slot {
+  html:has(.os) .cp-toasts {
     bottom: calc(96px + env(safe-area-inset-bottom));
   }
 }
