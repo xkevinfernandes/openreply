@@ -162,14 +162,6 @@
   font-size: var(--fs-xs);
 }
 
-.os-field .os-select {
-  display: flex;
-}
-
-.os-field .os-select select {
-  width: 100%;
-}
-
 /* Repeatable items (offers, objections, stages, corrections) */
 
 .os-kb-list {
@@ -240,9 +232,6 @@
   width: var(--control-h);
   padding: 0;
 }
-
-
-
 
 .os-kb-new-correction {
   display: grid;
@@ -379,10 +368,6 @@
   background: var(--paper-2);
 }
 
-.os-sandbox-bar .os-select select {
-  max-width: 240px;
-}
-
 .os-sandbox-note {
   flex: 1 1 180px;
   color: var(--muted);
@@ -498,12 +483,6 @@
     height: calc(100dvh - var(--bar-h) - 190px);
     min-height: 380px;
     margin: 0 -4px;
-  }
-
-  .os-sandbox-bar .os-select,
-  .os-sandbox-bar .os-select select {
-    max-width: none;
-    flex: 1 1 auto;
   }
 }
 

@@ -347,8 +347,7 @@
 /* Inputs */
 
 .os-input,
-.os-textarea,
-.os-select select {
+.os-textarea {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -389,41 +388,15 @@
 }
 
 .os-input:hover,
-.os-textarea:hover,
-.os-select select:hover {
+.os-textarea:hover {
   border-color: color-mix(in srgb, var(--ink) 24%, transparent);
 }
 
 .os-input:focus,
-.os-textarea:focus,
-.os-select select:focus {
+.os-textarea:focus {
   outline: none;
   border-color: var(--ink);
   box-shadow: none;
-}
-
-.os-select {
-  position: relative;
-  display: inline-flex;
-}
-
-.os-select select {
-  height: var(--control-h);
-  padding: 0 28px 0 10px;
-  font-size: var(--fs-sm);
-  appearance: none;
-  cursor: pointer;
-  /* A hairline chevron in ink. Set background-COLOR only on a select:
-     the shorthand wipes the chevron (A-01). Dark swaps --chevron. */
-  background-image: var(--chevron);
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 14px;
-}
-
-.os-select select:disabled {
-  opacity: 0.5;
-  cursor: default;
 }
 
 /* Segmented control (Review Room .seg): a tinted track, the choice lifts. */
@@ -1067,30 +1040,6 @@
 
 /* Placeholders and empty states */
 
-.os-empty {
-  max-width: 620px;
-  padding: 22px 24px;
-  border: 1px dashed var(--line);
-  border-radius: var(--radius);
-  background: var(--paper-2);
-  color: var(--muted);
-  font-size: var(--fs-sm);
-  text-wrap: pretty;
-}
-
-.os-empty strong {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--ink);
-  font-size: var(--fs-body);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.os-empty a {
-  color: var(--ink);
-}
-
 /* --- UI parts (components/os/ui) ------------------------------------------ */
 
 /* Status pills: the shared Pill (cp-pill, components/os/ui/pill.tsx
@@ -1368,7 +1317,6 @@
   outline: 2px solid var(--card);
 }
 
-
 /* --- Shared primitives (owner A) ---------------------------------------------
    Screen files build on these instead of inventing variants. Zero-specificity
    (:where) where a screen may need to adjust them. */
@@ -1519,13 +1467,15 @@
   outline-offset: 2px;
 }
 
-/* The brand's base field look (apps.css :where(input…)) is for text fields:
-   a slider or a file picker keeps the browser's own. */
-:where(.os) input:is([type="range"], [type="file"]) {
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: none;
+/* apps.css gives bare inputs a base look (:where(input, textarea, select):
+   padding, border, radius, background). The OS styles its own fields, so
+   that base is taken back to the browser's here; equally zero-specificity
+   and later, so any OS or cp- rule still wins. */
+:where(.os input, .os textarea, .os select) {
+  padding: revert;
+  border: revert;
+  border-radius: revert;
+  background: revert;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1833,14 +1783,12 @@
   }
 
   .os-input,
-  .os-textarea,
-  .os-select select,
-  .os-compose textarea {
+.os-textarea,
+.os-compose textarea {
     font-size: 16px;
   }
 
-  .os-input,
-  .os-select select {
+  .os-input {
     height: 40px;
   }
 }
@@ -2058,7 +2006,6 @@
   gap: 6px;
 }
 .os .os-bulk-actions .os-button,
-.os .os-bulk-actions .os-select select,
 .os .os-bulk-new .os-input {
   height: 32px;
   font-size: var(--fs-xs);
@@ -2067,9 +2014,7 @@
   padding: 0 11px;
 }
 /* Sized to "Tag…", not to the longest tag name in the menu. */
-.os .os-bulk-actions .os-bulk-tag select {
-  width: 96px;
-}
+
 /* The inbox list is narrow: the head on one line, the actions under it. */
 .os .os-bulk.os-ix-bulk {
   align-items: stretch;
@@ -2091,8 +2036,9 @@
   }
 }
 
-/* Shared Select / Combobox triggers on the OS's own cards (not .cp-card):
-   the control surface is --ctl, a well inside a card, like os-input. */
+/* Shared controls on the OS's own cards (not .cp-card): the control
+   surface is --ctl (card on the stone, a well inside a card), like os-input. */
+.os :is(.cp-seg, .cp-tabs):not(.is-on-well),
 .os .cp-select-trigger:not(.is-compact),
 .os .cp-multi {
   background-color: var(--ctl);
