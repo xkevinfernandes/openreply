@@ -6,6 +6,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Tabs } from "@claudepreneur/brand/react";
 import { draftNewSetter, saveNewSetter } from "@/app/(os)/os/knowledge/interview-actions";
 import { KbIcon } from "@/components/os/knowledge/icons";
 import { CopySetter } from "@/components/os/knowledge/setter-list-actions";
@@ -98,13 +99,13 @@ export default function SetterInterview({ setters }: { setters: { id: string; na
         <input className="os-input kb-iv-name" aria-label="Setter name" maxLength={80} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
         {draft.sample && <span className="kb-quiet">Sample</span>}
       </div>
-      <div role="tablist" aria-label="Files" className="kb-switch kb-iv-tabs">
-        {[...DOC_KEYS, "funnel" as const].map((k) => (
-          <button key={k} type="button" role="tab" aria-selected={tab === k} className="kb-switch-tab" onClick={() => setTab(k)}>
-            {k === "funnel" ? "Funnel" : DOC_FILES[k].file}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Files"
+        className="kb-iv-tabs"
+        value={tab}
+        onChange={setTab}
+        tabs={[...DOC_KEYS, "funnel" as const].map((k) => ({ value: k, label: k === "funnel" ? "Funnel" : DOC_FILES[k].file }))}
+      />
       {tab === "funnel" ? (
         <div className="kb-iv-funnel">
           {draft.funnel.map((s, i) => (

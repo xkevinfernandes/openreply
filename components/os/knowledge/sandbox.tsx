@@ -9,7 +9,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { runSandbox, type SandboxRunOptions } from "@/app/(os)/os/knowledge/actions";
 import InspectDrawer from "@/components/os/inspect/inspect-drawer";
-import { SetterMark } from "@/components/os/ui";
+import { Toggle } from "@claudepreneur/brand/react";
+import { Select } from "@/components/os/knowledge/fields";
+import { Pill, SetterMark } from "@/components/os/ui";
 import { viewFromLegacy, viewFromTrace, type InspectView } from "@/lib/os/setter/inspect/view";
 import type { SandboxReply } from "@/lib/os/setter/sandbox";
 import { historyOf, labelsOf, REALLY_BOOK_CONFIRM, type Force, type Goal, type LeadMagnet, type TestLine } from "@/lib/os/setter/sandbox-options";
@@ -244,21 +246,15 @@ export default function Sandbox({ setterId, setterName, entries, magnets, tests,
     <div className="os-sbx" data-inspect={inspect ? "true" : undefined}>
       <div className="os-sbx-bar">
         <label className="os-sbx-switch" title="Sandbox actions are shown in the trace, never run">
-          <button type="button" role="switch" aria-checked={!reallyBook} aria-label="Dry tools" className="os-switch" disabled>
-            <span className="os-switch-knob" />
-          </button>
+          <Toggle checked={!reallyBook} onChange={() => {}} aria-label="Dry tools" disabled />
           Dry tools
         </label>
         <label className="os-sbx-switch" title="Book a real test event on your calendar when J books">
-          <button type="button" role="switch" aria-checked={reallyBook} aria-label="Really book (test event)" className="os-switch" onClick={toggleReallyBook}>
-            <span className="os-switch-knob" />
-          </button>
+          <Toggle checked={reallyBook} onChange={() => toggleReallyBook()} aria-label="Really book (test event)" />
           Really book
         </label>
         <label className="os-sbx-switch">
-          <button type="button" role="switch" aria-checked={side} aria-label="Side by side" className="os-switch" onClick={() => setSide((s) => !s)} disabled={thinking}>
-            <span className="os-switch-knob" />
-          </button>
+          <Toggle checked={side} onChange={() => setSide((s) => !s)} aria-label="Side by side" disabled={thinking} />
           A / B
         </label>
         <span className="os-sbx-sp" />
@@ -273,43 +269,52 @@ export default function Sandbox({ setterId, setterName, entries, magnets, tests,
 
       <div className="os-sbx-main">
         <aside className="os-sbx-sit" aria-label="Situation">
-          <Field label="Workflow">
-            <select className="os-sbx-in" disabled title="Workflows come later">
-              <option>None yet</option>
-            </select>
+          <Field label="Workflow" title="Workflows come later">
+            <Select aria-label="Workflow" disabled value="none" onChange={() => {}} options={[["none", "None yet"]]} />
           </Field>
           <Field label="Goal">
-            <select className="os-sbx-in" value={sit.goal} onChange={(e) => setSit({ ...sit, goal: e.target.value as Goal })}>
-              <option value="book_call">Book a call</option>
-              <option value="start_conversation">Start a conversation</option>
-            </select>
+            <Select
+              aria-label="Goal"
+             
+              value={sit.goal}
+              onChange={(v) => setSit({ ...sit, goal: v as Goal })}
+              options={[
+                ["book_call", "Book a call"],
+                ["start_conversation", "Start a conversation"],
+              ]}
+            />
           </Field>
           <Field label="Lead magnet">
-            <select className="os-sbx-in" value={sit.leadMagnet} onChange={(e) => setSit({ ...sit, leadMagnet: e.target.value as LeadMagnet })}>
-              <option value="hold">Hold</option>
-              <option value="send_first">Send first</option>
-              <option value="none">None</option>
-            </select>
+            <Select
+              aria-label="Lead magnet"
+             
+              value={sit.leadMagnet}
+              onChange={(v) => setSit({ ...sit, leadMagnet: v as LeadMagnet })}
+              options={[
+                ["hold", "Hold"],
+                ["send_first", "Send first"],
+                ["none", "None"],
+              ]}
+            />
             {sit.leadMagnet !== "none" ? (
-              <select className="os-sbx-in" aria-label="Which lead magnet" value={sit.resource} onChange={(e) => setSit({ ...sit, resource: e.target.value })}>
-                {magnets.length ? null : <option value="">No resources</option>}
-                {magnets.map((m) => (
-                  <option key={m.slug} value={m.slug}>
-                    {m.title}
-                  </option>
-                ))}
-              </select>
+              <Select
+                aria-label="Which lead magnet"
+               
+                value={sit.resource}
+                onChange={(v) => setSit({ ...sit, resource: v })}
+                options={[...(magnets.length ? [] : [["", "No resources"] as [string, string]]), ...magnets.map((m): [string, string] => [m.slug, m.title])]}
+              />
             ) : null}
           </Field>
           <Field label="Came from">
-            <select className="os-sbx-in" value={sit.entry} onChange={(e) => setSit({ ...sit, entry: e.target.value })} disabled={started}>
-              <option value="">They DM&apos;d first</option>
-              {entries.map((e) => (
-                <option key={e.slug} value={e.slug}>
-                  {e.keyword ? `Comment ${e.keyword}` : e.name}
-                </option>
-              ))}
-            </select>
+            <Select
+              aria-label="Came from"
+             
+              value={sit.entry}
+              onChange={(v) => setSit({ ...sit, entry: v })}
+              disabled={started}
+              options={[["", "They DM'd first"], ...entries.map((e): [string, string] => [e.slug, e.keyword ? `Comment ${e.keyword}` : e.name])]}
+            />
           </Field>
           <div className="os-sbx-field">
             <span className="os-sbx-lab">
@@ -373,7 +378,7 @@ export default function Sandbox({ setterId, setterName, entries, magnets, tests,
                   }
                 }}
               />
-              {side ? <span className="os-sbx-chip">A + B</span> : null}
+              {side ? <Pill>A + B</Pill> : null}
               <button type="button" className="os-button primary" onClick={send} disabled={!text.trim() || thinking}>
                 Send
               </button>
@@ -387,9 +392,9 @@ export default function Sandbox({ setterId, setterName, entries, magnets, tests,
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, title, children }: { label: string; title?: string; children: React.ReactNode }) {
   return (
-    <div className="os-sbx-field">
+    <div className="os-sbx-field" title={title}>
       <span className="os-sbx-lab">{label}</span>
       {children}
     </div>
@@ -425,9 +430,9 @@ function ColumnView({ letter, col, tests, labels, opener, setterName, busy, onPi
         {tests.map((t) => (
           <span key={t.experimentId} className="os-sbx-test">
             <span title={t.name}>{t.key.replace(/_/g, " ")}</span>
-            <span className="os-segmented" role="group" aria-label={`${t.key.replace(/_/g, " ")} line`}>
+            <span className="cp-seg is-on-well os-sbx-seg" role="group" aria-label={`${t.key.replace(/_/g, " ")} line`}>
               {(["A", "B", "random"] as Force[]).map((f) => (
-                <button key={f} type="button" aria-pressed={(col.picks[t.experimentId] ?? "random") === f} onClick={() => onPick(t.experimentId, f)}>
+                <button key={f} type="button" className="cp-seg-item" aria-pressed={(col.picks[t.experimentId] ?? "random") === f} onClick={() => onPick(t.experimentId, f)}>
                   {f === "random" ? "Random" : f}
                 </button>
               ))}
@@ -461,9 +466,9 @@ function ColumnView({ letter, col, tests, labels, opener, setterName, busy, onPi
                 {run.lines
                   .filter((l) => used.has(l.key))
                   .map((l) => (
-                    <span key={l.key} className="os-sbx-chip">
+                    <Pill key={l.key}>
                       {l.key.replace(/_/g, " ")} · {labels[l.variantId] ?? "?"}
-                    </span>
+                    </Pill>
                   ))}
                 {actions.map((a, j) => (
                   <span key={j} className="os-sbx-chip" data-dry="true" title="Dry: shown in the trace, never executed">
@@ -472,9 +477,9 @@ function ColumnView({ letter, col, tests, labels, opener, setterName, busy, onPi
                   </span>
                 ))}
                 {r.booked ? (
-                  <span className="os-sbx-chip" data-bad={!r.booked.ok || undefined} title={r.booked.error}>
+                  <Pill tone={r.booked.ok ? "neutral" : "bad"} title={r.booked.error}>
                     {r.booked.ok ? "Booked for real" : "Not booked"}
-                  </span>
+                  </Pill>
                 ) : null}
                 <button type="button" className="os-sbx-trace" onClick={() => onTrace(run)}>
                   Trace

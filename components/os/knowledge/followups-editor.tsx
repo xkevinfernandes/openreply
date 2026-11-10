@@ -5,7 +5,7 @@
 
 import { useState, useTransition } from "react";
 import { saveFollowupSequence } from "@/app/(os)/os/knowledge/actions";
-import { Field, Section, Switch, TextArea, TextInput } from "@/components/os/knowledge/fields";
+import { Field, Section, Select, Switch, TextArea, TextInput } from "@/components/os/knowledge/fields";
 import { InfoTip } from "@/components/os/ui";
 import {
   SEQUENCE_KEYS,
@@ -209,22 +209,16 @@ function TimingInput({ id, timing, kinds, onChange }: { id: string; timing: Step
   return (
     <span className="os-seq-timing">
       {kinds.length > 1 && (
-        <span className="os-select">
-          <select
-            aria-label="Kind of timing"
-            value={timing.kind}
-            onChange={(e) => {
-              const k = e.target.value as StepTiming["kind"];
-              onChange(k === "day_before" || k === "day_of" ? { kind: k, time: k === "day_before" ? "17:00" : "09:00" } : { kind: k, minutes: k === "before_call" ? 120 : 120 });
-            }}
-          >
-            {kinds.map((k) => (
-              <option key={k} value={k}>
-                {TIMING_NAMES[k]}
-              </option>
-            ))}
-          </select>
-        </span>
+        <Select
+          aria-label="Kind of timing"
+          compact
+          value={timing.kind}
+          onChange={(v) => {
+            const k = v as StepTiming["kind"];
+            onChange(k === "day_before" || k === "day_of" ? { kind: k, time: k === "day_before" ? "17:00" : "09:00" } : { kind: k, minutes: k === "before_call" ? 120 : 120 });
+          }}
+          options={kinds.map((k) => [k, TIMING_NAMES[k]])}
+        />
       )}
       {isClock ? (
         <input id={id} className="os-input" type="time" value={timing.time} onChange={(e) => onChange({ kind: timing.kind, time: e.target.value || "09:00" })} />
@@ -238,13 +232,17 @@ function TimingInput({ id, timing, kinds, onChange }: { id: string; timing: Step
             value={Math.round(minutes / unit)}
             onChange={(e) => onChange({ kind: timing.kind as "after" | "before_call", minutes: Math.max(1, Number(e.target.value) || 1) * unit })}
           />
-          <span className="os-select">
-            <select aria-label="Unit" value={unit} onChange={(e) => onChange({ kind: timing.kind as "after" | "before_call", minutes: Math.round(minutes / unit) * Number(e.target.value) })}>
-              <option value={1}>min</option>
-              <option value={60}>hours</option>
-              <option value={1440}>days</option>
-            </select>
-          </span>
+          <Select
+            aria-label="Unit"
+            compact
+            value={String(unit)}
+            onChange={(v) => onChange({ kind: timing.kind as "after" | "before_call", minutes: Math.round(minutes / unit) * Number(v) })}
+            options={[
+              ["1", "min"],
+              ["60", "hours"],
+              ["1440", "days"],
+            ]}
+          />
         </>
       )}
     </span>

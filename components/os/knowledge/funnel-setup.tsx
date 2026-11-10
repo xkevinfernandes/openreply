@@ -138,9 +138,9 @@ function AutopilotRow({
     <div className="kb-ap">
       <div className="kb-ap-row">
         <span className="kb-lbl">Autopilot</span>
-        <div className="kb-seg" role="radiogroup" aria-label={`Autopilot for ${stage.label || "this stage"}`}>
+        <div className="kb-seg cp-seg" role="radiogroup" aria-label={`Autopilot for ${stage.label || "this stage"}`}>
           {(["approve", "auto"] as const).map((m) => (
-            <button key={m} type="button" role="radio" aria-checked={mode === m} disabled={locked && mode !== m} title={locked ? "Save the funnel first" : undefined} onClick={() => pick(m)}>
+            <button key={m} type="button" role="radio" className="cp-seg-item" aria-checked={mode === m} disabled={locked && mode !== m} title={locked ? "Save the funnel first" : undefined} onClick={() => pick(m)}>
               {m === "approve" ? "Approve" : "Auto"}
             </button>
           ))}

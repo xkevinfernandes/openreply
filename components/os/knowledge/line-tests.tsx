@@ -5,6 +5,7 @@
 // Each person gets one version the first time J's line goes out to them, and
 // keeps it. Only messages that went out count.
 
+import { Pill } from "@/components/os/ui";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createLineTest, deleteLineDraft, pickLineWinner, resumeLineTest, saveLineDraft, stopLineTest } from "@/app/(os)/os/knowledge/tests-actions";
@@ -92,10 +93,8 @@ function TestCard({ setterId, setterName, label, test: t }: { setterId: string; 
     return (
       <div className="kb-lt-test" data-status="draft">
         <div className="kb-lt-head">
-          <span className="kb-lt-status" data-status="draft">
-            Draft
-          </span>
-          <span className="kb-chip">{scopeText(t, setterName)}</span>
+          <Pill>Draft</Pill>
+          <Pill>{scopeText(t, setterName)}</Pill>
         </div>
         <Editor label={label} initial={t.variants.map((v) => v.text)} draft={{ setterId, id: t.id }} />
       </div>
@@ -109,11 +108,9 @@ function TestCard({ setterId, setterName, label, test: t }: { setterId: string; 
   return (
     <section className="kb-lt-test" aria-label={`${label} test`} data-status={t.status.toLowerCase()}>
       <div className="kb-lt-head">
-        <span className="kb-lt-status" data-status={t.status.toLowerCase()}>
-          {t.winnerVariantId ? "Winner picked" : STATUS[t.status]}
-        </span>
-        <span className="kb-chip">{scopeText(t, setterName)}</span>
-        {t.sample && <span className="kb-chip">Sample</span>}
+        <Pill tone={t.winnerVariantId || t.status === "RUNNING" ? "good" : "neutral"}>{t.winnerVariantId ? "Winner picked" : STATUS[t.status]}</Pill>
+        <Pill>{scopeText(t, setterName)}</Pill>
+        {t.sample && <Pill>Sample</Pill>}
         <span className="kb-grow" />
         {v.kind === "too_early" && <span className="kb-quiet">Too early</span>}
         {t.status === "PAUSED" && (
