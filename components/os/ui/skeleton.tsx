@@ -1,14 +1,18 @@
 // Loading shapes for the Inbox and Contacts while their data streams in.
-// Same boxes as the real panes, so nothing jumps when they arrive.
+// Same boxes as the real panes, so nothing jumps when they arrive. The bars
+// are the shared Skeleton (@claudepreneur/brand); the os-skel-* classes only
+// shape and place them.
 
-const Bar = ({ w, h = 10 }: { w: number | string; h?: number }) => <span className="os-skel" style={{ width: w, height: h }} />;
+import { Skeleton } from "@claudepreneur/brand/react";
+
+const Bar = ({ w, h = 10 }: { w: number | string; h?: number }) => <Skeleton className="os-skel" width={w} height={h} />;
 
 export function ThreadListSkeleton({ collapsed = false }: { collapsed?: boolean }) {
   if (collapsed) {
     return (
       <div className="os-ix-rail" aria-busy="true" aria-label="Loading threads">
         {Array.from({ length: 8 }, (_, i) => (
-          <span key={i} className="os-skel os-skel-round" style={{ width: 32, height: 32 }} />
+          <Skeleton key={i} className="os-skel os-skel-round" width={32} height={32} index={i} />
         ))}
       </div>
     );
@@ -24,7 +28,7 @@ export function ThreadListSkeleton({ collapsed = false }: { collapsed?: boolean 
       <ul className="os-ix-rows os-skel-rows">
         {Array.from({ length: 9 }, (_, i) => (
           <li key={i} className="os-skel-row">
-            <span className="os-skel os-skel-round" style={{ width: 36, height: 36 }} />
+            <Skeleton className="os-skel os-skel-round" width={36} height={36} index={i} />
             <span className="os-skel-lines">
               <Bar w={`${50 + ((i * 17) % 35)}%`} />
               <Bar w={`${70 + ((i * 11) % 25)}%`} h={8} />
@@ -47,12 +51,12 @@ export function ConversationSkeleton() {
   return (
     <section className="os-ix-conv" aria-busy="true" aria-label="Loading conversation">
       <div className="os-skel-head">
-        <span className="os-skel os-skel-round" style={{ width: 32, height: 32 }} />
+        <Skeleton className="os-skel os-skel-round" width={32} height={32} />
         <Bar w={140} h={12} />
       </div>
       <div className="os-skel-thread">
         {rows.map((r, i) => (
-          <span key={i} className="os-skel os-skel-bubble" data-mine={r.mine || undefined} style={{ width: `${r.w}%` }} />
+          <Skeleton key={i} className={r.mine ? "os-skel os-skel-bubble is-mine" : "os-skel os-skel-bubble"} width={`${r.w}%`} index={i} />
         ))}
       </div>
     </section>
@@ -64,7 +68,7 @@ export function PanelSkeleton({ className = "os-ix-panel" }: { className?: strin
     <div className={className} aria-busy="true" aria-label="Loading contact">
       <div className="os-skel-panel">
         <div className="os-skel-head">
-          <span className="os-skel os-skel-round" style={{ width: 40, height: 40 }} />
+          <Skeleton className="os-skel os-skel-round" width={40} height={40} />
           <span className="os-skel-lines">
             <Bar w={120} h={12} />
             <Bar w={80} h={8} />
@@ -97,7 +101,7 @@ export function ContactsSkeleton() {
             <div key={c} className="os-skel-col">
               <Bar w={90} h={12} />
               {Array.from({ length: 4 - (c % 3) }, (_, i) => (
-                <span key={i} className="os-skel" style={{ width: "100%", height: 68, borderRadius: 14 }} />
+                <Skeleton key={i} className="os-skel os-skel-card" height={68} index={i} />
               ))}
             </div>
           ))}

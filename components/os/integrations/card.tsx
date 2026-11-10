@@ -20,6 +20,7 @@ import {
 import { PROVIDER_INFO } from "@/lib/os/integrations/view-info";
 import { KitLogo } from "./logos";
 import MappingEditor, { type MappingFieldSource } from "./mapping-editor";
+import { useOsConfirm } from "@/components/os/ui/confirm";
 
 function Logo({ provider }: { provider: IntegrationView["provider"] }) {
   return (
@@ -297,6 +298,7 @@ function KitConnect({
 }: ConnectProps & {
   onKit: (method: "POST" | "DELETE", body?: { apiKey: string }) => void;
 }) {
+  const confirmAsk = useOsConfirm();
   const [apiKey, setApiKey] = useState("");
   const [replacing, setReplacing] = useState(false);
   const id = useId();
@@ -387,8 +389,8 @@ function KitConnect({
           type="button"
           className="os-button ghost"
           disabled={pending}
-          onClick={() => {
-            if (window.confirm(KIT_DISCONNECT_CONFIRM)) onKit("DELETE");
+          onClick={async () => {
+            if (await confirmAsk(KIT_DISCONNECT_CONFIRM, { danger: true, confirmLabel: "Disconnect" })) onKit("DELETE");
           }}
         >
           Disconnect
@@ -399,6 +401,7 @@ function KitConnect({
 }
 
 function GhlConnect({ view, now, pending, onAct }: ConnectProps) {
+  const confirmAsk = useOsConfirm();
   const [token, setToken] = useState("");
   const [locationId, setLocationId] = useState(view.locationId ?? "");
   const id = useId();
@@ -479,11 +482,12 @@ function GhlConnect({ view, now, pending, onAct }: ConnectProps) {
           type="button"
           className="os-button ghost"
           disabled={pending}
-          onClick={() => {
+          onClick={async () => {
             if (
-              window.confirm(
-                "Disconnect GoHighLevel? Nothing more is sent until you reconnect. Your field mapping is kept.",
-              )
+              await confirmAsk("Disconnect GoHighLevel? Nothing more is sent until you reconnect. Your field mapping is kept.", {
+                danger: true,
+                confirmLabel: "Disconnect",
+              })
             )
               onAct(disconnectGhl);
           }}

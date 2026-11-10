@@ -10,6 +10,7 @@ import { MenuButton } from "@claudepreneur/brand/react";
 import { deleteContactView, renameContactView, saveContactView, saveContactViewAs, setDefaultContactView } from "@/app/(os)/os/contacts/actions";
 import type { ViewState } from "@/lib/os/contacts-view";
 import type { SavedViewRecord } from "@/lib/os/saved-views";
+import { useOsConfirm } from "@/components/os/ui/confirm";
 
 interface Props {
   views: SavedViewRecord[];
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export default function ViewsBar(p: Props) {
+  const confirmAsk = useOsConfirm();
   const [pending, start] = useTransition();
   const [naming, setNaming] = useState<"new" | "rename" | null>(null);
   const [name, setName] = useState("");
@@ -79,8 +81,8 @@ export default function ViewsBar(p: Props) {
               label: current.isDefault ? "Delete (not the default)" : "Delete",
               danger: true,
               disabled: current.isDefault,
-              onSelect: () => {
-                if (window.confirm(`Delete the view “${current.name}” for everyone?`)) run(() => deleteContactView(current.id), `Deleted “${current.name}”.`);
+              onSelect: async () => {
+                if (await confirmAsk(`Delete the view “${current.name}” for everyone?`, { danger: true, confirmLabel: "Delete" })) run(() => deleteContactView(current.id), `Deleted “${current.name}”.`);
               },
             },
           ]}

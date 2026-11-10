@@ -13,6 +13,7 @@ import RecordBox from "@/components/os/voice/record-box";
 import VoicePlayer from "@/components/os/voice/voice-player";
 import type { VoiceClipView } from "@/lib/os/voice/clips";
 import { matchable } from "@/lib/os/voice/match";
+import { useOsConfirm } from "@/components/os/ui/confirm";
 
 interface Props {
   setterId: string;
@@ -92,6 +93,7 @@ export default function VoiceNotesSection({ setterId, clips, sampleData }: Props
 }
 
 function ClipRow({ clip, sampleData }: { clip: VoiceClipView; sampleData: boolean }) {
+  const confirmAsk = useOsConfirm();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [phrase, setPhrase] = useState(clip.phrase);
@@ -223,8 +225,8 @@ function ClipRow({ clip, sampleData }: { clip: VoiceClipView; sampleData: boolea
           type="button"
           className="os-link quiet"
           disabled={pending}
-          onClick={() => {
-            if (window.confirm(`Delete "${clip.label || clip.phrase || "this clip"}"? The recording goes too.`)) run(() => deleteVoiceClip(clip.id));
+          onClick={async () => {
+            if (await confirmAsk(`Delete "${clip.label || clip.phrase || "this clip"}"? The recording goes too.`, { danger: true, confirmLabel: "Delete" })) run(() => deleteVoiceClip(clip.id));
           }}
         >
           Delete

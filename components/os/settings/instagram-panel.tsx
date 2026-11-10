@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { fixSampleWebhook } from "@/app/(os)/os/settings/actions";
 import { fixLabel, type InstagramFix } from "@/lib/os/connections-view";
+import { useOsConfirm } from "@/components/os/ui/confirm";
 
 type ConnectionData = {
   configured: boolean;
@@ -112,6 +113,7 @@ export function ReconnectBar({ problem, fix, sample }: { problem: string; fix: I
 }
 
 export function DisconnectButton({ id, username }: { id: string; username: string }) {
+  const confirmAsk = useOsConfirm();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -122,7 +124,7 @@ export function DisconnectButton({ id, username }: { id: string; username: strin
         className="os-button danger"
         disabled={busy}
         onClick={async () => {
-          if (!confirm(`Disconnect @${username}? Its automations stop sending DMs and J stops reading its inbox.`)) return;
+          if (!(await confirmAsk(`Disconnect @${username}? Its automations stop sending DMs and J stops reading its inbox.`, { danger: true, confirmLabel: "Disconnect" }))) return;
           setBusy(true);
           setError(null);
           try {
@@ -154,6 +156,7 @@ export function DisconnectButton({ id, username }: { id: string; username: strin
 
 /** Zernio: the key, the profile (and its webhook) and which account the DM OS uses. */
 export function ZernioPanel({ canManage, sample = null, embedded = false }: { canManage: boolean; sample?: { username: string } | null; embedded?: boolean }) {
+  const confirmAsk = useOsConfirm();
   const [data, setData] = useState<ConnectionData | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [profileId, setProfileId] = useState("");
@@ -268,8 +271,8 @@ export function ZernioPanel({ canManage, sample = null, embedded = false }: { ca
         type="button"
         className="os-zn-remove"
         disabled={busy}
-        onClick={() => {
-          if (confirm("Remove the Zernio key and its webhook? Disconnect its Instagram accounts first.")) void act("settings", "DELETE");
+        onClick={async () => {
+          if (await confirmAsk("Remove the Zernio key and its webhook? Disconnect its Instagram accounts first.", { danger: true, confirmLabel: "Remove" })) void act("settings", "DELETE");
         }}
       >
         Remove Zernio

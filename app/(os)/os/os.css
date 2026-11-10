@@ -1845,16 +1845,9 @@
 
 /* --- Loading skeletons (components/os/ui/skeleton.tsx) ---------------------- */
 
-/* A soft shimmer sweeping across a well-coloured shape (no spinners). */
+/* The bars are the shared Skeleton (cp-skel); these only place them. */
 .os-skel {
-  display: block;
   flex: none;
-  border-radius: 8px;
-  background-color: var(--well);
-  background-image: linear-gradient(90deg, transparent 0%, var(--tint-2) 50%, transparent 100%);
-  background-size: 200% 100%;
-  background-repeat: no-repeat;
-  animation: os-skel-shimmer 1.4s var(--ease) infinite;
 }
 
 .os-skel-round {
@@ -1907,7 +1900,7 @@
   border-radius: var(--radius-card);
 }
 
-.os-skel-bubble[data-mine] {
+.os-skel-bubble.is-mine {
   align-self: flex-end;
 }
 
@@ -1928,6 +1921,10 @@
   overflow: hidden;
 }
 
+.os-skel-card {
+  border-radius: 14px;
+}
+
 .os-skel-col {
   flex: 0 0 224px;
   display: flex;
@@ -1936,21 +1933,6 @@
   padding: 14px;
   border-radius: var(--radius-card);
   background: var(--card);
-}
-
-@keyframes os-skel-shimmer {
-  from {
-    background-position: 150% 0;
-  }
-  to {
-    background-position: -50% 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .os-skel {
-    animation: none;
-  }
 }
 
 /* --- The one bulk bar (components/os/ui/bulk-bar.tsx) ----------------------- */
@@ -2028,8 +2010,12 @@
   width: 120px;
 }
 
-/* --- Toast: the shared one (cp-toasts, ui/toast.tsx). On the phone it sits
-   above the sticky bulk bar, as the OS's own toast did. */
+/* --- Toast: the shared one (cp-toasts, ui/toast.tsx), bottom centre (the
+   v0.6 default) 20px off the edge as the OS's own toast was. On the phone it
+   sits above the sticky bulk bar, as the OS's own toast did. */
+html:has(.os) .cp-toasts {
+  --cp-toast-offset: -4px;
+}
 @media (max-width: 700px) {
   html:has(.os) .cp-toasts {
     bottom: calc(96px + env(safe-area-inset-bottom));

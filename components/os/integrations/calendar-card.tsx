@@ -20,6 +20,7 @@ import { CALENDAR_INFO, WEEKDAY_LABELS } from "@/lib/os/integrations/calendar/in
 import { DEFAULT_SETTER_KEY, type CalendarSettings } from "@/lib/os/integrations/calendar/settings";
 import type { CalendarEventType } from "@/lib/os/integrations/calendar/types";
 import type { CalendarView } from "@/lib/os/integrations/calendar/view";
+import { useOsConfirm } from "@/components/os/ui/confirm";
 
 type Message = { kind: "error" | "notice"; text: string } | null;
 
@@ -189,6 +190,7 @@ interface ConnectionProps {
 }
 
 function Connection({ view, now, pending, onAct }: ConnectionProps) {
+  const confirmAsk = useOsConfirm();
   const info = CALENDAR_INFO[view.provider];
   const [token, setToken] = useState("");
   const id = useId();
@@ -244,8 +246,8 @@ function Connection({ view, now, pending, onAct }: ConnectionProps) {
           type="button"
           className="os-button ghost"
           disabled={pending}
-          onClick={() => {
-            if (window.confirm(`Disconnect ${info.name}? J goes back to sending your booking link. Calls already booked stay booked.`))
+          onClick={async () => {
+            if (await confirmAsk(`Disconnect ${info.name}? J goes back to sending your booking link. Calls already booked stay booked.`, { danger: true, confirmLabel: "Disconnect" }))
               onAct(() => disconnectCalendar(view.provider));
           }}
         >

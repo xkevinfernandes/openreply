@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { EmptyState } from "@/components/os/ui";
 import { chipCounts, matchesChip, shortLink, TRIGGER_CHIPS, triggerSummary, type AutomationRow, type TriggerChip } from "@/lib/os/automations";
+import { useOsConfirm } from "@/components/os/ui/confirm";
 
 interface Props {
   rows: AutomationRow[];
@@ -50,6 +51,7 @@ function RowMenu({ row, disabled, onDuplicate, onDelete }: { row: AutomationRow;
 }
 
 export default function AutomationList({ rows: initialRows, sample, initialChip }: Props) {
+  const confirmAsk = useOsConfirm();
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
   const [chip, setChip] = useState<TriggerChip>(initialChip);
@@ -109,7 +111,7 @@ export default function AutomationList({ rows: initialRows, sample, initialChip 
   }
 
   async function remove(row: AutomationRow) {
-    if (!confirm(`Delete “${row.name}”? Its DM history goes with it. This can't be undone.`)) return;
+    if (!(await confirmAsk(`Delete “${row.name}”? Its DM history goes with it. This can't be undone.`, { danger: true, confirmLabel: "Delete" }))) return;
     setError(null);
     setBusy(row.id);
     if (await call(`/api/automations?id=${encodeURIComponent(row.id)}`, { method: "DELETE" }, "Couldn't delete it.")) {

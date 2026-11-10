@@ -565,7 +565,7 @@
   box-shadow: none;
 }
 
-/* --- Skeletons: os.css "Loading skeletons" (shimmer on --well). --------- */
+/* --- Skeletons: os.css "Loading skeletons" (the shared Skeleton). ------- */
 
 /* The page behind the OS (overscroll, short pages) is the stone too. */
 html:has(.os),

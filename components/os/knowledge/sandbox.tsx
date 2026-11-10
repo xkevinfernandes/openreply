@@ -15,6 +15,7 @@ import { Pill, SetterMark } from "@/components/os/ui";
 import { viewFromLegacy, viewFromTrace, type InspectView } from "@/lib/os/setter/inspect/view";
 import type { SandboxReply } from "@/lib/os/setter/sandbox";
 import { historyOf, labelsOf, REALLY_BOOK_CONFIRM, type Force, type Goal, type LeadMagnet, type TestLine } from "@/lib/os/setter/sandbox-options";
+import { useOsConfirm } from "@/components/os/ui/confirm";
 
 interface Entry {
   slug: string;
@@ -87,6 +88,7 @@ interface Props {
 }
 
 export default function Sandbox({ setterId, setterName, entries, magnets, tests, backend }: Props) {
+  const confirmAsk = useOsConfirm();
   const key = `os-sandbox2:${setterId}`;
   const startCols = (): Column[] => ["A", "B"].map((v) => ({ picks: Object.fromEntries(tests.map((t) => [t.experimentId, v as Force])), turns: [] }));
   const [sit, setSit] = useState<Sit>({ entry: "", goal: "book_call", leadMagnet: "none", resource: magnets[0]?.slug ?? "", fields: DEFAULT_FIELDS });
@@ -195,9 +197,9 @@ export default function Sandbox({ setterId, setterName, entries, magnets, tests,
     inputRef.current?.focus();
   }
 
-  function toggleReallyBook() {
+  async function toggleReallyBook() {
     if (reallyBook) return setReallyBook(false);
-    if (window.confirm("Really book? A call J books here goes on your real calendar as a test event. Nothing else runs.")) setReallyBook(true);
+    if (await confirmAsk("Really book? A call J books here goes on your real calendar as a test event. Nothing else runs.", { confirmLabel: "Book" })) setReallyBook(true);
   }
 
   function setPick(i: number, exp: string, f: Force) {

@@ -6,7 +6,6 @@
 // count (archived included); cards follow the Archived filter. Drops only on
 // Won (opens the picker) or Lost, through the stage writer.
 
-import { MenuButton } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import "./funnel-board.css";
@@ -37,6 +36,7 @@ export function FunnelBoard({ data, currency, urlWindow = null }: { data: AllBoa
   const [archived, setArchived] = useState(false);
   const [drag, setDrag] = useState<{ id: string; from: FunnelBoardColumn } | null>(null);
   const [over, setOver] = useState<FunnelBoardColumn | null>(null);
+  const [menu, setMenu] = useState<string | null>(null);
   const [winning, setWinning] = useState<BoardCard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -54,6 +54,7 @@ export function FunnelBoard({ data, currency, urlWindow = null }: { data: AllBoa
   }
 
   function drop(target: FunnelBoardColumn, id: string, from: FunnelBoardColumn) {
+    setMenu(null);
     if (!canDropOn(target, from)) return;
     if (target === "won") setWinning(data.cards[id] ?? null);
     else lose(id);
@@ -135,14 +136,18 @@ export function FunnelBoard({ data, currency, urlWindow = null }: { data: AllBoa
                       {c.setter} · {c.age}
                       {c.wonAmount != null ? ` · ${formatMoney(c.wonAmount, currency)}` : ""}
                     </span>
-                    <MenuButton
-                      aria-label={`Move ${c.name}`}
-                      size="sm"
-                      className="os-fb-more"
-                      icon={<span aria-hidden="true">⋯</span>}
-                      menuWidth={140}
-                      items={(["won", "lost"] as const).map((t) => ({ label: t === "won" ? "Won" : "Lost", disabled: !canDropOn(t, col.key), onSelect: () => drop(t, c.id, col.key) }))}
-                    />
+                    <button type="button" className="os-fb-more" aria-label={`Move ${c.name}`} aria-expanded={menu === c.id} onClick={() => setMenu((m) => (m === c.id ? null : c.id))}>
+                      ⋯
+                    </button>
+                    {menu === c.id ? (
+                      <span className="os-fb-menu">
+                        {(["won", "lost"] as const).map((t) => (
+                          <button key={t} type="button" disabled={!canDropOn(t, col.key)} onClick={() => drop(t, c.id, col.key)}>
+                            {t === "won" ? "Won" : "Lost"}
+                          </button>
+                        ))}
+                      </span>
+                    ) : null}
                   </li>
                 ))}
                 {cards.length > SHOWN ? <li className="os-fb-rest">+{cards.length - SHOWN} more</li> : null}

@@ -164,6 +164,29 @@
   color: var(--ink);
 }
 
+.os .os-fb-menu {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.os .os-fb-menu button {
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ctl);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.os .os-fb-menu button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .os .os-fb-rest,
 .os .os-fb-none {
   padding: 4px 2px;

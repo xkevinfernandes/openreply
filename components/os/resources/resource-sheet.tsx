@@ -10,6 +10,7 @@ import type { ResourceForm } from "@/app/(os)/os/knowledge/actions";
 import { saveResourceSheet, type SavedResource } from "@/app/(os)/os/resources/actions";
 import { removeAgentQuestion, saveSheet } from "@/lib/os/resource-sheet";
 import type { ResourceRow } from "@/lib/os/resources-view";
+import { useOsConfirm } from "@/components/os/ui/confirm";
 
 export const EMPTY_RESOURCE: ResourceForm = { name: "", kind: "resource", link: "", keyword: "", status: "ACTIVE", description: "", when: "" };
 
@@ -31,6 +32,7 @@ interface Props {
 }
 
 export default function ResourceSheet({ initial = EMPTY_RESOURCE, agents, agentIds = [], onSaved, onClose, onDelete, save = saveResourceSheet }: Props) {
+  const confirmAsk = useOsConfirm();
   const id = useId();
   const ref = useRef<HTMLDialogElement>(null);
   const [f, setF] = useState<ResourceForm>(initial);
@@ -45,8 +47,8 @@ export default function ResourceSheet({ initial = EMPTY_RESOURCE, agents, agentI
     if (d && !d.open && typeof d.showModal === "function") d.showModal();
   }, []);
 
-  const toggle = (agent: { id: string; name: string }, on: boolean) => {
-    if (!on && agentIds.includes(agent.id) && !window.confirm(removeAgentQuestion(agent.name))) return;
+  const toggle = async (agent: { id: string; name: string }, on: boolean) => {
+    if (!on && agentIds.includes(agent.id) && !(await confirmAsk(removeAgentQuestion(agent.name), { danger: true, confirmLabel: "Remove" }))) return;
     setTicked((t) => (on ? [...new Set([...t, agent.id])] : t.filter((x) => x !== agent.id)));
   };
 
