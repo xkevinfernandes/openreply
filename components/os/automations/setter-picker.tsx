@@ -7,6 +7,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { setCampaignHandoff, setCampaignResource, type AutomationActionResult } from "@/app/(os)/os/automations/actions";
+import { Select } from "@claudepreneur/brand/react";
 import { InfoTip } from "@/components/os/ui";
 
 interface Option {
@@ -45,40 +46,33 @@ function Picker({
   const [note, setNote] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [pending, start] = useTransition();
   return (
-    <label className="os-auto-pick">
+    <div className="os-auto-pick">
       <span className="os-auto-pick-label">
         {label}
         <InfoTip>{tip}</InfoTip>
       </span>
-      <span className="os-select">
-        <select
-          value={v}
-          disabled={pending}
-          onChange={(e) => {
-            const next = e.target.value;
-            setV(next);
-            setNote(null);
-            start(async () => {
-              const r = await save(next || null);
-              setNote(r.error ? { kind: "error", text: r.error } : { kind: "ok", text: "Saved" });
-              router.refresh();
-            });
-          }}
-        >
-          {empty !== undefined && <option value="">{empty}</option>}
-          {options.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.name}
-            </option>
-          ))}
-        </select>
-      </span>
+      <Select
+        aria-label={label}
+        value={v}
+        disabled={pending}
+        fieldClassName="os-auto-pick-field"
+        options={[...(empty !== undefined ? [{ value: "", label: empty }] : []), ...options.map((o) => ({ value: o.id, label: o.name }))]}
+        onChange={(next) => {
+          setV(next);
+          setNote(null);
+          start(async () => {
+            const r = await save(next || null);
+            setNote(r.error ? { kind: "error", text: r.error } : { kind: "ok", text: "Saved" });
+            router.refresh();
+          });
+        }}
+      />
       {note && (
         <span className="os-auto-pick-note" data-kind={note.kind} role={note.kind === "error" ? "alert" : "status"}>
           {note.text}
         </span>
       )}
-    </label>
+    </div>
   );
 }
 

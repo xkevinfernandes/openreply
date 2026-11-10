@@ -546,3 +546,8 @@
   flex-wrap: wrap;
   justify-content: center;
 }
+
+/* The Source filter (shared Select, compact) sits on the stone: a card. */
+.os-tl-filter .cp-select-trigger.is-compact {
+  background: var(--card);
+}

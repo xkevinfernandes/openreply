@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { completeTask, markCall, sendFollowupNow, setFollowupsOn, skipFollowup } from "@/app/(os)/os/follow-ups/actions";
 import { sendBroadcastNowAction, skipBroadcastAction, unscheduleBroadcastAction } from "@/app/(os)/os/automations/broadcasts/actions";
+import { Select } from "@claudepreneur/brand/react";
 import { EmptyState, InfoTip, Tabs } from "@/components/os/ui";
 import type { FollowupsHeader } from "@/lib/os/followups-header";
 import { chatHref, TIMELINE_TABS, type DayGroup, type Timeline, type TimelineRow, type TimelineTab, type TodoItem } from "@/lib/os/followups-timeline";
@@ -212,18 +213,16 @@ export default function FollowupsTimeline({ data, tab, source, header }: { data:
           <InfoTip label="What shows here">Everything scheduled to go out: setter sequences (defined in Knowledge bases) and broadcasts (defined in Automations). Nothing sends without your approve.</InfoTip>
         </div>
         <div className="os-tl-actions">
-          <label className="os-tl-filter">
-            <span>Source</span>
-            <span className="os-select">
-              <select value={source} onChange={(e) => router.push(href(tab, e.target.value))} aria-label="Source">
-                {data.sources.map((s) => (
-                  <option key={s.key} value={s.key}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </span>
-          </label>
+          <div className="os-tl-filter">
+            <span aria-hidden="true">Source</span>
+            <Select
+              compact
+              aria-label="Source"
+              value={source}
+              onChange={(v) => router.push(href(tab, v))}
+              options={data.sources.map((s) => ({ value: s.key, label: s.label }))}
+            />
+          </div>
           <Link className="os-button" href={header.setupHref}>
             Set up sequences
           </Link>

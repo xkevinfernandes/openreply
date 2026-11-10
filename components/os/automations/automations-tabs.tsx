@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Tabs, type TabLinkProps } from "@claudepreneur/brand/react";
 

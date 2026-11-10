@@ -27,6 +27,7 @@ import {
   skipMessageAction,
   type ActionResult,
 } from "@/app/(os)/os/automations/broadcasts/actions";
+import { Combobox, Select } from "@claudepreneur/brand/react";
 import { Pill } from "@/components/os/ui";
 import type { BroadcastPage, ReviewItem, StepsInput } from "@/lib/os/broadcasts/engine";
 import type { PickerResource } from "@/lib/os/broadcasts/resources";
@@ -268,19 +269,18 @@ function WhoStep({ data, tags, act, pending, canEdit }: { data: BroadcastPage; t
       }
     >
       <div className="os-bb-form">
-        <label className="os-bb-row">
-          <span className="os-bb-sub">Tagged</span>
-          <span className="os-select">
-            <select value={tagId} onChange={(e) => setTagId(e.target.value)} aria-label="Tag">
-              <option value="">Pick a tag</option>
-              {tags.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </span>
-        </label>
+        <div className="os-bb-row">
+          <span className="os-bb-sub" aria-hidden="true">Tagged</span>
+          <Combobox
+            aria-label="Tag"
+            placeholder="Pick a tag"
+            searchPlaceholder="Search tags"
+            value={tagId}
+            onChange={setTagId}
+            fieldClassName="os-bb-select"
+            options={tags.map((t) => ({ value: t.id, label: t.name }))}
+          />
+        </div>
         <Actions onCancel={() => setEditing(false)} onSave={() => saveStep(act, ask, b.key, { audienceTagId: tagId }, () => setEditing(false))} pending={pending} disabled={!tagId} />
       </div>
     </Step>
@@ -579,19 +579,16 @@ function PersonaliseStep({ data, setters, act, pending, canEdit }: { data: Broad
       }
     >
       <div className="os-bb-form">
-        <label className="os-bb-row">
-          <span className="os-bb-sub">Writes as</span>
-          <span className="os-select">
-            <select value={setterId} onChange={(e) => setSetterId(e.target.value)} aria-label="Agent">
-              {setters.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                  {s.isDefault ? " (default)" : ""}
-                </option>
-              ))}
-            </select>
-          </span>
-        </label>
+        <div className="os-bb-row">
+          <span className="os-bb-sub" aria-hidden="true">Writes as</span>
+          <Select
+            aria-label="Agent"
+            value={setterId}
+            onChange={setSetterId}
+            fieldClassName="os-bb-select"
+            options={setters.map((s) => ({ value: s.id, label: `${s.name}${s.isDefault ? " (default)" : ""}` }))}
+          />
+        </div>
         <div className="os-bb-modes" role="radiogroup" aria-label="How J personalises">
           {MODES.map((m) => (
             <button key={m.mode} type="button" role="radio" aria-checked={mode === m.mode} className="os-bb-mode" onClick={() => setMode(m.mode)}>

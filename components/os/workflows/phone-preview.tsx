@@ -3,6 +3,7 @@
 // Phone tab (borrowed from the WorkflowB board): the selected step as
 // Instagram DM bubbles, with {first_name} filled for a sample contact.
 
+import { Select } from "@claudepreneur/brand/react";
 import { useState } from "react";
 import { resourceName, type BuilderContext } from "@/components/os/workflows/context";
 import { fillVars } from "@/components/os/workflows/forms";
@@ -103,16 +104,17 @@ export default function PhonePreview({ node, ctx }: { node: GraphNode; ctx: Buil
 
   return (
     <div className="wf-phone-wrap">
-      <label className="wf-field-row wf-lab">
-        Preview as
-        <select className="os-input wf-select" aria-label="Preview as contact" value={who.username} onChange={(e) => setWho(PEOPLE.find((p) => p.username === e.target.value) ?? PEOPLE[0])}>
-          {PEOPLE.map((p) => (
-            <option key={p.username} value={p.username}>
-              {p.username}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="wf-field-row wf-lab">
+        <span aria-hidden="true">Preview as</span>
+        <Select
+          compact
+          fieldClassName="wf-select"
+          aria-label="Preview as contact"
+          value={who.username}
+          onChange={(v) => setWho(PEOPLE.find((p) => p.username === v) ?? PEOPLE[0])}
+          options={PEOPLE.map((p) => ({ value: p.username, label: p.username }))}
+        />
+      </div>
       <div className="wf-phone" role="img" aria-label="Instagram DM preview">
         <div className="wf-ph-head">
           <span className="wf-ph-av">{who.first.charAt(0)}</span>

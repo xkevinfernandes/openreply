@@ -3,6 +3,7 @@
 // The right-hand inspector (WorkflowA/C boards): one form per step type.
 // Setter: Setup · Tests · Stats. Message, Ask and Trigger: Settings · Phone.
 
+import { Select, Tabs } from "@claudepreneur/brand/react";
 import { useState } from "react";
 import type { BuilderContext } from "@/components/os/workflows/context";
 import { AddSelect, DurationInput, FieldSelect, Group, ResourceSelect, Seg } from "@/components/os/workflows/controls";
@@ -87,14 +88,21 @@ export default function Inspector(props: InspectorProps) {
     <aside className="wf-insp" aria-label={`Inspector: ${STEP_LABEL[node.type]} step`}>
       <div className="wf-insp-top">
         {tabs.length ? (
-          <div className="wf-tabbar" role="tablist" aria-label="Inspector view">
-            {tabs.map((t) => (
-              <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}>
-                <WfIcon name={t.icon} size={13} />
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <Tabs
+            className="wf-tabbar"
+            label="Inspector view"
+            value={tab}
+            onChange={setTab}
+            tabs={tabs.map((t) => ({
+              value: t.key,
+              label: (
+                <>
+                  <WfIcon name={t.icon} size={13} />
+                  {t.label}
+                </>
+              ),
+            }))}
+          />
         ) : (
           <span className="wf-grow" />
         )}
@@ -227,16 +235,17 @@ function TriggerForm({ data, onChange }: FormProps<StepData<"trigger">>) {
       ) : null}
       <Group label="Again later" tip="When someone who finished comes back with the keyword. Before that, the link is re-sent once.">
         <span className="wf-field-row">
-          <select
-            className="os-input wf-select"
+          <Select
+            fieldClassName="wf-select"
             aria-label="Re-entry"
             value={data.reentry?.mode ?? "after_days"}
-            onChange={(e) => set({ reentry: { mode: e.target.value as "never" | "after_days" | "always", days: data.reentry?.days ?? 30 } })}
-          >
-            <option value="never">Never</option>
-            <option value="after_days">After days</option>
-            <option value="always">Always</option>
-          </select>
+            onChange={(v) => set({ reentry: { mode: v as "never" | "after_days" | "always", days: data.reentry?.days ?? 30 } })}
+            options={[
+              { value: "never", label: "Never" },
+              { value: "after_days", label: "After days" },
+              { value: "always", label: "Always" },
+            ]}
+          />
           {(data.reentry?.mode ?? "after_days") === "after_days" ? (
             <input
               className="os-input wf-num"
@@ -485,13 +494,13 @@ function ConditionForm({ data, ctx, onChange }: FormProps<StepData<"condition">>
   return (
     <>
       <Group label="If">
-        <select className="os-input wf-select" aria-label="Rule" value={rule.kind} onChange={(e) => set({ kind: e.target.value as typeof rule.kind })}>
-          {CONDITION_RULES.map((r) => (
-            <option key={r.kind} value={r.kind}>
-              {r.label}
-            </option>
-          ))}
-        </select>
+        <Select
+          fieldClassName="wf-select"
+          aria-label="Rule"
+          value={rule.kind}
+          onChange={(v) => set({ kind: v as typeof rule.kind })}
+          options={CONDITION_RULES.map((r) => ({ value: r.kind, label: r.label }))}
+        />
         {meta?.needsValue ? (
           rule.kind === "field_set" ? (
             <FieldSelect ctx={ctx} value={rule.value ?? ""} onChange={(value) => set({ ...rule, value })} />
@@ -517,13 +526,13 @@ function ActionForm({ data, ctx, onChange }: FormProps<StepData<"action">>) {
       <ol className="wf-ops-edit">
         {ops.map((o, i) => (
           <li key={i} className="wf-op-edit">
-            <select className="os-input wf-select" aria-label="Action" value={o.op} onChange={(e) => set(updateOp(ops, i, { op: e.target.value as typeof o.op }))}>
-              {ACTION_OPS.map((a) => (
-                <option key={a.op} value={a.op}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
+            <Select
+              fieldClassName="wf-select"
+              aria-label="Action"
+              value={o.op}
+              onChange={(v) => set(updateOp(ops, i, { op: v as typeof o.op }))}
+              options={ACTION_OPS.map((a) => ({ value: a.op, label: a.label }))}
+            />
             {o.op === "add_tag" || o.op === "remove_tag" ? (
               <input className="os-input" aria-label="Tag" placeholder="tag" value={o.key ?? ""} onChange={(e) => set(updateOp(ops, i, { key: e.target.value.trim() }))} />
             ) : o.op === "set_field" ? (
@@ -548,14 +557,14 @@ function GotoForm({ data, ctx, workflowId, onChange }: FormProps<StepData<"goto"
   const others = ctx.workflows.filter((w) => w.id !== workflowId);
   return (
     <Group label="Workflow">
-      <select className="os-input wf-select" aria-label="Workflow" value={data.workflowId} onChange={(e) => onChange({ workflowId: e.target.value })}>
-        <option value="">Pick a workflow</option>
-        {others.map((w) => (
-          <option key={w.id} value={w.id}>
-            {w.name}
-          </option>
-        ))}
-      </select>
+      <Select
+        fieldClassName="wf-select"
+        aria-label="Workflow"
+        placeholder="Pick a workflow"
+        value={data.workflowId}
+        onChange={(v) => onChange({ workflowId: v })}
+        options={others.map((w) => ({ value: w.id, label: w.name }))}
+      />
     </Group>
   );
 }

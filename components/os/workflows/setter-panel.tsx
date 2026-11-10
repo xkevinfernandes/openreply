@@ -5,6 +5,7 @@
 // Tests (J's line tests scoped to J or this workflow, the Knowledge bases
 // pieces) · Stats (exits and releases).
 
+import { Select } from "@claudepreneur/brand/react";
 import { useState } from "react";
 import LineTests from "@/components/os/knowledge/line-tests";
 import { resourceName, setterOf } from "@/components/os/workflows/context";
@@ -37,14 +38,16 @@ function Setup({ data, ctx, node, graph, onChange }: Props) {
     <>
       {ctx.setters.length > 1 ? (
         <Group label="Setter">
-          <select className="os-input wf-select" aria-label="Setter" value={data.setterId ?? ""} onChange={(e) => set({ setterId: e.target.value || undefined })}>
-            <option value="">Default ({ctx.setters.find((s) => s.isDefault)?.name ?? ctx.setters[0]?.name})</option>
-            {ctx.setters.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+          <Select
+            fieldClassName="wf-select"
+            aria-label="Setter"
+            value={data.setterId ?? ""}
+            onChange={(v) => set({ setterId: v || undefined })}
+            options={[
+              { value: "", label: `Default (${ctx.setters.find((s) => s.isDefault)?.name ?? ctx.setters[0]?.name})` },
+              ...ctx.setters.map((s) => ({ value: s.id, label: s.name })),
+            ]}
+          />
         </Group>
       ) : null}
       <Group label="Goal">

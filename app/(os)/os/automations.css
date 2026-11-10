@@ -469,29 +469,6 @@
   color: var(--warn-fg);
 }
 
-.os .os-auto-more {
-  display: inline-grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 0;
-  border-radius: 999px;
-  background: none;
-  color: var(--ghost);
-  cursor: pointer;
-}
-
-.os .os-auto-more:hover:not(:disabled) {
-  background: var(--tint);
-  color: var(--ink);
-}
-
-.os .os-auto-more svg {
-  width: 16px;
-  height: 16px;
-  stroke: currentColor;
-}
-
 /* Broadcasts summary (the builder is S5's) */
 .os .os-auto-bc {
   display: flex;
@@ -611,95 +588,9 @@
   position: relative;
 }
 
-.os-button.os-auto-more {
-  width: 32px;
-  padding: 0;
-}
-
-.os-auto-more svg circle {
+.os-auto-menu svg circle {
   fill: currentColor;
   stroke-width: 1.2;
-}
-
-.os-auto-pop {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 20;
-  min-width: 150px;
-  padding: 4px;
-  border: 0;
-  border-radius: var(--radius-card);
-  background: var(--card);
-  box-shadow: var(--shadow);
-  transform-origin: top right;
-  animation: os-auto-pop 160ms var(--ease);
-}
-
-@keyframes os-auto-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(-2px);
-  }
-}
-
-.os-auto-pop a,
-.os-auto-pop button {
-  display: block;
-  width: 100%;
-  padding: 7px 10px;
-  border: 0;
-  border-radius: var(--radius);
-  background: none;
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--fs-sm);
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.os-auto-pop a:hover,
-.os-auto-pop button:hover {
-  background: var(--tint);
-}
-
-.os-auto-pop [data-danger="true"] {
-  color: var(--bad);
-}
-
-/* Empty states */
-
-.os-auto-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 56px 24px 64px;
-  border: 0;
-  border-radius: var(--radius-card);
-  background: var(--card);
-  text-align: center;
-}
-
-.os-auto-empty[data-small="true"] {
-  padding: 32px 24px;
-}
-
-.os-auto-empty strong {
-  font-size: var(--fs-h2);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.os-auto-empty p {
-  max-width: 44ch;
-  margin: 6px 0 18px;
-  color: var(--muted);
-  font-size: var(--fs-sm);
-}
-
-.os-auto-empty[data-small="true"] p {
-  margin-bottom: 0;
 }
 
 /* --- Edit page: lead magnet + setter ---------------------------------------- */
@@ -734,7 +625,7 @@
   color: var(--muted);
 }
 
-.os .os-auto-pick select {
+.os .os-auto-pick-field {
   min-width: 220px;
 }
 
@@ -1159,12 +1050,6 @@
 
 /* --- Phone -------------------------------------------------------------------- */
 
-@media (prefers-reduced-motion: reduce) {
-  .os-auto-pop {
-    animation: none;
-  }
-}
-
 /* Tests: one plain-language line under the tabs (a rebuild is later work). */
 .os .os-auto-sub {
   display: flex;
@@ -1365,9 +1250,13 @@
     min-width: 0;
   }
 
-  .os .os-auto-bar .os-auto-pick .os-select,
-  .os .os-auto-bar .os-auto-pick select {
+  .os .os-auto-bar .os-auto-pick-field {
     width: 100%;
     min-width: 0;
   }
+}
+
+/* Shared selects (@claudepreneur/brand) on the OS's context surface (--ctl). */
+.os .os-auto-bar .cp-select-trigger {
+  background: var(--ctl);
 }
