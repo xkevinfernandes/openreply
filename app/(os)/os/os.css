@@ -1454,7 +1454,7 @@
 /* Checkbox and radio: 18px, a 1px line on the context surface; checked is
    an ink fill with an on-ink tick (or dot). Covers native inputs anywhere in
    /os, upstream components included. */
-:where(.os) input:is([type="checkbox"], [type="radio"]) {
+:where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch) {
   appearance: none;
   -webkit-appearance: none;
   flex: none;
@@ -1462,6 +1462,8 @@
   width: 18px;
   height: 18px;
   margin: 0;
+  /* the brand's base input padding (apps.css) must not reach these */
+  padding: 0;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   background-color: var(--ctl);
@@ -1480,17 +1482,17 @@
   border-radius: 999px;
 }
 
-:where(.os) input:is([type="checkbox"], [type="radio"]):hover:not(:disabled) {
+:where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch):hover:not(:disabled) {
   border-color: var(--ink);
 }
 
-:where(.os) input[type="checkbox"]:checked {
+:where(.os) input[type="checkbox"]:not(.cp-switch):checked {
   border-color: var(--ink);
   background-color: var(--ink);
   background-image: var(--tick);
 }
 
-:where(.os) input[type="checkbox"]:indeterminate {
+:where(.os) input[type="checkbox"]:not(.cp-switch):indeterminate {
   border-color: var(--ink);
   background-color: var(--ink);
   background-image: var(--dash-glyph);
@@ -1503,22 +1505,31 @@
   background-size: 100% 100%;
 }
 
-:where(.os) input:is([type="checkbox"], [type="radio"]):active:not(:disabled) {
+:where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch):active:not(:disabled) {
   transform: scale(0.92);
 }
 
-:where(.os) input:is([type="checkbox"], [type="radio"]):disabled {
+:where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch):disabled {
   opacity: 0.45;
   cursor: default;
 }
 
-:where(.os) input:is([type="checkbox"], [type="radio"]):focus-visible {
+:where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch):focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 
+/* The brand's base field look (apps.css :where(input…)) is for text fields:
+   a slider or a file picker keeps the browser's own. */
+:where(.os) input:is([type="range"], [type="file"]) {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  :where(.os) input:is([type="checkbox"], [type="radio"]):active:not(:disabled) {
+  :where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch):active:not(:disabled) {
     transform: none;
   }
 }
