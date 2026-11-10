@@ -5,11 +5,13 @@
 // Sent; videos keep their priority order (drag, or arrow keys on the grip).
 // Entry paths sit folded at the bottom and aren't counted.
 
+import { Tabs } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { reorderResources } from "@/app/(os)/os/knowledge/actions";
 import { deleteResourceChecked } from "@/app/(os)/os/resources/actions";
+import { EmptyState } from "@/components/os/ui";
 import ResourceSheet, { formOf } from "@/components/os/resources/resource-sheet";
 import DeleteCheck from "@/components/os/settings/delete-check";
 import { deleteBlockers, kindLabel, linkLabel, matchesFilter, offeringAgents, type ResourceFilter, type ResourceRow, type ResourcesBoard, type UsedBy, USED_BY_LABEL, usedChips } from "@/lib/os/resources-view";
@@ -81,14 +83,7 @@ export default function ResourcesScreen({ board }: { board: ResourcesBoard }) {
         </button>
       </header>
 
-      <div className="os-rs-pills" role="tablist" aria-label="Show">
-        {PILLS.map((p) => (
-          <button key={p.key} type="button" role="tab" aria-selected={filter === p.key} className="os-rs-pill" onClick={() => setFilter(p.key)}>
-            {p.label}
-            <span className="os-rs-count">{board.counts[p.count]}</span>
-          </button>
-        ))}
-      </div>
+      <Tabs label="Show" className="os-rs-pills" value={filter} onChange={setFilter} tabs={PILLS.map((p) => ({ value: p.key, label: p.label, count: board.counts[p.count] }))} />
 
       {board.sample ? <p className="os-rs-note">Sample resources. Add one to start your own list.</p> : null}
       {error ? (
@@ -209,12 +204,16 @@ export default function ResourcesScreen({ board }: { board: ResourcesBoard }) {
             </table>
           </section>
         ) : (
-          <section className="os-rs-card os-rs-emptycard">
-            <p>No resources yet. Add a lead magnet or a video J can send.</p>
-            <button type="button" className="os-button primary" onClick={() => setSheet({ kind: "new" })}>
-              + Add resource
-            </button>
-          </section>
+          <EmptyState
+            title="No resources yet."
+            action={
+              <button type="button" className="os-button primary" onClick={() => setSheet({ kind: "new" })}>
+                + Add resource
+              </button>
+            }
+          >
+            Add a lead magnet or a video J can send.
+          </EmptyState>
         )
       ) : null}
 

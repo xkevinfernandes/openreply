@@ -166,9 +166,9 @@ export default async function OsHome({ searchParams }: PageProps) {
           <p>{homeDate(now, tz)}</p>
         </div>
         <div className="os-home-actions">
-          <nav className="os-home-seg" aria-label="Period">
+          <nav className="cp-tabs os-home-seg" aria-label="Period">
             {HOME_PERIODS.map((p) => (
-              <Link key={p.key} href={href(p.key, params.setter ?? null)} aria-current={p.key === period ? "page" : undefined} scroll={false}>
+              <Link key={p.key} href={href(p.key, params.setter ?? null)} className="cp-tab" aria-current={p.key === period ? "page" : undefined} scroll={false}>
                 {p.label}
               </Link>
             ))}
@@ -200,9 +200,9 @@ export default async function OsHome({ searchParams }: PageProps) {
           <div className="os-home-sechead">
             <h2 id="os-home-pipe" className="os-h2">Pipeline by stage</h2>
             {pipe && pipe.pipeline.setters.length > 1 ? (
-              <nav className="os-home-seg" aria-label="Setter">
+              <nav className="cp-tabs is-on-well os-home-seg" aria-label="Setter">
                 {pipe.pipeline.setters.map((s) => (
-                  <Link key={s.id} href={href(period, s.id)} aria-current={s.id === selected ? "page" : undefined} scroll={false}>
+                  <Link key={s.id} href={href(period, s.id)} className="cp-tab" aria-current={s.id === selected ? "page" : undefined} scroll={false}>
                     <span className="os-home-av" data-on={s.id === selected || undefined} aria-hidden="true">
                       {s.name.charAt(0).toUpperCase()}
                     </span>

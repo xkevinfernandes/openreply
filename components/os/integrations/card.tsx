@@ -1,5 +1,6 @@
 "use client";
 
+import { pillClass } from "@/components/os/ui/pill";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import {
@@ -103,10 +104,7 @@ export default function IntegrationCard({
       <div className="os-int-card-top">
         <Logo provider={view.provider} />
         <h2 id={`${panelId}-name`}>{info.name}</h2>
-        <span className="os-st" data-tone={st.tone}>
-          <i />
-          {st.label}
-        </span>
+        <span className={pillClass(st.tone === "off" ? "neutral" : st.tone)}>{st.label}</span>
       </div>
       <p className="os-int-blurb">{info.blurb}</p>
 

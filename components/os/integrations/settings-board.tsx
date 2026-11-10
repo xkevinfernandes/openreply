@@ -6,6 +6,7 @@
 // the row.
 
 import Link from "next/link";
+import { pillClass } from "@/components/os/ui/pill";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { connectDataOs, removeDataOs } from "@/app/(os)/os/integrations/actions";
@@ -77,9 +78,8 @@ function Row({ id, logo, name, sub, tone, status, action, primary, canManage, ac
           <span className="os-si-name">{name}</span>
           <span className="os-si-sub">{sub}</span>
         </span>
-        <span className="os-si-status" data-tone={tone}>
-          <i />
-          {status}
+        <span className="os-si-status">
+          <span className={pillClass(tone === "off" ? "neutral" : tone)}>{status}</span>
         </span>
         {actions ? (
           <span className="os-si-acts">{actions}</span>

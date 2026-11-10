@@ -163,8 +163,14 @@
   border-top: 0;
 }
 
-.os-set-invite .os-select select {
-  width: 100%;
+/* The shared Select's trigger, sized like the inputs beside it. */
+.os-set-invite .cp-select-trigger,
+.os-zn-body .cp-select-trigger {
+  height: var(--control-h);
+  padding-block: 0;
+  border-color: var(--line);
+  background-color: var(--ctl);
+  font-size: var(--fs-sm);
 }
 
 .os-set-facts {
@@ -186,6 +192,10 @@
 }
 
 /* DM logs */
+
+.os-set-filter .cp-seg-item {
+  gap: 6px;
+}
 
 .os-set-filter {
   margin-bottom: var(--sp-4);
@@ -645,7 +655,7 @@
 }
 
 .os-send-form input,
-.os-send-form select {
+.os-send-form .cp-select-trigger {
   height: 36px;
   width: 180px;
   padding: 0 14px;
@@ -873,7 +883,7 @@
   .os-sx-body .os-set-filter {
     flex-wrap: wrap;
     height: auto;
-    border-radius: 18px;
+    border-radius: var(--r-card);
   }
 }
 
@@ -894,7 +904,7 @@
 
 .os-dg-head h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--fs-h2);
 }
 
 .os-dg-head p {
@@ -1091,7 +1101,7 @@
 }
 
 .os-tg-system {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   padding: 2px 8px;
   border-radius: 999px;
@@ -1124,78 +1134,6 @@
   margin-left: 4px;
 }
 
-/* The colour dropdown: a select-style button and a listbox of swatch + name. */
-.os-tg-select {
-  position: relative;
-}
-
-.os-tg-select-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: 38px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: var(--radius);
-  background: var(--ctl);
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--fs-sm);
-  cursor: pointer;
-}
-
-.os-tg-select-btn:hover:not(:disabled) {
-  background: var(--ctl-hover);
-}
-
-.os-tg-select-label {
-  flex: 1;
-  text-align: left;
-}
-
-.os-tg-select-btn svg,
-.os-tg-check {
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-}
-
-/* Opens in the flow, under the button: the dialog grows to fit it, so it
-   never covers Create / Cancel and every colour shows without scrolling. */
-.os-tg-select-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 2px;
-  margin: 4px 0 0;
-  padding: 6px;
-  list-style: none;
-  border-radius: 14px;
-  background: var(--card);
-  box-shadow: inset 0 0 0 1px var(--line);
-  outline: none;
-}
-
-.os-tg-select-list li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  font-size: var(--fs-sm);
-  cursor: pointer;
-}
-
-.os-tg-select-list li[data-active] {
-  background: var(--well);
-}
-
-.os-tg-check {
-  margin-left: auto;
-}
-
 .os-tg-dialog {
   margin: auto;
   width: min(440px, calc(100vw - 32px));
@@ -1205,12 +1143,12 @@
   border-radius: var(--radius-card);
   background: var(--card);
   color: var(--ink);
-  box-shadow: 0 16px 40px rgb(0 0 0 / 20%);
+  box-shadow: var(--pop-shadow);
   overflow: visible;
 }
 
 .os-tg-dialog::backdrop {
-  background: rgb(0 0 0 / 35%);
+  background: var(--scrim);
 }
 
 .os-tg-form {
@@ -1221,7 +1159,7 @@
 
 .os-tg-form h2 {
   margin: 0 0 8px;
-  font-size: 18px;
+  font-size: var(--fs-h2);
 }
 
 .os-tg-form label span {
@@ -1304,7 +1242,7 @@
 
 .os-si-head h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--fs-h2);
 }
 
 .os-si-head p {
@@ -1334,6 +1272,7 @@
 }
 
 .os-logo-cal {
+  /* A wordmark drawn in its round logo tile (a logo, not UI text). */
   font-size: 9.5px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -1416,7 +1355,7 @@
 }
 
 .os-fd-chip {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--neutral-bg, var(--well));
@@ -1464,10 +1403,6 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.os-zn-body select.os-input {
-  height: 36px;
 }
 
 .os-zn-link,

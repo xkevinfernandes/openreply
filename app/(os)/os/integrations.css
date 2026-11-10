@@ -56,26 +56,6 @@
   stroke-linejoin: round;
 }
 
-.os-st[data-tone="good"] i {
-  background: var(--good);
-}
-
-.os-st[data-tone="warn"] i {
-  background: var(--warn);
-}
-
-.os-st[data-tone="bad"] {
-  color: var(--bad);
-}
-
-.os-st[data-tone="bad"] i {
-  background: var(--bad);
-}
-
-.os-st[data-tone="off"] i {
-  background: var(--ghost);
-}
-
 .os-int-blurb {
   margin: 0;
   max-width: 60ch;
@@ -100,7 +80,7 @@
   border-radius: 50%;
   background: var(--tint-2);
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -335,13 +315,13 @@
   gap: var(--sp-3);
 }
 
-.os-int-map td .os-select,
+.os-int-map td > .cp-field,
 .os-int-map td > .os-input {
   flex: 1;
   max-width: 340px;
 }
 
-.os-int-map td .os-select select {
+.os-int-map td .cp-select-trigger {
   width: 100%;
 }
 
@@ -456,7 +436,7 @@
     padding-top: 0;
   }
 
-  .os-int-map td .os-select,
+  .os-int-map td > .cp-field,
   .os-int-map td > .os-input,
   .os-int-native {
     max-width: none;
@@ -495,7 +475,7 @@
 .os-cal-type > span:first-child {
   color: var(--muted);
 }
-.os-cal-type .os-select select {
+.os-cal-type .cp-select-trigger {
   width: 100%;
 }
 .os-cal-grid {
@@ -653,41 +633,7 @@
 .os-si-status {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   min-width: 110px;
-  font-size: var(--fs-xs);
-  white-space: nowrap;
-}
-
-.os-si-status i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--ghost);
-}
-
-.os-si-status[data-tone="good"] i {
-  background: var(--good);
-}
-
-.os-si-status[data-tone="warn"] {
-  color: var(--warn);
-}
-
-.os-si-status[data-tone="warn"] i {
-  background: var(--warn);
-}
-
-.os-si-status[data-tone="bad"] {
-  color: var(--bad);
-}
-
-.os-si-status[data-tone="bad"] i {
-  background: var(--bad);
-}
-
-.os-si-status[data-tone="off"] {
-  color: var(--muted);
 }
 
 .os-si-cap {

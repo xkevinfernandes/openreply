@@ -38,7 +38,7 @@
 }
 
 .os .os-home-review-key {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   opacity: 0.6;
 }
 
@@ -75,35 +75,10 @@
 }
 
 /* Segmented links: period and setter switchers. */
-.os .os-home-seg {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-  background: var(--ctl);
-}
-
-.os .os-home-seg a {
-  display: inline-flex;
-  align-items: center;
+/* Period and setter switches: the shared Tabs' markup (cp-tabs, link mode).
+   The setter one carries an initial before the name. */
+.os .os-home-seg .cp-tab {
   gap: 6px;
-  height: 30px;
-  padding: 0 14px;
-  border-radius: 999px;
-  color: var(--muted);
-  font-size: var(--fs-sm);
-  text-decoration: none;
-  transition: background 120ms var(--ease), color 120ms var(--ease);
-}
-
-.os .os-home-seg a:hover {
-  color: var(--ink);
-}
-
-.os .os-home-seg a[aria-current="page"] {
-  background: var(--ink);
-  color: var(--on-ink);
-  font-weight: 500;
 }
 
 .os .os-home-av {
@@ -116,7 +91,7 @@
   justify-content: center;
   background: var(--tint-2);
   color: var(--ink);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -128,11 +103,11 @@
 .os .os-home-av[data-size="24"] {
   width: 24px;
   height: 24px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 /* Outcome tiles: the stat row under the header. White tiles on the stone,
-   label above a 28/600 number, foot below. Exactly one sage tile (Calls
+   label above a 28/600 number, foot below. Exactly one ink feature tile (Calls
    booked, data-feature). */
 .os .os-home-tiles {
   min-width: 0;
@@ -187,15 +162,13 @@
 }
 
 .os .os-home-outcomes li[data-feature] {
-  background: var(--sage);
-  /* --on-sage is the brand's white number on sage; until os.css has it the
-     light sage text stands in. */
-  color: var(--on-sage, var(--sage-text));
+  background: var(--feature);
+  color: var(--on-ink);
 }
 
 .os .os-home-outcomes li[data-feature] .lbl,
 .os .os-home-outcomes li[data-feature] .pct {
-  color: var(--sage-text);
+  color: var(--feature-text);
 }
 
 @media (max-width: 640px) {
@@ -382,7 +355,7 @@
   color: var(--warn);
 }
 
-.os .os-home-seg a[aria-current="page"] .os-home-av {
+.os .os-home-seg .cp-tab[aria-current="page"] .os-home-av {
   background: var(--on-ink);
   color: var(--ink);
 }
