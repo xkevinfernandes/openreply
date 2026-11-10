@@ -3,6 +3,7 @@
 // Workspace › Sending: the daily setter send limit (only J's sends count) and
 // the timezone its "today" is read in. Pause all lives in the sidebar foot.
 
+import { Combobox } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { saveSending } from "@/app/(os)/os/settings/actions";
@@ -42,16 +43,14 @@ export default function SendingPanel({ sendCap, timezone, zones = [], canManage 
           <span>Daily setter send limit</span>
           <input type="number" min={1} max={500} step={1} value={cap} onChange={(e) => setCap(e.target.value)} disabled={!canManage} />
         </label>
-        <label>
-          <span>Timezone</span>
-          <select value={tz} onChange={(e) => setTz(e.target.value)} disabled={!canManage}>
-            {(zones.includes(timezone) ? zones : [timezone, ...zones]).map((z) => (
-              <option key={z} value={z}>
-                {z.replace(/_/g, " ")}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Combobox
+          label="Timezone"
+          value={tz}
+          onChange={setTz}
+          disabled={!canManage}
+          searchPlaceholder="Search timezones"
+          options={(zones.includes(timezone) ? zones : [timezone, ...zones]).map((z) => ({ value: z, label: z.replace(/_/g, " "), keywords: z }))}
+        />
         {canManage ? (
           <button type="submit" className="os-button" disabled={pending || !dirty}>
             Save

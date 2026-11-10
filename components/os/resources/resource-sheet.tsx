@@ -4,6 +4,7 @@
 // offer it. A component on its own (onSaved hands back the saved resource)
 // so the broadcast picker can open it too (Part C 024).
 
+import { Select } from "@claudepreneur/brand/react";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import type { ResourceForm } from "@/app/(os)/os/knowledge/actions";
 import { saveResourceSheet, type SavedResource } from "@/app/(os)/os/resources/actions";
@@ -80,14 +81,17 @@ export default function ResourceSheet({ initial = EMPTY_RESOURCE, agents, agentI
             <span>Name</span>
             <input className="os-input" value={f.name} onChange={(e) => set({ name: e.target.value })} required maxLength={160} autoFocus />
           </label>
-          <label>
-            <span>Kind</span>
-            <select className="os-input" value={f.kind} onChange={(e) => set({ kind: e.target.value as ResourceForm["kind"] })} disabled={f.kind === "setter"}>
-              <option value="resource">Lead magnet</option>
-              <option value="episode">Video</option>
-              {f.kind === "setter" ? <option value="setter">Entry path</option> : null}
-            </select>
-          </label>
+          <Select
+            label="Kind"
+            value={f.kind}
+            onChange={(v) => set({ kind: v as ResourceForm["kind"] })}
+            disabled={f.kind === "setter"}
+            options={[
+              { value: "resource", label: "Lead magnet" },
+              { value: "episode", label: "Video" },
+              ...(f.kind === "setter" ? [{ value: "setter", label: "Entry path" }] : []),
+            ]}
+          />
           <label className="os-rs-wide">
             <span>Link</span>
             <input className="os-input" value={f.link} onChange={(e) => set({ link: e.target.value })} placeholder="https://" inputMode="url" />
@@ -98,14 +102,16 @@ export default function ResourceSheet({ initial = EMPTY_RESOURCE, agents, agentI
               <input className="os-input" value={f.keyword} onChange={(e) => set({ keyword: e.target.value })} maxLength={80} />
             </label>
           ) : null}
-          <label>
-            <span>Status</span>
-            <select className="os-input" value={f.status} onChange={(e) => set({ status: e.target.value as ResourceForm["status"] })}>
-              <option value="ACTIVE">{video ? "On" : "Active"}</option>
-              <option value="DRAFT">{video ? "Off" : "Draft"}</option>
-              {!video ? <option value="TEST">Test</option> : null}
-            </select>
-          </label>
+          <Select
+            label="Status"
+            value={f.status}
+            onChange={(v) => set({ status: v as ResourceForm["status"] })}
+            options={[
+              { value: "ACTIVE", label: video ? "On" : "Active" },
+              { value: "DRAFT", label: video ? "Off" : "Draft" },
+              ...(!video ? [{ value: "TEST", label: "Test" }] : []),
+            ]}
+          />
           {video ? (
             <label className="os-rs-wide">
               <span>When to share</span>

@@ -7,6 +7,7 @@
 // connect flow, Fix webhook repairs the webhook, Set up Zernio opens the key
 // form. On the OS_MOCK sample nothing calls Zernio.
 
+import { Select } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -237,17 +238,7 @@ export function ZernioPanel({ canManage, sample = null, embedded = false }: { ca
           void act("settings", "PUT", { profileId });
         }}
       >
-        <label>
-          <span>Profile</span>
-          <select className="os-input" value={profileId} onChange={(e) => setProfileId(e.target.value)} required>
-            <option value="">Pick a profile</option>
-            {data.profiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select label="Profile" placeholder="Pick a profile" value={profileId} onChange={setProfileId} required options={data.profiles.map((p) => ({ value: p.id, label: p.name }))} />
         {!data.profiles.length ? <p className="os-set-empty">Make a profile in Zernio, then reload this page.</p> : null}
         <div className="os-si-form-actions">
           <span className="os-si-grow" />

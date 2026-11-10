@@ -5,6 +5,7 @@
 // fields. Each custom field has a type, the setters that fill it (ticked in
 // each setter's Knowledge base), a Kit field and a GoHighLevel field.
 
+import { Select } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { addField, editField, removeField } from "@/app/(os)/os/settings/actions";
@@ -293,16 +294,7 @@ function FieldEditor({
         <span>Name</span>
         <input value={label} onChange={(e) => setLabel(e.target.value)} disabled={locked} autoFocus={focus === "label" && !locked} maxLength={60} required />
       </label>
-      <label>
-        <span>Type</span>
-        <select value={type} onChange={(e) => setType(e.target.value as CustomFieldType)} disabled={locked}>
-          {FIELD_TYPES.map((t) => (
-            <option key={t.type} value={t.type}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select label="Type" value={type} onChange={(v) => setType(v as CustomFieldType)} disabled={locked} options={FIELD_TYPES.map((t) => ({ value: t.type, label: t.label }))} />
       {type === "SELECT" ? (
         <label className="os-cf-wide">
           <span>Choices</span>

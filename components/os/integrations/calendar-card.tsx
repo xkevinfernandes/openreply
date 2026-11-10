@@ -1,5 +1,7 @@
 "use client";
 
+import { SegmentedSwitch, Select } from "@claudepreneur/brand/react";
+import { pillClass } from "@/components/os/ui/pill";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState, useTransition } from "react";
 import {
@@ -83,10 +85,7 @@ export default function CalendarCard({
       <div className="os-int-card-top">
         <Logo provider={view.provider} />
         <h2 id={`${panelId}-name`}>{info.name}</h2>
-        <span className="os-st" data-tone={st.tone}>
-          <i />
-          {st.label}
-        </span>
+        <span className={pillClass(st.tone === "off" ? "neutral" : st.tone)}>{st.label}</span>
       </div>
       <p className="os-int-blurb">{info.blurb}</p>
 
@@ -327,21 +326,22 @@ function SettingsEditor({
             const current = s.eventTypes[r.id] ?? "";
             const known = types?.some((t) => t.id === current);
             return (
-              <label key={r.id} className="os-cal-type" htmlFor={`${id}-et-${r.id}`}>
-                <span>{r.name}</span>
-                <span className="os-select">
-                  <select id={`${id}-et-${r.id}`} value={current} disabled={!types} onChange={(e) => pickType(r.id, e.target.value)}>
-                    <option value="">{r.id === DEFAULT_SETTER_KEY ? "Pick an event type" : "Same as the default"}</option>
-                    {current && !known && <option value={current}>{s.eventTypeInfo[current]?.name ?? "Saved event type"}</option>}
-                    {(types ?? []).map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                        {t.durationMinutes ? ` · ${t.durationMinutes} min` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </span>
-              </label>
+              <div key={r.id} className="os-cal-type">
+                <span id={`${id}-et-${r.id}-label`}>{r.name}</span>
+                <Select
+                  id={`${id}-et-${r.id}`}
+                  aria-label={r.name}
+                  compact
+                  value={current}
+                  disabled={!types}
+                  onChange={(v) => pickType(r.id, v)}
+                  options={[
+                    { value: "", label: r.id === DEFAULT_SETTER_KEY ? "Pick an event type" : "Same as the default" },
+                    ...(current && !known ? [{ value: current, label: s.eventTypeInfo[current]?.name ?? "Saved event type" }] : []),
+                    ...(types ?? []).map((t) => ({ value: t.id, label: `${t.name}${t.durationMinutes ? ` · ${t.durationMinutes} min` : ""}` })),
+                  ]}
+                />
+              </div>
             );
           })}
         </div>
@@ -370,25 +370,9 @@ function SettingsEditor({
           <div className="os-field">
             <span id={`${id}-hours`}>Working hours</span>
             <div className="os-cal-hours" role="group" aria-labelledby={`${id}-hours`}>
-              <span className="os-select">
-                <select aria-label="From" value={s.workStart} onChange={(e) => set("workStart", Number(e.target.value))}>
-                  {HOURS.slice(0, 24).map((h) => (
-                    <option key={h} value={h}>
-                      {hourLabel(h)}
-                    </option>
-                  ))}
-                </select>
-              </span>
+              <Select aria-label="From" compact value={String(s.workStart)} onChange={(v) => set("workStart", Number(v))} options={HOURS.slice(0, 24).map((h) => ({ value: String(h), label: hourLabel(h) }))} />
               <span className="muted">to</span>
-              <span className="os-select">
-                <select aria-label="Until" value={s.workEnd} onChange={(e) => set("workEnd", Number(e.target.value))}>
-                  {HOURS.slice(1).map((h) => (
-                    <option key={h} value={h}>
-                      {hourLabel(h)}
-                    </option>
-                  ))}
-                </select>
-              </span>
+              <Select aria-label="Until" compact value={String(s.workEnd)} onChange={(v) => set("workEnd", Number(v))} options={HOURS.slice(1).map((h) => ({ value: String(h), label: hourLabel(h) }))} />
             </div>
           </div>
           <div className="os-field os-cal-wide">
@@ -411,13 +395,7 @@ function SettingsEditor({
           </label>
           <div className="os-field">
             <span id={`${id}-opts`}>Times to offer</span>
-            <div className="os-segmented" role="group" aria-labelledby={`${id}-opts`}>
-              {[1, 2, 3].map((n) => (
-                <button key={n} type="button" aria-pressed={s.options === n} onClick={() => set("options", n)}>
-                  {n}
-                </button>
-              ))}
-            </div>
+            <SegmentedSwitch label="Times to offer" onWell value={String(s.options)} onChange={(v) => set("options", Number(v))} options={[1, 2, 3].map((n) => ({ value: String(n), label: String(n) }))} />
           </div>
         </div>
         <p className="os-int-hint">Your calendar already hides busy times. These narrow it to when you want setter calls. Times are offered in their timezone.</p>

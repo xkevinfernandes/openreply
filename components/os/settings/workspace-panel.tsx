@@ -3,6 +3,7 @@
 // Workspace: name, team and invites, through OpenReply's /api/workspace/members
 // (the same route the old Settings page uses).
 
+import { Select } from "@claudepreneur/brand/react";
 import { useCallback, useEffect, useState } from "react";
 
 type Role = "OWNER" | "ADMIN" | "MEMBER";
@@ -151,12 +152,16 @@ export default function WorkspacePanel({ workspaceName }: { workspaceName: strin
               Email
             </label>
             <input id="os-set-invite-email" className="os-input" type="email" required placeholder="teammate@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <span className="os-select">
-              <select aria-label="Role" value={role} onChange={(e) => setRole(e.target.value as "ADMIN" | "MEMBER")}>
-                <option value="MEMBER">Member</option>
-                <option value="ADMIN">Admin</option>
-              </select>
-            </span>
+            <Select
+              aria-label="Role"
+              fieldClassName="os-set-invite-role"
+              value={role}
+              onChange={(v) => setRole(v as "ADMIN" | "MEMBER")}
+              options={[
+                { value: "MEMBER", label: "Member" },
+                { value: "ADMIN", label: "Admin" },
+              ]}
+            />
             <button type="submit" className="os-button primary" disabled={busy === "invite" || !email}>
               {busy === "invite" ? "Inviting…" : "Invite"}
             </button>

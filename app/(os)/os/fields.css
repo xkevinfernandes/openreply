@@ -137,7 +137,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--ink);
 }
@@ -289,7 +289,7 @@
 }
 
 .os-cf-form input,
-.os-cf-form select {
+.os-cf-form .cp-select-trigger {
   height: var(--control-h);
   padding: 0 14px;
   border: 1px solid var(--line);
@@ -300,25 +300,17 @@
   color: var(--ink);
 }
 
-/* Selects set the colour only, so the --chevron image survives. */
-.os-cf-form select {
-  padding-right: 36px;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: var(--chevron);
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 14px;
+.os-cf-form .cp-select-trigger {
+  padding-right: 12px;
 }
 
-.os-cf-form input:focus,
-.os-cf-form select:focus {
+.os-cf-form input:focus {
   border-color: var(--ink);
   outline: 0;
 }
 
 .os-cf-form input:disabled,
-.os-cf-form select:disabled {
+.os-cf-form .cp-select-trigger:disabled {
   color: var(--muted);
   background-color: var(--tint);
 }
