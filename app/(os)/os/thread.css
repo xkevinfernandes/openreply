@@ -271,16 +271,6 @@
   padding: 24px 8px;
 }
 
-.os-ix-empty .os-empty-state-title {
-  font-size: var(--fs-body);
-  font-weight: 600;
-}
-
-.os-ix-empty .os-empty-state-body {
-  font-size: var(--fs-sm);
-  color: var(--muted);
-}
-
 .os-ix-rows > li > :not(.os-ix-row) {
   margin: 0 12px 10px 54px;
 }

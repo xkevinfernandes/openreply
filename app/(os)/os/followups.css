@@ -47,12 +47,6 @@
 
 /* Nothing sent / paused / scheduled: the empty state sits in a card under
    the tabs, like the inbox's (R1-15). */
-.os-tl > .os-empty-state {
-  padding: 22px 24px;
-  border-radius: var(--radius-card);
-  background: var(--card);
-}
-
 .os-tl > .os-tabs {
   align-self: flex-start;
 }

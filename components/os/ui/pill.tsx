@@ -16,11 +16,21 @@ export function statusTone(status: string | null | undefined): Tone {
   return "neutral";
 }
 
+/** The shared pill's class for a tone (@claudepreneur/brand Pill: cp-pill,
+ * cp-pill-good/-warn/-bad). "mark" is good; "ink" is the one picked pill. */
+export function pillClass(tone: Tone = "neutral"): string {
+  if (tone === "good" || tone === "mark") return "cp-pill cp-pill-good";
+  if (tone === "warn") return "cp-pill cp-pill-warn";
+  if (tone === "bad") return "cp-pill cp-pill-bad";
+  if (tone === "ink") return "cp-pill os-pill-ink";
+  return "cp-pill";
+}
+
 /** A small rounded label: stage, "Draft", "Quiet 3d". For a status word,
- * pass tone={statusTone(word)}. */
-export function Pill({ tone = "neutral", title, children }: { tone?: Tone; title?: string; children: React.ReactNode }) {
+ * pass tone={statusTone(word)}. The shared Pill's markup, plus a title. */
+export function Pill({ tone = "neutral", title, children, className }: { tone?: Tone; title?: string; children: React.ReactNode; className?: string }) {
   return (
-    <span className="os-pill" data-tone={tone} title={title}>
+    <span className={`${pillClass(tone)}${className ? ` ${className}` : ""}`} title={title}>
       {children}
     </span>
   );

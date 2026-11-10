@@ -44,20 +44,6 @@
   stroke-linecap: round;
 }
 
-/* Tabs: Campaigns · Broadcasts · Tests (os.css .os-tabs; counts muted, not the green badge). */
-.os .os-auto-tab-n {
-  font-weight: 400;
-  color: var(--ghost);
-  font-variant-numeric: tabular-nums;
-}
-
-/* On the picked (ink) pill the ghost count vanishes: take the pill's own
-   colour, softened, like reel.css does for .count and .os-tabs-n. (R2-1) */
-.os .os-tab[aria-current="page"] .os-auto-tab-n {
-  color: inherit;
-  opacity: 0.7;
-}
-
 /* Trigger chips */
 .os .os-auto-chips {
   display: flex;

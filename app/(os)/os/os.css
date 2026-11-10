@@ -8,7 +8,7 @@
    no border, no shadow), pill controls with the picked one in ink, big
    tabular numbers with the label above. Radii are 999 / 20 / 14 / 12 / 8 only.
    Colour only where it means something: green good (and work waiting on you,
-   a draft from J), amber "decide this", red errors, sage the page's one
+   a draft from J), amber "decide this", red errors, ink the page's one
    feature tile, yellow the one starred thing. Light and dark: the system's,
    unless a pick is kept in localStorage.theme (the sidebar foot switch).
    Everything is scoped under .os so the upstream OpenReply pages keep theirs.
@@ -27,52 +27,26 @@
   margin: auto;
 }
 
-/* The stone ground, defined once on the root so the page behind .os
-   (html/body, overscroll) and .os --bg read the same token. */
-:root:has(.os) {
-  --os-stone: #e6e5de;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):has(.os) {
-    --os-stone: #161615;
-  }
-}
-:root[data-theme="dark"]:has(.os) {
-  --os-stone: #161615;
-}
-
+/* The palette, type, radii and pop-up shadow are the app brand's own:
+   @claudepreneur/brand/apps.css (loaded first in the layout) sets them on
+   :root for light and dark. .os only adds its own names on top of them. */
 .os {
-  /* the reel palette (branding/tokens.css) */
-  --bg: var(--os-stone);
-  --card: #ffffff;
-  --well: #f5f4f0;
-  --ink: #111111;
-  --on-ink: #ffffff;
-  --line: #e4e3dd;
-  --dash: #9a9990;
-  --bar: #c9c8c0;
-  --sage: #3f5e4c;
-  --sage-text: #d9e4dc;
-  /* the number on a sage tile: white in both themes (branding .stat.is-picked);
-     --on-ink can't serve, it turns dark in dark mode */
-  --on-sage: #ffffff;
-  --like: #ffdf56;
-  --good: #2f8a5b;
-  --good-bg: #e3f1e8;
-  --good-fg: #1f5e3d;
-  --neutral-bg: #f1efe8;
-  --neutral-fg: #34332f;
-  --warn: #9a6a00;
-  --warn-bg: #fbf1dc;
-  --bad: #c1291d;
-  --bad-bg: #fbe3e1;
-  --bad-fg: #8a2b25;
-  --muted: #5a5953;
+  /* The picked/focus state colour (was sage): the brand's feature, ink. */
+  --sage: var(--feature);
+  --sage-text: var(--feature-text);
+  --on-sage: var(--on-ink);
+  /* the pill pairs, under the names the screens use */
+  --good-bg: var(--good-pill-bg);
+  --good-fg: var(--good-pill-fg);
+  --neutral-bg: var(--neutral-pill-bg);
+  --neutral-fg: var(--neutral-pill-fg);
+  --warn-bg: var(--warn-pill-bg);
+  --warn-fg: var(--warn-pill-fg);
+  --bad-bg: var(--bad-pill-bg);
+  --bad-fg: var(--bad-pill-fg);
   /* Instagram's own bubble greys, for the thread and phone previews. */
   --ig-them: #efefef;
   --ig-them-2: #dbdbdb;
-  --scrim: color-mix(in srgb, var(--ink) 35%, transparent);
-  --warn-fg: #7a5210; /* warn pill text (tokens.css --warn-pill-fg) */
   /* Glyphs drawn in the theme's ink / on-ink, swapped in dark. */
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23111111' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4.5 6.5 3.5 3.5 3.5-3.5'/%3E%3C/svg%3E");
   --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 8.2 2.6 2.6L12 5.4'/%3E%3C/svg%3E");
@@ -83,7 +57,6 @@
      card sets it back to --card. */
   --ctl: var(--card);
   --ctl-hover: var(--well);
-  --frost: color-mix(in srgb, var(--bg) 86%, transparent);
 
   /* the older names, onto the reel */
   --paper: var(--card);
@@ -96,23 +69,15 @@
   --mark: var(--good);
   --mark-bg: var(--good-bg);
   --stage: #0b0b0b;
-  /* Cards never carry a shadow; these are for menus and pop-ups only. */
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 1px 2px rgb(0 0 0 / 0.06), 0 16px 40px rgb(0 0 0 / 0.16);
-  --pop-shadow: var(--shadow-lg); /* tokens.css's name for the same thing */
+  /* Cards never carry a shadow; menus and pop-ups use the brand's one. */
+  --shadow: var(--pop-shadow);
+  --shadow-lg: var(--pop-shadow);
 
   /* legacy names kept for anything still reading them */
   --accent: var(--ink);
   --accent-ink: var(--on-ink);
   --ink-4: var(--tint);
   --ink-8: var(--tint-2);
-
-  --fs-h1: 24px;
-  --fs-h2: 17px;
-  --fs-body: 14px;
-  --fs-sm: 13px;
-  --fs-xs: 12px;
-  --fs-stat: 28px;
 
   --sp-1: 4px;
   --sp-2: 8px;
@@ -122,19 +87,17 @@
   --sp-6: 24px;
   --sp-8: 32px;
   --sp-10: 40px;
-  --radius: 12px; /* controls; cards are --radius-card */
-  --radius-card: 20px;
-  --radius-cover: 14px;
-  --radius-sm: 8px;
+  --radius: var(--r-control); /* controls; cards are --radius-card */
+  --radius-card: var(--r-card);
+  --radius-cover: var(--r-cover);
+  --radius-sm: var(--r-thumb);
   --r: var(--radius);
   --control-h: 32px;
   --bar-h: 0px; /* no top bar on desktop; the phone bar sets 52px */
   --sidebar-w: 216px;
-  --page-pad: 24px;
-  --gap: 20px;
 
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Inter from next/font, then the brand's stack */
   --font: var(--font-inter), Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-display: var(--font);
   --font-body: var(--font);
@@ -148,79 +111,27 @@
   line-height: 1.45;
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
-  color-scheme: light;
 }
 
-/* Dark: the system's unless Light was picked; an explicit Dark always wins. */
+/* Dark: only the OS's own extras; the palette swaps in apps.css. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .os {
-    --bg: var(--os-stone);
-    --card: #232322;
-    --well: #2d2d2b;
-    --ink: #ececea;
-    --on-ink: #111111;
-    --line: #353532;
-    --dash: #6b6a64;
-    --bar: #45453f;
-    --sage: #4a6b57;
-    --sage-text: #e4ede7;
-    --good: #5cc98a;
-    --good-bg: #1e3528;
-    --good-fg: #8ee0b0;
     /* Not the brand's #2d2d2b (= --well): a neutral pill vanished on any well. */
-    --neutral-bg: color-mix(in srgb, var(--ink) 12%, var(--card));
-    --neutral-fg: #d6d5cf;
-    --warn: #f2b84b;
-    --warn-bg: #3a2f18;
-    --bad: #f2786b;
-    --bad-bg: #3a2220;
-    --bad-fg: #f5a39a;
-    --muted: #a3a29c;
-    --scrim: rgb(0 0 0 / 0.55);
-    --warn-fg: #f2c877;
+    --neutral-pill-bg: color-mix(in srgb, var(--ink) 12%, var(--card));
     --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ececea' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4.5 6.5 3.5 3.5 3.5-3.5'/%3E%3C/svg%3E");
     --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23111111' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 8.2 2.6 2.6L12 5.4'/%3E%3C/svg%3E");
     --dash-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23111111' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M4.5 8h7'/%3E%3C/svg%3E");
     --ig-them: #262626;
     --ig-them-2: #363636;
-    --shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px rgb(0 0 0 / 0.4);
-    --shadow-lg: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 16px 40px rgb(0 0 0 / 0.5);
-    color-scheme: dark;
   }
 }
 :root[data-theme="dark"] .os {
-  --bg: var(--os-stone);
-  --card: #232322;
-  --well: #2d2d2b;
-  --ink: #ececea;
-  --on-ink: #111111;
-  --line: #353532;
-  --dash: #6b6a64;
-  --bar: #45453f;
-  --sage: #4a6b57;
-  --sage-text: #e4ede7;
-  --good: #5cc98a;
-  --good-bg: #1e3528;
-  --good-fg: #8ee0b0;
-  /* Not the brand's #2d2d2b (= --well): a neutral pill vanished on any well. */
-  --neutral-bg: color-mix(in srgb, var(--ink) 12%, var(--card));
-  --neutral-fg: #d6d5cf;
-  --warn: #f2b84b;
-  --warn-bg: #3a2f18;
-  --bad: #f2786b;
-  --bad-bg: #3a2220;
-  --bad-fg: #f5a39a;
-  --muted: #a3a29c;
-  --scrim: rgb(0 0 0 / 0.55);
-  --warn-fg: #f2c877;
+  --neutral-pill-bg: color-mix(in srgb, var(--ink) 12%, var(--card));
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ececea' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4.5 6.5 3.5 3.5 3.5-3.5'/%3E%3C/svg%3E");
   --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23111111' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 8.2 2.6 2.6L12 5.4'/%3E%3C/svg%3E");
   --dash-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23111111' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M4.5 8h7'/%3E%3C/svg%3E");
   --ig-them: #262626;
   --ig-them-2: #363636;
-  --shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px rgb(0 0 0 / 0.4);
-  --shadow-lg: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 16px 40px rgb(0 0 0 / 0.5);
-  color-scheme: dark;
 }
 
 /* Focus: one ring, never two. Things you press (buttons, pills, tabs,
@@ -1182,99 +1093,11 @@
 
 /* --- UI parts (components/os/ui) ------------------------------------------ */
 
-/* Tabs: underlined text (segmented controls are .os-seg). */
-.os-tabs {
-  display: flex;
-  gap: 16px;
-  border-bottom: 1px solid var(--line);
-}
-
-.os-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0;
-  margin-bottom: -1px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: color 120ms ease, border-color 120ms ease;
-}
-
-.os-tabs[data-size="sm"] .os-tab {
-  height: 32px;
-  font-size: var(--fs-xs);
-}
-
-.os-tab:hover {
-  color: var(--ink);
-}
-
-.os-tab[aria-selected="true"],
-.os-tab[aria-current="page"] {
-  color: var(--ink);
-  border-bottom-color: var(--ink);
-}
-
-.os-tabs-n {
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  background: var(--mark-bg);
-  color: var(--mark);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Status pills: one map for the whole OS (components/os/ui/pill.tsx
+/* Status pills: the shared Pill (cp-pill, components/os/ui/pill.tsx
    statusTone). good = live/sent/booked/won, neutral = draft/off/paused,
    warn = decide this, bad = failed/lost, ink = the one emphasised label.
-   "Draft" is never green. data-tone="mark" is the old name for good. */
-.os-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 22px;
-  padding: 0 9px;
-  border-radius: 999px;
-  background: var(--neutral-bg);
-  color: var(--neutral-fg);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.os-pill[data-tone="mark"],
-.os-pill[data-tone="good"] {
-  background: var(--good-bg);
-  color: var(--good-fg);
-}
-
-.os-pill[data-tone="warn"] {
-  background: var(--warn-bg);
-  color: var(--warn-fg);
-}
-
-.os-pill[data-tone="bad"] {
-  background: var(--bad-bg);
-  color: var(--bad-fg);
-}
-
-.os-pill[data-tone="ink"] {
+   "Draft" is never green. */
+.cp-pill.os-pill-ink {
   background: var(--ink);
   color: var(--on-ink);
 }
@@ -1477,31 +1300,6 @@
 .os-icon-btn:disabled {
   opacity: 0.4;
   cursor: default;
-}
-
-.os-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 40px 16px;
-  text-align: center;
-  color: var(--muted);
-}
-
-.os-empty-state-title {
-  margin: 0;
-  color: var(--ink);
-  font-weight: 500;
-}
-
-.os-empty-state-body {
-  margin: 0;
-  font-size: var(--fs-sm);
-}
-
-.os-empty-state-action {
-  margin-top: 6px;
 }
 
 .os-avatar {

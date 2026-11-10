@@ -12,6 +12,7 @@ import { sourceOf } from "@/lib/os/contacts-filter";
 import { lastActivity, stageKeyOf, type QueryContext, type ViewSort } from "@/lib/os/contacts-view";
 import { kindTabs, shortAgo } from "@/lib/os/labels";
 import { formatMoney } from "@/lib/os/money";
+import { pillClass } from "@/components/os/ui/pill";
 
 interface Props {
   rows: ContactRow[];
@@ -66,7 +67,7 @@ export default function ContactsTable(p: Props) {
         const k = stageKeyOf(c, p.ctx);
         const lbl = p.ctx.columnsFor(c.setterId ?? p.ctx.defaultSetterId).find((x) => x.key === k)?.label ?? k;
         return (
-          <span className="os-pill" data-tone={stageTone(k)} title={k === "won" && c.won ? `${c.won.offer} · ${formatMoney(c.won.amount, p.currency)}` : undefined}>
+          <span className={pillClass(stageTone(k))} title={k === "won" && c.won ? `${c.won.offer} · ${formatMoney(c.won.amount, p.currency)}` : undefined}>
             {lbl}
             {k === "won" && c.won ? ` · ${formatMoney(c.won.amount, p.currency)}` : null}
           </span>

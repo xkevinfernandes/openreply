@@ -40,12 +40,6 @@
   align-self: flex-start;
 }
 
-.os-bcl > .os-empty-state {
-  padding: 22px 24px;
-  border-radius: var(--radius-card);
-  background: var(--card);
-}
-
 /* The table always fits its card (the Actions column must stay clickable);
    the scroll is only a last resort. */
 .os-bcl-wrap {

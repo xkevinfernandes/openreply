@@ -3,17 +3,6 @@
 
 /* --- List --------------------------------------------------------------------- */
 
-.os-tab .count {
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  color: var(--faint);
-  font-variant-numeric: tabular-nums;
-}
-
-.os-tab[aria-selected="true"] .count {
-  color: var(--muted);
-}
-
 /* A warn dot on Personal: someone there may be asking to buy. */
 
 /* Each row is a one-column grid so it can collapse in place (height and
