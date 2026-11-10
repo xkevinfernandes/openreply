@@ -60,9 +60,9 @@ describe("mapping editor: Custom fields", () => {
         fields: { customFields: [{ ref: "goal", label: "Goal" }, { ref: "business", label: "Business" }], pipelines: [] },
       })
     );
-    expect(html).toContain("<select");
-    expect(html).toContain('<option value="goal" selected="">Goal</option>');
-    expect(html).toContain('<option value="business">Business</option>');
+    // The shared Select (@claudepreneur/brand): the trigger shows the pick.
+    expect(html).toContain("cp-select-trigger");
+    expect(html).toMatch(/cp-select-value">(?:<[^>]+>)*Goal</);
   });
 });
 
@@ -97,6 +97,6 @@ describe("a hand-typed Kit target", () => {
       })
     );
     expect(html).not.toContain("not found");
-    expect(html).toMatch(/<option value="business_type" selected="">/);
+    expect(html).toMatch(/cp-select-value">(?:<[^>]+>)*business_type</);
   });
 });

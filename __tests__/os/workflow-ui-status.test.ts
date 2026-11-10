@@ -79,9 +79,9 @@ describe("list rows", () => {
       })
     );
     expect(html).toContain(">Status<");
-    expect(html).toMatch(/data-status="live"[^>]*>.*?Live</);
-    expect(html).toMatch(/data-status="off"[^>]*>.*?Off</);
-    expect(html).toMatch(/data-status="unpublished"[^>]*>.*?Not published</);
+    expect(html).toMatch(/wf-status is-live"[^>]*>.*?Live</);
+    expect(html).toMatch(/wf-status is-off"[^>]*>.*?Off</);
+    expect(html).toMatch(/wf-status is-unpublished"[^>]*>.*?Not published</);
     // Only the published one with a moved draft says so.
     expect(html.match(/Unpublished changes/g)).toHaveLength(1);
     expect(html).toContain(`title="${MODE_TIP.draft.replace(/'/g, "&#x27;")}"`);
