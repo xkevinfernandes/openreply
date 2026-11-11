@@ -5,7 +5,7 @@
 // fields. Each custom field has a type, the setters that fill it (ticked in
 // each setter's Knowledge base), a Kit field and a GoHighLevel field.
 
-import { Select, Tag } from "@claudepreneur/brand/react";
+import { Button, Select, Tag } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { addField, editField, removeField } from "@/app/(os)/os/settings/actions";
@@ -122,12 +122,12 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
         <InfoTip label="About custom fields">Setters tick which fields they fill in their Knowledge base. Values sync to the mapped Kit and GoHighLevel fields.</InfoTip>
         <span className="os-cf-grow" />
         {canManage ? (
-          <button type="button" className="os-cf-btn primary" onClick={() => setEditing({ id: "new", focus: "label" })} disabled={editing?.id === "new"}>
+          <Button variant="primary" size="sm" onClick={() => setEditing({ id: "new", focus: "label" })} disabled={editing?.id === "new"}>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M8 3.5v9M3.5 8h9" />
             </svg>
             New field
-          </button>
+          </Button>
         ) : null}
       </div>
       {error ? (
@@ -311,17 +311,17 @@ function FieldEditor({
       </label>
       <div className="os-cf-form-actions">
         {field && !locked ? (
-          <button type="button" className="os-cf-btn danger" onClick={remove} disabled={pending}>
+          <Button variant="danger" size="sm" onClick={remove} disabled={pending}>
             {confirm ? "Delete for good?" : "Delete"}
-          </button>
+          </Button>
         ) : null}
         <span className="os-cf-grow" />
-        <button type="button" className="os-cf-btn" onClick={onCancel} disabled={pending}>
+        <Button size="sm" onClick={onCancel} disabled={pending}>
           Cancel
-        </button>
-        <button type="submit" className="os-cf-btn primary" disabled={pending}>
+        </Button>
+        <Button type="submit" variant="primary" size="sm" disabled={pending}>
           {field ? "Save" : "Add"}
-        </button>
+        </Button>
       </div>
     </form>
   );

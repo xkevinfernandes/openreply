@@ -1290,19 +1290,13 @@
   flex-wrap: wrap;
 }
 
-.os-si-acts a.os-si-btn {
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-}
-
 @media (max-width: 560px) {
   .os-si-row {
     grid-template-columns: 40px minmax(0, 1fr);
     row-gap: 8px;
   }
   .os-si-row > .os-si-status,
-  .os-si-row > .os-si-btn,
+  .os-si-row > .cp-btn,
   .os-si-row > .os-si-acts {
     grid-column: 2;
     grid-row: auto;

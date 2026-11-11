@@ -5,6 +5,7 @@
 // OS, GoHighLevel and Calendly below. Manage opens the full controls under
 // the row.
 
+import { Button, buttonClassName } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { pillClass } from "@/components/os/ui/pill";
 import { useRouter } from "next/navigation";
@@ -84,7 +85,7 @@ function Row({ id, logo, name, sub, tone, status, action, primary, canManage, ac
         {actions ? (
           <span className="os-si-acts">{actions}</span>
         ) : canManage ? (
-          <button type="button" className={`os-si-btn${primary && !open ? " primary" : ""}`} aria-expanded={open} aria-controls={`si-${id}`} onClick={() => setOpen((o) => !o)}>
+          <button type="button" className={buttonClassName(primary && !open ? "primary" : "secondary", "sm")} aria-expanded={open} aria-controls={`si-${id}`} onClick={() => setOpen((o) => !o)}>
             {open ? "Done" : action}
           </button>
         ) : (
@@ -178,9 +179,9 @@ export default function SettingsIntegrations({ instagram, zernio, dataos, views,
             actions={
               <>
                 {instagram.problem && canManage ? (
-                  <InstagramFixButton fix={instagram.problem.fix} sample={instagram.sample} className="os-si-btn primary" />
+                  <InstagramFixButton fix={instagram.problem.fix} sample={instagram.sample} className="cp-btn cp-btn-sm cp-btn-primary" />
                 ) : (
-                  <Link href="/os/settings?tab=instagram" className={`os-si-btn${!instagram.username ? " primary" : ""}`}>
+                  <Link href="/os/settings?tab=instagram" className={buttonClassName(!instagram.username ? "primary" : "secondary", "sm")}>
                     {instagram.username ? "Manage" : "Connect"}
                   </Link>
                 )}
@@ -308,9 +309,8 @@ function DataOsForm({ view }: { view: DataOsView }) {
       </label>
       <div className="os-si-form-actions">
         {view.baseUrl ? (
-          <button
-            type="button"
-            className="os-si-btn"
+          <Button
+            size="sm"
             disabled={pending}
             onClick={() =>
               start(async () => {
@@ -321,13 +321,13 @@ function DataOsForm({ view }: { view: DataOsView }) {
             }
           >
             Disconnect
-          </button>
+          </Button>
         ) : null}
         <span className="os-si-grow" />
         {msg?.error ? <span className="os-si-err">{msg.error}</span> : msg?.notice ? <span className="os-si-ok">{msg.notice}</span> : null}
-        <button type="submit" className="os-si-btn primary" disabled={pending}>
+        <Button type="submit" variant="primary" size="sm" disabled={pending}>
           Save
-        </button>
+        </Button>
       </div>
     </form>
   );

@@ -696,44 +696,6 @@
   font-weight: 600;
 }
 
-.os-si-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 32px;
-  min-width: 88px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: var(--radius);
-  background: var(--ctl);
-  color: var(--ink);
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.os-si-btn:hover {
-  background: var(--ctl-hover);
-}
-
-.os-si-btn.primary {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--on-ink);
-}
-
-.os-si-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.os-si-btn.primary:disabled {
-  opacity: 1;
-  background: var(--well);
-  color: var(--muted);
-}
-
 .os-si-manage {
   padding: 0 16px 16px 72px;
 }
@@ -839,7 +801,7 @@
     white-space: normal;
   }
 
-  .os-si-row > .os-si-btn,
+  .os-si-row > .cp-btn,
   .os-si-row > .os-si-acts {
     grid-column: 3;
     grid-row: 1 / span 2;

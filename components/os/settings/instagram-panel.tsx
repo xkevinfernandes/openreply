@@ -226,9 +226,9 @@ export function ZernioPanel({ canManage, sample = null, embedded = false }: { ca
           Get a key
         </a>
         <span className="os-si-grow" />
-        <button className="os-si-btn primary" disabled={busy || !apiKey}>
+        <Button variant="primary" size="sm" type="submit" disabled={busy || !apiKey}>
           {busy ? "Saving…" : "Save key"}
-        </button>
+        </Button>
       </div>
     </form>
   ) : (
@@ -244,9 +244,9 @@ export function ZernioPanel({ canManage, sample = null, embedded = false }: { ca
         {!data.profiles.length ? <p className="os-set-empty">Make a profile in Zernio, then reload this page.</p> : null}
         <div className="os-si-form-actions">
           <span className="os-si-grow" />
-          <button className="os-si-btn primary" disabled={busy || !profileId}>
+          <Button variant="primary" size="sm" type="submit" disabled={busy || !profileId}>
             {busy ? "Setting up…" : data.webhookReady && profileId === data.profileId ? "Repair webhook" : "Save and set up webhook"}
-          </button>
+          </Button>
         </div>
       </form>
       {data.webhookReady ? (
@@ -254,15 +254,15 @@ export function ZernioPanel({ canManage, sample = null, embedded = false }: { ca
           {data.accounts.map((a) => (
             <li key={a.id}>
               <span>@{a.username}</span>
-              <button type="button" className="os-si-btn" disabled={busy || a.connected} onClick={() => void act("accounts", "POST", { accountId: a.id })}>
+              <Button size="sm" disabled={busy || a.connected} onClick={() => void act("accounts", "POST", { accountId: a.id })}>
                 {a.connected ? "In use" : "Use this account"}
-              </button>
+              </Button>
             </li>
           ))}
           <li>
-            <button type="button" className="os-si-btn" disabled={busy} onClick={() => void act("connect", "POST")}>
+            <Button size="sm" disabled={busy} onClick={() => void act("connect", "POST")}>
               Connect another account
-            </button>
+            </Button>
           </li>
         </ul>
       ) : null}
