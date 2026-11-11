@@ -3,9 +3,10 @@
 // Knowledge base → Follow-ups: one card per sequence, a switch each, the
 // steps one tap deeper. Each card saves on its own.
 
+import { Button, Pill, TimePicker } from "@claudepreneur/brand/react";
 import { useState, useTransition } from "react";
 import { saveFollowupSequence } from "@/app/(os)/os/knowledge/actions";
-import { Field, Section, Switch, TextArea, TextInput } from "@/components/os/knowledge/fields";
+import { Field, Section, Select, Switch, TextArea, TextInput } from "@/components/os/knowledge/fields";
 import { InfoTip } from "@/components/os/ui";
 import {
   SEQUENCE_KEYS,
@@ -115,9 +116,9 @@ function SequenceCard({ setterId, initial }: { setterId: string; initial: Sequen
               <li key={s.id}>
                 <span className="lbl">{s.label}</span>
                 <span className="when">{timingLabel(s.timing)}</span>
-                {s.fixedLine && <span className="chip quiet">Fixed line</span>}
-                {s.resource && <span className="chip quiet">+ resource</span>}
-                {s.voicePhrase && <span className="chip quiet">Voice</span>}
+                {s.fixedLine && <Pill>Fixed line</Pill>}
+                {s.resource && <Pill>+ resource</Pill>}
+                {s.voicePhrase && <Pill>Voice</Pill>}
               </li>
             ))}
             {initial.key === "pre_call" && (
@@ -127,9 +128,9 @@ function SequenceCard({ setterId, initial }: { setterId: string; initial: Sequen
               </li>
             )}
           </ol>
-          <button type="button" className="os-link" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          <Button variant="text" className="is-ink" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
             {open ? "Close steps" : "Edit steps"}
-          </button>
+          </Button>
         </>
       )}
 
@@ -156,33 +157,33 @@ function SequenceCard({ setterId, initial }: { setterId: string; initial: Sequen
                   </Field>
                 </div>
                 <label className="os-seq-check">
-                  <input type="checkbox" checked={s.resource} onChange={(e) => setStep(i, { resource: e.target.checked })} />
+                  <input type="checkbox" className="cp-checkbox" checked={s.resource} onChange={(e) => setStep(i, { resource: e.target.checked })} />
                   Attach a matching resource they haven&apos;t had (from this setter&apos;s lead magnets)
                 </label>
                 <div className="os-kb-item-foot">
-                  <button type="button" className="os-link quiet" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">
+                  <Button variant="text" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">
                     ↑
-                  </button>
-                  <button type="button" className="os-link quiet" disabled={i === seq.steps.length - 1} onClick={() => move(i, 1)} aria-label="Move down">
+                  </Button>
+                  <Button variant="text" disabled={i === seq.steps.length - 1} onClick={() => move(i, 1)} aria-label="Move down">
                     ↓
-                  </button>
-                  <button type="button" className="os-link quiet" onClick={() => setSeq((x) => ({ ...x, steps: x.steps.filter((_, j) => j !== i) }))}>
+                  </Button>
+                  <Button variant="text" onClick={() => setSeq((x) => ({ ...x, steps: x.steps.filter((_, j) => j !== i) }))}>
                     Remove step
-                  </button>
+                  </Button>
                 </div>
               </li>
             ))}
           </ol>
           <div className="os-seq-foot">
-            <button type="button" className="os-button" disabled={seq.steps.length >= 8} onClick={() => setSeq((x) => ({ ...x, steps: [...x.steps, newStep(x.key, x.steps.length + 1)] }))}>
+            <Button disabled={seq.steps.length >= 8} onClick={() => setSeq((x) => ({ ...x, steps: [...x.steps, newStep(x.key, x.steps.length + 1)] }))}>
               Add step
-            </button>
+            </Button>
             <span role="status" className="os-kb-note" data-kind={note?.kind}>
               {note?.text ?? (dirty ? "Unsaved changes" : "")}
             </span>
-            <button type="button" className="os-button primary" disabled={!dirty || pending} onClick={() => save(seq)}>
+            <Button variant="primary" disabled={!dirty || pending} onClick={() => save(seq)}>
               {pending ? "Saving…" : "Save"}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -209,25 +210,19 @@ function TimingInput({ id, timing, kinds, onChange }: { id: string; timing: Step
   return (
     <span className="os-seq-timing">
       {kinds.length > 1 && (
-        <span className="os-select">
-          <select
-            aria-label="Kind of timing"
-            value={timing.kind}
-            onChange={(e) => {
-              const k = e.target.value as StepTiming["kind"];
-              onChange(k === "day_before" || k === "day_of" ? { kind: k, time: k === "day_before" ? "17:00" : "09:00" } : { kind: k, minutes: k === "before_call" ? 120 : 120 });
-            }}
-          >
-            {kinds.map((k) => (
-              <option key={k} value={k}>
-                {TIMING_NAMES[k]}
-              </option>
-            ))}
-          </select>
-        </span>
+        <Select
+          aria-label="Kind of timing"
+          compact
+          value={timing.kind}
+          onChange={(v) => {
+            const k = v as StepTiming["kind"];
+            onChange(k === "day_before" || k === "day_of" ? { kind: k, time: k === "day_before" ? "17:00" : "09:00" } : { kind: k, minutes: k === "before_call" ? 120 : 120 });
+          }}
+          options={kinds.map((k) => [k, TIMING_NAMES[k]])}
+        />
       )}
       {isClock ? (
-        <input id={id} className="os-input" type="time" value={timing.time} onChange={(e) => onChange({ kind: timing.kind, time: e.target.value || "09:00" })} />
+        <TimePicker id={id} value={timing.time} onChange={(v) => onChange({ kind: timing.kind, time: v || "09:00" })} />
       ) : (
         <>
           <input
@@ -238,13 +233,17 @@ function TimingInput({ id, timing, kinds, onChange }: { id: string; timing: Step
             value={Math.round(minutes / unit)}
             onChange={(e) => onChange({ kind: timing.kind as "after" | "before_call", minutes: Math.max(1, Number(e.target.value) || 1) * unit })}
           />
-          <span className="os-select">
-            <select aria-label="Unit" value={unit} onChange={(e) => onChange({ kind: timing.kind as "after" | "before_call", minutes: Math.round(minutes / unit) * Number(e.target.value) })}>
-              <option value={1}>min</option>
-              <option value={60}>hours</option>
-              <option value={1440}>days</option>
-            </select>
-          </span>
+          <Select
+            aria-label="Unit"
+            compact
+            value={String(unit)}
+            onChange={(v) => onChange({ kind: timing.kind as "after" | "before_call", minutes: Math.round(minutes / unit) * Number(v) })}
+            options={[
+              ["1", "min"],
+              ["60", "hours"],
+              ["1440", "days"],
+            ]}
+          />
         </>
       )}
     </span>

@@ -118,40 +118,37 @@
   background-color: var(--ink);
 }
 
-.os-ix-seg {
+/* Status tabs (the shared Tabs): one row filling the list's width. */
+.os-ix-seg.cp-tabs {
   display: flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-  background: var(--ctl);
+  flex-wrap: nowrap;
+}
+
+.os-ix-seg .cp-tab {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
 }
 
 .os-ix-seg-tab {
-  flex: 1;
-  min-width: 0;
-  height: 26px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 4px;
-  border-radius: 999px;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  text-decoration: none;
-  white-space: nowrap;
 }
 
-.os-ix-seg-tab[aria-selected="true"] {
-  background: var(--ink);
-  color: var(--on-ink);
-  font-weight: 500;
-}
-
-/* A pending count is neutral, not "good"; the picked tab inherits on-ink. */
-/* A tab's count is drafts waiting: "decide this", so amber. */
+/* A tab's count is drafts waiting: "decide this", so amber; on the picked
+   (ink) tab an amber chip, which reads on ink in both themes. */
 .os-ix-seg-n {
   color: var(--warn);
   font-variant-numeric: tabular-nums;
+}
+
+.os-ix-seg .cp-tab[aria-current="page"] .os-ix-seg-n {
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-weight: 600;
 }
 
 .os-ix-rows {
@@ -229,21 +226,8 @@
   margin-top: 2px;
 }
 
-.os-ix-stage {
-  height: 22px;
-  padding: 0 10px;
-  display: inline-flex;
-  align-items: center;
-  border: 0;
-  border-radius: 999px;
-  background: var(--neutral-bg);
-  color: var(--neutral-fg);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-}
-
 /* On the picked row (--well) the neutral pill would vanish: lift it to the card. */
-.os-ix-row[aria-current="page"] .os-ix-stage {
+.os-ix-row[aria-current="page"] .cp-pill.os-ix-stage:not(.cp-pill-good, .cp-pill-bad, .cp-pill-warn) {
   background: var(--card);
 }
 
@@ -269,16 +253,6 @@
 
 .os-ix-empty {
   padding: 24px 8px;
-}
-
-.os-ix-empty .os-empty-state-title {
-  font-size: var(--fs-body);
-  font-weight: 600;
-}
-
-.os-ix-empty .os-empty-state-body {
-  font-size: var(--fs-sm);
-  color: var(--muted);
 }
 
 .os-ix-rows > li > :not(.os-ix-row) {
@@ -381,31 +355,6 @@
 
 a.os-th-name:hover {
   text-decoration: underline;
-}
-
-.os-th-stage {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: var(--neutral-bg);
-  color: var(--neutral-fg);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-/* R1-5: the contacts table's map. Green once a call is booked, red when lost,
-   neutral on the way. */
-.os-th-stage[data-tone="good"] {
-  background: var(--good-bg);
-  color: var(--good-fg);
-}
-
-.os-th-stage[data-tone="bad"] {
-  background: var(--bad-bg);
-  color: var(--bad-fg);
 }
 
 .os-th-triage {
@@ -632,7 +581,7 @@ a.os-th-name:hover {
 /* Over a real picture the caption sits on the photo's own dark scrim. */
 .os-th-story-card[data-has-thumb] {
   /* fixed white on the scrim in both themes; --on-photo once the shell has it */
-  color: var(--on-photo, var(--on-sage));
+  color: var(--on-photo, #fff);
 }
 
 .os-th-story-card img {
@@ -657,12 +606,12 @@ a.os-th-name:hover {
 }
 
 .os-th-story-meta {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   opacity: 0.85;
 }
 
 .os-th-story-cap {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   line-height: 1.25;
 }
@@ -991,7 +940,7 @@ a.os-th-buttons-btn:hover {
   border: 2px solid var(--card);
   border-radius: 999px;
   background: var(--well);
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 .os-th-react[data-heart] {
@@ -1363,42 +1312,6 @@ a.os-th-buttons-btn:hover {
 .os-cmp-ghost[aria-expanded="true"] {
   background: var(--card);
   color: var(--ink);
-}
-
-.os-cmp-attach {
-  position: relative;
-}
-
-.os-cmp-menu {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 6px);
-  z-index: 10;
-  min-width: 220px;
-  margin: 0;
-  padding: 6px;
-  list-style: none;
-  border: 0;
-  border-radius: var(--radius-card);
-  background: var(--card);
-  box-shadow: var(--shadow);
-}
-
-.os-cmp-menu button {
-  width: 100%;
-  min-height: 36px;
-  padding: 8px 12px;
-  border: 0;
-  border-radius: var(--radius);
-  color: var(--ink);
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.os-cmp-menu button:hover {
-  background: var(--tint);
 }
 
 @media (prefers-reduced-motion: reduce) {

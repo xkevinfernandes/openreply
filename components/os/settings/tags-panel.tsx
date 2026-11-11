@@ -5,6 +5,7 @@
 // tags can be recoloured but not renamed or deleted; the badge says what
 // reads them.
 
+import { Button } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { addTagAction, deleteTagAction, editTagAction, freeAliasAction } from "@/app/(os)/os/settings/tags-actions";
@@ -52,9 +53,9 @@ export default function TagsPanel({ board, canManage }: { board: TagBoard; canMa
             <p>Renaming updates every contact, view, broadcast and workflow. Kit keeps the name it already received.</p>
           </div>
           {canManage ? (
-            <button type="button" className="os-button primary" onClick={() => setOpen({ kind: "new" })}>
+            <Button variant="primary" onClick={() => setOpen({ kind: "new" })}>
               New tag
-            </button>
+            </Button>
           ) : null}
         </header>
         <div className="os-set-tablewrap os-tg-wrap">
@@ -98,18 +99,17 @@ export default function TagsPanel({ board, canManage }: { board: TagBoard; canMa
                   <td className="os-tg-actions">
                     {canManage ? (
                       <>
-                        <button type="button" className="os-button ghost" onClick={() => setOpen({ kind: "edit", row: r })}>
+                        <Button variant="text" onClick={() => setOpen({ kind: "edit", row: r })}>
                           Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="os-button ghost"
+                        </Button>
+                        <Button
+                          variant="text"
                           disabled={r.system}
                           title={r.system ? `System tag: ${r.readBy} reads it by name.` : undefined}
                           onClick={() => setOpen({ kind: "delete", row: r, used: r.usedBy })}
                         >
                           Delete
-                        </button>
+                        </Button>
                       </>
                     ) : null}
                   </td>
@@ -194,9 +194,8 @@ function TagEditor({ row, onClose }: { row?: TagRow; onClose: () => void }) {
               {aliases.map((a) => (
                 <li key={a.id}>
                   <span>{a.name}</span>
-                  <button
-                    type="button"
-                    className="os-button ghost"
+                  <Button
+                    variant="text"
                     disabled={pending}
                     title="It stops landing on this tag, and the name can be used again."
                     onClick={() =>
@@ -209,7 +208,7 @@ function TagEditor({ row, onClose }: { row?: TagRow; onClose: () => void }) {
                     }
                   >
                     Free
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -221,12 +220,12 @@ function TagEditor({ row, onClose }: { row?: TagRow; onClose: () => void }) {
           </p>
         ) : null}
         <div className="os-tg-form-actions">
-          <button type="button" className="os-button" onClick={onClose} disabled={pending}>
+          <Button onClick={onClose} disabled={pending}>
             Cancel
-          </button>
-          <button type="submit" className="os-button primary" disabled={pending || !name.trim()}>
+          </Button>
+          <Button type="submit" variant="primary" disabled={pending || !name.trim()}>
             {pending ? "Saving…" : row ? "Save" : "Create"}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

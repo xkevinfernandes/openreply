@@ -4,6 +4,7 @@
 // whole row clickable; "New workflow" opens the template picker (template,
 // then its keyword); the row's ⋯ menu deletes it (inline confirm).
 
+import { Button, MenuButton } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createWorkflowAction } from "@/app/(os)/os/automations/workflows/actions";
@@ -15,7 +16,7 @@ import { listFunnel } from "@/components/os/workflows/view";
 import { callAction, hasUnpublishedChanges, MODE_SHORT, MODE_TIP, STATUS_LABEL, STATUS_TIP, workflowStatus } from "@/components/os/workflows/status";
 import { TEMPLATES, type TemplateInfo, type TemplateKey, type TriggerKind } from "@/components/os/workflows/templates";
 import type { WorkflowRow } from "@/components/os/workflows/types";
-import { InfoTip } from "@/components/os/ui";
+import { EmptyState, InfoTip, Pill } from "@/components/os/ui";
 import "@/components/os/workflows/workflows.css";
 
 /** Step names over the numbers when the row stacks (narrow list). */
@@ -199,12 +200,12 @@ function NewWorkflowForm({ template, resourceSlug, onBack }: { template: Templat
         </p>
       ) : null}
       <div className="wf-picker-actions">
-        <button type="button" className="os-button" onClick={onBack}>
+        <Button onClick={onBack}>
           Back
-        </button>
-        <button type="submit" className="os-button primary" disabled={!ready || pending}>
+        </Button>
+        <Button type="submit" variant="primary" disabled={!ready || pending}>
           {pending ? "Creating…" : "Create"}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -214,10 +215,10 @@ export function NewWorkflowButton({ resourceSlug }: { resourceSlug?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="wf-new">
-      <button type="button" className="os-button primary wf-new-btn" data-wf-new aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen((o) => !o)}>
+      <Button variant="primary" className="wf-new-btn" data-wf-new aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen((o) => !o)}>
         <WfIcon name="plus" />
         New workflow
-      </button>
+      </Button>
       {open ? <TemplatePicker onClose={() => setOpen(false)} resourceSlug={resourceSlug} /> : null}
     </div>
   );
@@ -228,10 +229,10 @@ export function WorkflowStatusCell({ row, showChanges = true }: { row: Pick<Work
   const status = workflowStatus(row);
   return (
     <span className="wf-status-cell">
-      <span className="wf-status" data-status={status} title={STATUS_TIP[status]}>
+      <Pill className={`wf-status is-${status}`} tone={status === "live" ? "good" : "neutral"} title={STATUS_TIP[status]}>
         <span className="wf-status-dot" aria-hidden="true" />
         {STATUS_LABEL[status]}
-      </span>
+      </Pill>
       {showChanges && hasUnpublishedChanges(row) ? <span className="wf-unpub">Unpublished changes</span> : null}
     </span>
   );
@@ -240,9 +241,8 @@ export function WorkflowStatusCell({ row, showChanges = true }: { row: Pick<Work
 export default function WorkflowList({ rows }: { rows: WorkflowRow[] }) {
   if (!rows.length) {
     return (
-      <section className="wf-list wf-list-empty" aria-label="Workflows">
-        <WfIcon name="randomizer" size={20} />
-        <span>No workflows yet</span>
+      <section className="wf-list" aria-label="Workflows">
+        <EmptyState title="No workflows yet" />
       </section>
     );
   }
@@ -271,24 +271,8 @@ export default function WorkflowList({ rows }: { rows: WorkflowRow[] }) {
 
 /** One row: the whole row opens the builder; the ⋯ menu holds Delete (inline confirm under the row). */
 function WorkflowListRow({ r }: { r: WorkflowRow }) {
-  const [menu, setMenu] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [gone, setGone] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menu) return;
-    const onDown = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenu(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenu(false);
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menu]);
 
   if (gone) return null;
   return (
@@ -326,27 +310,13 @@ function WorkflowListRow({ r }: { r: WorkflowRow }) {
         <span>{r.ab ? <span className="wf-ab-badge" title="Randomizer running">A/B</span> : null}</span>
         <span aria-hidden="true" />
       </Link>
-      <div className="wf-row-menu" ref={menuRef}>
-        <button type="button" className="wf-iconbtn" aria-label={`More for ${r.name}`} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
-          <WfIcon name="more" />
-        </button>
-        {menu ? (
-          <div className="wf-menu" role="menu">
-            <button
-              type="button"
-              role="menuitem"
-              className="wf-menu-item"
-              data-tone="bad"
-              onClick={() => {
-                setMenu(false);
-                setConfirming(true);
-              }}
-            >
-              <WfIcon name="trash" size={14} />
-              Delete
-            </button>
-          </div>
-        ) : null}
+      <div className="wf-row-menu">
+        <MenuButton
+          aria-label={`More for ${r.name}`}
+          icon={<WfIcon name="more" />}
+          size="sm"
+          items={[{ label: "Delete", icon: <WfIcon name="trash" size={14} />, danger: true, onSelect: () => setConfirming(true) }]}
+        />
       </div>
       {confirming ? <DeleteWorkflowConfirm id={r.id} name={r.name} live={r.live} onCancel={() => setConfirming(false)} onDeleted={() => setGone(true)} /> : null}
     </div>

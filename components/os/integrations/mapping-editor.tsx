@@ -1,5 +1,6 @@
 "use client";
 
+import { Button, SegmentedSwitch, Select } from "@claudepreneur/brand/react";
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { loadProviderFields, saveMapping, type IntegrationActionResult } from "@/app/(os)/os/integrations/actions";
 import { editField } from "@/app/(os)/os/settings/actions";
@@ -88,18 +89,17 @@ export function FieldSelect({ value, onChange, label, fields, fieldsError, provi
   const known = Boolean(match);
   return (
     <FixTarget value={value ?? null} match={match?.ref} onChange={onChange}>
-    <label className="os-select">
-      <span className="sr-only">{`${label}: ${name} field`}</span>
-      <select value={match?.ref ?? value ?? ""} onChange={(e) => onChange(e.target.value || null)}>
-        <option value="">Don&apos;t send</option>
-        {fields.customFields.map((f) => (
-          <option key={f.ref} value={f.ref}>
-            {f.label}
-          </option>
-        ))}
-        {value && !known && <option value={value}>{value} (not found)</option>}
-      </select>
-    </label>
+    <Select
+      aria-label={`${label}: ${name} field`}
+      compact
+      value={match?.ref ?? value ?? ""}
+      onChange={(v) => onChange(v || null)}
+      options={[
+        { value: "", label: "Don't send" },
+        ...fields.customFields.map((f) => ({ value: f.ref, label: f.label })),
+        ...(value && !known ? [{ value, label: `${value} (not found)` }] : []),
+      ]}
+    />
     </FixTarget>
   );
 }
@@ -169,14 +169,16 @@ export default function MappingEditor({ provider, initial, fields: customFields,
           <strong>Who</strong>
           <span>Personal DMs stay out unless you pick everyone.</span>
         </div>
-        <div className="os-segmented" role="group" aria-label="Who to send">
-          <button type="button" aria-pressed={m.scope === "sales"} onClick={() => patch({ scope: "sales" })}>
-            Sales contacts
-          </button>
-          <button type="button" aria-pressed={m.scope === "all"} onClick={() => patch({ scope: "all" })}>
-            Everyone
-          </button>
-        </div>
+        <SegmentedSwitch
+          label="Who to send"
+          onWell
+          value={m.scope}
+          onChange={(v) => patch({ scope: v })}
+          options={[
+            { value: "sales", label: "Sales contacts" },
+            { value: "all", label: "Everyone" },
+          ]}
+        />
       </div>
 
       {fieldsError && <p className="os-int-hint">{fieldsError} Type the field reference instead.</p>}
@@ -278,17 +280,13 @@ export default function MappingEditor({ provider, initial, fields: customFields,
               <th scope="row">Pipeline</th>
               <td>
                 {fields && fields.pipelines.length ? (
-                  <label className="os-select">
-                    <span className="sr-only">Pipeline</span>
-                    <select value={m.pipelineId ?? ""} onChange={(e) => patch({ pipelineId: e.target.value || null, stageMap: {} })}>
-                      <option value="">No pipeline</option>
-                      {fields.pipelines.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <Select
+                    aria-label="Pipeline"
+                    compact
+                    value={m.pipelineId ?? ""}
+                    onChange={(v) => patch({ pipelineId: v || null, stageMap: {} })}
+                    options={[{ value: "", label: "No pipeline" }, ...fields.pipelines.map((p) => ({ value: p.id, label: p.name }))]}
+                  />
                 ) : (
                   <span className="os-int-native">{fields ? "No pipelines (or no opportunities scope)" : "…"}</span>
                 )}
@@ -299,17 +297,13 @@ export default function MappingEditor({ provider, initial, fields: customFields,
                 <tr key={s}>
                   <th scope="row">{stageLabels[s]}</th>
                   <td>
-                    <label className="os-select">
-                      <span className="sr-only">{`${stageLabels[s]}: pipeline stage`}</span>
-                      <select value={m.stageMap?.[s] ?? ""} onChange={(e) => patch({ stageMap: { ...m.stageMap, [s]: e.target.value || null } })}>
-                        <option value="">Leave as is</option>
-                        {pipeline.stages.map((st) => (
-                          <option key={st.id} value={st.id}>
-                            {st.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <Select
+                      aria-label={`${stageLabels[s]}: pipeline stage`}
+                      compact
+                      value={m.stageMap?.[s] ?? ""}
+                      onChange={(v) => patch({ stageMap: { ...m.stageMap, [s]: v || null } })}
+                      options={[{ value: "", label: "Leave as is" }, ...pipeline.stages.map((st) => ({ value: st.id, label: st.name }))]}
+                    />
                   </td>
                 </tr>
               ))}
@@ -319,9 +313,9 @@ export default function MappingEditor({ provider, initial, fields: customFields,
 
       <div className="os-int-save">
         <span>{dirty ? "Unsaved changes" : ""}</span>
-        <button className="os-button primary" disabled={saving || !dirty}>
+        <Button variant="primary" type="submit" disabled={saving || !dirty}>
           {saving ? "Saving…" : "Save mapping"}
-        </button>
+        </Button>
       </div>
     </form>
   );

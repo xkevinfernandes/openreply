@@ -75,7 +75,7 @@
   border-radius: 50%;
   background: var(--card);
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
 }
 
@@ -91,7 +91,7 @@
   color: var(--faint);
 }
 
-.os-seq > .os-link {
+.os-seq > .cp-btn-text {
   justify-self: start;
 }
 

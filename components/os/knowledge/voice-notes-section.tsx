@@ -5,6 +5,7 @@
 // recording goes instead of the words (once per person). Manual notes are
 // only sent by hand from the Inbox composer's mic.
 
+import { Button } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { addVoiceClip, clearVoiceAudio, deleteVoiceClip, updateVoiceClip, applySampleTone, type VoiceClipPatch } from "@/app/(os)/os/knowledge/voice-actions";
@@ -13,6 +14,7 @@ import RecordBox from "@/components/os/voice/record-box";
 import VoicePlayer from "@/components/os/voice/voice-player";
 import type { VoiceClipView } from "@/lib/os/voice/clips";
 import { matchable } from "@/lib/os/voice/match";
+import { useOsConfirm } from "@/components/os/ui/confirm";
 
 interface Props {
   setterId: string;
@@ -63,9 +65,9 @@ export default function VoiceNotesSection({ setterId, clips, sampleData }: Props
         ))}
       </ol>
       <div className="os-vn-add">
-        <button type="button" className="os-button" disabled={adding} onClick={() => add("bank")}>
+        <Button disabled={adding} onClick={() => add("bank")}>
           Add a line
-        </button>
+        </Button>
       </div>
 
       <h3 className="os-kb-sub">Manual notes (you send these)</h3>
@@ -78,9 +80,9 @@ export default function VoiceNotesSection({ setterId, clips, sampleData }: Props
         </ol>
       )}
       <div className="os-vn-add">
-        <button type="button" className="os-button" disabled={adding} onClick={() => add("manual")}>
+        <Button disabled={adding} onClick={() => add("manual")}>
           Add a manual note
-        </button>
+        </Button>
         {error && (
           <span className="os-kb-note" data-kind="error" role="alert">
             {error}
@@ -92,6 +94,7 @@ export default function VoiceNotesSection({ setterId, clips, sampleData }: Props
 }
 
 function ClipRow({ clip, sampleData }: { clip: VoiceClipView; sampleData: boolean }) {
+  const confirmAsk = useOsConfirm();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [phrase, setPhrase] = useState(clip.phrase);
@@ -180,12 +183,12 @@ function ClipRow({ clip, sampleData }: { clip: VoiceClipView; sampleData: boolea
         {clip.url && !recording && (
           <>
             <VoicePlayer url={clip.url} durationMs={clip.durationMs} tone="plain" label={clip.label} />
-            <button type="button" className="os-button ghost" onClick={() => setRecording(true)} disabled={pending}>
+            <Button variant="text" onClick={() => setRecording(true)} disabled={pending}>
               Re-record
-            </button>
-            <button type="button" className="os-link quiet" onClick={() => run(() => clearVoiceAudio(clip.id))} disabled={pending}>
+            </Button>
+            <Button variant="text" onClick={() => run(() => clearVoiceAudio(clip.id))} disabled={pending}>
               Remove recording
-            </button>
+            </Button>
           </>
         )}
         {(!clip.url || recording) && (
@@ -200,16 +203,16 @@ function ClipRow({ clip, sampleData }: { clip: VoiceClipView; sampleData: boolea
           />
         )}
         {!clip.url && sampleData && (
-          <button type="button" className="os-link" onClick={() => run(() => applySampleTone(clip.id))} disabled={pending}>
+          <Button variant="text" className="is-ink" onClick={() => run(() => applySampleTone(clip.id))} disabled={pending}>
             Use a sample chime
-          </button>
+          </Button>
         )}
       </div>
 
       <div className="os-vn-foot">
         {bank && (
           <label className="os-vn-check">
-            <input type="checkbox" checked={clip.leadIn} disabled={pending} onChange={(e) => save({ leadIn: e.target.checked })} />
+            <input type="checkbox" className="cp-checkbox" checked={clip.leadIn} disabled={pending} onChange={(e) => save({ leadIn: e.target.checked })} />
             Lead-in: plays at the start of a bubble, then the rest goes as text
           </label>
         )}
@@ -219,16 +222,15 @@ function ClipRow({ clip, sampleData }: { clip: VoiceClipView; sampleData: boolea
         <span role="status" className="os-kb-note" data-kind={note?.kind}>
           {pending ? "Saving…" : note?.text}
         </span>
-        <button
-          type="button"
-          className="os-link quiet"
+        <Button
+          variant="text"
           disabled={pending}
-          onClick={() => {
-            if (window.confirm(`Delete "${clip.label || clip.phrase || "this clip"}"? The recording goes too.`)) run(() => deleteVoiceClip(clip.id));
+          onClick={async () => {
+            if (await confirmAsk(`Delete "${clip.label || clip.phrase || "this clip"}"? The recording goes too.`, { danger: true, confirmLabel: "Delete" })) run(() => deleteVoiceClip(clip.id));
           }}
         >
           Delete
-        </button>
+        </Button>
       </div>
     </li>
   );

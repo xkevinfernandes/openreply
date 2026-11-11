@@ -101,18 +101,11 @@
   cursor: default;
 }
 
-.wf-seg {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--ctl);
-}
-
 /* Full width in the inspector's column, never stretched tall. */
-.wf-seg-full {
+.cp-seg.wf-seg-full {
   display: flex;
   flex: none;
+  flex-wrap: nowrap;
 }
 
 /* In the inspector's column, "full" means full width, never full height. */
@@ -121,33 +114,18 @@
   align-self: stretch;
 }
 
-.wf-seg button {
+.wf-seg-full .cp-seg-item {
   flex: 1 1 auto;
-  height: 28px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  font: inherit;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  cursor: pointer;
+}
+
+.cp-seg.wf-mode-seg {
+  background: var(--ctl);
+}
+
+.wf-mode-opt {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 6px;
-  white-space: nowrap;
-}
-
-.wf-seg button:hover:not([aria-checked="true"]) {
-  color: var(--ink);
-}
-
-.wf-seg button[aria-checked="true"] {
-  background: var(--ink);
-  box-shadow: none;
-  font-weight: 500;
-  color: var(--on-ink);
 }
 
 .wf-mode-dot {
@@ -164,11 +142,11 @@
   background: var(--muted);
 }
 
-.wf-seg button[aria-checked="false"] .wf-mode-dot {
+.wf-mode-seg .cp-seg-item[aria-checked="false"] .wf-mode-dot {
   background: var(--ghost);
 }
 
-.wf-seg button[aria-checked="true"] .wf-mode-dot {
+.wf-mode-seg .cp-seg-item[aria-checked="true"] .wf-mode-dot {
   background: var(--on-ink);
 }
 
@@ -179,7 +157,7 @@
   padding: 0 8px;
   border-radius: 999px;
   background: var(--tint);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -363,7 +341,7 @@
   padding: 0 7px;
   border-radius: 999px;
   background: var(--card);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--muted);
   display: inline-flex;
@@ -375,18 +353,9 @@
   border-radius: var(--radius-card);
   font-size: var(--fs-sm);
   background: var(--card);
-  padding: 8px 10px;
+  padding: var(--list-pad);
   /* The row lays itself out by the card's width, not the window's. */
   container: wf-list / inline-size;
-}
-
-.wf-list-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 160px;
-  color: var(--ghost);
 }
 
 .wf-list-grid {
@@ -460,17 +429,7 @@
 }
 
 .wf-status {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 11px;
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  white-space: nowrap;
-  background: var(--tint);
-  color: var(--muted);
 }
 
 .wf-status-dot {
@@ -481,23 +440,19 @@
   background: var(--ghost);
 }
 
-.wf-status[data-status="live"] {
-  background: var(--mark-bg);
-  color: var(--mark);
+.wf-status.is-live .wf-status-dot {
+  background: currentColor;
 }
 
-.wf-status[data-status="live"] .wf-status-dot {
-  background: var(--mark);
-}
-
-.wf-status[data-status="unpublished"] {
+.wf-status.is-unpublished {
   background: transparent;
-  border: 1px dashed var(--line-strong);
-  color: var(--ghost);
+  outline: 1px dashed var(--line-strong);
+  outline-offset: -1px;
+  color: var(--muted);
 }
 
 .wf-unpub {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--warn);
   white-space: nowrap;
 }
@@ -573,7 +528,7 @@
 }
 
 .wf-fnum span {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ghost);
 }
 
@@ -625,42 +580,6 @@
    * staying there when the confirm opens below. */
   top: 21px;
   right: 8px;
-}
-
-.wf-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 20;
-  min-width: 140px;
-  padding: 4px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--paper);
-  box-shadow: var(--shadow-lg);
-}
-
-.wf-menu-item {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  border: 0;
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.wf-menu-item[data-tone="bad"] {
-  color: var(--bad);
-}
-
-.wf-menu-item:hover {
-  background: var(--paper-2);
 }
 
 .wf-delete-confirm {
@@ -747,7 +666,7 @@
 
   .wf-fcell-lab {
     display: block;
-    font-size: 11px;
+    font-size: var(--fs-xs);
     color: var(--muted);
     white-space: nowrap;
     overflow: hidden;
@@ -838,7 +757,7 @@
 }
 
 .wf-save {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ghost);
   white-space: nowrap;
 }
@@ -911,7 +830,7 @@
 
 .wf-strip-pct,
 .wf-since {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ghost);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -928,14 +847,14 @@
   background: var(--bad-bg);
   color: var(--bad-fg);
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .wf-note {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   white-space: nowrap;
 }
@@ -1109,7 +1028,7 @@
   background: var(--paper);
   color: var(--muted);
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -1151,7 +1070,7 @@
 
 .wf-reels-table thead th {
   border-top: 0;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--muted);
 }
@@ -1279,7 +1198,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 10px 0;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--muted);
   min-width: 0;
@@ -1305,13 +1224,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
 .wf-stat {
   margin-left: auto;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
@@ -1427,7 +1346,7 @@
   border: 0;
   border-radius: 999px;
   background: var(--well);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   white-space: nowrap;
 }
 
@@ -1437,7 +1356,7 @@
 
 .wf-node-problem {
   margin: 0 10px 8px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--bad);
 }
 
@@ -1454,7 +1373,7 @@
   gap: 6px;
   height: 24px;
   padding: 0 14px 0 10px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
@@ -1480,10 +1399,10 @@
   max-width: 100%;
   box-sizing: border-box;
   padding: 2px 9px;
-  border: 1px solid #3797f0;
+  border: 1px solid var(--line-input);
   border-radius: 12px;
-  color: #3797f0;
-  font-size: 11px;
+  color: var(--ink);
+  font-size: var(--fs-xs);
   font-weight: 600;
   line-height: 16px;
   overflow: hidden;
@@ -1564,40 +1483,14 @@
 
 /* Inspector tabs: a pill track, the picked tab in ink. */
 .wf-tabbar {
-  display: flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--ctl);
   flex: 1;
+  flex-wrap: nowrap;
   margin-right: 4px;
 }
 
-.wf-tabbar button {
+.wf-tabbar .cp-tab {
   flex: 1;
-  height: 30px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  font: inherit;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   gap: 6px;
-}
-
-.wf-tabbar button:hover:not([aria-selected="true"]) {
-  color: var(--ink);
-}
-
-.wf-tabbar button[aria-selected="true"] {
-  background: var(--ink);
-  box-shadow: none;
-  font-weight: 500;
-  color: var(--on-ink);
 }
 
 .wf-insp-title {
@@ -1614,7 +1507,7 @@
 }
 
 .wf-insp-stat {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ghost);
 }
 
@@ -1661,7 +1554,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--muted);
 }
@@ -1681,17 +1574,6 @@
 .wf-select {
   flex: 1 1 auto;
   min-width: 0;
-  height: 32px;
-  /* The shared hairline chevron, as on every .os-select (R1-3). Set the
-     image, never the background shorthand, so the colour stays --ctl. */
-  appearance: none;
-  -webkit-appearance: none;
-  padding-right: 32px;
-  background-image: var(--chevron);
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  background-size: 14px;
-  cursor: pointer;
 }
 
 .wf-num {
@@ -1761,7 +1643,7 @@
 }
 
 .wf-count {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ghost);
   font-variant-numeric: tabular-nums;
 }
@@ -1901,7 +1783,7 @@
 }
 
 .wf-lt .kb-lt-grid {
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 .wf-lines {
@@ -1926,7 +1808,7 @@
 .wf-statpct {
   width: 40px;
   text-align: right;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ghost);
   font-variant-numeric: tabular-nums;
 }
@@ -1970,7 +1852,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -1983,7 +1865,7 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
 }
 
@@ -2004,7 +1886,7 @@
 
 .wf-ab-head {
   min-height: 28px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--muted);
 }
@@ -2094,7 +1976,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -2106,7 +1988,7 @@
 }
 
 .wf-ph-who span {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
@@ -2178,7 +2060,7 @@
 }
 
 .wf-ph-card span {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   opacity: 0.75;
 }
 
@@ -2331,7 +2213,7 @@
   padding: 0 4px 0 10px;
   border-radius: 14px;
   background: var(--tint);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   width: fit-content;
 }
@@ -2346,7 +2228,7 @@
   border-radius: 999px;
   background: var(--well);
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--ink);
   cursor: pointer;
@@ -2522,4 +2404,18 @@
     animation-name: wf-fade;
     animation-duration: 160ms;
   }
+}
+
+/* Shared controls (@claudepreneur/brand) on the OS's context surface: a
+   well inside a card, the card on the stone (--ctl). */
+:is(.wf-head, .wf-picker-form) :is(.cp-seg, .cp-tabs, .cp-select-trigger:not(.is-compact)) {
+  background: var(--ctl);
+}
+.wf-insp :is(.cp-seg, .cp-tabs, .cp-select-trigger:not(.is-compact)) {
+  background: var(--well);
+}
+/* In the inspector a select sits in a row with the 34px inputs. */
+.wf-insp .cp-select-trigger:not(.is-compact) {
+  padding-top: 6px;
+  padding-bottom: 6px;
 }

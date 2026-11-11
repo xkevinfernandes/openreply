@@ -4,6 +4,7 @@
 // first. Each is sent once and kept; next Friday is Duplicate on last
 // Friday's. The head and tabs match Workflows and Campaigns.
 
+import { Button } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -11,6 +12,7 @@ import { duplicateAction, newBroadcastAction, type ActionResult } from "@/app/(o
 import { AutomationsTabs, type AutomationsTab } from "@/components/os/automations/automations-tabs";
 import { EmptyState, Pill } from "@/components/os/ui";
 import type { BroadcastListItem } from "@/lib/os/broadcasts/engine";
+import { PageHead } from "@/components/os/page-head";
 
 function useGo() {
   const router = useRouter();
@@ -29,19 +31,16 @@ function useGo() {
 export default function BroadcastList({ items, counts }: { items: BroadcastListItem[] | null; counts?: Partial<Record<AutomationsTab, number>> }) {
   const { pending, error, go } = useGo();
   const newButton = (
-    <button type="button" className="os-button primary os-auto-new" disabled={pending} onClick={() => go(() => newBroadcastAction())}>
+    <Button variant="primary" className="os-auto-new" disabled={pending} onClick={() => go(() => newBroadcastAction())}>
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <path d="M8 3.5v9M3.5 8h9" />
       </svg>
       New broadcast
-    </button>
+    </Button>
   );
   return (
     <div className="os-bcl os-auto">
-      <header className="os-auto-head">
-        <h1 className="os-bcl-title os-title">Automations</h1>
-        {newButton}
-      </header>
+      <PageHead title="Automations" actions={newButton} />
       <AutomationsTabs active="broadcasts" counts={counts} />
       {error ? (
         <div className="os-tl-msg" data-bad role="status">
@@ -98,9 +97,9 @@ export default function BroadcastList({ items, counts }: { items: BroadcastListI
                     {b.sent}
                   </td>
                   <td className="os-bcl-act">
-                    <button type="button" className="os-button os-bcl-dup" disabled={pending} onClick={() => go(() => duplicateAction(b.key))}>
+                    <Button size="sm" className="os-bcl-dup" disabled={pending} onClick={() => go(() => duplicateAction(b.key))}>
                       Duplicate
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}

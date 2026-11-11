@@ -1,5 +1,7 @@
 "use client";
 
+import { Button, buttonClassName, GroupLabel, SegmentedSwitch, Select } from "@claudepreneur/brand/react";
+import { pillClass } from "@/components/os/ui/pill";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState, useTransition } from "react";
 import {
@@ -18,6 +20,7 @@ import { CALENDAR_INFO, WEEKDAY_LABELS } from "@/lib/os/integrations/calendar/in
 import { DEFAULT_SETTER_KEY, type CalendarSettings } from "@/lib/os/integrations/calendar/settings";
 import type { CalendarEventType } from "@/lib/os/integrations/calendar/types";
 import type { CalendarView } from "@/lib/os/integrations/calendar/view";
+import { useOsConfirm } from "@/components/os/ui/confirm";
 
 type Message = { kind: "error" | "notice"; text: string } | null;
 
@@ -83,10 +86,7 @@ export default function CalendarCard({
       <div className="os-int-card-top">
         <Logo provider={view.provider} />
         <h2 id={`${panelId}-name`}>{info.name}</h2>
-        <span className="os-st" data-tone={st.tone}>
-          <i />
-          {st.label}
-        </span>
+        <span className={pillClass(st.tone === "off" ? "neutral" : st.tone)}>{st.label}</span>
       </div>
       <p className="os-int-blurb">{info.blurb}</p>
 
@@ -94,7 +94,7 @@ export default function CalendarCard({
         {canManage && (
           <button
             type="button"
-            className={`os-button ${view.connected ? "" : "primary"}`}
+            className={buttonClassName(view.connected ? "secondary" : "primary")}
             aria-expanded={open}
             aria-controls={panelId}
             onClick={() => setOpen((o) => !o)}
@@ -102,16 +102,15 @@ export default function CalendarCard({
             {open ? "Done" : view.connected ? "Manage" : "Connect"}
           </button>
         )}
-        <button
-          type="button"
-          className="os-button ghost os-int-why"
+        <Button
+          variant="text" className="os-int-why"
           aria-expanded={explainOpen}
           aria-controls={explainId}
           onClick={() => setExplainOpen((o) => !o)}
         >
           <span className="q" aria-hidden="true">?</span>
           What does this do?
-        </button>
+        </Button>
         {view.connected && view.booked > 0 && !open && (
           <span className="os-int-meta">
             {view.booked} booked{view.upcoming ? ` · ${view.upcoming} coming up` : ""}
@@ -137,13 +136,13 @@ export default function CalendarCard({
             </p>
           )}
           <section className="os-int-section" aria-label="Connection">
-            <h3>Connection</h3>
+            <GroupLabel>Connection</GroupLabel>
             <Connection view={view} now={now} pending={pending} onAct={act} />
           </section>
           {view.connected && (
             <>
               <section className="os-int-section" aria-label="Booking">
-                <h3>Booking in the DM</h3>
+                <GroupLabel>Booking in the DM</GroupLabel>
                 <div className="os-int-row">
                   <div className="os-int-row-main">
                     <strong>J books on {info.name}</strong>
@@ -190,6 +189,7 @@ interface ConnectionProps {
 }
 
 function Connection({ view, now, pending, onAct }: ConnectionProps) {
+  const confirmAsk = useOsConfirm();
   const info = CALENDAR_INFO[view.provider];
   const [token, setToken] = useState("");
   const id = useId();
@@ -221,9 +221,9 @@ function Connection({ view, now, pending, onAct }: ConnectionProps) {
           />
         </label>
         <p className="os-int-hint">{info.tokenHint}</p>
-        <button className="os-button primary" disabled={pending || token.trim().length < 10}>
+        <Button variant="primary" type="submit" disabled={pending || token.trim().length < 10}>
           {pending ? "Testing…" : "Test and connect"}
-        </button>
+        </Button>
       </form>
     );
   }
@@ -238,20 +238,19 @@ function Connection({ view, now, pending, onAct }: ConnectionProps) {
         ) : null}
       </div>
       <div className="os-int-inline">
-        <button type="button" className="os-button" disabled={pending} onClick={() => onAct(() => testCalendar(view.provider))}>
+        <Button disabled={pending} onClick={() => onAct(() => testCalendar(view.provider))}>
           Test connection
-        </button>
-        <button
-          type="button"
-          className="os-button ghost"
+        </Button>
+        <Button
+          variant="text"
           disabled={pending}
-          onClick={() => {
-            if (window.confirm(`Disconnect ${info.name}? J goes back to sending your booking link. Calls already booked stay booked.`))
+          onClick={async () => {
+            if (await confirmAsk(`Disconnect ${info.name}? J goes back to sending your booking link. Calls already booked stay booked.`, { danger: true, confirmLabel: "Disconnect" }))
               onAct(() => disconnectCalendar(view.provider));
           }}
         >
           Disconnect
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -320,28 +319,29 @@ function SettingsEditor({
   return (
     <>
       <section className="os-int-section" aria-label="Event type">
-        <h3>Which call J books</h3>
+        <GroupLabel>Which call J books</GroupLabel>
         {typesError && <p className="os-int-hint os-int-bad">{typesError}</p>}
         <div className="os-cal-types">
           {rows.map((r) => {
             const current = s.eventTypes[r.id] ?? "";
             const known = types?.some((t) => t.id === current);
             return (
-              <label key={r.id} className="os-cal-type" htmlFor={`${id}-et-${r.id}`}>
-                <span>{r.name}</span>
-                <span className="os-select">
-                  <select id={`${id}-et-${r.id}`} value={current} disabled={!types} onChange={(e) => pickType(r.id, e.target.value)}>
-                    <option value="">{r.id === DEFAULT_SETTER_KEY ? "Pick an event type" : "Same as the default"}</option>
-                    {current && !known && <option value={current}>{s.eventTypeInfo[current]?.name ?? "Saved event type"}</option>}
-                    {(types ?? []).map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                        {t.durationMinutes ? ` · ${t.durationMinutes} min` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </span>
-              </label>
+              <div key={r.id} className="os-cal-type">
+                <span id={`${id}-et-${r.id}-label`}>{r.name}</span>
+                <Select
+                  id={`${id}-et-${r.id}`}
+                  aria-label={r.name}
+                  compact
+                  value={current}
+                  disabled={!types}
+                  onChange={(v) => pickType(r.id, v)}
+                  options={[
+                    { value: "", label: r.id === DEFAULT_SETTER_KEY ? "Pick an event type" : "Same as the default" },
+                    ...(current && !known ? [{ value: current, label: s.eventTypeInfo[current]?.name ?? "Saved event type" }] : []),
+                    ...(types ?? []).map((t) => ({ value: t.id, label: `${t.name}${t.durationMinutes ? ` · ${t.durationMinutes} min` : ""}` })),
+                  ]}
+                />
+              </div>
             );
           })}
         </div>
@@ -349,7 +349,7 @@ function SettingsEditor({
       </section>
 
       <section className="os-int-section" aria-label="When">
-        <h3>When J offers times</h3>
+        <GroupLabel>When J offers times</GroupLabel>
         <div className="os-cal-grid">
           <label className="os-field" htmlFor={`${id}-tz`}>
             <span>Your timezone</span>
@@ -370,25 +370,9 @@ function SettingsEditor({
           <div className="os-field">
             <span id={`${id}-hours`}>Working hours</span>
             <div className="os-cal-hours" role="group" aria-labelledby={`${id}-hours`}>
-              <span className="os-select">
-                <select aria-label="From" value={s.workStart} onChange={(e) => set("workStart", Number(e.target.value))}>
-                  {HOURS.slice(0, 24).map((h) => (
-                    <option key={h} value={h}>
-                      {hourLabel(h)}
-                    </option>
-                  ))}
-                </select>
-              </span>
+              <Select aria-label="From" compact value={String(s.workStart)} onChange={(v) => set("workStart", Number(v))} options={HOURS.slice(0, 24).map((h) => ({ value: String(h), label: hourLabel(h) }))} />
               <span className="muted">to</span>
-              <span className="os-select">
-                <select aria-label="Until" value={s.workEnd} onChange={(e) => set("workEnd", Number(e.target.value))}>
-                  {HOURS.slice(1).map((h) => (
-                    <option key={h} value={h}>
-                      {hourLabel(h)}
-                    </option>
-                  ))}
-                </select>
-              </span>
+              <Select aria-label="Until" compact value={String(s.workEnd)} onChange={(v) => set("workEnd", Number(v))} options={HOURS.slice(1).map((h) => ({ value: String(h), label: hourLabel(h) }))} />
             </div>
           </div>
           <div className="os-field os-cal-wide">
@@ -411,20 +395,13 @@ function SettingsEditor({
           </label>
           <div className="os-field">
             <span id={`${id}-opts`}>Times to offer</span>
-            <div className="os-segmented" role="group" aria-labelledby={`${id}-opts`}>
-              {[1, 2, 3].map((n) => (
-                <button key={n} type="button" aria-pressed={s.options === n} onClick={() => set("options", n)}>
-                  {n}
-                </button>
-              ))}
-            </div>
+            <SegmentedSwitch label="Times to offer" onWell value={String(s.options)} onChange={(v) => set("options", Number(v))} options={[1, 2, 3].map((n) => ({ value: String(n), label: String(n) }))} />
           </div>
         </div>
         <p className="os-int-hint">Your calendar already hides busy times. These narrow it to when you want setter calls. Times are offered in their timezone.</p>
         <div className="os-int-inline os-cal-save">
-          <button
-            type="button"
-            className="os-button"
+          <Button
+            
             disabled={previewing}
             onClick={() => {
               setPreviewError(null);
@@ -436,10 +413,9 @@ function SettingsEditor({
             }}
           >
             {previewing ? "Reading your calendar…" : "Show the next free times"}
-          </button>
-          <button
-            type="button"
-            className="os-button primary"
+          </Button>
+          <Button
+            variant="primary"
             disabled={pending}
             onClick={() =>
               onAct(async () => {
@@ -450,7 +426,7 @@ function SettingsEditor({
             }
           >
             Save
-          </button>
+          </Button>
         </div>
         {previewError && <p className="os-int-hint os-int-bad">{previewError}</p>}
         {preview && (
@@ -495,7 +471,7 @@ function Webhooks({ view }: { view: CalendarView }) {
   }
   return (
     <section className="os-int-section" aria-label="Webhooks">
-      <h3>Cancels, reschedules, no-shows</h3>
+      <GroupLabel>Cancels, reschedules, no-shows</GroupLabel>
       <div className="os-int-row">
         <div className="os-int-row-main">
           <strong>{view.webhook.ready ? `${info.name} tells J when a call moves` : "Off: reminders only follow what J booked"}</strong>
@@ -505,9 +481,9 @@ function Webhooks({ view }: { view: CalendarView }) {
               : `Set it up so a call moved or cancelled in ${info.name} moves J's reminders too.`}
           </span>
         </div>
-        <button type="button" className="os-button" disabled={pending} onClick={setup}>
+        <Button disabled={pending} onClick={setup}>
           {pending ? "Setting up…" : view.webhook.ready ? "Set up again" : "Set up"}
-        </button>
+        </Button>
       </div>
       {result && (
         <div className="os-cal-webhook" role={result.ok ? "status" : "alert"}>

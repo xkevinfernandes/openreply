@@ -3,7 +3,9 @@
 // DM logs: every comment or DM an automation acted on, from OpenReply's
 // GET /api/logs (status filter + pages), in the Review Room table look.
 
+import { Button, SegmentedSwitch } from "@claudepreneur/brand/react";
 import { useEffect, useState } from "react";
+import { pillClass } from "@/components/os/ui/pill";
 import { dmStatusLabel, dmStatusTone, LOG_FILTERS, logsQuery } from "@/lib/os/settings";
 
 interface LogRow {
@@ -70,22 +72,25 @@ export default function LogsPanel() {
         <span className="os-set-count">{loading && !data ? "Loading…" : `${total.toLocaleString("en-GB")} ${total === 1 ? "row" : "rows"}`}</span>
       </header>
 
-      <div className="os-segmented os-set-filter" role="group" aria-label="Status">
-        {LOG_FILTERS.map((f) => (
-          <button
-            key={f.value}
-            type="button"
-            aria-pressed={status === f.value}
-            onClick={() => {
-              setStatus(f.value);
-              setPage(1);
-            }}
-          >
-            {f.value !== "all" && <i className="os-set-dot" data-tone={dmStatusTone(f.value)} aria-hidden="true" />}
-            {f.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedSwitch
+        label="Status"
+        className="os-set-filter"
+        onWell
+        value={status}
+        onChange={(v) => {
+          setStatus(v);
+          setPage(1);
+        }}
+        options={LOG_FILTERS.map((f) => ({
+          value: f.value,
+          label: (
+            <>
+              {f.value !== "all" && <i className="os-set-dot" data-tone={dmStatusTone(f.value)} aria-hidden="true" />}
+              {f.label}
+            </>
+          ),
+        }))}
+      />
 
       {error ? (
         <p className="os-kb-note" data-kind="error" role="alert">
@@ -119,10 +124,7 @@ export default function LogsPanel() {
                   </td>
                   <td className="os-set-comment">{l.commentText}</td>
                   <td>
-                    <span className="os-st" data-tone={dmStatusTone(l.status)}>
-                      <i />
-                      {dmStatusLabel(l.status)}
-                    </span>
+                    <span className={pillClass(({ good: "good", bad: "bad", wait: "warn", quiet: "neutral" } as const)[dmStatusTone(l.status)])}>{dmStatusLabel(l.status)}</span>
                     {(l.errorMessage || l.publicReplyError) && <small className="os-set-error">{l.errorMessage || `Public reply: ${l.publicReplyError}`}</small>}
                   </td>
                 </tr>
@@ -134,15 +136,15 @@ export default function LogsPanel() {
 
       {pages > 1 && (
         <nav className="os-set-pager" aria-label="Pages">
-          <button type="button" className="os-button" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>
+          <Button disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>
             Newer
-          </button>
+          </Button>
           <span>
             Page {page} of {pages}
           </span>
-          <button type="button" className="os-button" disabled={page >= pages || loading} onClick={() => setPage((p) => p + 1)}>
+          <Button disabled={page >= pages || loading} onClick={() => setPage((p) => p + 1)}>
             Older
-          </button>
+          </Button>
         </nav>
       )}
     </section>

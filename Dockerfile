@@ -22,6 +22,8 @@ FROM node:20-slim AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+# @claudepreneur/brand is a vendored tarball (file:vendor/...), so npm ci needs it here.
+COPY vendor ./vendor
 RUN npm ci
 
 COPY . .

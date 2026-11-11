@@ -2,12 +2,13 @@
 
 // Setup › Booking (how J books calls) and Setup › Fields J fills, two pages.
 
+import { Button } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { saveBooking, setSetterField } from "@/app/(os)/os/knowledge/actions";
 import { testBookingTimes, type TestTimes } from "@/app/(os)/os/knowledge/setup-actions";
-import { useSaver } from "@/components/os/knowledge/fields";
-import { InfoTip, SetterMark } from "@/components/os/ui";
+import { Select, useSaver } from "@/components/os/knowledge/fields";
+import { InfoTip, Pill, SetterMark } from "@/components/os/ui";
 import type { BookingMode } from "@/lib/os/integrations/calendar/setter-booking";
 import type { BookingView, FieldPick, SetterEditorView } from "@/lib/os/knowledge";
 
@@ -32,15 +33,14 @@ function TestTimesButton({ setterId, n, disabled }: { setterId: string; n: numbe
   const [pending, start] = useTransition();
   return (
     <>
-      <button
-        type="button"
-        className="kb-btn"
+      <Button
+        
         disabled={disabled || pending}
         title={disabled ? "Save first" : undefined}
         onClick={() => start(async () => setRes(await testBookingTimes(setterId)))}
       >
         {pending ? "Checking…" : `Test: show me ${n} ${n === 1 ? "time" : "times"}`}
-      </button>
+      </Button>
       {res && (
         <div className="kb-test" role="status">
           {res.error ? (
@@ -96,7 +96,7 @@ function BookingSection({ setterId, name, initial }: { setterId: string; name: s
         {cal ? (
           b.mode === "calendar" && <TestTimesButton setterId={setterId} n={b.propose} disabled={dirty} />
         ) : (
-          <Link href="/os/settings?tab=integrations" className="kb-btn">
+          <Link href="/os/settings?tab=integrations" className="cp-btn">
             Connect
           </Link>
         )}
@@ -104,14 +104,14 @@ function BookingSection({ setterId, name, initial }: { setterId: string; name: s
         <span className="kb-note" role="status" data-kind={saver.note?.kind}>
           {saver.pending ? "Saving…" : dirty ? "Unsaved" : saver.note?.text}
         </span>
-        <button type="button" className="kb-btn kb-btn-p" onClick={save} disabled={!dirty || saver.pending}>
+        <Button variant="primary" onClick={save} disabled={!dirty || saver.pending}>
           Save
-        </button>
+        </Button>
       </div>
       <fieldset className="kb-modes">
         <legend className="sr-only">How {name} books calls</legend>
         <label className="kb-opt">
-          <input type="radio" name="kb-mode" checked={b.mode === "calendar"} onChange={() => set({ mode: "calendar" })} />
+          <input type="radio" className="cp-radio" name="kb-mode" checked={b.mode === "calendar"} onChange={() => set({ mode: "calendar" })} />
           <span>
             <span>Offer times from my calendar{cal ? ` (${cal.provider})` : ""}</span>
             <span className="kb-quiet">
@@ -120,7 +120,7 @@ function BookingSection({ setterId, name, initial }: { setterId: string; name: s
           </span>
         </label>
         <label className="kb-opt">
-          <input type="radio" name="kb-mode" checked={b.mode === "link"} onChange={() => set({ mode: "link" })} />
+          <input type="radio" className="cp-radio" name="kb-mode" checked={b.mode === "link"} onChange={() => set({ mode: "link" })} />
           <span>
             <span>Send a booking link</span>
             <span className="kb-quiet">They pick a time themselves</span>
@@ -150,21 +150,9 @@ function BookingSection({ setterId, name, initial }: { setterId: string; name: s
                   Propose
                 </label>
                 <span className="kb-inline">
-                  <select id="kb-propose" className="kb-sel" value={b.propose} onChange={(e) => set({ propose: Number(e.target.value) })}>
-                    {[1, 2, 3].map((n) => (
-                      <option key={n} value={n}>
-                        {n} {n === 1 ? "time" : "times"}
-                      </option>
-                    ))}
-                  </select>
+                  <Select id="kb-propose" compact fieldClassName="kb-sel-field" value={String(b.propose)} onChange={(v) => set({ propose: Number(v) })} options={[1, 2, 3].map((n) => [String(n), `${n} ${n === 1 ? "time" : "times"}`])} />
                   within
-                  <select aria-label="Days ahead" className="kb-sel" value={b.withinDays} onChange={(e) => set({ withinDays: Number(e.target.value) })}>
-                    {[1, 2, 3, 5, 7, 14].map((n) => (
-                      <option key={n} value={n}>
-                        {n} {n === 1 ? "day" : "days"}
-                      </option>
-                    ))}
-                  </select>
+                  <Select aria-label="Days ahead" compact fieldClassName="kb-sel-field" value={String(b.withinDays)} onChange={(v) => set({ withinDays: Number(v) })} options={[1, 2, 3, 5, 7, 14].map((n) => [String(n), `${n} ${n === 1 ? "day" : "days"}`])} />
                 </span>
               </div>
               {cal && (
@@ -190,13 +178,7 @@ function BookingSection({ setterId, name, initial }: { setterId: string; name: s
                 <span className="kb-lbl">When</span>
                 <span className="kb-inline">
                   No slot fits, or no pick within
-                  <select aria-label="Hours before the link" className="kb-sel" value={b.fallbackAfterHours} onChange={(e) => set({ fallbackAfterHours: Number(e.target.value) })}>
-                    {[12, 24, 48, 72].map((n) => (
-                      <option key={n} value={n}>
-                        {n} hours
-                      </option>
-                    ))}
-                  </select>
+                  <Select aria-label="Hours before the link" compact fieldClassName="kb-sel-field" value={String(b.fallbackAfterHours)} onChange={(v) => set({ fallbackAfterHours: Number(v) })} options={[12, 24, 48, 72].map((n) => [String(n), `${n} hours`])} />
                 </span>
               </div>
             )}
@@ -279,10 +261,10 @@ export function FieldsSection({ setterId, name, fields }: { setterId: string; na
           const sync = [f.ghl && "GoHighLevel", f.kit && "Kit"].filter(Boolean).join(" · ");
           return (
             <label key={f.id} className="kb-fld">
-              <input type="checkbox" checked={on.has(f.id)} onChange={(e) => toggle(f.id, e.target.checked)} />
+              <input type="checkbox" className="cp-checkbox" checked={on.has(f.id)} onChange={(e) => toggle(f.id, e.target.checked)} />
               <span className="kb-fld-name">{f.label}</span>
-              <span className="kb-tag">{TYPE_LABEL[f.type] ?? f.type}</span>
-              {f.builtIn && <span className="kb-tag">Built-in</span>}
+              <Pill>{TYPE_LABEL[f.type] ?? f.type}</Pill>
+              {f.builtIn && <Pill>Built-in</Pill>}
               <span className="kb-fld-sub">{!on.has(f.id) && f.usedBy.length ? `Used by ${f.usedBy.join(", ")}` : sync}</span>
             </label>
           );

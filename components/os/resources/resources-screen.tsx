@@ -5,15 +5,18 @@
 // Sent; videos keep their priority order (drag, or arrow keys on the grip).
 // Entry paths sit folded at the bottom and aren't counted.
 
+import { Button, Tabs } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { reorderResources } from "@/app/(os)/os/knowledge/actions";
 import { deleteResourceChecked } from "@/app/(os)/os/resources/actions";
+import { EmptyState } from "@/components/os/ui";
 import ResourceSheet, { formOf } from "@/components/os/resources/resource-sheet";
 import DeleteCheck from "@/components/os/settings/delete-check";
 import { deleteBlockers, kindLabel, linkLabel, matchesFilter, offeringAgents, type ResourceFilter, type ResourceRow, type ResourcesBoard, type UsedBy, USED_BY_LABEL, usedChips } from "@/lib/os/resources-view";
 import { moveId } from "@/lib/os/setter/knowledge/resources-view";
+import { PageHead } from "@/components/os/page-head";
 
 const PILLS: { key: ResourceFilter; label: string; count: keyof ResourcesBoard["counts"] }[] = [
   { key: "all", label: "All", count: "all" },
@@ -71,24 +74,17 @@ export default function ResourcesScreen({ board }: { board: ResourcesBoard }) {
 
   return (
     <div className="os-rs">
-      <header className="os-head">
-        <div>
-          <h1>Resources</h1>
-          <p>One library. Agents, campaigns and broadcasts all pick from here.</p>
-        </div>
-        <button type="button" className="os-button primary" onClick={() => setSheet({ kind: "new" })}>
-          + Add resource
-        </button>
-      </header>
+      <PageHead
+        title="Resources"
+        description="One library. Agents, campaigns and broadcasts all pick from here."
+        actions={
+          <Button variant="primary" onClick={() => setSheet({ kind: "new" })}>
+            + Add resource
+          </Button>
+        }
+      />
 
-      <div className="os-rs-pills" role="tablist" aria-label="Show">
-        {PILLS.map((p) => (
-          <button key={p.key} type="button" role="tab" aria-selected={filter === p.key} className="os-rs-pill" onClick={() => setFilter(p.key)}>
-            {p.label}
-            <span className="os-rs-count">{board.counts[p.count]}</span>
-          </button>
-        ))}
-      </div>
+      <Tabs label="Show" className="os-rs-pills" value={filter} onChange={setFilter} tabs={PILLS.map((p) => ({ value: p.key, label: p.label, count: board.counts[p.count] }))} />
 
       {board.sample ? <p className="os-rs-note">Sample resources. Add one to start your own list.</p> : null}
       {error ? (
@@ -191,9 +187,9 @@ export default function ResourcesScreen({ board }: { board: ResourcesBoard }) {
                         {r.sent}
                       </td>
                       <td className="os-rs-act">
-                        <button type="button" className="os-button ghost" onClick={() => setSheet({ kind: "edit", row: r })}>
+                        <Button variant="text" onClick={() => setSheet({ kind: "edit", row: r })}>
                           Edit
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -209,12 +205,16 @@ export default function ResourcesScreen({ board }: { board: ResourcesBoard }) {
             </table>
           </section>
         ) : (
-          <section className="os-rs-card os-rs-emptycard">
-            <p>No resources yet. Add a lead magnet or a video J can send.</p>
-            <button type="button" className="os-button primary" onClick={() => setSheet({ kind: "new" })}>
-              + Add resource
-            </button>
-          </section>
+          <EmptyState
+            title="No resources yet."
+            action={
+              <Button variant="primary" onClick={() => setSheet({ kind: "new" })}>
+                + Add resource
+              </Button>
+            }
+          >
+            Add a lead magnet or a video J can send.
+          </EmptyState>
         )
       ) : null}
 

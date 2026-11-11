@@ -1,3 +1,4 @@
+import { GroupLabel } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { KbIcon, type KbIconName } from "@/components/os/knowledge/icons";
 import type { SetterEditorView } from "@/lib/os/knowledge";
@@ -83,7 +84,7 @@ export function SetterTree({ view, sel }: { view: SetterEditorView; sel: TreeSel
     "file" in s ? "file" in sel && sel.file === s.file : "setup" in sel && pageOf(sel.setup) === s.setup;
   return (
     <aside aria-label="Setter files" className="kb-tree">
-      <div className="kb-grp">Files</div>
+      <GroupLabel as="div" className="kb-grp">Files</GroupLabel>
       {DOC_KEYS.map((key) => {
         const on = current({ file: key });
         const meta = fileMeta(key);
@@ -95,7 +96,7 @@ export function SetterTree({ view, sel }: { view: SetterEditorView; sel: TreeSel
           </Link>
         );
       })}
-      <div className="kb-grp">Setup</div>
+      <GroupLabel as="div" className="kb-grp">Setup</GroupLabel>
       {SETUP.map((it) => {
         const on = current({ setup: it.key });
         const meta = it.meta(view);

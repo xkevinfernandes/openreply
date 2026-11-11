@@ -4,6 +4,7 @@
 // bases" section of app/(os)/os/os.css.
 
 import { useId, useState, useTransition } from "react";
+import { Button, Select as CpSelect, Toggle } from "@claudepreneur/brand/react";
 import type { ActionResult } from "@/app/(os)/os/knowledge/actions";
 import { InfoTip } from "@/components/os/ui";
 
@@ -49,9 +50,9 @@ export function Section({ id, title, description, children, onSave, dirty, pendi
           <span role="status" className="os-kb-note" data-kind={note?.kind}>
             {note?.text ?? (dirty ? "Unsaved changes" : "")}
           </span>
-          <button type="button" className="os-button primary" onClick={onSave} disabled={!dirty || pending}>
+          <Button variant="primary" onClick={onSave} disabled={!dirty || pending}>
             {pending ? "Saving…" : "Save"}
-          </button>
+          </Button>
         </footer>
       )}
     </section>
@@ -103,34 +104,45 @@ export function TextArea(props: { id?: string; value: string; onChange: (v: stri
   );
 }
 
-export function Select(props: { id?: string; value: string; onChange: (v: string) => void; options: [string, string][] }) {
+/** A form select: the shared Select (@claudepreneur/brand), never the OS menu.
+ * Options are [value, label] pairs; an option with value "" is shown as the
+ * placeholder while nothing else is picked. `compact` is the small trigger
+ * for a filter row or a sentence. On a well by default (inside a card). */
+export function Select(props: {
+  id?: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: [string, string][];
+  "aria-label"?: string;
+  disabled?: boolean;
+  compact?: boolean;
+  placeholder?: string;
+  fieldClassName?: string;
+  className?: string;
+  /** On a well (default: the setter screens sit in cards). */
+  onWell?: boolean;
+}) {
+  const empty = props.options.find(([v]) => v === "");
   return (
-    <span className="os-select">
-      <select id={props.id} value={props.value} onChange={(e) => props.onChange(e.target.value)}>
-        {props.options.map(([v, l]) => (
-          <option key={v} value={v}>
-            {l}
-          </option>
-        ))}
-      </select>
-    </span>
+    <CpSelect
+      id={props.id}
+      aria-label={props["aria-label"]}
+      value={props.value}
+      onChange={(v) => props.onChange(v)}
+      options={props.options.map(([value, label]) => ({ value, label }))}
+      placeholder={props.placeholder ?? empty?.[1]}
+      disabled={props.disabled}
+      compact={props.compact}
+      onWell={props.onWell ?? true}
+      fieldClassName={`os-kb-select${props.fieldClassName ? ` ${props.fieldClassName}` : ""}`}
+      className={props.className}
+    />
   );
 }
 
+/** An on/off switch: the shared Toggle (@claudepreneur/brand), named by `label`. */
 export function Switch(props: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={props.checked}
-      aria-label={props.label}
-      className="os-switch"
-      disabled={props.disabled}
-      onClick={() => props.onChange(!props.checked)}
-    >
-      <span className="os-switch-knob" />
-    </button>
-  );
+  return <Toggle checked={props.checked} onChange={props.onChange} aria-label={props.label} disabled={props.disabled} />;
 }
 
 /** A repeatable list item with a quiet remove link. */
@@ -139,9 +151,9 @@ export function RepeatItem({ children, onRemove, removeLabel }: { children: Reac
     <li className="os-kb-item">
       {children}
       <div className="os-kb-item-foot">
-        <button type="button" className="os-link quiet" onClick={onRemove}>
+        <Button variant="text" onClick={onRemove}>
           {removeLabel}
-        </button>
+        </Button>
       </div>
     </li>
   );

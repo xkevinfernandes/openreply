@@ -7,6 +7,7 @@ import WorkflowList, { NewWorkflowButton } from "@/components/os/workflows/workf
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
 import { automationTabCounts } from "@/lib/os/automations-data";
+import { PageHead } from "@/components/os/page-head";
 
 export const dynamic = "force-dynamic";
 
@@ -26,10 +27,7 @@ export default async function WorkflowsPage() {
 
   return (
     <div className="os-auto wf-page">
-      <header className="os-auto-head">
-        <h1 className="os-title">Automations</h1>
-        <NewWorkflowButton resourceSlug={firstResource?.slug} />
-      </header>
+      <PageHead title="Automations" actions={<NewWorkflowButton resourceSlug={firstResource?.slug} />} />
       <AutomationsTabs active="workflows" counts={{ ...counts, workflows: rows.length }} />
       <WorkflowList rows={rows} />
     </div>

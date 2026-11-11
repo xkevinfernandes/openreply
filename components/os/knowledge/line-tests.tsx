@@ -5,6 +5,8 @@
 // Each person gets one version the first time J's line goes out to them, and
 // keeps it. Only messages that went out count.
 
+import { Button } from "@claudepreneur/brand/react";
+import { Pill } from "@/components/os/ui";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createLineTest, deleteLineDraft, pickLineWinner, resumeLineTest, saveLineDraft, stopLineTest } from "@/app/(os)/os/knowledge/tests-actions";
@@ -65,10 +67,10 @@ function LineRow({ setterId, setterName, row, workflowId }: { setterId: string; 
         {!row.tests.length && !adding && <span className="kb-quiet">No test</span>}
         <span className="kb-grow" />
         {!adding && !running && (
-          <button type="button" className="kb-btn" onClick={() => setAdding(true)} aria-label={`Add test: ${row.label}`}>
+          <Button size="sm" onClick={() => setAdding(true)} aria-label={`Add test: ${row.label}`}>
             <KbIcon name="plus" size={11} />
             Test
-          </button>
+          </Button>
         )}
       </div>
       {adding && <Editor label={row.label} initial={["", ""]} onClose={() => setAdding(false)} create={{ setterId, line: row.key, workflowId }} />}
@@ -95,7 +97,7 @@ function TestCard({ setterId, setterName, label, test: t }: { setterId: string; 
           <span className="kb-lt-status" data-status="draft">
             Draft
           </span>
-          <span className="kb-chip">{scopeText(t, setterName)}</span>
+          <Pill>{scopeText(t, setterName)}</Pill>
         </div>
         <Editor label={label} initial={t.variants.map((v) => v.text)} draft={{ setterId, id: t.id }} />
       </div>
@@ -112,18 +114,18 @@ function TestCard({ setterId, setterName, label, test: t }: { setterId: string; 
         <span className="kb-lt-status" data-status={t.status.toLowerCase()}>
           {t.winnerVariantId ? "Winner picked" : STATUS[t.status]}
         </span>
-        <span className="kb-chip">{scopeText(t, setterName)}</span>
-        {t.sample && <span className="kb-chip">Sample</span>}
+        <Pill>{scopeText(t, setterName)}</Pill>
+        {t.sample && <Pill>Sample</Pill>}
         <span className="kb-grow" />
         {v.kind === "too_early" && <span className="kb-quiet">Too early</span>}
         {t.status === "PAUSED" && (
-          <button type="button" className="kb-btn" disabled={act.pending || t.sample} onClick={() => act.run(() => resumeLineTest(setterId, t.id))}>
+          <Button size="sm" disabled={act.pending || t.sample} onClick={() => act.run(() => resumeLineTest(setterId, t.id))}>
             Resume
-          </button>
+          </Button>
         )}
-        <button type="button" className="kb-btn" disabled={act.pending || t.sample} onClick={() => act.run(() => stopLineTest(setterId, t.id))}>
+        <Button size="sm" disabled={act.pending || t.sample} onClick={() => act.run(() => stopLineTest(setterId, t.id))}>
           Stop
-        </button>
+        </Button>
       </div>
       <div className="kb-lt-grid kb-lt-cols" aria-hidden="true">
         <span />
@@ -193,9 +195,9 @@ function Variant({
           {winner && <span className="kb-quiet">Winner</span>}
           {c.edited > 0 && <span className="kb-quiet" title="Sent after a heavy edit (still counted)">{c.edited} edited</span>}
           {onPick && (
-            <button type="button" className="os-link quiet" disabled={pending} onClick={onPick} title="Everyone new gets this one. People who already got the other keep it.">
+            <Button variant="text" disabled={pending} onClick={onPick} title="Everyone new gets this one. People who already got the other keep it.">
               Pick winner
-            </button>
+            </Button>
           )}
         </span>
         <span>{c.sent}</span>
@@ -247,30 +249,30 @@ function Editor({
       ))}
       <div className="kb-lt-line">
         {texts.length < MAX_LINE_VARIANTS && (
-          <button type="button" className="os-link" onClick={() => setTexts((l) => [...l, ""])}>
+          <Button variant="text" className="is-ink" onClick={() => setTexts((l) => [...l, ""])}>
             Add {String.fromCharCode(65 + texts.length)}
-          </button>
+          </Button>
         )}
         <span className="kb-note" data-kind={act.error ? "error" : undefined} role="status">
           {act.error ?? ""}
         </span>
         <span className="kb-grow" />
         {onClose && (
-          <button type="button" className="kb-btn" onClick={onClose} disabled={act.pending}>
+          <Button onClick={onClose} disabled={act.pending}>
             Cancel
-          </button>
+          </Button>
         )}
         {draft && (
-          <button type="button" className="kb-btn" disabled={act.pending} onClick={() => act.run(() => deleteLineDraft(draft.setterId, draft.id))}>
+          <Button disabled={act.pending} onClick={() => act.run(() => deleteLineDraft(draft.setterId, draft.id))}>
             Delete
-          </button>
+          </Button>
         )}
-        <button type="button" className="kb-btn" disabled={act.pending} onClick={() => save(false)}>
+        <Button disabled={act.pending} onClick={() => save(false)}>
           {create ? "Save draft" : "Save"}
-        </button>
-        <button type="button" className="kb-btn kb-btn-p" disabled={act.pending} onClick={() => save(true)} title={`Each version needs ${LINE_MIN_REACHED} people before it's judged`}>
+        </Button>
+        <Button variant="primary" disabled={act.pending} onClick={() => save(true)} title={`Each version needs ${LINE_MIN_REACHED} people before it's judged`}>
           Start
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -10,11 +10,6 @@
   flex-wrap: wrap;
 }
 
-.os-kb-empty p {
-  max-width: 60ch;
-  margin: 2px 0 14px;
-}
-
 /* --- Setter cards ------------------------------------------------------------- */
 
 /* "Default for …" is a fact, not a call to action: a plain pill. */
@@ -73,7 +68,7 @@
   padding: 16px 24px 22px;
 }
 
-.os-kb-section-body > .os-button {
+.os-kb-section-body > .cp-btn {
   align-self: flex-start;
 }
 
@@ -167,14 +162,6 @@
   font-size: var(--fs-xs);
 }
 
-.os-field .os-select {
-  display: flex;
-}
-
-.os-field .os-select select {
-  width: 100%;
-}
-
 /* Repeatable items (offers, objections, stages, corrections) */
 
 .os-kb-list {
@@ -241,13 +228,10 @@
   display: flex;
 }
 
-.os-kb-move .os-button {
+.os-kb-move .cp-btn {
   width: var(--control-h);
   padding: 0;
 }
-
-
-
 
 .os-kb-new-correction {
   display: grid;
@@ -384,10 +368,6 @@
   background: var(--paper-2);
 }
 
-.os-sandbox-bar .os-select select {
-  max-width: 240px;
-}
-
 .os-sandbox-note {
   flex: 1 1 180px;
   color: var(--muted);
@@ -504,12 +484,6 @@
     min-height: 380px;
     margin: 0 -4px;
   }
-
-  .os-sandbox-bar .os-select,
-  .os-sandbox-bar .os-select select {
-    max-width: none;
-    flex: 1 1 auto;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -606,7 +580,7 @@ a.kb-quiet:hover {
   .kb-ws-split:has(> .kb-chat) .kb-btn-dl {
     font-size: 0;
     gap: 0;
-    width: 36px;
+    width: var(--control-h);
     padding: 0;
     justify-content: center;
   }
@@ -616,7 +590,7 @@ a.kb-quiet:hover {
   .kb-bar-acts .kb-btn-dl {
     font-size: 0;
     gap: 0;
-    width: 36px;
+    width: var(--control-h);
     padding: 0;
     justify-content: center;
   }
@@ -652,40 +626,8 @@ a.kb-quiet:hover {
   letter-spacing: -0.022em;
 }
 
-.kb-switch {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-  background: var(--ctl);
-  flex-wrap: wrap;
-}
-
-.kb-switch-tab {
-  display: inline-flex;
-  align-items: center;
+.kb-switch-tab.cp-tab {
   gap: 6px;
-  height: 30px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  font: inherit;
-  color: var(--muted);
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.kb-switch-tab[aria-selected="true"] {
-  background: var(--ink);
-  color: var(--on-ink);
-  font-weight: 500;
-  box-shadow: none;
-}
-
-.kb-switch-tab:hover {
-  color: var(--ink);
 }
 
 .kb-switch .os-kb-newsetter {
@@ -699,7 +641,7 @@ a.kb-quiet:hover {
   border-radius: 50%;
   background: var(--well);
   color: var(--ink);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -710,49 +652,6 @@ a.kb-quiet:hover {
    read as "J J" (F-07). */
 .kb-switch-tab[aria-selected="true"] .kb-mark {
   display: none;
-}
-
-.kb-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: var(--radius);
-  background: var(--ctl);
-  color: var(--ink);
-  font: inherit;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.kb-btn:hover {
-  background: var(--ctl-hover);
-}
-
-.kb-btn-p {
-  background: var(--ink);
-  color: var(--on-ink);
-}
-
-.kb-btn-p:hover {
-  background: var(--ink);
-  opacity: 0.86;
-}
-
-.kb-btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-/* A disabled primary is a well with muted text, like .os-button (A-14). */
-.kb-btn-p:disabled {
-  opacity: 1;
-  background: var(--well);
-  color: var(--muted);
 }
 
 /* Setters · Resources: a pill track on the stone, the picked tab in ink. */
@@ -835,11 +734,6 @@ a.kb-quiet:hover {
 
 .kb-grp {
   margin: 16px 12px 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .kb-meta {
@@ -847,7 +741,7 @@ a.kb-quiet:hover {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   overflow: hidden;
@@ -1170,7 +1064,7 @@ a.kb-quiet:hover {
   width: 272px;
   flex: none;
   box-sizing: border-box;
-  padding: 20px;
+  padding: var(--card-pad);
   border-left: 0;
   display: flex;
   flex-direction: column;
@@ -1221,7 +1115,7 @@ a.kb-quiet:hover {
 }
 
 .kb-corr-who {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
@@ -1282,7 +1176,7 @@ a.kb-quiet:hover {
 }
 
 .kb-sec {
-  padding: 22px 24px;
+  padding: var(--card-pad);
   border: 0;
   border-radius: var(--radius-card);
   background: var(--card);
@@ -1402,7 +1296,6 @@ a.kb-quiet:hover {
   flex-wrap: wrap;
 }
 
-.kb-sel,
 .kb-input {
   height: 32px;
   padding: 0 10px;
@@ -1413,16 +1306,10 @@ a.kb-quiet:hover {
   color: var(--ink);
 }
 
-/* Native selects keep the shared chevron: colour only, never the shorthand. */
-.kb-sel {
-  appearance: none;
-  -webkit-appearance: none;
-  padding-right: 30px;
-  background-image: var(--chevron);
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  background-size: 14px;
-  cursor: pointer;
+/* The shared Select, small, inline in a sentence ("Propose 2 times within 3 days"). */
+.os .kb-sel-field {
+  display: inline-flex;
+  vertical-align: middle;
 }
 
 .kb-input {
@@ -1430,7 +1317,6 @@ a.kb-quiet:hover {
   min-width: 0;
 }
 
-.kb-sel:focus,
 .kb-input:focus {
   outline: none;
   border-color: var(--ink);
@@ -1465,7 +1351,7 @@ a.kb-quiet:hover {
 }
 
 .kb-preview figcaption {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   margin-bottom: 4px;
 }
@@ -1494,7 +1380,7 @@ a.kb-quiet:hover {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
@@ -1537,24 +1423,6 @@ a.kb-quiet:hover {
   color: var(--muted);
 }
 
-.kb-tag {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: var(--neutral-bg);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  color: var(--neutral-fg);
-  white-space: nowrap;
-}
-
-
-
-
-
-
 /* --- resources -------------------------------------------------------------- */
 
 .kb-res {
@@ -1567,7 +1435,7 @@ a.kb-quiet:hover {
 
 .kb-res-sec {
   padding-top: 24px;
-  padding: 22px 24px;
+  padding: var(--card-pad);
   border-radius: var(--radius-card);
   background: var(--card);
 }
@@ -1692,7 +1560,7 @@ a.kb-kw:hover {
   color: var(--on-ink);
   border: 0;
   outline: 2px solid var(--card);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   line-height: 1;
   display: inline-flex;
@@ -2429,7 +2297,7 @@ a.kb-kw:hover {
 
 .kb-chat-status {
   margin-left: auto;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
@@ -2474,17 +2342,13 @@ a.kb-kw:hover {
   display: block;
   padding: 0 8px;
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
 .kb-chat-actions {
   display: flex;
   gap: 6px;
-}
-
-.kb-chat-actions .kb-btn {
-  height: 28px;
 }
 
 .kb-chat-test {
@@ -2498,7 +2362,7 @@ a.kb-kw:hover {
 }
 
 .kb-chat-label {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
@@ -2596,7 +2460,7 @@ a.kb-kw:hover {
   max-width: 720px;
   width: 100%;
   box-sizing: border-box;
-  padding: 22px 24px;
+  padding: var(--card-pad);
   border-radius: var(--radius-card);
   background: var(--card);
   --ctl: var(--well);
@@ -2630,7 +2494,7 @@ a.kb-kw:hover {
   height: 18px;
   border-radius: 50%;
   background: var(--well);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -2727,40 +2591,7 @@ a.kb-kw:hover {
   border-top: 0;
 }
 
-/* Approve · Auto: the shared segmented look, a pill track on --ctl with the
-   picked option in ink. */
-.kb-seg {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--ctl);
-}
-
-.kb-seg button {
-  height: 26px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  font-size: var(--fs-xs);
-  cursor: pointer;
-}
-
-.kb-seg button[aria-checked="true"] {
-  background: var(--ink);
-  color: var(--on-ink);
-  font-weight: 500;
-  box-shadow: none;
-}
-
-.kb-seg button:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
+/* Approve · Auto: the shared segmented switch (cp-seg). */
 .kb-ap-row .kb-quiet[data-ready="true"] {
   color: var(--good);
 }
@@ -2889,12 +2720,6 @@ a.kb-kw:hover {
   font-size: var(--fs-sm);
 }
 
-.kb-lt .kb-btn {
-  height: 26px;
-  padding: 0 8px;
-  font-size: var(--fs-xs);
-}
-
 .kb-lt-test {
   display: flex;
   flex-direction: column;
@@ -2916,38 +2741,6 @@ a.kb-kw:hover {
   padding-bottom: 8px;
 }
 
-.kb-lt-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.kb-lt-status::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  border: 1px solid var(--ink);
-}
-
-.kb-lt-status[data-status="running"]::before {
-  background: var(--ink);
-}
-
-.kb-lt .kb-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: var(--neutral-bg);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  color: var(--neutral-fg);
-}
-
 .kb-lt-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) repeat(5, 52px);
@@ -2966,7 +2759,7 @@ a.kb-kw:hover {
 }
 
 .kb-lt-cols {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ghost);
   padding-bottom: 4px;
 }
@@ -3000,7 +2793,7 @@ a.kb-kw:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -3010,7 +2803,7 @@ a.kb-kw:hover {
 }
 
 .kb-lt-mark {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ink);
 }
 
@@ -3045,4 +2838,26 @@ a.kb-kw:hover {
   .kb-lt-grid {
     grid-template-columns: minmax(0, 1fr) repeat(5, 46px);
   }
+}
+
+/* A line test's status: a dot and a word (kept as it was; 12px floor). */
+.kb-lt-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  line-height: 16px;
+  color: var(--muted);
+}
+
+.kb-lt-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--ink);
+}
+
+.kb-lt-status[data-status="running"]::before {
+  background: var(--ink);
 }

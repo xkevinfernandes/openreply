@@ -5,6 +5,7 @@
 // with the step palette drawer, and the inspector for the selected step.
 // The graph only changes through graph-edit.ts; edits autosave as the draft.
 
+import { Button, SegmentedSwitch } from "@claudepreneur/brand/react";
 import "@xyflow/react/dist/style.css";
 import "@/components/os/workflows/workflows.css";
 import Link from "next/link";
@@ -421,21 +422,28 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
             {saveLabel(save, unpublished, version)}
           </span>
           <WorkflowStatusCell row={{ version, on, unpublished }} showChanges={false} />
-          <div className="wf-seg" role="radiogroup" aria-label="Mode">
-            {(["draft", "auto"] as const).map((m) => (
-              <button key={m} type="button" role="radio" aria-checked={mode === m} title={MODE_TIP[m]} onClick={() => mode !== m && void changeMode(m)}>
-                <span className="wf-mode-dot" data-mode={m} />
-                {MODE_LABEL[m]}
-              </button>
-            ))}
-          </div>
+          <SegmentedSwitch
+            className="wf-mode-seg"
+            label="Mode"
+            value={mode}
+            onChange={(m) => mode !== m && void changeMode(m)}
+            options={(["draft", "auto"] as const).map((m) => ({
+              value: m,
+              label: (
+                <span title={MODE_TIP[m]} className="wf-mode-opt">
+                  <span className="wf-mode-dot" data-mode={m} />
+                  {MODE_LABEL[m]}
+                </span>
+              ),
+            }))}
+          />
           <InfoTip label="Approve each DM and Auto-send">Approve each DM: J&apos;s messages wait for your approval in the Inbox. Auto-send: they send on their own. Your own Message steps always send.</InfoTip>
           <button type="button" className="os-switch" role="switch" aria-checked={on} aria-label={on ? "On" : "Off"} title={on ? "On: new people enter" : "Off: no new runs"} onClick={() => void toggleOn()}>
             <span className="os-switch-knob" />
           </button>
-          <button type="button" className="os-button primary wf-publish" disabled={publishing} aria-busy={publishing} onClick={publish}>
+          <Button variant="primary" className="wf-publish" disabled={publishing} aria-busy={publishing} onClick={publish}>
             {publishing ? "Publishing…" : "Publish"}
-          </button>
+          </Button>
           <button type="button" className="wf-iconbtn wf-delete-btn" aria-label="Delete workflow" title="Delete workflow" aria-expanded={deleting} onClick={() => setDeleting((d) => !d)}>
             <WfIcon name="trash" />
           </button>

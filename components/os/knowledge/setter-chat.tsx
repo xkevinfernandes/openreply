@@ -5,6 +5,7 @@
 // words; the assistant answers and proposes per-doc edits with Apply/Discard.
 // Apply saves through the doc path (History: "Setter chat").
 
+import { Button } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
 import {
@@ -56,10 +57,10 @@ export function SetterChatToggle() {
   const c = useContext(ChatCtx);
   if (!c) return null;
   return (
-    <button type="button" className="kb-btn" aria-pressed={c.open} aria-controls="kb-chat" onClick={() => c.setOpen(!c.open)}>
+    <Button aria-pressed={c.open} aria-controls="kb-chat" onClick={() => c.setOpen(!c.open)}>
       <KbIcon name="chat" />
       Chat
-    </button>
+    </Button>
   );
 }
 
@@ -261,12 +262,12 @@ function EditCard({ e, onAct }: { e: ChatEdit; onAct: (kind: "apply" | "discard"
       </pre>
       {e.status === "proposed" && (
         <div className="kb-chat-actions">
-          <button type="button" className="kb-btn kb-btn-p" disabled={pending !== null} onClick={() => run("apply")}>
+          <Button size="sm" variant="primary" disabled={pending !== null} onClick={() => run("apply")}>
             {pending === "apply" ? "Applying…" : "Apply"}
-          </button>
-          <button type="button" className="kb-btn" disabled={pending !== null} onClick={() => run("discard")}>
+          </Button>
+          <Button size="sm" disabled={pending !== null} onClick={() => run("discard")}>
             Discard
-          </button>
+          </Button>
         </div>
       )}
     </div>

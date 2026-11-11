@@ -82,7 +82,7 @@
   border: 0;
   border-radius: var(--radius-card);
   background: var(--card);
-  padding: 8px 16px;
+  padding: var(--list-pad);
 }
 
 .os-ct-table {
@@ -287,15 +287,6 @@
   min-height: 0;
 }
 
-.os-cx-head {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-/* The h1 is .os-title (os.css). */
-
 .os-cx-count {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -351,7 +342,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 36px;
+  height: var(--control-h-sm);
   width: 220px;
   padding: 0 14px;
   border: 1px solid var(--line);
@@ -426,7 +417,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -485,10 +476,6 @@
 
 .os-cx-status[data-error="true"] {
   color: var(--bad);
-}
-
-.os-cx-none {
-  color: var(--muted);
 }
 
 .os-cx-scroll,
@@ -557,7 +544,7 @@
   padding: 3px 10px;
   border-radius: 999px;
   background: var(--sage);
-  color: var(--sage-text);
+  color: var(--on-sage);
 }
 
 .os-cx-col[data-focus="true"] h2 span {
@@ -643,7 +630,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -669,7 +656,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ghost);
   font-variant-numeric: tabular-nums;
 }
@@ -725,12 +712,12 @@
   .os-cx {
     height: auto;
     min-height: calc(100dvh - var(--bar-h));
-    margin: calc(var(--sp-5) * -1) calc(var(--sp-4) * -1) 0;
+    margin: calc(var(--page-pad) * -1) calc(var(--page-pad) * -1) 0;
     overflow: visible;
   }
 
   .os-cx-main {
-    padding: 20px 16px 0;
+    padding: var(--page-pad) var(--page-pad) 0;
   }
 
   .os-cx-search {
@@ -877,7 +864,7 @@
 }
 
 .os-cd-field input,
-.os-cd-field select {
+.os-cd-select .cp-select-trigger {
   min-width: 0;
   height: 26px;
   padding: 0 6px;
@@ -903,14 +890,28 @@
 }
 
 .os-cd-field input:hover,
-.os-cd-field select:hover {
+.os-cd-select .cp-select-trigger:hover {
   border-color: var(--line-strong);
 }
 
 .os-cd-field input:focus,
-.os-cd-field select:focus {
+.os-cd-select .cp-select-trigger:focus-visible {
   border-color: var(--ink);
   outline: 0;
+}
+
+.os-cd-select {
+  display: flex;
+  min-width: 0;
+}
+.os-cd-select .cp-field {
+  flex: 1;
+}
+.os-cd-select .cp-select-trigger {
+  display: flex;
+  width: auto;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .os-cd-src {

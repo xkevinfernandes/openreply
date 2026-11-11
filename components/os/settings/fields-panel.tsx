@@ -5,6 +5,7 @@
 // fields. Each custom field has a type, the setters that fill it (ticked in
 // each setter's Knowledge base), a Kit field and a GoHighLevel field.
 
+import { Button, Select, Tag } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { addField, editField, removeField } from "@/app/(os)/os/settings/actions";
@@ -69,8 +70,8 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
             <strong>Instagram handle</strong>
             <small>From Instagram. Tied to their Instagram ID, so a changed handle stays the same person.</small>
             <span className="os-fd-chips">
-              <span className="os-fd-chip">Handle</span>
-              <span className="os-fd-chip">Unique key</span>
+              <Tag>Handle</Tag>
+              <Tag>Unique key</Tag>
             </span>
           </li>
           {!builtIns.length ? (
@@ -79,14 +80,14 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
                 <strong>Name</strong>
                 <small>From their Instagram profile</small>
                 <span className="os-fd-chips">
-                  <span className="os-fd-chip">Text</span>
+                  <Tag>Text</Tag>
                 </span>
               </li>
               <li>
                 <strong>Email</strong>
                 <small>Captured in the DM or from a lead magnet</small>
                 <span className="os-fd-chips">
-                  <span className="os-fd-chip">Email</span>
+                  <Tag>Email</Tag>
                 </span>
               </li>
             </>
@@ -99,8 +100,8 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
                 <strong>{f.label}</strong>
                 <small>{builtInHow(f.key)}</small>
                 <span className="os-fd-chips">
-                  <span className="os-fd-chip">{fieldTypeLabel(f.type)}</span>
-                  {f.kitField ? <span className="os-fd-chip">Synced to Kit</span> : null}
+                  <Tag>{fieldTypeLabel(f.type)}</Tag>
+                  {f.kitField ? <Tag>Synced to Kit</Tag> : null}
                   {canManage ? (
                     <button type="button" className="os-cf-more" aria-label={`Kit and GoHighLevel fields for ${f.label}`} onClick={() => setEditing({ id: f.id, focus: "kit" })}>
                       <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -121,12 +122,12 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
         <InfoTip label="About custom fields">Setters tick which fields they fill in their Knowledge base. Values sync to the mapped Kit and GoHighLevel fields.</InfoTip>
         <span className="os-cf-grow" />
         {canManage ? (
-          <button type="button" className="os-cf-btn primary" onClick={() => setEditing({ id: "new", focus: "label" })} disabled={editing?.id === "new"}>
+          <Button variant="primary" size="sm" onClick={() => setEditing({ id: "new", focus: "label" })} disabled={editing?.id === "new"}>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M8 3.5v9M3.5 8h9" />
             </svg>
             New field
-          </button>
+          </Button>
         ) : null}
       </div>
       {error ? (
@@ -293,16 +294,7 @@ function FieldEditor({
         <span>Name</span>
         <input value={label} onChange={(e) => setLabel(e.target.value)} disabled={locked} autoFocus={focus === "label" && !locked} maxLength={60} required />
       </label>
-      <label>
-        <span>Type</span>
-        <select value={type} onChange={(e) => setType(e.target.value as CustomFieldType)} disabled={locked}>
-          {FIELD_TYPES.map((t) => (
-            <option key={t.type} value={t.type}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select label="Type" value={type} onChange={(v) => setType(v as CustomFieldType)} disabled={locked} options={FIELD_TYPES.map((t) => ({ value: t.type, label: t.label }))} />
       {type === "SELECT" ? (
         <label className="os-cf-wide">
           <span>Choices</span>
@@ -319,17 +311,17 @@ function FieldEditor({
       </label>
       <div className="os-cf-form-actions">
         {field && !locked ? (
-          <button type="button" className="os-cf-btn danger" onClick={remove} disabled={pending}>
+          <Button variant="danger" size="sm" onClick={remove} disabled={pending}>
             {confirm ? "Delete for good?" : "Delete"}
-          </button>
+          </Button>
         ) : null}
         <span className="os-cf-grow" />
-        <button type="button" className="os-cf-btn" onClick={onCancel} disabled={pending}>
+        <Button size="sm" onClick={onCancel} disabled={pending}>
           Cancel
-        </button>
-        <button type="submit" className="os-cf-btn primary" disabled={pending}>
+        </Button>
+        <Button type="submit" variant="primary" size="sm" disabled={pending}>
           {field ? "Save" : "Add"}
-        </button>
+        </Button>
       </div>
     </form>
   );

@@ -28,7 +28,7 @@ export default function ReviewButton({ count }: { count: number }) {
 
   if (!count) return <span className="os-home-clear">No drafts waiting</span>;
   return (
-    <Link href={HREF} className="os-button primary os-home-review">
+    <Link href={HREF} className="cp-btn cp-btn-primary os-home-review">
       Review {count} draft{count === 1 ? "" : "s"} <span className="os-home-review-key">⏎</span>
     </Link>
   );

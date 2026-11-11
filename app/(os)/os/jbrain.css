@@ -327,7 +327,7 @@
   border-radius: var(--radius);
   background: transparent;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--muted);
   cursor: pointer;
@@ -381,7 +381,7 @@
 }
 
 .os-sbx-note {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ghost);
 }
 
@@ -398,7 +398,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 20px;
+  padding: var(--card-pad);
   overflow: auto;
   border: 0;
   border-radius: var(--radius-card);
@@ -425,34 +425,6 @@
 .os-sbx-lab .os-icon-btn {
   width: 22px;
   height: 22px;
-}
-
-.os-sbx-in {
-  height: 34px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background-color: var(--ctl);
-  font: inherit;
-  font-size: var(--fs-sm);
-  color: var(--ink);
-}
-
-/* Selects keep the shared chevron: colour only, never the shorthand. */
-select.os-sbx-in {
-  appearance: none;
-  -webkit-appearance: none;
-  padding-right: 32px;
-  background-image: var(--chevron);
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  background-size: 14px;
-  cursor: pointer;
-}
-
-.os-sbx-in:disabled {
-  color: var(--ghost);
-  cursor: default;
 }
 
 .os-sbx-kv {
@@ -540,7 +512,7 @@ select.os-sbx-in {
   border-radius: 50%;
   background: var(--ink);
   color: var(--on-ink);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -553,12 +525,6 @@ select.os-sbx-in {
   gap: 6px;
   font-size: var(--fs-xs);
   color: var(--muted);
-}
-
-.os-sbx-test .os-segmented button {
-  height: 22px;
-  padding: 0 8px;
-  font-size: 11px;
 }
 
 .os-sbx-thread {
@@ -606,17 +572,12 @@ select.os-sbx-in {
   color: var(--muted);
 }
 
-.os-sbx-chip[data-bad] {
-  color: var(--bad);
-  background: var(--bad-bg);
-}
-
 .os-sbx-trace {
   border: 0;
   padding: 0;
   background: none;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   text-decoration: underline;
   text-underline-offset: 2px;

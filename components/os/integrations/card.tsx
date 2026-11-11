@@ -1,5 +1,7 @@
 "use client";
 
+import { Button, buttonClassName, GroupLabel } from "@claudepreneur/brand/react";
+import { pillClass } from "@/components/os/ui/pill";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import {
@@ -19,6 +21,7 @@ import {
 import { PROVIDER_INFO } from "@/lib/os/integrations/view-info";
 import { KitLogo } from "./logos";
 import MappingEditor, { type MappingFieldSource } from "./mapping-editor";
+import { useOsConfirm } from "@/components/os/ui/confirm";
 
 function Logo({ provider }: { provider: IntegrationView["provider"] }) {
   return (
@@ -103,10 +106,7 @@ export default function IntegrationCard({
       <div className="os-int-card-top">
         <Logo provider={view.provider} />
         <h2 id={`${panelId}-name`}>{info.name}</h2>
-        <span className="os-st" data-tone={st.tone}>
-          <i />
-          {st.label}
-        </span>
+        <span className={pillClass(st.tone === "off" ? "neutral" : st.tone)}>{st.label}</span>
       </div>
       <p className="os-int-blurb">{info.blurb}</p>
 
@@ -114,7 +114,7 @@ export default function IntegrationCard({
         {canManage && (
           <button
             type="button"
-            className={`os-button ${view.connected ? "" : "primary"}`}
+            className={buttonClassName(view.connected ? "secondary" : "primary")}
             aria-expanded={open}
             aria-controls={panelId}
             onClick={() => setOpen((o) => !o)}
@@ -122,9 +122,8 @@ export default function IntegrationCard({
             {open ? "Done" : view.connected ? "Manage" : "Connect"}
           </button>
         )}
-        <button
-          type="button"
-          className="os-button ghost os-int-why"
+        <Button
+          variant="text" className="os-int-why"
           aria-expanded={explainOpen}
           aria-controls={explainId}
           onClick={() => setExplainOpen((o) => !o)}
@@ -133,7 +132,7 @@ export default function IntegrationCard({
             ?
           </span>
           What does this do?
-        </button>
+        </Button>
         {view.connected && view.synced > 0 && !open && (
           <span className="os-int-meta">
             {view.synced} synced
@@ -167,7 +166,7 @@ export default function IntegrationCard({
           )}
 
           <section className="os-int-section" aria-label="Connection">
-            <h3>Connection</h3>
+            <GroupLabel>Connection</GroupLabel>
             {view.provider === "kit" ? (
               <KitConnect
                 view={view}
@@ -184,7 +183,7 @@ export default function IntegrationCard({
           {view.connected && (
             <>
               <section className="os-int-section" aria-label="Fields">
-                <h3>What gets sent</h3>
+                <GroupLabel>What gets sent</GroupLabel>
                 {view.provider === "kit" && !view.lastSyncedAt ? (
                   <p className="os-int-hint" aria-disabled="true">
                     Field mapping · Sync once so Kit&apos;s fields are known.
@@ -207,7 +206,7 @@ export default function IntegrationCard({
               </section>
 
               <section className="os-int-section" aria-label="Sync">
-                <h3>Sync</h3>
+                <GroupLabel>Sync</GroupLabel>
                 <div className="os-int-row">
                   <div className="os-int-row-main">
                     <strong>Push changes</strong>
@@ -244,14 +243,13 @@ export default function IntegrationCard({
                       here.
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    className="os-button"
+                  <Button
+                    
                     disabled={pending || !view.enabled}
                     onClick={() => act(() => syncExisting(view.provider))}
                   >
                     Send existing contacts
-                  </button>
+                  </Button>
                 </div>
                 {view.errors.length > 0 && (
                   <ul className="os-int-errors" aria-label="Recent errors">
@@ -299,6 +297,7 @@ function KitConnect({
 }: ConnectProps & {
   onKit: (method: "POST" | "DELETE", body?: { apiKey: string }) => void;
 }) {
+  const confirmAsk = useOsConfirm();
   const [apiKey, setApiKey] = useState("");
   const [replacing, setReplacing] = useState(false);
   const id = useId();
@@ -329,21 +328,20 @@ function KitConnect({
         again. Campaign email gates use the same key.
       </p>
       <span className="os-int-inline">
-        <button
-          className="os-button primary"
+        <Button
+ variant="primary" type="submit"
           disabled={pending || apiKey.trim().length < 10}
         >
           {pending ? "Checking…" : label}
-        </button>
+        </Button>
         {view.connected ? (
-          <button
-            type="button"
-            className="os-button ghost"
+          <Button
+            variant="text"
             onClick={() => setReplacing(false)}
             disabled={pending}
           >
             Cancel
-          </button>
+          </Button>
         ) : null}
       </span>
     </form>
@@ -363,44 +361,42 @@ function KitConnect({
       <div className="os-int-inline">
         <button
           type="button"
-          className={`os-button${view.lastSyncedAt ? "" : " primary"}`}
+          className={buttonClassName(view.lastSyncedAt ? "secondary" : "primary")}
           disabled={pending || !view.enabled}
           onClick={() => onAct(() => syncExisting("kit"))}
         >
           Sync now
         </button>
-        <button
-          type="button"
-          className="os-button"
+        <Button
+          
           disabled={pending}
           onClick={() => onAct(() => testConnection("kit"))}
         >
           Test connection
-        </button>
-        <button
-          type="button"
-          className="os-button"
+        </Button>
+        <Button
+          
           disabled={pending}
           onClick={() => setReplacing(true)}
         >
           Replace key
-        </button>
-        <button
-          type="button"
-          className="os-button ghost"
+        </Button>
+        <Button
+          variant="text"
           disabled={pending}
-          onClick={() => {
-            if (window.confirm(KIT_DISCONNECT_CONFIRM)) onKit("DELETE");
+          onClick={async () => {
+            if (await confirmAsk(KIT_DISCONNECT_CONFIRM, { danger: true, confirmLabel: "Disconnect" })) onKit("DELETE");
           }}
         >
           Disconnect
-        </button>
+        </Button>
       </div>
     </div>
   );
 }
 
 function GhlConnect({ view, now, pending, onAct }: ConnectProps) {
+  const confirmAsk = useOsConfirm();
   const [token, setToken] = useState("");
   const [locationId, setLocationId] = useState(view.locationId ?? "");
   const id = useId();
@@ -449,14 +445,14 @@ function GhlConnect({ view, now, pending, onAct }: ConnectProps) {
           pipeline, opportunities (view and edit). The location id is in
           Settings → Business Profile. The token is tested, then encrypted.
         </p>
-        <button
-          className="os-button primary"
+        <Button
+ variant="primary" type="submit"
           disabled={
             pending || token.trim().length < 10 || locationId.trim().length < 5
           }
         >
           {pending ? "Testing…" : "Test and connect"}
-        </button>
+        </Button>
       </form>
     );
   }
@@ -469,29 +465,28 @@ function GhlConnect({ view, now, pending, onAct }: ConnectProps) {
         <TestedLine view={view} now={now} />
       </div>
       <div className="os-int-inline">
-        <button
-          type="button"
-          className="os-button"
+        <Button
+          
           disabled={pending}
           onClick={() => onAct(() => testConnection("ghl"))}
         >
           Test connection
-        </button>
-        <button
-          type="button"
-          className="os-button ghost"
+        </Button>
+        <Button
+          variant="text"
           disabled={pending}
-          onClick={() => {
+          onClick={async () => {
             if (
-              window.confirm(
-                "Disconnect GoHighLevel? Nothing more is sent until you reconnect. Your field mapping is kept.",
-              )
+              await confirmAsk("Disconnect GoHighLevel? Nothing more is sent until you reconnect. Your field mapping is kept.", {
+                danger: true,
+                confirmLabel: "Disconnect",
+              })
             )
               onAct(disconnectGhl);
           }}
         >
           Disconnect
-        </button>
+        </Button>
       </div>
     </div>
   );

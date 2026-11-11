@@ -40,7 +40,7 @@
 }
 
 .os .os-fn-seg span[data-last] {
-  background: var(--sage);
+  background: var(--feature);
 }
 
 .os .os-fn-dots {
@@ -124,7 +124,7 @@
   font-size: var(--fs-sm);
 }
 
-/* Revenue: From this cohort (sage), Closed in period, the no-amount note. */
+/* Revenue: From this cohort (the ink feature), Closed in period, the no-amount note. */
 .os .os-fn-money {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -158,13 +158,13 @@
 }
 
 .os .os-fn-tile[data-feature] {
-  background: var(--sage);
-  color: var(--on-sage, var(--sage-text));
+  background: var(--feature);
+  color: var(--on-ink);
 }
 
 .os .os-fn-tile[data-feature] .lbl,
 .os .os-fn-tile[data-feature] .foot {
-  color: var(--sage-text);
+  color: var(--feature-text);
 }
 
 .os .os-fn-missing {
@@ -288,7 +288,7 @@
     background: var(--ink);
   }
   .os .os-fn-steps li[data-last] .bar span {
-    background: var(--sage);
+    background: var(--feature);
   }
   .os .os-fn-steps .drop {
     grid-column: 1 / -1;

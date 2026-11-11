@@ -3,6 +3,7 @@
 // Setup › Voice corrections: one compact card per correction (J wrote / You
 // sent / Why), newest first. Add one by hand; remove saves at once.
 
+import { Button } from "@claudepreneur/brand/react";
 import { useState } from "react";
 import { saveSetter } from "@/app/(os)/os/knowledge/actions";
 import { Field, Section, TextArea, TextInput, useSaver } from "@/components/os/knowledge/fields";
@@ -48,9 +49,9 @@ export default function CorrectionsCards({ view }: { view: SetterEditorView }) {
             {saver.pending ? "Saving…" : saver.note?.text}
           </span>
           {!adding && (
-            <button type="button" className="kb-btn" onClick={() => setAdding(true)}>
+            <Button onClick={() => setAdding(true)}>
               Add
-            </button>
+            </Button>
           )}
         </span>
       }
@@ -63,12 +64,12 @@ export default function CorrectionsCards({ view }: { view: SetterEditorView }) {
             {(id) => <TextInput id={id} value={draft.why} onChange={(x) => setDraft({ ...draft, why: x })} />}
           </Field>
           <div className="kb-ap-row">
-            <button type="button" className="kb-btn" onClick={() => setAdding(false)}>
+            <Button onClick={() => setAdding(false)}>
               Cancel
-            </button>
-            <button type="button" className="kb-btn kb-btn-p" disabled={!draft.wrote.trim() || !draft.sent.trim() || saver.pending} onClick={add}>
+            </Button>
+            <Button variant="primary" disabled={!draft.wrote.trim() || !draft.sent.trim() || saver.pending} onClick={add}>
               Add correction
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -81,15 +82,14 @@ export default function CorrectionsCards({ view }: { view: SetterEditorView }) {
               <div className="kb-corr-h">
                 <span className="kb-quiet">{p.who || c.title}</span>
                 <div className="kb-grow" />
-                <button
-                  type="button"
-                  className="os-link quiet"
+                <Button
+                  variant="text"
                   aria-label={`Remove ${c.title}`}
                   disabled={saver.pending}
                   onClick={() => persist(list.filter((_, j) => j !== i), "Removed")}
                 >
                   Remove
-                </button>
+                </Button>
               </div>
               <dl>
                 {p.wrote && (

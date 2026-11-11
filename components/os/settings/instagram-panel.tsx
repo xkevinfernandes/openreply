@@ -7,11 +7,13 @@
 // connect flow, Fix webhook repairs the webhook, Set up Zernio opens the key
 // form. On the OS_MOCK sample nothing calls Zernio.
 
+import { Button, Select } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { fixSampleWebhook } from "@/app/(os)/os/settings/actions";
 import { fixLabel, type InstagramFix } from "@/lib/os/connections-view";
+import { useOsConfirm } from "@/components/os/ui/confirm";
 
 type ConnectionData = {
   configured: boolean;
@@ -54,7 +56,7 @@ async function runFix(fix: Exclude<InstagramFix, "zernio">, sample: boolean): Pr
 export function InstagramFixButton({
   fix,
   sample,
-  className = "os-button primary",
+  className = "cp-btn cp-btn-primary",
   onDone,
   onError,
 }: {
@@ -111,17 +113,17 @@ export function ReconnectBar({ problem, fix, sample }: { problem: string; fix: I
 }
 
 export function DisconnectButton({ id, username }: { id: string; username: string }) {
+  const confirmAsk = useOsConfirm();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
     <span className="os-set-disconnect">
-      <button
-        type="button"
-        className="os-button danger"
+      <Button
+        variant="danger"
         disabled={busy}
         onClick={async () => {
-          if (!confirm(`Disconnect @${username}? Its automations stop sending DMs and J stops reading its inbox.`)) return;
+          if (!(await confirmAsk(`Disconnect @${username}? Its automations stop sending DMs and J stops reading its inbox.`, { danger: true, confirmLabel: "Disconnect" }))) return;
           setBusy(true);
           setError(null);
           try {
@@ -141,7 +143,7 @@ export function DisconnectButton({ id, username }: { id: string; username: strin
         }}
       >
         {busy ? "Disconnecting…" : "Disconnect"}
-      </button>
+      </Button>
       {error && (
         <span className="os-kb-note" data-kind="error" role="alert">
           {error}
@@ -153,6 +155,7 @@ export function DisconnectButton({ id, username }: { id: string; username: strin
 
 /** Zernio: the key, the profile (and its webhook) and which account the DM OS uses. */
 export function ZernioPanel({ canManage, sample = null, embedded = false }: { canManage: boolean; sample?: { username: string } | null; embedded?: boolean }) {
+  const confirmAsk = useOsConfirm();
   const [data, setData] = useState<ConnectionData | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [profileId, setProfileId] = useState("");
@@ -223,9 +226,9 @@ export function ZernioPanel({ canManage, sample = null, embedded = false }: { ca
           Get a key
         </a>
         <span className="os-si-grow" />
-        <button className="os-si-btn primary" disabled={busy || !apiKey}>
+        <Button variant="primary" size="sm" type="submit" disabled={busy || !apiKey}>
           {busy ? "Saving…" : "Save key"}
-        </button>
+        </Button>
       </div>
     </form>
   ) : (
@@ -237,23 +240,13 @@ export function ZernioPanel({ canManage, sample = null, embedded = false }: { ca
           void act("settings", "PUT", { profileId });
         }}
       >
-        <label>
-          <span>Profile</span>
-          <select className="os-input" value={profileId} onChange={(e) => setProfileId(e.target.value)} required>
-            <option value="">Pick a profile</option>
-            {data.profiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select label="Profile" placeholder="Pick a profile" value={profileId} onChange={setProfileId} required options={data.profiles.map((p) => ({ value: p.id, label: p.name }))} />
         {!data.profiles.length ? <p className="os-set-empty">Make a profile in Zernio, then reload this page.</p> : null}
         <div className="os-si-form-actions">
           <span className="os-si-grow" />
-          <button className="os-si-btn primary" disabled={busy || !profileId}>
+          <Button variant="primary" size="sm" type="submit" disabled={busy || !profileId}>
             {busy ? "Setting up…" : data.webhookReady && profileId === data.profileId ? "Repair webhook" : "Save and set up webhook"}
-          </button>
+          </Button>
         </div>
       </form>
       {data.webhookReady ? (
@@ -261,15 +254,15 @@ export function ZernioPanel({ canManage, sample = null, embedded = false }: { ca
           {data.accounts.map((a) => (
             <li key={a.id}>
               <span>@{a.username}</span>
-              <button type="button" className="os-si-btn" disabled={busy || a.connected} onClick={() => void act("accounts", "POST", { accountId: a.id })}>
+              <Button size="sm" disabled={busy || a.connected} onClick={() => void act("accounts", "POST", { accountId: a.id })}>
                 {a.connected ? "In use" : "Use this account"}
-              </button>
+              </Button>
             </li>
           ))}
           <li>
-            <button type="button" className="os-si-btn" disabled={busy} onClick={() => void act("connect", "POST")}>
+            <Button size="sm" disabled={busy} onClick={() => void act("connect", "POST")}>
               Connect another account
-            </button>
+            </Button>
           </li>
         </ul>
       ) : null}
@@ -277,8 +270,8 @@ export function ZernioPanel({ canManage, sample = null, embedded = false }: { ca
         type="button"
         className="os-zn-remove"
         disabled={busy}
-        onClick={() => {
-          if (confirm("Remove the Zernio key and its webhook? Disconnect its Instagram accounts first.")) void act("settings", "DELETE");
+        onClick={async () => {
+          if (await confirmAsk("Remove the Zernio key and its webhook? Disconnect its Instagram accounts first.", { danger: true, confirmLabel: "Remove" })) void act("settings", "DELETE");
         }}
       >
         Remove Zernio

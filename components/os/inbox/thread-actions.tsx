@@ -4,6 +4,7 @@
 // unread, Archive / Restore, Mark spam / Not spam, and on narrow screens the
 // "Contact" button that opens today's contact panel as a sheet.
 
+import { Button, MenuButton } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { archiveThreads, markThreadsSpam, markThreadsUnread, starThreads, type StreamActionResult } from "@/app/(os)/os/inbox/stream-actions";
@@ -57,27 +58,23 @@ export default function ThreadActions({ contactId, starred: initialStar, archive
       >
         {starIcon(starred)}
       </button>
-      <details className="os-ix-tmenu">
-        <summary className="os-ix-iconbtn" aria-label="Thread actions" title="Thread actions">
-          <span className="sr-only">Thread actions</span>
+      <MenuButton
+        aria-label="Thread actions"
+        size="sm"
+        className="os-ix-tmenu"
+        icon={
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <circle cx="3.5" cy="8" r="1.3" />
             <circle cx="8" cy="8" r="1.3" />
             <circle cx="12.5" cy="8" r="1.3" />
           </svg>
-        </summary>
-        <div className="os-ix-tmenu-list" role="menu">
-          <button type="button" role="menuitem" onClick={() => act(() => markThreadsUnread([contactId]), () => router.push(listHref))}>
-            Mark unread
-          </button>
-          <button type="button" role="menuitem" onClick={() => act(() => archiveThreads([contactId], !archived))}>
-            {archived ? "Restore" : "Archive"}
-          </button>
-          <button type="button" role="menuitem" onClick={() => act(() => markThreadsSpam([contactId], !spam))}>
-            {spam ? "Not spam" : "Mark spam"}
-          </button>
-        </div>
-      </details>
+        }
+        items={[
+          { label: "Mark unread", onSelect: () => act(() => markThreadsUnread([contactId]), () => router.push(listHref)) },
+          { label: archived ? "Restore" : "Archive", onSelect: () => act(() => archiveThreads([contactId], !archived)) },
+          { label: spam ? "Not spam" : "Mark spam", onSelect: () => act(() => markThreadsSpam([contactId], !spam)) },
+        ]}
+      />
       {hasPanel ? <ContactSheetButton /> : null}
       {err ? (
         <span className="os-ix-tact-err" role="alert">
@@ -102,9 +99,9 @@ function ContactSheetButton() {
   }, [open]);
   return (
     <>
-      <button type="button" className="os-button os-ix-contact-btn" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <Button className="os-ix-contact-btn" aria-expanded={open} onClick={() => setOpen(!open)}>
         Contact
-      </button>
+      </Button>
       {open ? <button type="button" className="os-ix-sheet-backdrop" aria-label="Close contact" onClick={() => setOpen(false)} /> : null}
     </>
   );

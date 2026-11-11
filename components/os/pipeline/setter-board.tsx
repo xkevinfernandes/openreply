@@ -11,6 +11,7 @@
 // Lost stay pinned on the right, so they're always in view.
 // At 400px one column shows at a time under column tabs (no drag).
 
+import { Tabs } from "@claudepreneur/brand/react";
 import { useEffect, useRef, useState } from "react";
 import { threadName } from "@/components/os/inbox/names";
 import { Avatar } from "@/components/os/ui/avatar";
@@ -194,14 +195,13 @@ export default function PipelineBoard(p: Props) {
 
   return (
     <>
-      <div className="os-pl-tabs" role="tablist" aria-label="Columns">
-        {p.lanes.map((l) => (
-          <button key={l.column.key} type="button" role="tab" aria-selected={p.phoneColumn === l.column.key} onClick={() => p.onPhoneColumn(l.column.key)}>
-            {l.column.label}
-            <span>{l.cards.length}</span>
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Columns"
+        className="os-pl-tabs"
+        value={p.phoneColumn}
+        onChange={(k) => p.onPhoneColumn(k)}
+        tabs={p.lanes.map((l) => ({ value: l.column.key, label: l.column.label, count: l.cards.length }))}
+      />
       <div className="os-pl-scroll">
         <div className="os-pl-board" ref={board} data-dragging={dragging ? "true" : undefined}>
           <p id="os-pl-kb-hint" className="sr-only">
@@ -263,7 +263,7 @@ function Card({ c, column, currency, now, open, checked, dragged, onOpen, onTogg
       onDragEnd={onDragEnd}
     >
       <div className="os-pl-card-top">
-        <input type="checkbox" className="os-pl-check" aria-label={`Select ${name}`} checked={checked} onChange={(e) => onToggle(e.target.checked)} />
+        <input type="checkbox" className="cp-checkbox os-pl-check" aria-label={`Select ${name}`} checked={checked} onChange={(e) => onToggle(e.target.checked)} />
         <button type="button" className="os-pl-open" aria-describedby="os-pl-kb-hint" onClick={onOpen} onKeyDown={onKeyDown}>
           <Avatar name={c.username ?? c.fullName} src={c.avatarUrl} size={22} className="os-cx-av" />
           <span className="os-cx-user">{name}</span>

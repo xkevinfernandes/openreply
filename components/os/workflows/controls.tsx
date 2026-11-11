@@ -7,18 +7,11 @@ import { useState } from "react";
 import { fieldLabel, syncTitle, type BuilderContext } from "@/components/os/workflows/context";
 import { parseDuration, formatMinutes } from "@/components/os/workflows/forms";
 import { WfIcon } from "@/components/os/workflows/icons";
+import { MenuButton, SegmentedSwitch, Select } from "@claudepreneur/brand/react";
 import { InfoTip } from "@/components/os/ui";
 
 export function Seg<T extends string>({ value, options, onChange, label }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; label: string }) {
-  return (
-    <div className="wf-seg wf-seg-full" role="radiogroup" aria-label={label}>
-      {options.map((o) => (
-        <button key={o.value} type="button" role="radio" aria-checked={value === o.value} onClick={() => value !== o.value && onChange(o.value)}>
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
+  return <SegmentedSwitch className="wf-seg-full" label={label} value={value} options={options} onChange={(v) => v !== value && onChange(v)} />;
 }
 
 export function Group({ label, tip, children, aside }: { label: string; tip?: string; children: React.ReactNode; aside?: React.ReactNode }) {
@@ -49,15 +42,14 @@ export function FieldSelect({ ctx, value, onChange, label = "Field" }: { ctx: Pi
   const known = ctx.fields.some((f) => f.key === value);
   return (
     <span className="wf-field-row">
-      <select className="os-input wf-select" value={value} aria-label={label} onChange={(e) => onChange(e.target.value)}>
-        {!value ? <option value="">Pick a field</option> : null}
-        {!known && value ? <option value={value}>{value}</option> : null}
-        {ctx.fields.map((f) => (
-          <option key={f.key} value={f.key}>
-            {f.label}
-          </option>
-        ))}
-      </select>
+      <Select
+        fieldClassName="wf-select"
+        aria-label={label}
+        placeholder="Pick a field"
+        value={value}
+        onChange={onChange}
+        options={[...(!known && value ? [{ value, label: value }] : []), ...ctx.fields.map((f) => ({ value: f.key, label: f.label }))]}
+      />
       <SyncGlyph ctx={ctx} k={value} />
       {!known && value ? (
         <span className="wf-warn-dot" role="img" title={`"${value}" isn't a field yet: create it in Settings › Custom fields, or nothing is saved`} aria-label={`"${value}" isn't a field yet`} />
@@ -87,27 +79,19 @@ export function FieldChips({ ctx, value, onChange }: { ctx: Pick<BuilderContext,
   );
 }
 
-/** A dashed "+ Label" that is really a select. */
+/** A dashed "+ Label" that opens a menu of what can be added. */
 export function AddSelect({ label, options, onPick }: { label: string; options: { value: string; label: string }[]; onPick: (v: string) => void }) {
   return (
-    <label className="wf-add">
-      <WfIcon name="plus" size={11} />
-      {label}
-      <select
-        value=""
-        aria-label={`Add ${label.toLowerCase()}`}
-        onChange={(e) => {
-          if (e.target.value) onPick(e.target.value);
-        }}
-      >
-        <option value="">{label}</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <MenuButton
+      className="wf-add"
+      variant="text"
+      caret={false}
+      align="start"
+      icon={<WfIcon name="plus" size={11} />}
+      label={label}
+      aria-label={`Add ${label.toLowerCase()}`}
+      items={options.map((o) => ({ label: o.label, onSelect: () => onPick(o.value) }))}
+    />
   );
 }
 
@@ -115,15 +99,17 @@ export function ResourceSelect({ ctx, value, onChange, label = "Lead magnet", al
   return (
     <span className="wf-field-row">
       <WfIcon name="doc" size={13} className="wf-ghost-icon" />
-      <select className="os-input wf-select" value={value ?? ""} aria-label={label} onChange={(e) => onChange(e.target.value || undefined)}>
-        <option value="">{allowNone ?? "Pick a lead magnet"}</option>
-        {value && !ctx.resources.some((r) => r.slug === value) ? <option value={value}>{value}</option> : null}
-        {ctx.resources.map((r) => (
-          <option key={r.slug} value={r.slug}>
-            {r.name}
-          </option>
-        ))}
-      </select>
+      <Select
+        fieldClassName="wf-select"
+        aria-label={label}
+        value={value ?? ""}
+        onChange={(v) => onChange(v || undefined)}
+        options={[
+          { value: "", label: allowNone ?? "Pick a lead magnet" },
+          ...(value && !ctx.resources.some((r) => r.slug === value) ? [{ value, label: value }] : []),
+          ...ctx.resources.map((r) => ({ value: r.slug, label: r.name })),
+        ]}
+      />
     </span>
   );
 }

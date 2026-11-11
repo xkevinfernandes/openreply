@@ -3,6 +3,7 @@
 // Randomizer inspector (WorkflowC board): the split, each branch's first
 // step, the A vs B table and Pick winner (an undoable draft edit).
 
+import { Button } from "@claudepreneur/brand/react";
 import { Group } from "@/components/os/workflows/controls";
 import { abResults, addBranch, LINE_MIN_REACHED, removeBranch, setWeight } from "@/components/os/workflows/forms";
 import { nodeById, pickBranchWinner, targetOf } from "@/components/os/workflows/graph-edit";
@@ -137,10 +138,10 @@ export default function RandomizerPanel({ data, node, graph, ctx, onChange, onGr
         <div className="wf-field-row">
           {(res.leaderId ? [res.branches.find((b) => b.id === res.leaderId)!, ...res.branches.filter((b) => b.id !== res.leaderId)] : res.branches).map((b, i) =>
             i === 0 ? (
-              <button
-                key={b.id}
+              <Button
+ key={b.id}
                 type="button"
-                className="os-button wf-pick"
+                className="wf-pick"
                 title="Everyone goes down this branch. The other branch's steps are removed (Undo brings them back)."
                 onClick={() => {
                   onGraph((g) => pickBranchWinner(g, node.id, b.id));
@@ -149,12 +150,12 @@ export default function RandomizerPanel({ data, node, graph, ctx, onChange, onGr
               >
                 <WfIcon name="up" size={12} />
                 Pick winner: {b.label}
-              </button>
+              </Button>
             ) : (
-              <button
-                key={b.id}
+              <Button
+ key={b.id}
                 type="button"
-                className="os-button wf-pick-alt"
+                className="wf-pick-alt"
                 aria-label={`Pick ${b.label} instead`}
                 title={`Pick ${b.label} instead`}
                 onClick={() => {
@@ -163,7 +164,7 @@ export default function RandomizerPanel({ data, node, graph, ctx, onChange, onGr
                 }}
               >
                 {b.label}
-              </button>
+              </Button>
             )
           )}
         </div>

@@ -3,6 +3,7 @@
 // Workspace: name, team and invites, through OpenReply's /api/workspace/members
 // (the same route the old Settings page uses).
 
+import { Button, Pill, Select } from "@claudepreneur/brand/react";
 import { useCallback, useEffect, useState } from "react";
 
 type Role = "OWNER" | "ADMIN" | "MEMBER";
@@ -85,7 +86,7 @@ export default function WorkspacePanel({ workspaceName }: { workspaceName: strin
                 <strong>{m.user.name ?? m.user.email ?? "Unknown"}</strong>
                 {m.user.name && m.user.email && <span>{m.user.email}</span>}
               </div>
-              <span className="chip quiet">{ROLE[m.role]}</span>
+              <Pill>{ROLE[m.role]}</Pill>
             </li>
           ))}
           {data?.invitations.map((inv) => (
@@ -95,9 +96,8 @@ export default function WorkspacePanel({ workspaceName }: { workspaceName: strin
                 <span>Invited as {ROLE[inv.role].toLowerCase()} · expires {new Date(inv.expiresAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
               </div>
               <span className="os-set-item-actions">
-                <button
-                  type="button"
-                  className="os-button ghost"
+                <Button
+                  variant="text"
                   onClick={() => {
                     void navigator.clipboard?.writeText(inv.inviteUrl);
                     setCopied(inv.id);
@@ -105,11 +105,10 @@ export default function WorkspacePanel({ workspaceName }: { workspaceName: strin
                   }}
                 >
                   {copied === inv.id ? "Copied" : "Copy link"}
-                </button>
+                </Button>
                 {canManage && (
-                  <button
-                    type="button"
-                    className="os-button danger"
+                  <Button
+                    variant="danger"
                     disabled={busy === inv.id}
                     onClick={async () => {
                       setBusy(inv.id);
@@ -123,7 +122,7 @@ export default function WorkspacePanel({ workspaceName }: { workspaceName: strin
                     }}
                   >
                     Revoke
-                  </button>
+                  </Button>
                 )}
               </span>
             </li>
@@ -151,15 +150,19 @@ export default function WorkspacePanel({ workspaceName }: { workspaceName: strin
               Email
             </label>
             <input id="os-set-invite-email" className="os-input" type="email" required placeholder="teammate@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <span className="os-select">
-              <select aria-label="Role" value={role} onChange={(e) => setRole(e.target.value as "ADMIN" | "MEMBER")}>
-                <option value="MEMBER">Member</option>
-                <option value="ADMIN">Admin</option>
-              </select>
-            </span>
-            <button type="submit" className="os-button primary" disabled={busy === "invite" || !email}>
+            <Select
+              aria-label="Role"
+              fieldClassName="os-set-invite-role"
+              value={role}
+              onChange={(v) => setRole(v as "ADMIN" | "MEMBER")}
+              options={[
+                { value: "MEMBER", label: "Member" },
+                { value: "ADMIN", label: "Admin" },
+              ]}
+            />
+            <Button type="submit" variant="primary" disabled={busy === "invite" || !email}>
               {busy === "invite" ? "Inviting…" : "Invite"}
-            </button>
+            </Button>
           </form>
         )}
       </section>

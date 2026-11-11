@@ -15,7 +15,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { setPauseAll } from "@/app/(os)/os/actions";
 import { openPalette } from "@/components/os/keys";
+import { ToastProvider } from "@claudepreneur/brand/react";
 import PaletteMount from "@/components/os/palette/mount";
+import { ConfirmProvider } from "@/components/os/ui/confirm";
 import { settingsHref } from "@/lib/os/settings";
 import { useScrollPicked } from "@/components/os/ui/scroll-picked";
 import { activeNav, BADGED, badgeLabel, isActive, osNav, sidebarCookie, type NavItem, type SidebarMode } from "@/lib/os/nav";
@@ -274,7 +276,11 @@ export default function OsShell({ workspaceName, instagramUsername, counts = {},
           </button>
         </aside>
 
-        <main className="os-main">{children}</main>
+        <main className="os-main">
+          <ToastProvider>
+            <ConfirmProvider>{children}</ConfirmProvider>
+          </ToastProvider>
+        </main>
       </div>
       <PaletteMount />
     </div>

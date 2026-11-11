@@ -4,6 +4,7 @@
 // saves with Save; the Autopilot switch saves at once. Testing a stage's
 // wording lives in Setup › Tests (tracked line tests).
 
+import { Button } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { saveSetter } from "@/app/(os)/os/knowledge/actions";
@@ -79,12 +80,12 @@ export default function FunnelSetup({ view }: { view: SetterEditorView }) {
               <span className="os-kb-step">{i + 1}</span>
               <Field label="Stage">{(id) => <TextInput id={id} value={s.label} onChange={(x) => setStage(i, { label: x })} />}</Field>
               <div className="os-kb-move">
-                <button type="button" className="os-button ghost" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}>
+                <Button variant="text" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}>
                   ↑
-                </button>
-                <button type="button" className="os-button ghost" aria-label="Move down" disabled={i === stages.length - 1} onClick={() => move(i, 1)}>
+                </Button>
+                <Button variant="text" aria-label="Move down" disabled={i === stages.length - 1} onClick={() => move(i, 1)}>
                   ↓
-                </button>
+                </Button>
               </div>
             </div>
             <Field label="What J does here" wide>
@@ -94,9 +95,9 @@ export default function FunnelSetup({ view }: { view: SetterEditorView }) {
           </RepeatItem>
         ))}
       </ol>
-      <button type="button" className="os-button" onClick={() => setStages((list) => [...list, { key: "", label: "", guidance: "" }])}>
+      <Button onClick={() => setStages((list) => [...list, { key: "", label: "", guidance: "" }])}>
         Add stage
-      </button>
+      </Button>
     </Section>
   );
 }
@@ -138,9 +139,9 @@ function AutopilotRow({
     <div className="kb-ap">
       <div className="kb-ap-row">
         <span className="kb-lbl">Autopilot</span>
-        <div className="kb-seg" role="radiogroup" aria-label={`Autopilot for ${stage.label || "this stage"}`}>
+        <div className="kb-seg cp-seg" role="radiogroup" aria-label={`Autopilot for ${stage.label || "this stage"}`}>
           {(["approve", "auto"] as const).map((m) => (
-            <button key={m} type="button" role="radio" aria-checked={mode === m} disabled={locked && mode !== m} title={locked ? "Save the funnel first" : undefined} onClick={() => pick(m)}>
+            <button key={m} type="button" role="radio" className="cp-seg-item" aria-checked={mode === m} disabled={locked && mode !== m} title={locked ? "Save the funnel first" : undefined} onClick={() => pick(m)}>
               {m === "approve" ? "Approve" : "Auto"}
             </button>
           ))}
@@ -158,12 +159,12 @@ function AutopilotRow({
           <span>
             Only {clean}/{CLEAN_TARGET} clean approvals here. J&apos;s drafts would send without you.
           </span>
-          <button type="button" className="kb-btn" onClick={() => setAsking(false)}>
+          <Button onClick={() => setAsking(false)}>
             Cancel
-          </button>
-          <button type="button" className="kb-btn kb-btn-p" onClick={() => set("auto")}>
+          </Button>
+          <Button variant="primary" onClick={() => set("auto")}>
             Turn on Auto
-          </button>
+          </Button>
         </div>
       )}
     </div>

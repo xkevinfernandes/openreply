@@ -7,6 +7,7 @@
 // through the stage writer (updateContacts → writeStage). Today's contact
 // panel pushes in from the right.
 
+import { Button } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
@@ -27,6 +28,7 @@ import type { ContactRow, SetterOption } from "@/lib/os/contacts-board";
 import type { ContactChange } from "@/lib/os/contacts-edit";
 import { applyChangeLocally } from "@/lib/os/contacts-filter";
 import { matchesSearch } from "@/lib/os/contacts-view";
+import { PageHead } from "@/components/os/page-head";
 import {
   boardColumnsFor,
   boardLanes,
@@ -213,36 +215,38 @@ export default function PipelineScreen(p: Props) {
 
   return (
     <div className="os-cx os-pl" data-panel={panel.open ? "open" : undefined}>
-      <section className="os-cx-main" aria-labelledby="os-pl-h">
-        <header className="os-cx-head">
-          <h1 id="os-pl-h" className="os-title">
-            Pipeline
-          </h1>
-          {setter ? <span className="os-cx-count">{setter.name}</span> : null}
-          <span className="os-cx-grow" />
-          <label className="os-cx-search">
-            <span className="sr-only">Search the board</span>
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <circle cx="7" cy="7" r="4.5" />
-              <path d="m10.5 10.5 3 3" />
-            </svg>
-            <input
-              type="search"
-              placeholder="Search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </label>
-          <Link href="/os/contacts" className="os-button ghost os-cv-pipe">
-            List view
-          </Link>
-        </header>
+      <section className="os-cx-main" aria-label="Pipeline">
+        <PageHead
+          title="Pipeline"
+          meta={setter ? <span className="os-cx-count">{setter.name}</span> : undefined}
+          actions={
+            <>
+              <label className="os-cx-search">
+                <span className="sr-only">Search the board</span>
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="7" cy="7" r="4.5" />
+                  <path d="m10.5 10.5 3 3" />
+                </svg>
+                <input
+                  type="search"
+                  placeholder="Search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </label>
+              <Link href="/os/contacts" className="cp-btn os-cv-pipe">
+                List view
+              </Link>
+            </>
+          }
+        />
 
         <div className="os-pl-switch">
           <BoardSwitch setters={p.setters} value={p.setterId} />
           <label className="os-cv-archived">
             <input
               type="checkbox"
+              className="cp-checkbox"
               checked={archived}
               onChange={(e) => setArchived(e.target.checked)}
             />
@@ -299,9 +303,9 @@ export default function PipelineScreen(p: Props) {
             onClear={() => setSelected(new Set())}
             extra={
               n === 1 ? (
-                <button type="button" className="os-button" onClick={() => setMoving(true)}>
+                <Button onClick={() => setMoving(true)}>
                   Move…
-                </button>
+                </Button>
               ) : null
             }
           />

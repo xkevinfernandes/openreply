@@ -29,14 +29,14 @@ export function SetterBar({ id, name, setters, query = "", active = "knowledge" 
             </>
           )}
         </nav>
-        <div role="tablist" aria-label="Setter" className="kb-switch">
+        <div role="tablist" aria-label="Setter" className="kb-switch cp-tabs">
           {setters.map((s) => (
             <Link
               key={s.id}
               role="tab"
               aria-selected={s.id === id}
               href={`/os/knowledge/${s.id}${active === "sandbox" ? "/sandbox" : query}`}
-              className="kb-switch-tab"
+              className="kb-switch-tab cp-tab"
             >
               <span className="kb-mark" data-on={s.id === id ? "true" : undefined} aria-hidden="true">
                 {s.name.trim().charAt(0).toUpperCase()}
@@ -50,13 +50,13 @@ export function SetterBar({ id, name, setters, query = "", active = "knowledge" 
       {/* The actions under the setter bar, so it stays one row even with the chat open (R2-5). */}
       <div className="kb-subbar">
         <div className="kb-bar-acts">
-          <a href={`/os/knowledge/${id}/export`} className="kb-btn kb-btn-dl" download>
+          <a href={`/os/knowledge/${id}/export`} className="cp-btn kb-btn-dl" download>
             <KbIcon name="download" />
             Download .md
           </a>
           <SetterChatToggle />
           {active === "knowledge" && (
-            <Link href={`/os/knowledge/${id}/sandbox`} className="kb-btn kb-btn-p">
+            <Link href={`/os/knowledge/${id}/sandbox`} className="cp-btn cp-btn-primary">
               <KbIcon name="play" />
               Test in sandbox
             </Link>

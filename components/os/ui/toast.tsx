@@ -2,8 +2,11 @@
 
 // One short message at the bottom of the screen after a bulk action, with
 // Undo when the screen can take it back. Goes away after a few seconds.
+// The shared toast (@claudepreneur/brand ToastProvider, mounted once in the
+// OS shell); this keeps the screens' old useToast()/<Toast> calls working.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
+import { useToast as useCpToast } from "@claudepreneur/brand/react";
 
 export interface ToastMessage {
   text: string;
@@ -12,41 +15,29 @@ export interface ToastMessage {
 }
 
 export function useToast(ms = 6000) {
-  const [toast, setToast] = useState<(ToastMessage & { id: number }) | null>(null);
-  const seq = useRef(0);
-  const show = useCallback((m: ToastMessage) => setToast({ ...m, id: ++seq.current }), []);
-  const hide = useCallback(() => setToast(null), []);
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast((cur) => (cur?.id === toast.id ? null : cur)), toast.undo ? ms + 2000 : ms);
-    return () => clearTimeout(t);
-  }, [toast, ms]);
-  return { toast, show, hide };
+  const { toast: push, dismiss } = useCpToast();
+  const last = useRef<number | null>(null);
+  const show = useCallback(
+    (m: ToastMessage) => {
+      if (last.current != null) dismiss(last.current);
+      last.current = push({
+        title: m.text,
+        tone: m.bad ? "bad" : "neutral",
+        action: m.undo ? { label: "Undo", onClick: m.undo } : undefined,
+        duration: m.undo ? ms + 2000 : ms,
+      });
+    },
+    [push, dismiss, ms]
+  );
+  const hide = useCallback(() => {
+    if (last.current != null) dismiss(last.current);
+    last.current = null;
+  }, [dismiss]);
+  return { toast: null as ToastMessage | null, show, hide };
 }
 
-export function Toast({ toast, onHide }: { toast: ToastMessage | null; onHide: () => void }) {
-  return (
-    <div className="os-toast-slot" role="status" aria-live="polite">
-      {toast ? (
-        <div className="os-toast" data-bad={toast.bad || undefined}>
-          <span>{toast.text}</span>
-          {toast.undo ? (
-            <button
-              type="button"
-              className="os-toast-undo"
-              onClick={() => {
-                toast.undo?.();
-                onHide();
-              }}
-            >
-              Undo
-            </button>
-          ) : null}
-          <button type="button" className="os-toast-x" aria-label="Dismiss" onClick={onHide}>
-            ×
-          </button>
-        </div>
-      ) : null}
-    </div>
-  );
+/** The toast now shows in the shell's shared stack; nothing renders here. */
+export function Toast(_props: { toast: ToastMessage | null; onHide: () => void }) {
+  void _props;
+  return null;
 }

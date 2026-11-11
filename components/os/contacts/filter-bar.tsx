@@ -5,7 +5,8 @@
 // category, source, last activity, archived); "Columns" picks which columns
 // the view shows. Tags filter by id, shown by their current name.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Button, MenuButton, Select } from "@claudepreneur/brand/react";
 import type { ContactKind } from "@/app/generated/prisma/enums";
 import type { SetterOption } from "@/lib/os/contacts-board";
 import { ACTIVITY_OPTIONS, EMPTY_FILTERS, type ActivityFilter, type ViewFilters, type ViewState } from "@/lib/os/contacts-view";
@@ -30,6 +31,11 @@ const KIND_LABEL: Record<FilterKind, string> = { tag: "Tag", stage: "Stage", set
 export default function FilterBar(p: Props) {
   const f = p.state.filters;
   const [adding, setAdding] = useState<FilterKind | null>(null);
+  const picker = useRef<HTMLSpanElement>(null);
+  // The value picker takes the focus as it appears (was the select's autoFocus).
+  useEffect(() => {
+    if (adding) picker.current?.querySelector<HTMLButtonElement>("button")?.focus();
+  }, [adding]);
   const set = (patch: Partial<ViewFilters>) => p.onChange({ ...p.state, filters: { ...f, ...patch } });
   const tagName = (id: string) => p.tags.find((t) => t.id === id)?.name ?? "deleted tag";
 
@@ -84,49 +90,42 @@ export default function FilterBar(p: Props) {
         </span>
       ))}
       {adding ? (
-        <span className="os-select os-cv-add">
-          <select autoFocus aria-label={`Pick ${KIND_LABEL[adding]}`} value="" onChange={(e) => addValue(e.target.value)} onBlur={() => setAdding(null)}>
-            <option value="">{KIND_LABEL[adding]}…</option>
-            {options.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+        <span
+          ref={picker}
+          className="os-cv-add"
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setAdding(null);
+          }}
+        >
+          <Select compact aria-label={`Pick ${KIND_LABEL[adding]}`} placeholder={`${KIND_LABEL[adding]}…`} value="" onChange={(v) => addValue(v)} options={options} />
         </span>
       ) : (
-        <span className="os-select os-cv-add">
-          <select aria-label="Add a filter" value="" onChange={(e) => setAdding((e.target.value || null) as FilterKind | null)}>
-            <option value="">+ Filter</option>
-            {(Object.keys(KIND_LABEL) as FilterKind[]).map((k) => (
-              <option key={k} value={k}>
-                {KIND_LABEL[k]}
-              </option>
-            ))}
-          </select>
-        </span>
+        <MenuButton
+          label="+ Filter"
+          aria-label="Add a filter"
+          align="start"
+          className="os-cv-add"
+          items={(Object.keys(KIND_LABEL) as FilterKind[]).map((k) => ({ label: KIND_LABEL[k], onSelect: () => setAdding(k) }))}
+        />
       )}
       <label className="os-cv-archived">
-        <input type="checkbox" checked={f.archived} onChange={(e) => set({ archived: e.target.checked })} />
+        <input type="checkbox" className="cp-checkbox" checked={f.archived} onChange={(e) => set({ archived: e.target.checked })} />
         Archived
       </label>
       {any ? (
-        <button type="button" className="os-link" onClick={() => p.onChange({ ...p.state, filters: EMPTY_FILTERS })}>
+        <Button variant="text" className="is-ink" onClick={() => p.onChange({ ...p.state, filters: EMPTY_FILTERS })}>
           Clear
-        </button>
+        </Button>
       ) : null}
       <span className="os-cx-grow" />
-      <details className="os-cv-columns">
-        <summary className="os-button ghost">Columns</summary>
-        <div className="os-cv-columns-pop" role="group" aria-label="Columns">
-          {p.columnOptions.map((c) => (
-            <label key={c.key}>
-              <input type="checkbox" checked={p.state.columns.includes(c.key)} disabled={c.key === "name"} onChange={(e) => toggleColumn(c.key, e.target.checked)} />
-              {c.label}
-            </label>
-          ))}
-        </div>
-      </details>
+      <MenuButton
+        label="Columns"
+        variant="text"
+        size="sm"
+        caret={false}
+        className="os-cv-columns"
+        items={p.columnOptions.map((c) => ({ label: c.label, checked: p.state.columns.includes(c.key), disabled: c.key === "name", onSelect: () => toggleColumn(c.key, !p.state.columns.includes(c.key)) }))}
+      />
     </div>
   );
 }

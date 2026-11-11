@@ -7,8 +7,8 @@ import { PageHead } from "@/components/os/page-head";
 export default function NewAutomationPage() {
   return (
     <div className="os-auto-newpage">
-      <PageHead eyebrow="Automations" title="New automation" description="Runs on its own. Add a setter after saving." />
-      <Link href="/os/automations" className="os-button ghost os-auto-cancel">
+      <PageHead back={{ href: "/os/automations", label: "Automations" }} title="New automation" description="Runs on its own. Add a setter after saving." />
+      <Link href="/os/automations" className="cp-btn cp-btn-text os-auto-cancel">
         Cancel
       </Link>
       <BuilderFrame mode="new" />

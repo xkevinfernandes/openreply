@@ -4,6 +4,7 @@
 // when J has a guess, and the 24h reply window. Stage editing lives in the
 // contact panel. Owner: S1.
 
+import { Pill } from "@/components/os/ui/pill";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -45,7 +46,7 @@ export default function ThreadHead({ name, username, backHref, stage, stageKey, 
       ) : (
         <span className="os-th-name">{name}</span>
       )}
-      {stage ? <span className="os-th-stage" data-tone={stageTone(stageKey)}>{stage}</span> : null}
+      {stage ? <Pill tone={stageTone(stageKey)}>{stage}</Pill> : null}
       {triage ? <TriageChip {...triage} /> : null}
       <span className="os-cmp-sp" />
       {windowHours !== null ? (

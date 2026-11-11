@@ -11,14 +11,21 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { Button, Select, type TabLinkProps, Tabs } from "@claudepreneur/brand/react";
 import { INBOX_LIST_COOKIE, neighbourHref, streamRows } from "@/components/os/inbox/categories";
 import InboxBulkBar from "@/components/os/inbox/bulk-bar";
 import { ResortPitches, TriageBar, TriageSuggestion } from "@/components/os/inbox/triage";
 import { useOsCommand } from "@/components/os/keys";
-import { Avatar, AvatarRail, EmptyState, InfoTip, Toast, useToast } from "@/components/os/ui";
+import { Avatar, AvatarRail, EmptyState, InfoTip, Pill, Toast, useToast } from "@/components/os/ui";
 import { FailDot, useFailedRuns } from "@/components/os/workflows/run-line";
 import { CATEGORY_FILTERS, STATUS_FILTERS, inboxStreamHref, type InboxParams, type StatusFilter, type StreamThread } from "@/lib/os/inbox-stream";
 import { isUnsure } from "@/lib/os/triage-copy";
+
+const TabLink = ({ href, className, children, ...rest }: TabLinkProps) => (
+  <Link href={href} className={className} {...rest}>
+    {children}
+  </Link>
+);
 
 interface InboxListProps {
   /** The stream under the current filters, newest first. */
@@ -147,39 +154,46 @@ export default function InboxList({ threads, counts, params, selected, now, draf
           </svg>
           <input type="search" placeholder="Search threads" aria-label="Search threads" value={query} onChange={(e) => setQuery(e.target.value)} />
         </label>
-        <div className="os-ix-seg" role="tablist" aria-label="Status">
-          {PRIMARY.map((key) => {
+        <Tabs
+          label="Status"
+          className="os-ix-seg"
+          value={params.filter}
+          linkComponent={TabLink}
+          tabs={PRIMARY.map((key) => {
             const f = STATUS_FILTERS.find((x) => x.key === key)!;
             const n = counts[key];
-            return (
-              <Link key={key} href={inboxStreamHref({ ...params, filter: key })} role="tab" aria-selected={params.filter === key} className="os-ix-seg-tab" title={f.tip}>
-                {f.label}
-                {key === "unread" && n ? <span className="os-ix-seg-n">{n}</span> : null}
-              </Link>
-            );
-          })}
-        </div>
-        <div className="os-ix-filters">
-          <span className="os-select os-ix-filter" data-on={params.cat !== "any" || undefined}>
-            <select aria-label="Category" value={params.cat} onChange={(e) => go({ cat: e.target.value as InboxParams["cat"] })}>
-              {CATEGORY_FILTERS.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.key === "any" ? "Category" : c.label}
-                </option>
-              ))}
-            </select>
-          </span>
-          <span className="os-select os-ix-filter" data-on={moreActive || undefined}>
-            <select aria-label="More filters" value={moreActive ? params.filter : ""} onChange={(e) => go({ filter: (e.target.value || "all") as StatusFilter })}>
-              <option value="">More</option>
-              {MORE.map((f) => (
-                <option key={f.key} value={f.key}>
+            return {
+              value: key,
+              href: inboxStreamHref({ ...params, filter: key }),
+              label: (
+                <span className="os-ix-seg-tab" title={f.tip}>
                   {f.label}
-                  {counts[f.key] ? ` · ${counts[f.key]}` : ""}
-                </option>
-              ))}
-            </select>
-          </span>
+                  {key === "unread" && n ? <span className="os-ix-seg-n">{n}</span> : null}
+                </span>
+              ),
+            };
+          })}
+        />
+        <div className="os-ix-filters">
+          <Select
+            compact
+            aria-label="Category"
+            fieldClassName="os-ix-filter"
+            className={params.cat !== "any" ? "is-on" : undefined}
+            value={params.cat}
+            onChange={(v) => go({ cat: v as InboxParams["cat"] })}
+            options={CATEGORY_FILTERS.map((c) => ({ value: c.key, label: c.key === "any" ? "Category" : c.label }))}
+          />
+          <Select
+            compact
+            aria-label="More filters"
+            placeholder="More"
+            fieldClassName="os-ix-filter"
+            className={moreActive ? "is-on" : undefined}
+            value={moreActive ? params.filter : ""}
+            onChange={(v) => go({ filter: (v || "all") as StatusFilter })}
+            options={[{ value: "", label: "More" }, ...MORE.map((f) => ({ value: f.key, label: `${f.label}${counts[f.key] ? ` · ${counts[f.key]}` : ""}` }))]}
+          />
           {tip ? <InfoTip label="About this filter">{tip}</InfoTip> : null}
         </div>
       </div>
@@ -209,7 +223,7 @@ export default function InboxList({ threads, counts, params, selected, now, draf
           return (
             <li key={r.conversationId} className="os-ix-item" data-picked={on || undefined}>
               {r.contactId ? (
-                <input type="checkbox" className="os-ix-check" aria-label={`Select ${r.name}`} checked={on} onChange={(e) => pick(r.contactId!, e.target.checked)} />
+                <input type="checkbox" className="cp-checkbox os-ix-check" aria-label={`Select ${r.name}`} checked={on} onChange={(e) => pick(r.contactId!, e.target.checked)} />
               ) : null}
               <Link href={r.href} className="os-ix-row" aria-current={r.current ? "page" : undefined} data-unread={r.unread ? "true" : undefined}>
                 <Avatar name={r.name} src={r.avatarUrl} size={32} />
@@ -236,7 +250,7 @@ export default function InboxList({ threads, counts, params, selected, now, draf
                   <span className="os-ix-row-preview">{r.preview}</span>
                   {r.stage || r.draft || r.note ? (
                     <span className="os-ix-row-meta">
-                      {r.stage ? <span className="os-ix-stage">{r.stage}</span> : null}
+                      {r.stage ? <Pill className="os-ix-stage">{r.stage}</Pill> : null}
                       {r.draft ? (
                         <span className="os-ix-draft">
                           <span className="os-dot" data-tone="warn" aria-hidden="true" />
@@ -256,9 +270,9 @@ export default function InboxList({ threads, counts, params, selected, now, draf
         })}
         {rows.length > shown ? (
           <li className="os-ix-more">
-            <button type="button" className="os-button ghost" onClick={() => setShown((n) => n + PAGE)}>
+            <Button variant="text" onClick={() => setShown((n) => n + PAGE)}>
               Show more ({rows.length - shown})
-            </button>
+            </Button>
           </li>
         ) : null}
       </ul>

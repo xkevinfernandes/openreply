@@ -65,7 +65,7 @@ export function FunnelBoard({ data, currency, urlWindow = null }: { data: AllBoa
       <div className="os-fb-bar">
         <WindowSwitch value={win} onChange={setWin} />
         <label className="os-fb-arch">
-          <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} />
+          <input type="checkbox" className="cp-checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} />
           Archived
         </label>
         <InfoTip label="How this board works">{`${tip} (same switch as Home). Open contacts sit in the furthest step they've reached, whatever setter they're with; Won and Lost hold who's there now. "Reached" always matches the funnel on Home. Drag to Won or Lost; the other steps come from the conversation and the booking.`}</InfoTip>

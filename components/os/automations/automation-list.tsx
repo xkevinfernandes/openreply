@@ -7,10 +7,13 @@
 // the campaign through OpenReply's own /api/automations; ⋯ keeps Edit /
 // Duplicate / Delete.
 
+import { MenuButton, Pill } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { EmptyState } from "@/components/os/ui";
 import { chipCounts, matchesChip, shortLink, TRIGGER_CHIPS, triggerSummary, type AutomationRow, type TriggerChip } from "@/lib/os/automations";
+import { useOsConfirm } from "@/components/os/ui/confirm";
 
 interface Props {
   rows: AutomationRow[];
@@ -22,52 +25,33 @@ interface Props {
 const LINK = "M6.5 9.5 9.5 6.5M7 4.5l1-1a2.8 2.8 0 0 1 4 4l-1 1M9 11.5l-1 1a2.8 2.8 0 0 1-4-4l1-1";
 
 function RowMenu({ row, disabled, onDuplicate, onDelete }: { row: AutomationRow; disabled: boolean; onDuplicate: () => void; onDelete: () => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    window.addEventListener("pointerdown", close);
-    window.addEventListener("keydown", close);
-    return () => {
-      window.removeEventListener("pointerdown", close);
-      window.removeEventListener("keydown", close);
-    };
-  }, [open]);
+  const router = useRouter();
   return (
-    <div className="os-auto-menu" ref={ref}>
-      <button type="button" className="os-auto-more" aria-label={`More for ${row.name}`} aria-expanded={open} disabled={disabled} onClick={() => setOpen((o) => !o)}>
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <circle cx="3.5" cy="8" r=".6" />
-          <circle cx="8" cy="8" r=".6" />
-          <circle cx="12.5" cy="8" r=".6" />
-        </svg>
-      </button>
-      {open && (
-        <div className="os-auto-pop" role="menu">
-          <Link role="menuitem" href={`/os/automations/${row.id}`}>
-            Edit
-          </Link>
-          {row.postUrl && (
-            <a role="menuitem" href={row.postUrl} target="_blank" rel="noreferrer">
-              Open post
-            </a>
-          )}
-          <button role="menuitem" type="button" onClick={() => (setOpen(false), onDuplicate())}>
-            Duplicate
-          </button>
-          <button role="menuitem" type="button" data-danger="true" onClick={() => (setOpen(false), onDelete())}>
-            Delete…
-          </button>
-        </div>
-      )}
+    <div className="os-auto-menu">
+      <MenuButton
+        aria-label={`More for ${row.name}`}
+        size="sm"
+        disabled={disabled}
+        icon={
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="3.5" cy="8" r=".6" />
+            <circle cx="8" cy="8" r=".6" />
+            <circle cx="12.5" cy="8" r=".6" />
+          </svg>
+        }
+        items={[
+          { label: "Edit", onSelect: () => router.push(`/os/automations/${row.id}`) },
+          ...(row.postUrl ? [{ label: "Open post", onSelect: () => void window.open(row.postUrl!, "_blank", "noreferrer") }] : []),
+          { label: "Duplicate", onSelect: onDuplicate },
+          { label: "Delete…", danger: true, onSelect: onDelete },
+        ]}
+      />
     </div>
   );
 }
 
 export default function AutomationList({ rows: initialRows, sample, initialChip }: Props) {
+  const confirmAsk = useOsConfirm();
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
   const [chip, setChip] = useState<TriggerChip>(initialChip);
@@ -127,7 +111,7 @@ export default function AutomationList({ rows: initialRows, sample, initialChip 
   }
 
   async function remove(row: AutomationRow) {
-    if (!confirm(`Delete “${row.name}”? Its DM history goes with it. This can't be undone.`)) return;
+    if (!(await confirmAsk(`Delete “${row.name}”? Its DM history goes with it. This can't be undone.`, { danger: true, confirmLabel: "Delete" }))) return;
     setError(null);
     setBusy(row.id);
     if (await call(`/api/automations?id=${encodeURIComponent(row.id)}`, { method: "DELETE" }, "Couldn't delete it.")) {
@@ -154,12 +138,14 @@ export default function AutomationList({ rows: initialRows, sample, initialChip 
       )}
 
       {!rows.length ? (
-        <div className="os-auto-empty">
-          <strong>No campaigns yet</strong>
-          <Link href="/os/automations/new" className="os-button primary">
-            New campaign
-          </Link>
-        </div>
+        <EmptyState
+          title="No campaigns yet"
+          action={
+            <Link href="/os/automations/new" className="cp-btn cp-btn-primary">
+              New campaign
+            </Link>
+          }
+        />
       ) : (
         <section className="os-auto-grid" aria-label="Campaigns">
           <div className="os-auto-r os-auto-hr" aria-hidden="true">
@@ -190,7 +176,7 @@ export default function AutomationList({ rows: initialRows, sample, initialChip 
                   ) : null}
                   <span className="os-auto-kw">
                     <span className="line">
-                      <span className="chip">{kw.toUpperCase()}</span>
+                      <Pill>{kw.toUpperCase()}</Pill>
                       {more ? <span className="more">+{more}</span> : null}
                     </span>
                     {row.ab ? <span className="ab">{row.abText || "A/B running"}</span> : null}

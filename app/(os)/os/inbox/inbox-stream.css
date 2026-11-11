@@ -5,10 +5,6 @@
 
 /* --- Filters ----------------------------------------------------------------- */
 
-.os-ix-list .os-ix-seg-tab {
-  padding: 0 10px;
-}
-
 .os-ix-filters {
   display: flex;
   align-items: center;
@@ -16,24 +12,24 @@
   min-width: 0;
 }
 
-/* Both pills share the row; neither shrinks below its own label
+/* Both filters share the row; neither shrinks below its own label
    ("Category" was cut to "Categor" when the info icon showed). */
 .os-ix-filter {
   flex: 1 1 0;
   min-width: 108px;
 }
 
-.os-ix-filter select {
+.os-ix-filter .cp-select-trigger {
   width: 100%;
-  height: 32px;
-  font-size: var(--fs-xs);
 }
 
 /* A picked filter reads as on: the ink pill like the picked tab. */
-.os-ix-filter[data-on="true"] select {
-  background-color: var(--ink);
+.os-ix-filter .cp-select-trigger.is-on {
+  background: var(--ink);
   color: var(--on-ink);
-  font-weight: 500;
+}
+.os-ix-filter .cp-select-trigger.is-on .cp-select-caret {
+  color: inherit;
 }
 
 /* --- Rows -------------------------------------------------------------------- */
@@ -55,7 +51,6 @@
 .os-ix-check {
   width: 16px;
   height: 16px;
-  accent-color: var(--ink);
   cursor: pointer;
 }
 
@@ -103,7 +98,7 @@
   border-radius: 999px;
   background: var(--ink);
   color: var(--on-ink);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -139,9 +134,9 @@
   gap: 8px;
   margin: 0 8px 8px;
   padding: 10px 12px;
-  border-radius: var(--radius-cover, 14px);
+  border-radius: var(--r-cover);
   background: var(--card);
-  box-shadow: 0 -1px 0 var(--line), 0 8px 24px rgb(0 0 0 / 0.12);
+  box-shadow: var(--pop-shadow);
 }
 
 .os-ix-bulk-count {
@@ -165,14 +160,9 @@
   gap: 6px;
 }
 
-.os-ix-bulk-actions .os-select select,
-.os-ix-bulk-actions .os-button {
+.os-ix-bulk-actions .os-select select {
   height: 32px;
   font-size: var(--fs-xs);
-}
-
-.os-ix-bulk-actions .os-button {
-  padding: 0 12px;
 }
 
 .os-ix-bulk-msg {
@@ -196,50 +186,6 @@
 
 .os-ix-tact[data-on="true"] {
   color: var(--warn);
-}
-
-.os-ix-tmenu {
-  position: relative;
-}
-
-.os-ix-tmenu > summary {
-  list-style: none;
-  cursor: pointer;
-}
-
-.os-ix-tmenu > summary::-webkit-details-marker {
-  display: none;
-}
-
-.os-ix-tmenu-list {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 20;
-  min-width: 160px;
-  display: flex;
-  flex-direction: column;
-  padding: 6px;
-  border-radius: var(--radius, 10px);
-  background: var(--card);
-  box-shadow: 0 0 0 1px var(--line), 0 12px 32px rgb(0 0 0 / 0.14);
-}
-
-.os-ix-tmenu-list button {
-  height: 34px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--fs-sm);
-  text-align: left;
-  cursor: pointer;
-}
-
-.os-ix-tmenu-list button:hover {
-  background: var(--tint);
 }
 
 .os-ix-tact-err {
@@ -302,7 +248,7 @@
     height: min(85dvh, 760px);
     margin: 0 auto;
     border-radius: var(--radius-card) var(--radius-card) 0 0;
-    box-shadow: 0 -12px 40px rgb(0 0 0 / 0.25);
+    box-shadow: var(--pop-shadow);
   }
 
   .os-ix[data-sheet="open"] .os-ix-panel .os-panel-resizer {

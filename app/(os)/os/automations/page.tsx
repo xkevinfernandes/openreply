@@ -8,6 +8,7 @@ import { listWorkflows } from "@/components/os/workflows/data";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { parseChip } from "@/lib/os/automations";
 import { automationTabCounts, listAutomationRows, listBroadcastSummaries, type BroadcastSummary } from "@/lib/os/automations-data";
+import { PageHead } from "@/components/os/page-head";
 
 export const dynamic = "force-dynamic";
 
@@ -38,15 +39,17 @@ export default async function AutomationsPage({ searchParams }: PageProps) {
 
   return (
     <div className="os-auto">
-      <header className="os-auto-head">
-        <h1 className="os-title">Automations</h1>
-        <Link href="/os/automations/new" className="os-button primary os-auto-new">
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M8 3.5v9M3.5 8h9" />
-          </svg>
-          New campaign
-        </Link>
-      </header>
+      <PageHead
+        title="Automations"
+        actions={
+          <Link href="/os/automations/new" className="cp-btn cp-btn-primary os-auto-new">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 3.5v9M3.5 8h9" />
+            </svg>
+            New campaign
+          </Link>
+        }
+      />
       <AutomationsTabs active="campaigns" counts={{ ...counts, workflows: workflows.length }} />
 
       <AutomationList rows={rows} sample={sample} initialChip={parseChip(params.trigger)} />

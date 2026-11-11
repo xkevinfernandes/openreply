@@ -4,11 +4,13 @@
 // offer it. A component on its own (onSaved hands back the saved resource)
 // so the broadcast picker can open it too (Part C 024).
 
+import { Button, Select } from "@claudepreneur/brand/react";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import type { ResourceForm } from "@/app/(os)/os/knowledge/actions";
 import { saveResourceSheet, type SavedResource } from "@/app/(os)/os/resources/actions";
 import { removeAgentQuestion, saveSheet } from "@/lib/os/resource-sheet";
 import type { ResourceRow } from "@/lib/os/resources-view";
+import { useOsConfirm } from "@/components/os/ui/confirm";
 
 export const EMPTY_RESOURCE: ResourceForm = { name: "", kind: "resource", link: "", keyword: "", status: "ACTIVE", description: "", when: "" };
 
@@ -30,6 +32,7 @@ interface Props {
 }
 
 export default function ResourceSheet({ initial = EMPTY_RESOURCE, agents, agentIds = [], onSaved, onClose, onDelete, save = saveResourceSheet }: Props) {
+  const confirmAsk = useOsConfirm();
   const id = useId();
   const ref = useRef<HTMLDialogElement>(null);
   const [f, setF] = useState<ResourceForm>(initial);
@@ -44,8 +47,8 @@ export default function ResourceSheet({ initial = EMPTY_RESOURCE, agents, agentI
     if (d && !d.open && typeof d.showModal === "function") d.showModal();
   }, []);
 
-  const toggle = (agent: { id: string; name: string }, on: boolean) => {
-    if (!on && agentIds.includes(agent.id) && !window.confirm(removeAgentQuestion(agent.name))) return;
+  const toggle = async (agent: { id: string; name: string }, on: boolean) => {
+    if (!on && agentIds.includes(agent.id) && !(await confirmAsk(removeAgentQuestion(agent.name), { danger: true, confirmLabel: "Remove" }))) return;
     setTicked((t) => (on ? [...new Set([...t, agent.id])] : t.filter((x) => x !== agent.id)));
   };
 
@@ -80,14 +83,17 @@ export default function ResourceSheet({ initial = EMPTY_RESOURCE, agents, agentI
             <span>Name</span>
             <input className="os-input" value={f.name} onChange={(e) => set({ name: e.target.value })} required maxLength={160} autoFocus />
           </label>
-          <label>
-            <span>Kind</span>
-            <select className="os-input" value={f.kind} onChange={(e) => set({ kind: e.target.value as ResourceForm["kind"] })} disabled={f.kind === "setter"}>
-              <option value="resource">Lead magnet</option>
-              <option value="episode">Video</option>
-              {f.kind === "setter" ? <option value="setter">Entry path</option> : null}
-            </select>
-          </label>
+          <Select
+            label="Kind"
+            value={f.kind}
+            onChange={(v) => set({ kind: v as ResourceForm["kind"] })}
+            disabled={f.kind === "setter"}
+            options={[
+              { value: "resource", label: "Lead magnet" },
+              { value: "episode", label: "Video" },
+              ...(f.kind === "setter" ? [{ value: "setter", label: "Entry path" }] : []),
+            ]}
+          />
           <label className="os-rs-wide">
             <span>Link</span>
             <input className="os-input" value={f.link} onChange={(e) => set({ link: e.target.value })} placeholder="https://" inputMode="url" />
@@ -98,14 +104,16 @@ export default function ResourceSheet({ initial = EMPTY_RESOURCE, agents, agentI
               <input className="os-input" value={f.keyword} onChange={(e) => set({ keyword: e.target.value })} maxLength={80} />
             </label>
           ) : null}
-          <label>
-            <span>Status</span>
-            <select className="os-input" value={f.status} onChange={(e) => set({ status: e.target.value as ResourceForm["status"] })}>
-              <option value="ACTIVE">{video ? "On" : "Active"}</option>
-              <option value="DRAFT">{video ? "Off" : "Draft"}</option>
-              {!video ? <option value="TEST">Test</option> : null}
-            </select>
-          </label>
+          <Select
+            label="Status"
+            value={f.status}
+            onChange={(v) => set({ status: v as ResourceForm["status"] })}
+            options={[
+              { value: "ACTIVE", label: video ? "On" : "Active" },
+              { value: "DRAFT", label: video ? "Off" : "Draft" },
+              ...(!video ? [{ value: "TEST", label: "Test" }] : []),
+            ]}
+          />
           {video ? (
             <label className="os-rs-wide">
               <span>When to share</span>
@@ -123,7 +131,7 @@ export default function ResourceSheet({ initial = EMPTY_RESOURCE, agents, agentI
             <legend>Agents that may offer it</legend>
             {agents.map((a) => (
               <label key={a.id} className="os-rs-agent">
-                <input type="checkbox" checked={ticked.includes(a.id)} onChange={(e) => toggle(a, e.target.checked)} />
+                <input type="checkbox" className="cp-checkbox" checked={ticked.includes(a.id)} onChange={(e) => toggle(a, e.target.checked)} />
                 {a.name}
               </label>
             ))}
@@ -138,16 +146,16 @@ export default function ResourceSheet({ initial = EMPTY_RESOURCE, agents, agentI
         ) : null}
         <div className="os-tg-form-actions">
           {onDelete ? (
-            <button type="button" className="os-button danger os-rs-del" onClick={onDelete} disabled={pending}>
+            <Button variant="danger" className="os-rs-del" onClick={onDelete} disabled={pending}>
               Delete
-            </button>
+            </Button>
           ) : null}
-          <button type="button" className="os-button" onClick={onClose} disabled={pending}>
+          <Button onClick={onClose} disabled={pending}>
             Cancel
-          </button>
-          <button type="submit" className="os-button primary" disabled={pending || !f.name.trim()}>
+          </Button>
+          <Button type="submit" variant="primary" disabled={pending || !f.name.trim()}>
             {pending ? "Saving…" : f.id ? "Save" : "Add"}
-          </button>
+          </Button>
         </div>
       </form>
     </dialog>

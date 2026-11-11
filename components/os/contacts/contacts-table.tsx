@@ -4,6 +4,7 @@
 // by any column header, a checkbox per row, a click opens the panel. At
 // 400px each row stacks (name, stage, last activity) with its checkbox.
 
+import { Pill } from "@claudepreneur/brand/react";
 import { useEffect, useRef } from "react";
 import Avatar from "@/components/os/inbox/avatar";
 import { initialSource, threadName } from "@/components/os/inbox/names";
@@ -12,6 +13,7 @@ import { sourceOf } from "@/lib/os/contacts-filter";
 import { lastActivity, stageKeyOf, type QueryContext, type ViewSort } from "@/lib/os/contacts-view";
 import { kindTabs, shortAgo } from "@/lib/os/labels";
 import { formatMoney } from "@/lib/os/money";
+import { pillClass } from "@/components/os/ui/pill";
 
 interface Props {
   rows: ContactRow[];
@@ -57,7 +59,7 @@ export default function ContactsTable(p: Props) {
               <span className="name">{name}</span>
               {c.fields?.business ? <span className="sub">{c.fields.business}</span> : c.username && c.fullName ? <span className="sub">{c.fullName}</span> : null}
             </span>
-            {c.archivedAt ? <span className="chip quiet">Archived</span> : null}
+            {c.archivedAt ? <Pill>Archived</Pill> : null}
           </button>
         );
       case "email":
@@ -66,7 +68,7 @@ export default function ContactsTable(p: Props) {
         const k = stageKeyOf(c, p.ctx);
         const lbl = p.ctx.columnsFor(c.setterId ?? p.ctx.defaultSetterId).find((x) => x.key === k)?.label ?? k;
         return (
-          <span className="os-pill" data-tone={stageTone(k)} title={k === "won" && c.won ? `${c.won.offer} · ${formatMoney(c.won.amount, p.currency)}` : undefined}>
+          <span className={pillClass(stageTone(k))} title={k === "won" && c.won ? `${c.won.offer} · ${formatMoney(c.won.amount, p.currency)}` : undefined}>
             {lbl}
             {k === "won" && c.won ? ` · ${formatMoney(c.won.amount, p.currency)}` : null}
           </span>
@@ -117,7 +119,7 @@ export default function ContactsTable(p: Props) {
         <thead>
           <tr>
             <th className="check">
-              <input ref={head} type="checkbox" aria-label="Select all on this page" checked={all} onChange={(e) => p.onSelectAll(e.target.checked)} />
+              <input ref={head} type="checkbox" className="cp-checkbox" aria-label="Select all on this page" checked={all} onChange={(e) => p.onSelectAll(e.target.checked)} />
             </th>
             {cols.map((k) => {
               const on = p.sort.key === k;
@@ -138,7 +140,7 @@ export default function ContactsTable(p: Props) {
             return (
               <tr key={c.id} aria-selected={p.selected.has(c.id)} data-open={p.openId === c.id ? "true" : undefined}>
                 <td className="check">
-                  <input type="checkbox" aria-label={`Select ${name}`} checked={p.selected.has(c.id)} onChange={(e) => p.onToggle(c.id, e.target.checked)} />
+                  <input type="checkbox" className="cp-checkbox" aria-label={`Select ${name}`} checked={p.selected.has(c.id)} onChange={(e) => p.onToggle(c.id, e.target.checked)} />
                 </td>
                 {cols.map((k) => (
                   <td key={k} data-col={k} onClick={k === "name" ? undefined : () => p.onOpen(c.id)}>

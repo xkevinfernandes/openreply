@@ -7,6 +7,7 @@
 // Won picker (the host opens it). The host shows the toast.
 
 import { useEffect, useRef, useState } from "react";
+import { Button, MenuButton } from "@claudepreneur/brand/react";
 import { bulkTagMenu } from "@/lib/os/bulk-tags";
 import { normalizeTag } from "@/lib/os/contacts-filter";
 
@@ -67,7 +68,7 @@ export default function BulkBar(p: BulkBarProps) {
     <div className={`os-bulk${p.className ? ` ${p.className}` : ""}`} role="region" aria-label="Bulk actions" aria-busy={p.pending || undefined}>
       <div className="os-bulk-head">
         <label className="os-bulk-count">
-          {p.all ? <input ref={box} type="checkbox" checked={p.all.checked} aria-label="Select all shown" onChange={(e) => p.all?.onChange(e.target.checked)} /> : null}
+          {p.all ? <input ref={box} type="checkbox" className="cp-checkbox" checked={p.all.checked} aria-label="Select all shown" onChange={(e) => p.all?.onChange(e.target.checked)} /> : null}
           <span>
             <strong>{p.count}</strong> selected
           </span>
@@ -80,46 +81,38 @@ export default function BulkBar(p: BulkBarProps) {
         {naming ? (
           <form className="os-bulk-new" onSubmit={addNew}>
             <input className="os-input" autoFocus aria-label="New tag" placeholder="New tag" value={draft} maxLength={40} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setNaming(false)} />
-            <button type="submit" className="os-button" disabled={!normalizeTag(draft) || p.pending}>
+            <Button size="sm" type="submit" disabled={!normalizeTag(draft) || p.pending}>
               Add
-            </button>
-            <button type="button" className="os-button ghost" onClick={() => setNaming(false)}>
+            </Button>
+            <Button size="sm" variant="text" onClick={() => setNaming(false)}>
               Cancel
-            </button>
+            </Button>
           </form>
         ) : (
-          <span className="os-select os-bulk-tag">
-            <select aria-label="Tag" value="" disabled={p.pending} onChange={(e) => onTag(e.target.value)}>
-              <option value="">Tag…</option>
-              <optgroup label="Add tag">
-                {menu.add.map((t) => (
-                  <option key={`a${t}`} value={`add:${t}`}>
-                    {t}
-                  </option>
-                ))}
-                <option value={NEW}>New tag…</option>
-              </optgroup>
-              {menu.remove.length ? (
-                <optgroup label="Remove tag">
-                  {menu.remove.map((t) => (
-                    <option key={`r${t}`} value={`remove:${t}`}>
-                      {t}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
-            </select>
-          </span>
+          <MenuButton
+            label="Tag…"
+            aria-label="Tag"
+            size="sm"
+            align="start"
+            className="os-bulk-tag"
+            disabled={p.pending}
+            items={[
+              { heading: "Add tag" },
+              ...menu.add.map((t) => ({ label: t, onSelect: () => onTag(`add:${t}`) })),
+              { label: "New tag…", onSelect: () => onTag(NEW) },
+              ...(menu.remove.length ? [{ heading: "Remove tag" }, ...menu.remove.map((t) => ({ label: t, onSelect: () => onTag(`remove:${t}`) }))] : []),
+            ]}
+          />
         )}
-        <button type="button" className="os-button" disabled={p.pending} onClick={p.onWon}>
+        <Button size="sm" disabled={p.pending} onClick={p.onWon}>
           Won…
-        </button>
-        <button type="button" className="os-button" disabled={p.pending} onClick={p.onLost}>
+        </Button>
+        <Button size="sm" disabled={p.pending} onClick={p.onLost}>
           Lost
-        </button>
-        <button type="button" className="os-button" disabled={p.pending} onClick={() => p.onArchive(!p.archived)}>
+        </Button>
+        <Button size="sm" disabled={p.pending} onClick={() => p.onArchive(!p.archived)}>
           {p.archived ? "Restore" : "Archive"}
-        </button>
+        </Button>
         {p.extra}
       </div>
     </div>

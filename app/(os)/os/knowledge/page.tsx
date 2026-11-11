@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { ImportButton, NewSetter } from "@/components/os/knowledge/setter-list-actions";
+import { EmptyState } from "@/components/os/ui";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
 
@@ -23,14 +24,17 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
         <h1 className="kb-title">Setters</h1>
       </header>
       <div className="kb-pad">
-        <div className="os-empty os-kb-empty">
-          <strong>No setter yet</strong>
-          <p>J drafts from the bundled claudepreneur files until you import them.</p>
-          <div className="os-kb-inline">
-            <ImportButton />
-            <NewSetter setters={[]} />
-          </div>
-        </div>
+        <EmptyState
+          title="No setter yet"
+          action={
+            <div className="os-kb-inline">
+              <ImportButton />
+              <NewSetter setters={[]} />
+            </div>
+          }
+        >
+          J drafts from the bundled claudepreneur files until you import them.
+        </EmptyState>
       </div>
     </div>
   );

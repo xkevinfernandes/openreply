@@ -6,9 +6,11 @@
 // menu with Set default / Rename / Delete (never the default).
 
 import { useState, useTransition } from "react";
+import { Button, MenuButton } from "@claudepreneur/brand/react";
 import { deleteContactView, renameContactView, saveContactView, saveContactViewAs, setDefaultContactView } from "@/app/(os)/os/contacts/actions";
 import type { ViewState } from "@/lib/os/contacts-view";
 import type { SavedViewRecord } from "@/lib/os/saved-views";
+import { useOsConfirm } from "@/components/os/ui/confirm";
 
 interface Props {
   views: SavedViewRecord[];
@@ -22,6 +24,7 @@ interface Props {
 }
 
 export default function ViewsBar(p: Props) {
+  const confirmAsk = useOsConfirm();
   const [pending, start] = useTransition();
   const [naming, setNaming] = useState<"new" | "rename" | null>(null);
   const [name, setName] = useState("");
@@ -58,67 +61,65 @@ export default function ViewsBar(p: Props) {
       </div>
       {/* Right by the pills, so it reads as "this view's" options. */}
       {current && !naming ? (
-        <span className="os-select os-cv-more">
-          <select
-            aria-label={`More for ${current.name}`}
-            value=""
-            disabled={pending}
-            onChange={(e) => {
-              const v = e.target.value;
-              e.target.value = "";
-              if (v === "default") run(() => setDefaultContactView(current.id), `${current.name} is the default.`);
-              if (v === "rename") {
+        <MenuButton
+          label="View options"
+          aria-label={`More for ${current.name}`}
+          align="start"
+          className="os-cv-more"
+          disabled={pending}
+          items={[
+            { label: "Make default", disabled: current.isDefault, onSelect: () => run(() => setDefaultContactView(current.id), `${current.name} is the default.`) },
+            {
+              label: "Rename",
+              onSelect: () => {
                 setNaming("rename");
                 setName(current.name);
-              }
-              if (v === "delete" && window.confirm(`Delete the view “${current.name}” for everyone?`)) run(() => deleteContactView(current.id), `Deleted “${current.name}”.`);
-            }}
-          >
-            <option value="">View options</option>
-            <option value="default" disabled={current.isDefault}>
-              Make default
-            </option>
-            <option value="rename">Rename</option>
-            <option value="delete" disabled={current.isDefault}>
-              {current.isDefault ? "Delete (not the default)" : "Delete"}
-            </option>
-          </select>
-        </span>
+              },
+            },
+            {
+              label: current.isDefault ? "Delete (not the default)" : "Delete",
+              danger: true,
+              disabled: current.isDefault,
+              onSelect: async () => {
+                if (await confirmAsk(`Delete the view “${current.name}” for everyone?`, { danger: true, confirmLabel: "Delete" })) run(() => deleteContactView(current.id), `Deleted “${current.name}”.`);
+              },
+            },
+          ]}
+        />
       ) : null}
       {p.edited ? <span className="os-cv-edited">Edited</span> : null}
       <span className="os-cx-grow" />
       {naming ? (
         <form className="os-cv-name" onSubmit={submitName}>
           <input className="os-input" autoFocus aria-label="View name" placeholder="View name" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} />
-          <button type="submit" className="os-button primary" disabled={pending || !name.trim()}>
+          <Button type="submit" variant="primary" disabled={pending || !name.trim()}>
             {naming === "rename" ? "Rename" : "Save"}
-          </button>
-          <button type="button" className="os-button ghost" onClick={() => setNaming(null)}>
+          </Button>
+          <Button variant="text" onClick={() => setNaming(null)}>
             Cancel
-          </button>
+          </Button>
         </form>
       ) : (
         <>
           {p.edited && current ? (
             <>
-              <button type="button" className="os-button ghost" onClick={p.onReset}>
+              <Button variant="text" onClick={p.onReset}>
                 Reset
-              </button>
-              <button type="button" className="os-button primary" disabled={pending} onClick={() => run(() => saveContactView(current.id, p.state), `Saved “${current.name}” for everyone.`)}>
+              </Button>
+              <Button variant="primary" disabled={pending} onClick={() => run(() => saveContactView(current.id, p.state), `Saved “${current.name}” for everyone.`)}>
                 Save for everyone
-              </button>
+              </Button>
             </>
           ) : null}
-          <button
-            type="button"
-            className="os-button ghost"
+          <Button
+            variant="text"
             onClick={() => {
               setNaming("new");
               setName("");
             }}
           >
             + Save view
-          </button>
+          </Button>
         </>
       )}
     </div>

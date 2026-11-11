@@ -7,6 +7,7 @@
 // moved to Pipeline. Every change shows at once and saves in the background;
 // a failed save puts the old value back and says so.
 
+import { Button } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { undoContactsWon, updateContacts } from "@/app/(os)/os/contacts/actions";
@@ -17,13 +18,14 @@ import ViewsBar from "@/components/os/contacts/views-bar";
 import WonPicker from "@/components/os/contacts/won-picker";
 import { useOsCommand } from "@/components/os/keys";
 import { threadName } from "@/components/os/inbox/names";
-import { BulkBar, Toast, useToast, type ToastMessage } from "@/components/os/ui";
+import { BulkBar, EmptyState, Toast, useToast, type ToastMessage } from "@/components/os/ui";
 import type { PanelTab } from "@/lib/os/contact-panel/types";
 import type { ContactRow, SetterOption } from "@/lib/os/contacts-board";
 import type { ContactChange } from "@/lib/os/contacts-edit";
 import { allSources, applyChangeLocally } from "@/lib/os/contacts-filter";
 import { BUILT_IN_COLUMNS, EMPTY_FILTERS, PAGE_SIZE, queryContacts, queryContext, sameView, type ViewState } from "@/lib/os/contacts-view";
 import type { SavedViewRecord } from "@/lib/os/saved-views";
+import { PageHead } from "@/components/os/page-head";
 
 export type { OpenPanel };
 
@@ -153,35 +155,38 @@ export default function ContactsScreen(p: Props) {
 
   return (
     <div className="os-cx os-cv" data-panel={panel.open ? "open" : undefined}>
-      <section className="os-cx-main" aria-labelledby="os-cx-h">
-        <header className="os-cx-head">
-          <h1 id="os-cx-h" className="os-title">
-            Contacts
-          </h1>
-          <span className="os-cx-count">
-            {result.total.toLocaleString("en-GB")} {result.total === 1 ? "person" : "people"}
-          </span>
-          <span className="os-cx-grow" />
-          <label className="os-cx-search">
-            <span className="sr-only">Search contacts</span>
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <circle cx="7" cy="7" r="4.5" />
-              <path d="m10.5 10.5 3 3" />
-            </svg>
-            <input
-              type="search"
-              placeholder="Search name, username or email"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(1);
-              }}
-            />
-          </label>
-          <Link href="/os/pipeline" className="os-button ghost os-cv-pipe">
-            Open pipeline
-          </Link>
-        </header>
+      <section className="os-cx-main" aria-label="Contacts">
+        <PageHead
+          title="Contacts"
+          meta={
+            <span className="os-cx-count">
+              {result.total.toLocaleString("en-GB")} {result.total === 1 ? "person" : "people"}
+            </span>
+          }
+          actions={
+            <>
+              <label className="os-cx-search">
+                <span className="sr-only">Search contacts</span>
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="7" cy="7" r="4.5" />
+                  <path d="m10.5 10.5 3 3" />
+                </svg>
+                <input
+                  type="search"
+                  placeholder="Search name, username or email"
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </label>
+              <Link href="/os/pipeline" className="cp-btn os-cv-pipe">
+                Open pipeline
+              </Link>
+            </>
+          }
+        />
 
         <ViewsBar
           views={views}
@@ -242,21 +247,22 @@ export default function ContactsScreen(p: Props) {
         {p.truncated ? <p className="os-cx-status">Showing the 2,000 most recent.</p> : null}
 
         {rows.length === 0 ? (
-          <div className="os-cx-none">No contacts yet. They appear when someone DMs or comments.</div>
+          <EmptyState title="No contacts yet.">They appear when someone DMs or comments.</EmptyState>
         ) : result.total === 0 ? (
-          <div className="os-cx-none">
-            {state.filters.archived ? "No archived contacts match." : "No contacts match."}{" "}
-            <button
-              type="button"
-              className="os-link"
+          <EmptyState
+            title={state.filters.archived ? "No archived contacts match." : "No contacts match."}
+            action={
+              <Button
+              variant="text" className="is-ink"
               onClick={() => {
                 changeState({ ...state, filters: EMPTY_FILTERS });
                 setQuery("");
               }}
             >
               Clear filters
-            </button>
-          </div>
+            </Button>
+            }
+          />
         ) : (
           <div className="os-cx-table">
             <ContactsTable
@@ -294,15 +300,15 @@ export default function ContactsScreen(p: Props) {
             />
             {result.pages > 1 ? (
               <nav className="os-cv-pages" aria-label="Pages">
-                <button type="button" className="os-button ghost" disabled={result.page <= 1} onClick={() => setPage(result.page - 1)}>
+                <Button variant="text" disabled={result.page <= 1} onClick={() => setPage(result.page - 1)}>
                   Previous
-                </button>
+                </Button>
                 <span>
                   {(result.page - 1) * PAGE_SIZE + 1}–{Math.min(result.page * PAGE_SIZE, result.total)} of {result.total.toLocaleString("en-GB")}
                 </span>
-                <button type="button" className="os-button ghost" disabled={result.page >= result.pages} onClick={() => setPage(result.page + 1)}>
+                <Button variant="text" disabled={result.page >= result.pages} onClick={() => setPage(result.page + 1)}>
                   Next
-                </button>
+                </Button>
               </nav>
             ) : null}
           </div>

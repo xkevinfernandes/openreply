@@ -5,6 +5,7 @@
 // every row on its own, so a slow one doesn't hold the others. The old detail
 // lists sit folded under Details.
 
+import { Button } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -106,9 +107,9 @@ export default function DiagnosticsPanel({ sample = false, canManage = true }: {
             <h2 id="os-dg-title">Is everything working?</h2>
             <p role="status">{busy ? "Checking…" : `${checkedLabel(checkedAt, now)} · ${summary.problems ? summary.text : "no problems"}`}</p>
           </div>
-          <button type="button" className="os-button" onClick={checkAll} disabled={busy}>
+          <Button onClick={checkAll} disabled={busy}>
             {busy ? "Checking…" : "Check again"}
-          </button>
+          </Button>
         </header>
         <ul className="os-dg-list">
           {rows.map((r) => (
@@ -122,17 +123,17 @@ export default function DiagnosticsPanel({ sample = false, canManage = true }: {
                 <span className="os-dg-next">
                   {r.next.map((n) =>
                     n.fix && canManage ? (
-                      <InstagramFixButton key={n.label} fix={n.fix} sample={sample} className="os-button" onDone={() => {
+                      <InstagramFixButton key={n.label} fix={n.fix} sample={sample} className="cp-btn" onDone={() => {
                           checkAll();
                           router.refresh();
                         }} />
                     ) : n.href ? (
                       n.href.startsWith("http") ? (
-                        <a key={n.label} className="os-button" href={n.href} target="_blank" rel="noreferrer">
+                        <a key={n.label} className="cp-btn" href={n.href} target="_blank" rel="noreferrer">
                           {n.label}
                         </a>
                       ) : (
-                        <Link key={n.label} className="os-button" href={n.href}>
+                        <Link key={n.label} className="cp-btn" href={n.href}>
                           {n.label}
                         </Link>
                       )

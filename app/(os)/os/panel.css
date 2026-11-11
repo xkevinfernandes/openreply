@@ -55,38 +55,19 @@
 
 /* The stage as a filled neutral pill that opens the native menu. Colour
    and chevron are separate so dark swaps the chevron (--chevron). */
-.os-panel-pill select {
-  height: 26px;
-  padding: 0 26px 0 10px;
-  border: 0;
+/* The stage picker (the shared Select), kept the small pill it was. */
+.os-panel-pill .cp-select-trigger.is-compact {
+  padding: 4px 8px 4px 10px;
   border-radius: 999px;
-  background-color: var(--neutral-bg);
-  background-image: var(--chevron);
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  background-size: 12px;
-  color: var(--ink);
-  font: inherit;
+  background: var(--neutral-bg);
   font-size: var(--fs-xs);
-  font-weight: 500;
-  appearance: none;
-  cursor: pointer;
 }
-
-.os-panel-pill select:hover {
-  background-color: var(--tint-2);
+.os-panel-pill .cp-select-trigger.is-compact:hover {
+  background: var(--tint-2);
 }
-
-/* The global field reset in os.css (outline: none on focused selects)
-   outranks a plain select rule, and this select has no border to turn
-   ink, so keyboard focus rings the pill instead, like .os-cx-chip. */
-.os .os-panel-pill {
-  display: inline-flex;
-  border-radius: 999px;
-}
-.os .os-panel-pill:has(select:focus-visible) {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
+.os-panel-pill .cp-select-caret {
+  width: 12px;
+  height: 12px;
 }
 
 .os-panel-setter {

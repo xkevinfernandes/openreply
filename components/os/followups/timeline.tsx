@@ -8,9 +8,11 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { completeTask, markCall, sendFollowupNow, setFollowupsOn, skipFollowup } from "@/app/(os)/os/follow-ups/actions";
 import { sendBroadcastNowAction, skipBroadcastAction, unscheduleBroadcastAction } from "@/app/(os)/os/automations/broadcasts/actions";
+import { Button, Select } from "@claudepreneur/brand/react";
 import { EmptyState, InfoTip, Tabs } from "@/components/os/ui";
 import type { FollowupsHeader } from "@/lib/os/followups-header";
 import { chatHref, TIMELINE_TABS, type DayGroup, type Timeline, type TimelineRow, type TimelineTab, type TodoItem } from "@/lib/os/followups-timeline";
+import { PageHead } from "@/components/os/page-head";
 
 const ICON = {
   send: "M13.5 2.5 7 9M13.5 2.5 9.5 13.5 7 9 2.5 6.5l11-4Z",
@@ -115,7 +117,7 @@ function Banner({ b }: { b: DayGroup["banners"][number] }) {
         Broadcast · {b.name}
       </Link>
       <span className="os-tl-time">{b.time}</span>
-      <Link className="os-button primary os-tl-banner-btn" href={b.href}>
+      <Link className="cp-btn cp-btn-primary cp-btn-sm os-tl-banner-btn" href={b.href}>
         {b.kind === "link" ? "Add link" : "Review"}
       </Link>
     </div>
@@ -134,9 +136,9 @@ function Todo({ items, act, pending }: { items: TodoItem[]; act: (fn: Act) => vo
         {items.map((t) => (
           <li key={t.id}>
             {t.kind === "task" ? (
-              <input type="checkbox" id={t.id} aria-label="Done" disabled={pending} onChange={() => act(() => completeTask(t.taskId!))} />
+              <input type="checkbox" className="cp-checkbox" id={t.id} aria-label="Done" disabled={pending} onChange={() => act(() => completeTask(t.taskId!))} />
             ) : (
-              <input type="checkbox" className="os-tl-todo-mark" disabled aria-hidden="true" tabIndex={-1} />
+              <input type="checkbox" className="cp-checkbox os-tl-todo-mark" disabled aria-hidden="true" tabIndex={-1} />
             )}
             <label htmlFor={t.kind === "task" ? t.id : undefined} className="os-tl-todo-text">
               {t.lead} {t.strong ? <strong>{t.strong}</strong> : null} {t.tail}
@@ -149,12 +151,12 @@ function Todo({ items, act, pending }: { items: TodoItem[]; act: (fn: Act) => vo
             </span>
             {t.kind === "attendance" ? (
               <span className="os-tl-att">
-                <button type="button" className="os-link" disabled={pending} onClick={() => act(() => markCall(t.contactId!, "SHOWED"))}>
+                <Button variant="text" className="is-ink" disabled={pending} onClick={() => act(() => markCall(t.contactId!, "SHOWED"))}>
                   Showed
-                </button>
-                <button type="button" className="os-link" disabled={pending} onClick={() => act(() => markCall(t.contactId!, "NO_SHOW"))}>
+                </Button>
+                <Button variant="text" className="is-ink" disabled={pending} onClick={() => act(() => markCall(t.contactId!, "NO_SHOW"))}>
                   No-show
-                </button>
+                </Button>
               </span>
             ) : (
               <Link className="os-tl-act" href={t.action.href}>
@@ -179,10 +181,10 @@ function Start({ header }: { header: FollowupsHeader }) {
       title="No follow-ups yet"
       action={
         <span className="os-tl-start">
-          <Link className="os-button primary" href={header.setupHref}>
+          <Link className="cp-btn cp-btn-primary" href={header.setupHref}>
             Set up sequences
           </Link>
-          <Link className="os-button" href="/os/automations/broadcasts">
+          <Link className="cp-btn" href="/os/automations/broadcasts">
             New broadcast
           </Link>
         </span>
@@ -206,32 +208,32 @@ export default function FollowupsTimeline({ data, tab, source, header }: { data:
 
   return (
     <div className="os-tl">
-      <header className="os-tl-head">
-        <div className="os-tl-title">
-          <h1 className="os-title">Follow-ups</h1>
+      <PageHead
+        title="Follow-ups"
+        meta={
           <InfoTip label="What shows here">Everything scheduled to go out: setter sequences (defined in Knowledge bases) and broadcasts (defined in Automations). Nothing sends without your approve.</InfoTip>
-        </div>
-        <div className="os-tl-actions">
-          <label className="os-tl-filter">
-            <span>Source</span>
-            <span className="os-select">
-              <select value={source} onChange={(e) => router.push(href(tab, e.target.value))} aria-label="Source">
-                {data.sources.map((s) => (
-                  <option key={s.key} value={s.key}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </span>
-          </label>
-          <Link className="os-button" href={header.setupHref}>
-            Set up sequences
-          </Link>
-          <Link className="os-button" href="/os/automations/broadcasts">
-            New broadcast
-          </Link>
-        </div>
-      </header>
+        }
+        actions={
+          <>
+            <div className="os-tl-filter">
+              <span aria-hidden="true">Source</span>
+              <Select
+                aria-label="Source"
+                value={source}
+                compact
+                onChange={(v) => router.push(href(tab, v))}
+                options={data.sources.map((s) => ({ value: s.key, label: s.label }))}
+              />
+            </div>
+            <Link className="cp-btn" href={header.setupHref}>
+              Set up sequences
+            </Link>
+            <Link className="cp-btn" href="/os/automations/broadcasts">
+              New broadcast
+            </Link>
+          </>
+        }
+      />
 
       {header.friday ? (
         <Link className="os-tl-fri" href={header.friday.href} data-on={header.friday.on || undefined}>

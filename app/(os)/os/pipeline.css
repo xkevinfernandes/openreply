@@ -106,43 +106,6 @@
   cursor: pointer;
 }
 
-.os-cv-columns {
-  position: relative;
-}
-.os-cv-columns > summary {
-  list-style: none;
-  cursor: pointer;
-}
-.os-cv-columns > summary::-webkit-details-marker {
-  display: none;
-}
-.os-cv-columns-pop {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: 30;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 200px;
-  padding: 8px;
-  border-radius: 16px;
-  background: var(--card);
-  box-shadow: var(--pop-shadow);
-}
-.os-cv-columns-pop label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 10px;
-  font-size: var(--fs-sm);
-  cursor: pointer;
-}
-.os-cv-columns-pop label:hover {
-  background: var(--well);
-}
-
 /* --- Contacts: table ----------------------------------------------------- */
 .os-cv-table th button.os-cv-sort {
   padding: 0;
@@ -326,7 +289,7 @@
   padding: 3px 10px;
   border-radius: 999px;
   background: var(--sage);
-  color: var(--sage-text);
+  color: var(--on-sage);
 }
 .os-pl-total {
   margin-left: auto;
@@ -336,7 +299,7 @@
 }
 .os-pl-note {
   margin: -4px 2px 2px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 .os-pl-drop[data-why="true"] {
@@ -370,7 +333,7 @@
 }
 .os-pl-card[aria-current="true"] {
   background: var(--sage);
-  color: var(--sage-text);
+  color: var(--on-sage);
 }
 .os-pl-card[aria-current="true"] .os-cx-note,
 .os-pl-card[aria-current="true"] .os-cx-meta {
@@ -423,7 +386,7 @@
   background: none;
   color: inherit;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   text-decoration: underline;
   cursor: pointer;
 }
@@ -491,7 +454,7 @@
 }
 .os-won-offer[data-on="true"] {
   background: var(--sage);
-  color: var(--sage-text);
+  color: var(--on-sage);
 }
 .os-won-offer-name {
   flex: 1;
@@ -631,7 +594,7 @@
   border-radius: 999px;
   background: var(--bad-bg);
   color: var(--bad-fg);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   text-decoration: none;
   display: inline-block;
 }
@@ -712,37 +675,17 @@
   }
 
   /* Pipeline: one column at a time under column tabs, no drag. */
-  .os-pl-tabs {
+  .os-pl-tabs.cp-tabs {
     display: flex;
-    gap: 4px;
+    flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
-    padding: 4px;
-    border-radius: 999px;
-    background: var(--card);
   }
   .os-pl-tabs::-webkit-scrollbar {
     display: none;
   }
-  .os-pl-tabs button {
+  .os-pl-tabs .cp-tab {
     flex: none;
-    height: 30px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--ink);
-    font: inherit;
-    font-size: var(--fs-sm);
-    white-space: nowrap;
-  }
-  .os-pl-tabs button span {
-    margin-left: 4px;
-    opacity: 0.6;
-  }
-  .os-pl-tabs button[aria-selected="true"] {
-    background: var(--ink);
-    color: var(--on-ink);
   }
   .os-pl-scroll {
     overflow: visible;
