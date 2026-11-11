@@ -2158,12 +2158,6 @@ html:has(.os) .cp-toasts {
   padding-inline: 16px;
 }
 
-/* Resources: the kind filter's pills were 34px without a track; on the
-   shared track (2px) the row stays 34. */
-.os .os-rs-pills.cp-tabs {
-  padding: 2px;
-}
-
 /* Sandbox: the situation's selects were 34px (os-sbx-in). */
 .os .os-sbx-sit .cp-select-trigger {
   min-height: 34px;
@@ -2181,4 +2175,96 @@ html:has(.os) .cp-toasts {
 /* Follow-ups: the Source select keeps the native one's width. */
 .os .os-tl-filter .cp-select-trigger {
   min-width: 163px;
+}
+
+/* Empty states: the shared EmptyState's card and type, with the OS's old
+   stack (centred, 6px apart, 40px tall padding), so the line and its button
+   sit where they were. */
+.os .os-empty-state.cp-empty {
+  align-items: center;
+  gap: 6px;
+  padding: 40px 16px;
+  text-align: center;
+}
+.os .os-empty-state .cp-empty-actions {
+  justify-content: center;
+  margin-top: 6px;
+}
+
+/* Phone: the OS's fields and buttons were 40px tall there (os-input,
+   os-select, os-button); the shared ones that replaced them match. */
+@media (max-width: 860px) {
+  .os .cp-input:not(textarea):not(.is-sm):not(.is-compact) {
+    min-height: 40px;
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+  .os .cp-btn:not(.cp-btn-text):not(.cp-btn-sm) {
+    min-height: 40px;
+  }
+}
+
+/* Integrations: the status is the shared pill now; it takes the old status
+   line's height (17px) in the row so nothing under it moves. */
+.os .os-si-status > .cp-pill {
+  margin-block: -2.25px;
+}
+
+/* Toggles at the OS switch's 34 x 20 (os-switch), knob 16, so a row of
+   them keeps its height and width. */
+.os .cp-switch {
+  width: 34px;
+  height: 20px;
+}
+.os .cp-switch::before {
+  top: 2px;
+  left: 2px;
+}
+
+/* Resources: the kind filter was a row of separate 34px pills that wraps
+   on a phone; it keeps that (shared tab type and ink pick). */
+.os .os-rs-pills.cp-tabs {
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  overflow: visible;
+  background: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+.os .os-rs-pills.cp-tabs > .cp-tab {
+  height: 34px;
+}
+.os .os-rs-pills.cp-tabs > .cp-tab:not([aria-selected="true"]) {
+  background: var(--card);
+  color: var(--ink);
+}
+
+@media (max-width: 860px) {
+  .os .os-sbx-sit .cp-input.cp-select-trigger:not(textarea) {
+    min-height: 34px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+}
+
+@media (max-width: 860px) {
+  /* Pipeline's phone column tabs: 12px sides (pipeline.css had them so). */
+  .os .os-pl-tabs.cp-tabs > .cp-tab {
+    padding: 0 12px;
+  }
+  /* Contacts: the views menus keep the phone selects' widths (16px text). */
+  .os .os-cv-more.cp-btn {
+    min-width: 227px;
+  }
+  .os .os-cv-add.cp-btn {
+    min-width: 143px;
+  }
+}
+
+/* Compact selects as wide as the native ones they replaced (a row of them
+   in a sentence, e.g. Booking, must not wrap). */
+.os .cp-select-trigger.is-compact {
+  padding-left: 10px;
+  padding-right: 8px;
 }

@@ -2897,3 +2897,25 @@ a.kb-kw:hover {
     grid-template-columns: minmax(0, 1fr) repeat(5, 46px);
   }
 }
+
+/* A line test's status: a dot and a word (kept as it was; 12px floor). */
+.kb-lt-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  line-height: 16px;
+  color: var(--muted);
+}
+
+.kb-lt-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--ink);
+}
+
+.kb-lt-status[data-status="running"]::before {
+  background: var(--ink);
+}

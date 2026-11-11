@@ -93,7 +93,9 @@ function TestCard({ setterId, setterName, label, test: t }: { setterId: string; 
     return (
       <div className="kb-lt-test" data-status="draft">
         <div className="kb-lt-head">
-          <Pill>Draft</Pill>
+          <span className="kb-lt-status" data-status="draft">
+            Draft
+          </span>
           <Pill>{scopeText(t, setterName)}</Pill>
         </div>
         <Editor label={label} initial={t.variants.map((v) => v.text)} draft={{ setterId, id: t.id }} />
@@ -108,7 +110,9 @@ function TestCard({ setterId, setterName, label, test: t }: { setterId: string; 
   return (
     <section className="kb-lt-test" aria-label={`${label} test`} data-status={t.status.toLowerCase()}>
       <div className="kb-lt-head">
-        <Pill tone={t.winnerVariantId || t.status === "RUNNING" ? "good" : "neutral"}>{t.winnerVariantId ? "Winner picked" : STATUS[t.status]}</Pill>
+        <span className="kb-lt-status" data-status={t.status.toLowerCase()}>
+          {t.winnerVariantId ? "Winner picked" : STATUS[t.status]}
+        </span>
         <Pill>{scopeText(t, setterName)}</Pill>
         {t.sample && <Pill>Sample</Pill>}
         <span className="kb-grow" />
