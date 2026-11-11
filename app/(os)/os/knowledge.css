@@ -734,11 +734,6 @@ a.kb-quiet:hover {
 
 .kb-grp {
   margin: 16px 12px 6px;
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .kb-meta {

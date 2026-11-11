@@ -375,12 +375,13 @@
   flex-wrap: wrap;
 }
 
-.os-bb-time.os-input {
-  width: 108px;
+/* The brand TimePicker / DatePicker triggers, as wide as their values. */
+.os-bb-time {
+  width: 128px;
 }
 
-.os-bb-date.os-input {
-  width: 150px;
+.os-bb-date {
+  width: 190px;
 }
 
 .os-bb-num.os-input {

@@ -3,7 +3,7 @@
 // Knowledge base → Follow-ups: one card per sequence, a switch each, the
 // steps one tap deeper. Each card saves on its own.
 
-import { Button } from "@claudepreneur/brand/react";
+import { Button, TimePicker } from "@claudepreneur/brand/react";
 import { useState, useTransition } from "react";
 import { saveFollowupSequence } from "@/app/(os)/os/knowledge/actions";
 import { Field, Section, Select, Switch, TextArea, TextInput } from "@/components/os/knowledge/fields";
@@ -222,7 +222,7 @@ function TimingInput({ id, timing, kinds, onChange }: { id: string; timing: Step
         />
       )}
       {isClock ? (
-        <input id={id} className="os-input" type="time" value={timing.time} onChange={(e) => onChange({ kind: timing.kind, time: e.target.value || "09:00" })} />
+        <TimePicker id={id} value={timing.time} onChange={(v) => onChange({ kind: timing.kind, time: v || "09:00" })} />
       ) : (
         <>
           <input

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, buttonClassName } from "@claudepreneur/brand/react";
+import { Button, buttonClassName, GroupLabel } from "@claudepreneur/brand/react";
 import { pillClass } from "@/components/os/ui/pill";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
@@ -166,7 +166,7 @@ export default function IntegrationCard({
           )}
 
           <section className="os-int-section" aria-label="Connection">
-            <h3>Connection</h3>
+            <GroupLabel>Connection</GroupLabel>
             {view.provider === "kit" ? (
               <KitConnect
                 view={view}
@@ -183,7 +183,7 @@ export default function IntegrationCard({
           {view.connected && (
             <>
               <section className="os-int-section" aria-label="Fields">
-                <h3>What gets sent</h3>
+                <GroupLabel>What gets sent</GroupLabel>
                 {view.provider === "kit" && !view.lastSyncedAt ? (
                   <p className="os-int-hint" aria-disabled="true">
                     Field mapping · Sync once so Kit&apos;s fields are known.
@@ -206,7 +206,7 @@ export default function IntegrationCard({
               </section>
 
               <section className="os-int-section" aria-label="Sync">
-                <h3>Sync</h3>
+                <GroupLabel>Sync</GroupLabel>
                 <div className="os-int-row">
                   <div className="os-int-row-main">
                     <strong>Push changes</strong>

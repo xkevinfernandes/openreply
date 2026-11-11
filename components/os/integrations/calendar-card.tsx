@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, buttonClassName, SegmentedSwitch, Select } from "@claudepreneur/brand/react";
+import { Button, buttonClassName, GroupLabel, SegmentedSwitch, Select } from "@claudepreneur/brand/react";
 import { pillClass } from "@/components/os/ui/pill";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState, useTransition } from "react";
@@ -136,13 +136,13 @@ export default function CalendarCard({
             </p>
           )}
           <section className="os-int-section" aria-label="Connection">
-            <h3>Connection</h3>
+            <GroupLabel>Connection</GroupLabel>
             <Connection view={view} now={now} pending={pending} onAct={act} />
           </section>
           {view.connected && (
             <>
               <section className="os-int-section" aria-label="Booking">
-                <h3>Booking in the DM</h3>
+                <GroupLabel>Booking in the DM</GroupLabel>
                 <div className="os-int-row">
                   <div className="os-int-row-main">
                     <strong>J books on {info.name}</strong>
@@ -319,7 +319,7 @@ function SettingsEditor({
   return (
     <>
       <section className="os-int-section" aria-label="Event type">
-        <h3>Which call J books</h3>
+        <GroupLabel>Which call J books</GroupLabel>
         {typesError && <p className="os-int-hint os-int-bad">{typesError}</p>}
         <div className="os-cal-types">
           {rows.map((r) => {
@@ -349,7 +349,7 @@ function SettingsEditor({
       </section>
 
       <section className="os-int-section" aria-label="When">
-        <h3>When J offers times</h3>
+        <GroupLabel>When J offers times</GroupLabel>
         <div className="os-cal-grid">
           <label className="os-field" htmlFor={`${id}-tz`}>
             <span>Your timezone</span>
@@ -471,7 +471,7 @@ function Webhooks({ view }: { view: CalendarView }) {
   }
   return (
     <section className="os-int-section" aria-label="Webhooks">
-      <h3>Cancels, reschedules, no-shows</h3>
+      <GroupLabel>Cancels, reschedules, no-shows</GroupLabel>
       <div className="os-int-row">
         <div className="os-int-row-main">
           <strong>{view.webhook.ready ? `${info.name} tells J when a call moves` : "Off: reminders only follow what J booked"}</strong>

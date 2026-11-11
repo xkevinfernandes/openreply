@@ -27,7 +27,7 @@ import {
   skipMessageAction,
   type ActionResult,
 } from "@/app/(os)/os/automations/broadcasts/actions";
-import { Button, Combobox, Select } from "@claudepreneur/brand/react";
+import { Button, Combobox, DatePicker, Select, TimePicker } from "@claudepreneur/brand/react";
 import { Pill } from "@/components/os/ui";
 import type { BroadcastPage, ReviewItem, StepsInput } from "@/lib/os/broadcasts/engine";
 import type { PickerResource } from "@/lib/os/broadcasts/resources";
@@ -198,15 +198,15 @@ function StartStep({ data, act, pending, canEdit }: { data: BroadcastPage; act: 
         {mode === "now" ? (
           <label className="os-bb-row">
             <span className="os-bb-sub">From when you press Send until</span>
-            <input className="os-input os-bb-time" type="time" value={end} onChange={(e) => setEnd(e.target.value)} aria-label="End time today" />
+            <TimePicker className="os-bb-time" value={end} onChange={setEnd} aria-label="End time today" />
             <span className="os-bb-sub">today</span>
           </label>
         ) : (
           <div className="os-bb-row">
-            <input className="os-input os-bb-date" type="date" value={date} min={data.start.today} onChange={(e) => setDate(e.target.value)} aria-label="Date" />
-            <input className="os-input os-bb-time" type="time" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Start" />
+            <DatePicker className="os-bb-date" value={date} min={data.start.today} onChange={(v) => setDate(v ?? "")} aria-label="Date" />
+            <TimePicker className="os-bb-time" value={from} onChange={setFrom} aria-label="Start" />
             <span className="os-bb-sub">to</span>
-            <input className="os-input os-bb-time" type="time" value={to} onChange={(e) => setTo(e.target.value)} aria-label="End" />
+            <TimePicker className="os-bb-time" value={to} onChange={setTo} aria-label="End" />
           </div>
         )}
         <span className="os-bb-sub">{b.timezone}</span>
