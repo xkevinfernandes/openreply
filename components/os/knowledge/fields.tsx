@@ -151,9 +151,9 @@ export function RepeatItem({ children, onRemove, removeLabel }: { children: Reac
     <li className="os-kb-item">
       {children}
       <div className="os-kb-item-foot">
-        <button type="button" className="os-link quiet" onClick={onRemove}>
+        <Button variant="text" onClick={onRemove}>
           {removeLabel}
-        </button>
+        </Button>
       </div>
     </li>
   );

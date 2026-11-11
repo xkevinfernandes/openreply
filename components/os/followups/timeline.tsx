@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { completeTask, markCall, sendFollowupNow, setFollowupsOn, skipFollowup } from "@/app/(os)/os/follow-ups/actions";
 import { sendBroadcastNowAction, skipBroadcastAction, unscheduleBroadcastAction } from "@/app/(os)/os/automations/broadcasts/actions";
-import { Select } from "@claudepreneur/brand/react";
+import { Button, Select } from "@claudepreneur/brand/react";
 import { EmptyState, InfoTip, Tabs } from "@/components/os/ui";
 import type { FollowupsHeader } from "@/lib/os/followups-header";
 import { chatHref, TIMELINE_TABS, type DayGroup, type Timeline, type TimelineRow, type TimelineTab, type TodoItem } from "@/lib/os/followups-timeline";
@@ -151,12 +151,12 @@ function Todo({ items, act, pending }: { items: TodoItem[]; act: (fn: Act) => vo
             </span>
             {t.kind === "attendance" ? (
               <span className="os-tl-att">
-                <button type="button" className="os-link" disabled={pending} onClick={() => act(() => markCall(t.contactId!, "SHOWED"))}>
+                <Button variant="text" className="is-ink" disabled={pending} onClick={() => act(() => markCall(t.contactId!, "SHOWED"))}>
                   Showed
-                </button>
-                <button type="button" className="os-link" disabled={pending} onClick={() => act(() => markCall(t.contactId!, "NO_SHOW"))}>
+                </Button>
+                <Button variant="text" className="is-ink" disabled={pending} onClick={() => act(() => markCall(t.contactId!, "NO_SHOW"))}>
                   No-show
-                </button>
+                </Button>
               </span>
             ) : (
               <Link className="os-tl-act" href={t.action.href}>

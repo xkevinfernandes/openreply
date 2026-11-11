@@ -91,7 +91,7 @@
   color: var(--faint);
 }
 
-.os-seq > .os-link {
+.os-seq > .cp-btn-text {
   justify-self: start;
 }
 

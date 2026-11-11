@@ -6,7 +6,7 @@
 // history from the stage log. Other moves still go out on the event bus
 // ("move-stage"), performed by the screen hosting the panel.
 
-import { Select } from "@claudepreneur/brand/react";
+import { Button, Select } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { loadStageHistory, undoContactWon, type StageHistoryRow } from "@/app/(os)/os/contacts/actions";
@@ -113,13 +113,13 @@ export default function StageControl({ data }: { data: ContactPanelData }) {
               {won.amount}
             </span>
           ) : (
-            <button type="button" className="os-link" onClick={() => setPicking(true)}>
+            <Button variant="text" className="is-ink" onClick={() => setPicking(true)}>
               Add amount
-            </button>
+            </Button>
           )}
-          <button type="button" className="os-link" onClick={undo} disabled={pending}>
+          <Button variant="text" className="is-ink" onClick={undo} disabled={pending}>
             Undo Won
-          </button>
+          </Button>
         </span>
       ) : null}
 

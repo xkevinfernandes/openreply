@@ -91,9 +91,9 @@ export default function RecordBox({ clipId, onSaved, onCancel, keepLabel = "Use 
             </>
           )}
           {onCancel && (
-            <button type="button" className="os-link quiet" onClick={onCancel}>
+            <Button variant="text" onClick={onCancel}>
               Cancel
-            </button>
+            </Button>
           )}
         </div>
       )}

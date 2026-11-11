@@ -82,15 +82,14 @@ export default function CorrectionsCards({ view }: { view: SetterEditorView }) {
               <div className="kb-corr-h">
                 <span className="kb-quiet">{p.who || c.title}</span>
                 <div className="kb-grow" />
-                <button
-                  type="button"
-                  className="os-link quiet"
+                <Button
+                  variant="text"
                   aria-label={`Remove ${c.title}`}
                   disabled={saver.pending}
                   onClick={() => persist(list.filter((_, j) => j !== i), "Removed")}
                 >
                   Remove
-                </button>
+                </Button>
               </div>
               <dl>
                 {p.wrote && (

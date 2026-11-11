@@ -186,9 +186,9 @@ function ClipRow({ clip, sampleData }: { clip: VoiceClipView; sampleData: boolea
             <Button variant="text" onClick={() => setRecording(true)} disabled={pending}>
               Re-record
             </Button>
-            <button type="button" className="os-link quiet" onClick={() => run(() => clearVoiceAudio(clip.id))} disabled={pending}>
+            <Button variant="text" onClick={() => run(() => clearVoiceAudio(clip.id))} disabled={pending}>
               Remove recording
-            </button>
+            </Button>
           </>
         )}
         {(!clip.url || recording) && (
@@ -203,9 +203,9 @@ function ClipRow({ clip, sampleData }: { clip: VoiceClipView; sampleData: boolea
           />
         )}
         {!clip.url && sampleData && (
-          <button type="button" className="os-link" onClick={() => run(() => applySampleTone(clip.id))} disabled={pending}>
+          <Button variant="text" className="is-ink" onClick={() => run(() => applySampleTone(clip.id))} disabled={pending}>
             Use a sample chime
-          </button>
+          </Button>
         )}
       </div>
 
@@ -222,16 +222,15 @@ function ClipRow({ clip, sampleData }: { clip: VoiceClipView; sampleData: boolea
         <span role="status" className="os-kb-note" data-kind={note?.kind}>
           {pending ? "Saving…" : note?.text}
         </span>
-        <button
-          type="button"
-          className="os-link quiet"
+        <Button
+          variant="text"
           disabled={pending}
           onClick={async () => {
             if (await confirmAsk(`Delete "${clip.label || clip.phrase || "this clip"}"? The recording goes too.`, { danger: true, confirmLabel: "Delete" })) run(() => deleteVoiceClip(clip.id));
           }}
         >
           Delete
-        </button>
+        </Button>
       </div>
     </li>
   );

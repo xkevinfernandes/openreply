@@ -200,9 +200,9 @@ export function DangerZone({ view }: { view: SetterEditorView }) {
   return (
     <section className="os-kb-danger" aria-label="Delete">
       {!confirming ? (
-        <button type="button" className="os-link quiet" onClick={() => setConfirming(true)}>
+        <Button variant="text" onClick={() => setConfirming(true)}>
           Delete this knowledge base…
-        </button>
+        </Button>
       ) : (
         <div className="os-kb-inline">
           <span>

@@ -6,7 +6,7 @@
 // the view shows. Tags filter by id, shown by their current name.
 
 import { useEffect, useRef, useState } from "react";
-import { MenuButton, Select } from "@claudepreneur/brand/react";
+import { Button, MenuButton, Select } from "@claudepreneur/brand/react";
 import type { ContactKind } from "@/app/generated/prisma/enums";
 import type { SetterOption } from "@/lib/os/contacts-board";
 import { ACTIVITY_OPTIONS, EMPTY_FILTERS, type ActivityFilter, type ViewFilters, type ViewState } from "@/lib/os/contacts-view";
@@ -113,9 +113,9 @@ export default function FilterBar(p: Props) {
         Archived
       </label>
       {any ? (
-        <button type="button" className="os-link" onClick={() => p.onChange({ ...p.state, filters: EMPTY_FILTERS })}>
+        <Button variant="text" className="is-ink" onClick={() => p.onChange({ ...p.state, filters: EMPTY_FILTERS })}>
           Clear
-        </button>
+        </Button>
       ) : null}
       <span className="os-cx-grow" />
       <MenuButton

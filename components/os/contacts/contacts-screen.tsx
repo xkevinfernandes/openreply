@@ -252,16 +252,15 @@ export default function ContactsScreen(p: Props) {
           <EmptyState
             title={state.filters.archived ? "No archived contacts match." : "No contacts match."}
             action={
-              <button
-              type="button"
-              className="os-link"
+              <Button
+              variant="text" className="is-ink"
               onClick={() => {
                 changeState({ ...state, filters: EMPTY_FILTERS });
                 setQuery("");
               }}
             >
               Clear filters
-            </button>
+            </Button>
             }
           />
         ) : (

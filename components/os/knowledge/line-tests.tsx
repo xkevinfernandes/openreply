@@ -195,9 +195,9 @@ function Variant({
           {winner && <span className="kb-quiet">Winner</span>}
           {c.edited > 0 && <span className="kb-quiet" title="Sent after a heavy edit (still counted)">{c.edited} edited</span>}
           {onPick && (
-            <button type="button" className="os-link quiet" disabled={pending} onClick={onPick} title="Everyone new gets this one. People who already got the other keep it.">
+            <Button variant="text" disabled={pending} onClick={onPick} title="Everyone new gets this one. People who already got the other keep it.">
               Pick winner
-            </button>
+            </Button>
           )}
         </span>
         <span>{c.sent}</span>
@@ -249,9 +249,9 @@ function Editor({
       ))}
       <div className="kb-lt-line">
         {texts.length < MAX_LINE_VARIANTS && (
-          <button type="button" className="os-link" onClick={() => setTexts((l) => [...l, ""])}>
+          <Button variant="text" className="is-ink" onClick={() => setTexts((l) => [...l, ""])}>
             Add {String.fromCharCode(65 + texts.length)}
-          </button>
+          </Button>
         )}
         <span className="kb-note" data-kind={act.error ? "error" : undefined} role="status">
           {act.error ?? ""}

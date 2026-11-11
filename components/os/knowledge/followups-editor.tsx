@@ -128,9 +128,9 @@ function SequenceCard({ setterId, initial }: { setterId: string; initial: Sequen
               </li>
             )}
           </ol>
-          <button type="button" className="os-link" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          <Button variant="text" className="is-ink" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
             {open ? "Close steps" : "Edit steps"}
-          </button>
+          </Button>
         </>
       )}
 
@@ -161,15 +161,15 @@ function SequenceCard({ setterId, initial }: { setterId: string; initial: Sequen
                   Attach a matching resource they haven&apos;t had (from this setter&apos;s lead magnets)
                 </label>
                 <div className="os-kb-item-foot">
-                  <button type="button" className="os-link quiet" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">
+                  <Button variant="text" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">
                     ↑
-                  </button>
-                  <button type="button" className="os-link quiet" disabled={i === seq.steps.length - 1} onClick={() => move(i, 1)} aria-label="Move down">
+                  </Button>
+                  <Button variant="text" disabled={i === seq.steps.length - 1} onClick={() => move(i, 1)} aria-label="Move down">
                     ↓
-                  </button>
-                  <button type="button" className="os-link quiet" onClick={() => setSeq((x) => ({ ...x, steps: x.steps.filter((_, j) => j !== i) }))}>
+                  </Button>
+                  <Button variant="text" onClick={() => setSeq((x) => ({ ...x, steps: x.steps.filter((_, j) => j !== i) }))}>
                     Remove step
-                  </button>
+                  </Button>
                 </div>
               </li>
             ))}
