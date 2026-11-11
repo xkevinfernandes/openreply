@@ -2043,3 +2043,11 @@ html:has(.os) .cp-toasts {
   height: 32px;
 }
 
+
+/* Phone: the header's actions stack under the title the full width of the
+   page, so a search in them (Contacts, Pipeline) keeps its 100% width. */
+@media (max-width: 640px) {
+  .os .os-page-head > .cp-page-actions {
+    align-self: stretch;
+  }
+}
