@@ -246,6 +246,7 @@ export default function PipelineScreen(p: Props) {
           <label className="os-cv-archived">
             <input
               type="checkbox"
+              className="cp-checkbox"
               checked={archived}
               onChange={(e) => setArchived(e.target.checked)}
             />

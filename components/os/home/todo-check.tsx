@@ -13,6 +13,7 @@ export default function TodoCheck({ taskId, label }: { taskId: string; label: st
   return (
     <input
       type="checkbox"
+      className="cp-checkbox"
       aria-label={label}
       checked={done}
       disabled={pending}

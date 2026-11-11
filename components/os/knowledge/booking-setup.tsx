@@ -111,7 +111,7 @@ function BookingSection({ setterId, name, initial }: { setterId: string; name: s
       <fieldset className="kb-modes">
         <legend className="sr-only">How {name} books calls</legend>
         <label className="kb-opt">
-          <input type="radio" name="kb-mode" checked={b.mode === "calendar"} onChange={() => set({ mode: "calendar" })} />
+          <input type="radio" className="cp-radio" name="kb-mode" checked={b.mode === "calendar"} onChange={() => set({ mode: "calendar" })} />
           <span>
             <span>Offer times from my calendar{cal ? ` (${cal.provider})` : ""}</span>
             <span className="kb-quiet">
@@ -120,7 +120,7 @@ function BookingSection({ setterId, name, initial }: { setterId: string; name: s
           </span>
         </label>
         <label className="kb-opt">
-          <input type="radio" name="kb-mode" checked={b.mode === "link"} onChange={() => set({ mode: "link" })} />
+          <input type="radio" className="cp-radio" name="kb-mode" checked={b.mode === "link"} onChange={() => set({ mode: "link" })} />
           <span>
             <span>Send a booking link</span>
             <span className="kb-quiet">They pick a time themselves</span>
@@ -261,7 +261,7 @@ export function FieldsSection({ setterId, name, fields }: { setterId: string; na
           const sync = [f.ghl && "GoHighLevel", f.kit && "Kit"].filter(Boolean).join(" · ");
           return (
             <label key={f.id} className="kb-fld">
-              <input type="checkbox" checked={on.has(f.id)} onChange={(e) => toggle(f.id, e.target.checked)} />
+              <input type="checkbox" className="cp-checkbox" checked={on.has(f.id)} onChange={(e) => toggle(f.id, e.target.checked)} />
               <span className="kb-fld-name">{f.label}</span>
               <Pill>{TYPE_LABEL[f.type] ?? f.type}</Pill>
               {f.builtIn && <Pill>Built-in</Pill>}

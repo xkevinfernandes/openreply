@@ -126,7 +126,7 @@ export default function WonPicker({ contactIds, who, onClose, onDone, save, subm
           <div className="os-won-offers" role="radiogroup" aria-label="Offer">
             {offers.map((o) => (
               <label key={o.name} className="os-won-offer" data-on={pick === o.name ? "true" : undefined}>
-                <input type="radio" name="offer" value={o.name} checked={pick === o.name} onChange={() => choose(o.name)} />
+                <input type="radio" className="cp-radio" name="offer" value={o.name} checked={pick === o.name} onChange={() => choose(o.name)} />
                 <span className="os-won-offer-name">
                   {o.name}
                   {o.sub ? <span>{o.sub}</span> : null}
@@ -135,7 +135,7 @@ export default function WonPicker({ contactIds, who, onClose, onDone, save, subm
               </label>
             ))}
             <label className="os-won-offer" data-on={pick === OTHER ? "true" : undefined}>
-              <input type="radio" name="offer" value={OTHER} checked={pick === OTHER} onChange={() => choose(OTHER)} />
+              <input type="radio" className="cp-radio" name="offer" value={OTHER} checked={pick === OTHER} onChange={() => choose(OTHER)} />
               <span className="os-won-offer-name">Something else</span>
             </label>
           </div>

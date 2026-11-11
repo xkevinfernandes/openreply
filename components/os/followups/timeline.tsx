@@ -136,9 +136,9 @@ function Todo({ items, act, pending }: { items: TodoItem[]; act: (fn: Act) => vo
         {items.map((t) => (
           <li key={t.id}>
             {t.kind === "task" ? (
-              <input type="checkbox" id={t.id} aria-label="Done" disabled={pending} onChange={() => act(() => completeTask(t.taskId!))} />
+              <input type="checkbox" className="cp-checkbox" id={t.id} aria-label="Done" disabled={pending} onChange={() => act(() => completeTask(t.taskId!))} />
             ) : (
-              <input type="checkbox" className="os-tl-todo-mark" disabled aria-hidden="true" tabIndex={-1} />
+              <input type="checkbox" className="cp-checkbox os-tl-todo-mark" disabled aria-hidden="true" tabIndex={-1} />
             )}
             <label htmlFor={t.kind === "task" ? t.id : undefined} className="os-tl-todo-text">
               {t.lead} {t.strong ? <strong>{t.strong}</strong> : null} {t.tail}

@@ -241,7 +241,7 @@ export default async function OsHome({ searchParams }: PageProps) {
               <ul className="os-home-box os-home-todos">
                 {todos.map((t) => (
                   <li key={t.id}>
-                    {t.taskId ? <TodoCheck taskId={t.taskId} label={`Done: ${t.name}`} /> : <input type="checkbox" className="os-home-todo-dot" aria-hidden="true" tabIndex={-1} disabled />}
+                    {t.taskId ? <TodoCheck taskId={t.taskId} label={`Done: ${t.name}`} /> : <input type="checkbox" className="cp-checkbox os-home-todo-dot" aria-hidden="true" tabIndex={-1} disabled />}
                     {t.href ? (
                       <Link href={t.href} className="lbl">
                         {t.label}

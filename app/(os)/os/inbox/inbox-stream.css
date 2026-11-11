@@ -51,7 +51,6 @@
 .os-ix-check {
   width: 16px;
   height: 16px;
-  accent-color: var(--ink);
   cursor: pointer;
 }
 

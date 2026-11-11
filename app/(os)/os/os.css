@@ -1299,10 +1299,10 @@
   margin-top: 2px;
 }
 
-/* Checkbox and radio: 18px, a 1px line on the context surface; checked is
-   an ink fill with an on-ink tick (or dot). Covers native inputs anywhere in
-   /os, upstream components included. */
-:where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch) {
+/* Upstream checkboxes and radios (OpenReply's builder) that can't take the
+   brand classes: 18px, a 1px line, ink when checked. The OS's own are the
+   brand cp-checkbox / cp-radio. */
+:where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch, .cp-checkbox, .cp-radio) {
   appearance: none;
   -webkit-appearance: none;
   flex: none;
@@ -1326,43 +1326,43 @@
     transform 100ms ease;
 }
 
-:where(.os) input[type="radio"] {
+:where(.os) input[type="radio"]:not(.cp-radio) {
   border-radius: 999px;
 }
 
-:where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch):hover:not(:disabled) {
+:where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch, .cp-checkbox, .cp-radio):hover:not(:disabled) {
   border-color: var(--ink);
 }
 
-:where(.os) input[type="checkbox"]:not(.cp-switch):checked {
+:where(.os) input[type="checkbox"]:not(.cp-switch, .cp-checkbox, .cp-radio):checked {
   border-color: var(--ink);
   background-color: var(--ink);
   background-image: var(--tick);
 }
 
-:where(.os) input[type="checkbox"]:not(.cp-switch):indeterminate {
+:where(.os) input[type="checkbox"]:not(.cp-switch, .cp-checkbox, .cp-radio):indeterminate {
   border-color: var(--ink);
   background-color: var(--ink);
   background-image: var(--dash-glyph);
 }
 
-:where(.os) input[type="radio"]:checked {
+:where(.os) input[type="radio"]:not(.cp-radio):checked {
   border-color: var(--ink);
   background-color: var(--ink);
   background-image: radial-gradient(circle, var(--on-ink) 0 3.5px, transparent 4px);
   background-size: 100% 100%;
 }
 
-:where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch):active:not(:disabled) {
+:where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch, .cp-checkbox, .cp-radio):active:not(:disabled) {
   transform: scale(0.92);
 }
 
-:where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch):disabled {
+:where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch, .cp-checkbox, .cp-radio):disabled {
   opacity: 0.45;
   cursor: default;
 }
 
-:where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch):focus-visible {
+:where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch, .cp-checkbox, .cp-radio):focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
@@ -1379,7 +1379,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch):active:not(:disabled) {
+  :where(.os) input:is([type="checkbox"], [type="radio"]):not(.cp-switch, .cp-checkbox, .cp-radio):active:not(:disabled) {
     transform: none;
   }
 }

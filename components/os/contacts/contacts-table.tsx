@@ -118,7 +118,7 @@ export default function ContactsTable(p: Props) {
         <thead>
           <tr>
             <th className="check">
-              <input ref={head} type="checkbox" aria-label="Select all on this page" checked={all} onChange={(e) => p.onSelectAll(e.target.checked)} />
+              <input ref={head} type="checkbox" className="cp-checkbox" aria-label="Select all on this page" checked={all} onChange={(e) => p.onSelectAll(e.target.checked)} />
             </th>
             {cols.map((k) => {
               const on = p.sort.key === k;
@@ -139,7 +139,7 @@ export default function ContactsTable(p: Props) {
             return (
               <tr key={c.id} aria-selected={p.selected.has(c.id)} data-open={p.openId === c.id ? "true" : undefined}>
                 <td className="check">
-                  <input type="checkbox" aria-label={`Select ${name}`} checked={p.selected.has(c.id)} onChange={(e) => p.onToggle(c.id, e.target.checked)} />
+                  <input type="checkbox" className="cp-checkbox" aria-label={`Select ${name}`} checked={p.selected.has(c.id)} onChange={(e) => p.onToggle(c.id, e.target.checked)} />
                 </td>
                 {cols.map((k) => (
                   <td key={k} data-col={k} onClick={k === "name" ? undefined : () => p.onOpen(c.id)}>

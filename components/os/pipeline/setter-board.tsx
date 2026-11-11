@@ -263,7 +263,7 @@ function Card({ c, column, currency, now, open, checked, dragged, onOpen, onTogg
       onDragEnd={onDragEnd}
     >
       <div className="os-pl-card-top">
-        <input type="checkbox" className="os-pl-check" aria-label={`Select ${name}`} checked={checked} onChange={(e) => onToggle(e.target.checked)} />
+        <input type="checkbox" className="cp-checkbox os-pl-check" aria-label={`Select ${name}`} checked={checked} onChange={(e) => onToggle(e.target.checked)} />
         <button type="button" className="os-pl-open" aria-describedby="os-pl-kb-hint" onClick={onOpen} onKeyDown={onKeyDown}>
           <Avatar name={c.username ?? c.fullName} src={c.avatarUrl} size={22} className="os-cx-av" />
           <span className="os-cx-user">{name}</span>

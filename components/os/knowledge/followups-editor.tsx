@@ -157,7 +157,7 @@ function SequenceCard({ setterId, initial }: { setterId: string; initial: Sequen
                   </Field>
                 </div>
                 <label className="os-seq-check">
-                  <input type="checkbox" checked={s.resource} onChange={(e) => setStep(i, { resource: e.target.checked })} />
+                  <input type="checkbox" className="cp-checkbox" checked={s.resource} onChange={(e) => setStep(i, { resource: e.target.checked })} />
                   Attach a matching resource they haven&apos;t had (from this setter&apos;s lead magnets)
                 </label>
                 <div className="os-kb-item-foot">

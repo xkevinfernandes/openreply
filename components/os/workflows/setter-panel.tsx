@@ -95,7 +95,7 @@ function Setup({ data, ctx, node, graph, onChange }: Props) {
           </legend>
           {RELEASE_RULES.map((r) => (
             <label key={r.key} className="wf-chk">
-              <input type="checkbox" checked={data.release[r.key]} onChange={() => onChange(toggleRelease(data, r.key))} />
+              <input type="checkbox" className="cp-checkbox" checked={data.release[r.key]} onChange={() => onChange(toggleRelease(data, r.key))} />
               <span className="wf-grow">{r.label}</span>
               {releases[r.key] !== undefined ? <span className="wf-count">{releases[r.key]}</span> : null}
             </label>

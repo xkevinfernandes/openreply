@@ -131,7 +131,7 @@ export default function ResourceSheet({ initial = EMPTY_RESOURCE, agents, agentI
             <legend>Agents that may offer it</legend>
             {agents.map((a) => (
               <label key={a.id} className="os-rs-agent">
-                <input type="checkbox" checked={ticked.includes(a.id)} onChange={(e) => toggle(a, e.target.checked)} />
+                <input type="checkbox" className="cp-checkbox" checked={ticked.includes(a.id)} onChange={(e) => toggle(a, e.target.checked)} />
                 {a.name}
               </label>
             ))}

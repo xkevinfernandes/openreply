@@ -223,7 +223,7 @@ export default function InboxList({ threads, counts, params, selected, now, draf
           return (
             <li key={r.conversationId} className="os-ix-item" data-picked={on || undefined}>
               {r.contactId ? (
-                <input type="checkbox" className="os-ix-check" aria-label={`Select ${r.name}`} checked={on} onChange={(e) => pick(r.contactId!, e.target.checked)} />
+                <input type="checkbox" className="cp-checkbox os-ix-check" aria-label={`Select ${r.name}`} checked={on} onChange={(e) => pick(r.contactId!, e.target.checked)} />
               ) : null}
               <Link href={r.href} className="os-ix-row" aria-current={r.current ? "page" : undefined} data-unread={r.unread ? "true" : undefined}>
                 <Avatar name={r.name} src={r.avatarUrl} size={32} />

@@ -109,7 +109,7 @@ export default function FilterBar(p: Props) {
         />
       )}
       <label className="os-cv-archived">
-        <input type="checkbox" checked={f.archived} onChange={(e) => set({ archived: e.target.checked })} />
+        <input type="checkbox" className="cp-checkbox" checked={f.archived} onChange={(e) => set({ archived: e.target.checked })} />
         Archived
       </label>
       {any ? (

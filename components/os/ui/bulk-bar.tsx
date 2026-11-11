@@ -68,7 +68,7 @@ export default function BulkBar(p: BulkBarProps) {
     <div className={`os-bulk${p.className ? ` ${p.className}` : ""}`} role="region" aria-label="Bulk actions" aria-busy={p.pending || undefined}>
       <div className="os-bulk-head">
         <label className="os-bulk-count">
-          {p.all ? <input ref={box} type="checkbox" checked={p.all.checked} aria-label="Select all shown" onChange={(e) => p.all?.onChange(e.target.checked)} /> : null}
+          {p.all ? <input ref={box} type="checkbox" className="cp-checkbox" checked={p.all.checked} aria-label="Select all shown" onChange={(e) => p.all?.onChange(e.target.checked)} /> : null}
           <span>
             <strong>{p.count}</strong> selected
           </span>

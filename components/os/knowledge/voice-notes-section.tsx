@@ -212,7 +212,7 @@ function ClipRow({ clip, sampleData }: { clip: VoiceClipView; sampleData: boolea
       <div className="os-vn-foot">
         {bank && (
           <label className="os-vn-check">
-            <input type="checkbox" checked={clip.leadIn} disabled={pending} onChange={(e) => save({ leadIn: e.target.checked })} />
+            <input type="checkbox" className="cp-checkbox" checked={clip.leadIn} disabled={pending} onChange={(e) => save({ leadIn: e.target.checked })} />
             Lead-in: plays at the start of a bubble, then the rest goes as text
           </label>
         )}
