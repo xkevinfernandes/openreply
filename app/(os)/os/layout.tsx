@@ -11,7 +11,7 @@ import { parseSidebarCookie, SIDEBAR_COOKIE, type NavItem } from "@/lib/os/nav";
 import { readSends } from "@/lib/os/connections";
 import { inboxBadgeCount } from "@/lib/os/inbox-stream-load";
 import { ensureWorkspaceForUser } from "@/lib/workspace";
-// The app brand (@claudepreneur/brand v0.6.0): tokens, then the shared
+// The app brand (@claudepreneur/brand v0.7.0): tokens, then the shared
 // components (cp- classes). Only the OS loads them.
 import "@claudepreneur/brand/apps.css";
 import "@claudepreneur/brand/components.css";
