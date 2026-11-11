@@ -576,7 +576,7 @@
 .os-sx {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--card-gap);
 }
 
 .os-sx-title {

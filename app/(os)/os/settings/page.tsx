@@ -23,6 +23,7 @@ import { statusLines } from "@/lib/os/settings-status";
 import { loadTagBoard } from "@/lib/os/tags/board";
 import { getWorkspaceSettings } from "@/lib/os/workspace-settings";
 import { canManageWorkspace, getCurrentWorkspaceContext } from "@/lib/workspace-access";
+import { PageHead } from "@/components/os/page-head";
 
 export const dynamic = "force-dynamic";
 
@@ -149,7 +150,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 
   return (
     <div className="os-sx">
-      <h1 className="os-sx-title os-title">Settings</h1>
+      <PageHead className="os-sx-title" title="Settings" />
       {/* Phone: /os/settings is the list; a row (?tab=) opens its section. */}
       <div className="os-sx-layout" data-view={raw ? "section" : "list"}>
         <SettingsNav items={SETTINGS_TABS.map((t) => ({ tab: t.tab, label: t.label, href: settingsHref(t.tab), line: lines[t.tab] }))} current={tab} />

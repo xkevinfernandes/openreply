@@ -284,16 +284,6 @@
   background: transparent;
 }
 
-/* --- Page head ------------------------------------------------------------ */
-.os-head {
-  align-items: center;
-  gap: 16px;
-  margin-bottom: var(--gap);
-}
-.os-head p {
-  margin-top: 2px;
-  font-size: var(--fs-body);
-}
 
 /* --- Controls ------------------------------------------------------------- */
 /* Upstream primary buttons rendered inside /os, disabled the same way. */

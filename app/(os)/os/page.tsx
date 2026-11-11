@@ -16,6 +16,7 @@ import { HOME_PERIODS, loadOutcomes, parseHomePeriod, type HomePeriod, type Outc
 import type { WorkflowCell } from "@/lib/os/metrics-workflows";
 import { loadHomeFollowups } from "@/lib/os/sequences/view";
 import { getWorkspaceSettings } from "@/lib/os/workspace-settings";
+import { PageHead } from "@/components/os/page-head";
 
 export const dynamic = "force-dynamic";
 
@@ -157,25 +158,22 @@ export default async function OsHome({ searchParams }: PageProps) {
 
   return (
     <div className="os-home">
-      <header className="os-home-head">
-        <div>
-          <h1 className="os-title">
-            {greeting(now, tz)}
-            {first ? `, ${first}` : ""}
-          </h1>
-          <p>{homeDate(now, tz)}</p>
-        </div>
-        <div className="os-home-actions">
-          <nav className="cp-tabs os-home-seg" aria-label="Period">
-            {HOME_PERIODS.map((p) => (
-              <Link key={p.key} href={href(p.key, params.setter ?? null)} className="cp-tab" aria-current={p.key === period ? "page" : undefined} scroll={false}>
-                {p.label}
-              </Link>
-            ))}
-          </nav>
-          <ReviewButton count={pipe?.draftsWaiting ?? 0} />
-        </div>
-      </header>
+      <PageHead
+        title={`${greeting(now, tz)}${first ? `, ${first}` : ""}`}
+        description={homeDate(now, tz)}
+        actions={
+          <>
+            <nav className="cp-tabs os-home-seg" aria-label="Period">
+              {HOME_PERIODS.map((p) => (
+                <Link key={p.key} href={href(p.key, params.setter ?? null)} className="cp-tab" aria-current={p.key === period ? "page" : undefined} scroll={false}>
+                  {p.label}
+                </Link>
+              ))}
+            </nav>
+            <ReviewButton count={pipe?.draftsWaiting ?? 0} />
+          </>
+        }
+      />
 
       <section aria-label="Outcomes" className="os-home-tiles">
         {outcomes ? <Outcomes cells={outcomes.cells} label="Campaigns, workflows and J" /> : <p className="os-home-err">Numbers didn&apos;t load.</p>}

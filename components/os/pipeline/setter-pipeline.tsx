@@ -28,6 +28,7 @@ import type { ContactRow, SetterOption } from "@/lib/os/contacts-board";
 import type { ContactChange } from "@/lib/os/contacts-edit";
 import { applyChangeLocally } from "@/lib/os/contacts-filter";
 import { matchesSearch } from "@/lib/os/contacts-view";
+import { PageHead } from "@/components/os/page-head";
 import {
   boardColumnsFor,
   boardLanes,
@@ -214,30 +215,31 @@ export default function PipelineScreen(p: Props) {
 
   return (
     <div className="os-cx os-pl" data-panel={panel.open ? "open" : undefined}>
-      <section className="os-cx-main" aria-labelledby="os-pl-h">
-        <header className="os-cx-head">
-          <h1 id="os-pl-h" className="os-title">
-            Pipeline
-          </h1>
-          {setter ? <span className="os-cx-count">{setter.name}</span> : null}
-          <span className="os-cx-grow" />
-          <label className="os-cx-search">
-            <span className="sr-only">Search the board</span>
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <circle cx="7" cy="7" r="4.5" />
-              <path d="m10.5 10.5 3 3" />
-            </svg>
-            <input
-              type="search"
-              placeholder="Search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </label>
-          <Link href="/os/contacts" className="cp-btn cp-btn-text os-cv-pipe">
-            List view
-          </Link>
-        </header>
+      <section className="os-cx-main" aria-label="Pipeline">
+        <PageHead
+          title="Pipeline"
+          meta={setter ? <span className="os-cx-count">{setter.name}</span> : undefined}
+          actions={
+            <>
+              <label className="os-cx-search">
+                <span className="sr-only">Search the board</span>
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="7" cy="7" r="4.5" />
+                  <path d="m10.5 10.5 3 3" />
+                </svg>
+                <input
+                  type="search"
+                  placeholder="Search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </label>
+              <Link href="/os/contacts" className="cp-btn os-cv-pipe">
+                List view
+              </Link>
+            </>
+          }
+        />
 
         <div className="os-pl-switch">
           <BoardSwitch setters={p.setters} value={p.setterId} />

@@ -16,6 +16,7 @@ import ResourceSheet, { formOf } from "@/components/os/resources/resource-sheet"
 import DeleteCheck from "@/components/os/settings/delete-check";
 import { deleteBlockers, kindLabel, linkLabel, matchesFilter, offeringAgents, type ResourceFilter, type ResourceRow, type ResourcesBoard, type UsedBy, USED_BY_LABEL, usedChips } from "@/lib/os/resources-view";
 import { moveId } from "@/lib/os/setter/knowledge/resources-view";
+import { PageHead } from "@/components/os/page-head";
 
 const PILLS: { key: ResourceFilter; label: string; count: keyof ResourcesBoard["counts"] }[] = [
   { key: "all", label: "All", count: "all" },
@@ -73,15 +74,15 @@ export default function ResourcesScreen({ board }: { board: ResourcesBoard }) {
 
   return (
     <div className="os-rs">
-      <header className="os-head">
-        <div>
-          <h1>Resources</h1>
-          <p>One library. Agents, campaigns and broadcasts all pick from here.</p>
-        </div>
-        <Button variant="primary" onClick={() => setSheet({ kind: "new" })}>
-          + Add resource
-        </Button>
-      </header>
+      <PageHead
+        title="Resources"
+        description="One library. Agents, campaigns and broadcasts all pick from here."
+        actions={
+          <Button variant="primary" onClick={() => setSheet({ kind: "new" })}>
+            + Add resource
+          </Button>
+        }
+      />
 
       <Tabs label="Show" className="os-rs-pills" value={filter} onChange={setFilter} tabs={PILLS.map((p) => ({ value: p.key, label: p.label, count: board.counts[p.count] }))} />
 

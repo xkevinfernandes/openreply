@@ -4,6 +4,7 @@
 // shape and place them.
 
 import { Skeleton } from "@claudepreneur/brand/react";
+import { PageHead } from "@/components/os/page-head";
 
 const Bar = ({ w, h = 10 }: { w: number | string; h?: number }) => <Skeleton className="os-skel" width={w} height={h} />;
 
@@ -88,9 +89,7 @@ export function ContactsSkeleton() {
   return (
     <div className="os-cx" aria-busy="true" aria-label="Loading contacts">
       <section className="os-cx-main">
-        <header className="os-cx-head">
-          <h1>Contacts</h1>
-        </header>
+        <PageHead title="Contacts" />
         <div className="os-cx-chips">
           <Bar w={110} h={28} />
           <Bar w={110} h={28} />

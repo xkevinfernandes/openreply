@@ -287,15 +287,6 @@
   min-height: 0;
 }
 
-.os-cx-head {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-/* The h1 is .os-title (os.css). */
-
 .os-cx-count {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -351,7 +342,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 36px;
+  height: var(--control-h-sm);
   width: 220px;
   padding: 0 14px;
   border: 1px solid var(--line);
@@ -721,12 +712,12 @@
   .os-cx {
     height: auto;
     min-height: calc(100dvh - var(--bar-h));
-    margin: calc(var(--sp-5) * -1) calc(var(--sp-4) * -1) 0;
+    margin: calc(var(--page-pad) * -1) calc(var(--page-pad) * -1) 0;
     overflow: visible;
   }
 
   .os-cx-main {
-    padding: 20px 16px 0;
+    padding: var(--page-pad) var(--page-pad) 0;
   }
 
   .os-cx-search {

@@ -18,23 +18,9 @@
 .os-tl {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-5);
+  gap: var(--card-gap);
   max-width: 1200px;
   font-size: var(--fs-sm);
-}
-
-.os-tl-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-4);
-  flex-wrap: wrap;
-}
-
-.os-tl-title {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
 }
 
 .os-tl-filter {
@@ -491,17 +477,7 @@
   font-weight: 600;
 }
 
-/* Header actions, Follow-up Friday's next run, the start-here empty state. */
-.os-tl-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  flex-wrap: wrap;
-}
-
-.os-tl-actions .os-tl-filter {
-  margin-right: var(--sp-2);
-}
+/* Follow-up Friday's next run, the start-here empty state. */
 
 /* Follow-up Friday's next run: a --card pill on the stone (D-09). */
 .os-tl-fri {

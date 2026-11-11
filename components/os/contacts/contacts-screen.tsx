@@ -25,6 +25,7 @@ import type { ContactChange } from "@/lib/os/contacts-edit";
 import { allSources, applyChangeLocally } from "@/lib/os/contacts-filter";
 import { BUILT_IN_COLUMNS, EMPTY_FILTERS, PAGE_SIZE, queryContacts, queryContext, sameView, type ViewState } from "@/lib/os/contacts-view";
 import type { SavedViewRecord } from "@/lib/os/saved-views";
+import { PageHead } from "@/components/os/page-head";
 
 export type { OpenPanel };
 
@@ -154,35 +155,38 @@ export default function ContactsScreen(p: Props) {
 
   return (
     <div className="os-cx os-cv" data-panel={panel.open ? "open" : undefined}>
-      <section className="os-cx-main" aria-labelledby="os-cx-h">
-        <header className="os-cx-head">
-          <h1 id="os-cx-h" className="os-title">
-            Contacts
-          </h1>
-          <span className="os-cx-count">
-            {result.total.toLocaleString("en-GB")} {result.total === 1 ? "person" : "people"}
-          </span>
-          <span className="os-cx-grow" />
-          <label className="os-cx-search">
-            <span className="sr-only">Search contacts</span>
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <circle cx="7" cy="7" r="4.5" />
-              <path d="m10.5 10.5 3 3" />
-            </svg>
-            <input
-              type="search"
-              placeholder="Search name, username or email"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(1);
-              }}
-            />
-          </label>
-          <Link href="/os/pipeline" className="cp-btn cp-btn-text os-cv-pipe">
-            Open pipeline
-          </Link>
-        </header>
+      <section className="os-cx-main" aria-label="Contacts">
+        <PageHead
+          title="Contacts"
+          meta={
+            <span className="os-cx-count">
+              {result.total.toLocaleString("en-GB")} {result.total === 1 ? "person" : "people"}
+            </span>
+          }
+          actions={
+            <>
+              <label className="os-cx-search">
+                <span className="sr-only">Search contacts</span>
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="7" cy="7" r="4.5" />
+                  <path d="m10.5 10.5 3 3" />
+                </svg>
+                <input
+                  type="search"
+                  placeholder="Search name, username or email"
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </label>
+              <Link href="/os/pipeline" className="cp-btn os-cv-pipe">
+                Open pipeline
+              </Link>
+            </>
+          }
+        />
 
         <ViewsBar
           views={views}

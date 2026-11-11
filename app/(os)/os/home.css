@@ -3,37 +3,13 @@
 .os .os-home {
   display: flex;
   flex-direction: column;
-  gap: var(--gap);
+  gap: var(--card-gap);
   max-width: 1280px;
   font-size: var(--fs-sm);
 }
 
-.os .os-home-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-4);
-  flex-wrap: wrap;
-}
-
-/* The h1 is .os-title (os.css). The period switch sits in the header, on
-   the stone, beside the one call to action. */
-.os .os-home-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.os .os-home-head p {
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-size: var(--fs-body);
-}
 
 .os .os-home-review {
-  height: 36px;
-  padding: 0 14px;
   gap: 8px;
 }
 

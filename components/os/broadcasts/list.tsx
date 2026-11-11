@@ -12,6 +12,7 @@ import { duplicateAction, newBroadcastAction, type ActionResult } from "@/app/(o
 import { AutomationsTabs, type AutomationsTab } from "@/components/os/automations/automations-tabs";
 import { EmptyState, Pill } from "@/components/os/ui";
 import type { BroadcastListItem } from "@/lib/os/broadcasts/engine";
+import { PageHead } from "@/components/os/page-head";
 
 function useGo() {
   const router = useRouter();
@@ -39,10 +40,7 @@ export default function BroadcastList({ items, counts }: { items: BroadcastListI
   );
   return (
     <div className="os-bcl os-auto">
-      <header className="os-auto-head">
-        <h1 className="os-bcl-title os-title">Automations</h1>
-        {newButton}
-      </header>
+      <PageHead title="Automations" actions={newButton} />
       <AutomationsTabs active="broadcasts" counts={counts} />
       {error ? (
         <div className="os-tl-msg" data-bad role="status">

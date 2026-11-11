@@ -4,17 +4,10 @@
 .os-rs {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--card-gap);
   min-width: 0;
 }
 
-.os-rs .os-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
 
 /* The kind filter: the shared Tabs, its own width. */
 .os-rs-pills {

@@ -12,6 +12,7 @@ import { Select } from "@claudepreneur/brand/react";
 import { EmptyState, InfoTip, Tabs } from "@/components/os/ui";
 import type { FollowupsHeader } from "@/lib/os/followups-header";
 import { chatHref, TIMELINE_TABS, type DayGroup, type Timeline, type TimelineRow, type TimelineTab, type TodoItem } from "@/lib/os/followups-timeline";
+import { PageHead } from "@/components/os/page-head";
 
 const ICON = {
   send: "M13.5 2.5 7 9M13.5 2.5 9.5 13.5 7 9 2.5 6.5l11-4Z",
@@ -207,29 +208,32 @@ export default function FollowupsTimeline({ data, tab, source, header }: { data:
 
   return (
     <div className="os-tl">
-      <header className="os-tl-head">
-        <div className="os-tl-title">
-          <h1 className="os-title">Follow-ups</h1>
+      <PageHead
+        title="Follow-ups"
+        meta={
           <InfoTip label="What shows here">Everything scheduled to go out: setter sequences (defined in Knowledge bases) and broadcasts (defined in Automations). Nothing sends without your approve.</InfoTip>
-        </div>
-        <div className="os-tl-actions">
-          <div className="os-tl-filter">
-            <span aria-hidden="true">Source</span>
-            <Select
-              aria-label="Source"
-              value={source}
-              onChange={(v) => router.push(href(tab, v))}
-              options={data.sources.map((s) => ({ value: s.key, label: s.label }))}
-            />
-          </div>
-          <Link className="cp-btn" href={header.setupHref}>
-            Set up sequences
-          </Link>
-          <Link className="cp-btn" href="/os/automations/broadcasts">
-            New broadcast
-          </Link>
-        </div>
-      </header>
+        }
+        actions={
+          <>
+            <div className="os-tl-filter">
+              <span aria-hidden="true">Source</span>
+              <Select
+                aria-label="Source"
+                value={source}
+                compact
+                onChange={(v) => router.push(href(tab, v))}
+                options={data.sources.map((s) => ({ value: s.key, label: s.label }))}
+              />
+            </div>
+            <Link className="cp-btn" href={header.setupHref}>
+              Set up sequences
+            </Link>
+            <Link className="cp-btn" href="/os/automations/broadcasts">
+              New broadcast
+            </Link>
+          </>
+        }
+      />
 
       {header.friday ? (
         <Link className="os-tl-fri" href={header.friday.href} data-on={header.friday.on || undefined}>

@@ -4,34 +4,12 @@
 .os .os-auto {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-5);
+  gap: var(--card-gap);
   max-width: 1200px;
   font-size: var(--fs-sm);
 }
 
-.os .os-auto-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-4);
-  flex-wrap: wrap;
-  /* The height of the head's button, so a head without one (Broadcasts)
-     puts the title and tabs where Workflows and Campaigns do. */
-  min-height: var(--control-h, 36px);
-}
-
-/* Page title: .os-title (os.css). The workflows list (E) shares this head
-   without the class yet, so its h1 gets the same tokens here. */
-.os .os-auto-head h1:not(.os-title) {
-  margin: 0;
-  font-size: var(--fs-h1);
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.022em;
-}
-
 .os .os-auto-new {
-  height: 36px;
   gap: 6px;
 }
 
@@ -1126,7 +1104,7 @@
   gap: var(--gap) var(--sp-2);
 }
 
-.os .os-auto-newpage > .os-head {
+.os .os-auto-newpage > .os-page-head {
   grid-column: 1;
   grid-row: 1;
   margin: 0;
@@ -1157,7 +1135,7 @@
 }
 
 @media (max-width: 640px) {
-  .os .os-auto-newpage > .os-head {
+  .os .os-auto-newpage > .os-page-head {
     grid-column: 1 / -1;
   }
 
@@ -1168,7 +1146,7 @@
 }
 
 /* --- Edit automation: one header row ------------------------------------------
-   Same grid as the new page (.os-auto-newpage). The breadcrumb + "Edit
+   Same grid as the new page (.os-auto-newpage). The back link + "Edit
    automation" take the first column; upstream's top bar steps out of the box
    tree too, so its campaign name + LIVE pill sit beside the title (second
    column, on the title's baseline) and its Stop + Save changes take the last.
@@ -1180,7 +1158,7 @@
   column-gap: var(--sp-4);
 }
 
-.os .os-auto-editpage > .os-head,
+.os .os-auto-editpage > .os-page-head,
 .os .os-auto-editpage > .os-builder > .space-y-6 > div.flex.flex-wrap.justify-between > div {
   align-self: last baseline;
 }
@@ -1212,21 +1190,6 @@
 .os .os-auto-editpage > .os-auto-bar {
   grid-column: 1 / -1;
   margin: 0;
-}
-
-.os .os-auto-crumbs {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.os .os-auto-crumbs a {
-  color: var(--muted);
-  text-decoration: none;
-}
-
-.os .os-auto-crumbs a:hover {
-  color: var(--ink);
 }
 
 @media (max-width: 640px) {

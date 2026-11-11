@@ -883,42 +883,14 @@
 
 /* --- Page head ------------------------------------------------------------ */
 
-.os-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--sp-3) var(--sp-4);
-  flex-wrap: wrap;
-  margin-bottom: 28px;
+/* The brand PageHeader (components/os/page-head.tsx). Pages that stack with
+   a flex/grid gap (--card-gap = --head-gap) zero this; a page without one
+   gets the head gap here. */
+.os .os-page-head {
+  margin-bottom: var(--head-gap);
 }
-
-.os-head > div:first-child {
-  min-width: 0;
-}
-
-.os-eyebrow {
-  margin-bottom: 6px;
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  color: var(--faint);
-}
-
-.os-head h1 {
-  margin: 0;
-  font-size: var(--fs-h1);
-  font-weight: 500;
-  line-height: 1.2;
-  letter-spacing: var(--track-h1);
-  font-variation-settings: "opsz" 32;
-  text-wrap: balance;
-}
-
-.os-head p {
-  margin-top: 6px;
-  max-width: 68ch;
-  color: var(--muted);
-  font-size: var(--fs-sm);
-  text-wrap: pretty;
+.os :is(.os-auto, .os-home, .os-tl, .os-rs, .os-sx, .os-cx-main, .os-auto-newpage) > .os-page-head {
+  margin-bottom: 0;
 }
 
 /* --- Home ------------------------------------------------------------------- */
@@ -1251,8 +1223,7 @@
 
 /* Page title: the brand h1 (24/500, --track-h1, opsz 32). Use .os-title on
    any page h1 that is not the shared PageHeader's. */
-.os .os-title,
-.os .os-head h1 {
+.os .os-title {
   margin: 0;
   font-size: var(--fs-h1);
   font-weight: 500;
@@ -1687,14 +1658,6 @@
 
   .os-main {
     padding: var(--page-pad) var(--page-pad) calc(48px + env(safe-area-inset-bottom));
-  }
-
-  .os-head {
-    margin-bottom: var(--head-gap);
-  }
-
-  .os-head h1 {
-    font-size: var(--fs-h1);
   }
 
   .os-stats {
