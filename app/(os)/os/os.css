@@ -2133,9 +2133,9 @@ html:has(.os) .cp-toasts {
   height: 32px;
 }
 
-/* Labels lifted to the 12px floor keep the line box they had at 11px. */
-.os .kb-grp,
-.os .os-tg-system {
+/* Text lifted from 11px to the 12px floor keeps the line box it had at 11px
+   (16px), so the lines under it don't move. */
+.os :is(.kb-grp, .os-tg-system, .os-cx-meta, .os-int-why .q, .os-cmp-inspect, .os-sbx-note, .os-sbx-trace, .kb-meta, .kb-corr-who, .kb-preview figcaption, .kb-by, .kb-chat-status, .kb-chat-at, .kb-chat-label, .kb-lt-cols, .os-pal-group, .os-pal-note, .os-pal-foot, .os-pl-note, .os-pl-undo, .os-rs-kind, .os-fd-chip, .wf-kw, .wf-tpl-tag) {
   line-height: 16px;
 }
 
@@ -2260,6 +2260,9 @@ html:has(.os) .cp-toasts {
   .os .os-cv-add.cp-btn {
     min-width: 143px;
   }
+  .os .os-cv-columns.cp-btn {
+    min-height: 40px;
+  }
 }
 
 /* Compact selects as wide as the native ones they replaced (a row of them
@@ -2267,4 +2270,16 @@ html:has(.os) .cp-toasts {
 .os .cp-select-trigger.is-compact {
   padding-left: 10px;
   padding-right: 8px;
+}
+
+/* Contact panel: the stage picker was a 26px pill select. */
+.os .os-panel-pill .cp-select-trigger {
+  min-height: 26px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+/* Composer: the attach button is 32px like the composer's other ghosts. */
+.os .os-cmp-attach.cp-icon-btn {
+  width: 32px;
+  height: 32px;
 }
