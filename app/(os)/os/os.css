@@ -2272,8 +2272,9 @@ html:has(.os) .cp-toasts {
   padding-right: 8px;
 }
 
-/* Contact panel: the stage picker was a 26px pill select. */
+/* Contact panel: the stage picker was a 26 x 218px pill select. */
 .os .os-panel-pill .cp-select-trigger {
+  min-width: 218px;
   min-height: 26px;
   padding-top: 2px;
   padding-bottom: 2px;
