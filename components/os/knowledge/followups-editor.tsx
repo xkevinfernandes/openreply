@@ -3,7 +3,7 @@
 // Knowledge base → Follow-ups: one card per sequence, a switch each, the
 // steps one tap deeper. Each card saves on its own.
 
-import { Button, TimePicker } from "@claudepreneur/brand/react";
+import { Button, Pill, TimePicker } from "@claudepreneur/brand/react";
 import { useState, useTransition } from "react";
 import { saveFollowupSequence } from "@/app/(os)/os/knowledge/actions";
 import { Field, Section, Select, Switch, TextArea, TextInput } from "@/components/os/knowledge/fields";
@@ -116,9 +116,9 @@ function SequenceCard({ setterId, initial }: { setterId: string; initial: Sequen
               <li key={s.id}>
                 <span className="lbl">{s.label}</span>
                 <span className="when">{timingLabel(s.timing)}</span>
-                {s.fixedLine && <span className="chip quiet">Fixed line</span>}
-                {s.resource && <span className="chip quiet">+ resource</span>}
-                {s.voicePhrase && <span className="chip quiet">Voice</span>}
+                {s.fixedLine && <Pill>Fixed line</Pill>}
+                {s.resource && <Pill>+ resource</Pill>}
+                {s.voicePhrase && <Pill>Voice</Pill>}
               </li>
             ))}
             {initial.key === "pre_call" && (

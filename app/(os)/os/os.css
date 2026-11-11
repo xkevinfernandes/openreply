@@ -1932,7 +1932,7 @@ html:has(.os) .cp-toasts {
 
 /* Text lifted from 11px to the 12px floor keeps the line box it had at 11px
    (16px), so the lines under it don't move. */
-.os :is(.kb-grp, .os-tg-system, .os-cx-meta, .os-int-why .q, .os-cmp-inspect, .os-sbx-note, .os-sbx-trace, .kb-meta, .kb-corr-who, .kb-preview figcaption, .kb-by, .kb-chat-status, .kb-chat-at, .kb-chat-label, .kb-lt-cols, .os-pal-group, .os-pal-note, .os-pal-foot, .os-pl-note, .os-pl-undo, .os-rs-kind, .os-fd-chip, .wf-kw, .wf-tpl-tag, .wf-fcell-lab, .wf-fnum > span) {
+.os :is(.kb-grp, .os-tg-system, .os-cx-meta, .os-int-why .q, .os-cmp-inspect, .os-sbx-note, .os-sbx-trace, .kb-meta, .kb-corr-who, .kb-preview figcaption, .kb-by, .kb-chat-status, .kb-chat-at, .kb-chat-label, .kb-lt-cols, .os-pal-group, .os-pal-note, .os-pal-foot, .os-pl-note, .os-pl-undo, .os-rs-kind, .wf-kw, .wf-tpl-tag, .wf-fcell-lab, .wf-fnum > span) {
   line-height: 16px;
 }
 

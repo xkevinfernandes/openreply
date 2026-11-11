@@ -7,7 +7,7 @@
 // the campaign through OpenReply's own /api/automations; ⋯ keeps Edit /
 // Duplicate / Delete.
 
-import { MenuButton } from "@claudepreneur/brand/react";
+import { MenuButton, Pill } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -176,7 +176,7 @@ export default function AutomationList({ rows: initialRows, sample, initialChip 
                   ) : null}
                   <span className="os-auto-kw">
                     <span className="line">
-                      <span className="chip">{kw.toUpperCase()}</span>
+                      <Pill>{kw.toUpperCase()}</Pill>
                       {more ? <span className="more">+{more}</span> : null}
                     </span>
                     {row.ab ? <span className="ab">{row.abText || "A/B running"}</span> : null}

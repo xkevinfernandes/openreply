@@ -4,6 +4,7 @@
 // by any column header, a checkbox per row, a click opens the panel. At
 // 400px each row stacks (name, stage, last activity) with its checkbox.
 
+import { Pill } from "@claudepreneur/brand/react";
 import { useEffect, useRef } from "react";
 import Avatar from "@/components/os/inbox/avatar";
 import { initialSource, threadName } from "@/components/os/inbox/names";
@@ -58,7 +59,7 @@ export default function ContactsTable(p: Props) {
               <span className="name">{name}</span>
               {c.fields?.business ? <span className="sub">{c.fields.business}</span> : c.username && c.fullName ? <span className="sub">{c.fullName}</span> : null}
             </span>
-            {c.archivedAt ? <span className="chip quiet">Archived</span> : null}
+            {c.archivedAt ? <Pill>Archived</Pill> : null}
           </button>
         );
       case "email":

@@ -3,7 +3,7 @@
 // Workspace: name, team and invites, through OpenReply's /api/workspace/members
 // (the same route the old Settings page uses).
 
-import { Button, Select } from "@claudepreneur/brand/react";
+import { Button, Pill, Select } from "@claudepreneur/brand/react";
 import { useCallback, useEffect, useState } from "react";
 
 type Role = "OWNER" | "ADMIN" | "MEMBER";
@@ -86,7 +86,7 @@ export default function WorkspacePanel({ workspaceName }: { workspaceName: strin
                 <strong>{m.user.name ?? m.user.email ?? "Unknown"}</strong>
                 {m.user.name && m.user.email && <span>{m.user.email}</span>}
               </div>
-              <span className="chip quiet">{ROLE[m.role]}</span>
+              <Pill>{ROLE[m.role]}</Pill>
             </li>
           ))}
           {data?.invitations.map((inv) => (

@@ -4,7 +4,7 @@
 // or send one of the setter's clips. These are Kevin's own sends, so they go
 // straight out; J's drafts still wait for Approve.
 
-import { Button } from "@claudepreneur/brand/react";
+import { Button, Pill } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { sendVoiceNote } from "@/app/(os)/os/inbox/voice-actions";
@@ -74,7 +74,7 @@ export default function VoicePanel({ contactId, who, clips, onClose }: VoicePane
                 <span className="os-voicepanel-clip-text">
                   <span className="os-voicepanel-clip-label">
                     {c.label || "Clip"}
-                    <span className="chip quiet">{c.kind === "manual" ? "Manual" : "Bank"}</span>
+                    <Pill>{c.kind === "manual" ? "Manual" : "Bank"}</Pill>
                   </span>
                   {c.phrase && <span className="os-voicepanel-clip-line">{c.phrase}</span>}
                 </span>

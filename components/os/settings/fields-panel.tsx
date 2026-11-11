@@ -5,7 +5,7 @@
 // fields. Each custom field has a type, the setters that fill it (ticked in
 // each setter's Knowledge base), a Kit field and a GoHighLevel field.
 
-import { Select } from "@claudepreneur/brand/react";
+import { Select, Tag } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { addField, editField, removeField } from "@/app/(os)/os/settings/actions";
@@ -70,8 +70,8 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
             <strong>Instagram handle</strong>
             <small>From Instagram. Tied to their Instagram ID, so a changed handle stays the same person.</small>
             <span className="os-fd-chips">
-              <span className="os-fd-chip">Handle</span>
-              <span className="os-fd-chip">Unique key</span>
+              <Tag>Handle</Tag>
+              <Tag>Unique key</Tag>
             </span>
           </li>
           {!builtIns.length ? (
@@ -80,14 +80,14 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
                 <strong>Name</strong>
                 <small>From their Instagram profile</small>
                 <span className="os-fd-chips">
-                  <span className="os-fd-chip">Text</span>
+                  <Tag>Text</Tag>
                 </span>
               </li>
               <li>
                 <strong>Email</strong>
                 <small>Captured in the DM or from a lead magnet</small>
                 <span className="os-fd-chips">
-                  <span className="os-fd-chip">Email</span>
+                  <Tag>Email</Tag>
                 </span>
               </li>
             </>
@@ -100,8 +100,8 @@ export default function FieldsPanel({ fields: initial, setters, canManage }: Pro
                 <strong>{f.label}</strong>
                 <small>{builtInHow(f.key)}</small>
                 <span className="os-fd-chips">
-                  <span className="os-fd-chip">{fieldTypeLabel(f.type)}</span>
-                  {f.kitField ? <span className="os-fd-chip">Synced to Kit</span> : null}
+                  <Tag>{fieldTypeLabel(f.type)}</Tag>
+                  {f.kitField ? <Tag>Synced to Kit</Tag> : null}
                   {canManage ? (
                     <button type="button" className="os-cf-more" aria-label={`Kit and GoHighLevel fields for ${f.label}`} onClick={() => setEditing({ id: f.id, focus: "kit" })}>
                       <svg viewBox="0 0 16 16" aria-hidden="true">
