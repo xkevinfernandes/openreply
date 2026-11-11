@@ -1405,3 +1405,38 @@
   text-underline-offset: 3px;
   cursor: pointer;
 }
+
+/* --- Connections (brand cp-conn-*: grid, cards, connect and manage pop-ups) --- */
+
+.os-conn {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.os-conn-extra {
+  display: grid;
+  gap: 10px;
+}
+
+/* A service's own settings inside Manage: the old card's panel, flat (the
+   pop-up already has the name, status and actions). */
+.cp-conn-dialog .os-int-card[data-embedded] {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.cp-conn-dialog .os-int-card[data-embedded] > .os-int-card-top,
+.cp-conn-dialog .os-int-card[data-embedded] > .os-int-blurb,
+.cp-conn-dialog .os-int-card[data-embedded] > .os-int-actions,
+.cp-conn-dialog .os-int-card[data-embedded] > .os-int-reveal {
+  display: none;
+}
+
+.cp-conn-dialog .os-int-card[data-embedded] .os-int-panel {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}

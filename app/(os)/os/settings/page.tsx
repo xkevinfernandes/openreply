@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { InstagramConnectNotice } from "@/components/instagram-connect-notice";
-import SettingsIntegrations from "@/components/os/integrations/settings-board";
+import ConnectionsBoard from "@/components/os/integrations/connections-board";
 import DiagnosticsPanel from "@/components/os/settings/diagnostics-panel";
 import FieldsPanel from "@/components/os/settings/fields-panel";
 import { DisconnectButton, ReconnectBar, ZernioPanel } from "@/components/os/settings/instagram-panel";
@@ -11,11 +11,13 @@ import SettingsNav from "@/components/os/settings/settings-nav";
 import TagsPanel from "@/components/os/settings/tags-panel";
 import WorkspacePanel from "@/components/os/settings/workspace-panel";
 import { prisma } from "@/lib/db/client";
+import { getMissingInstagramOAuthEnv } from "@/lib/env";
+import { loadServiceStates } from "@/lib/os/conn/load";
+import { buildConnections } from "@/lib/os/conn/view";
 import { readInstagram } from "@/lib/os/connections";
 import { listCustomFields } from "@/lib/os/fields/store";
 import { calendarBoard } from "@/lib/os/integrations/calendar/view";
 import { dataOsView } from "@/lib/os/integrations/dataos";
-import { isNativeFieldKey } from "@/lib/os/integrations/mapping";
 import { integrationsView } from "@/lib/os/integrations/view";
 import { osMockEnabled } from "@/lib/os/mock";
 import { parseSettingsTab, SETTINGS_TABS, settingsHref } from "@/lib/os/settings";
@@ -100,18 +102,20 @@ async function IntegrationsTab({ workspaceId, canManage }: { workspaceId: string
     kitTags(workspaceId).catch(() => []),
   ]);
   const first = ig.problems[0] ?? null;
+  const now = new Date();
+  // The board gets words, dates and at most a key's last four (lib/os/conn/view.ts).
+  const connections = buildConnections(await loadServiceStates(workspaceId, { instagram: ig, views, calendars, dataos }, now), now);
   return (
-    <SettingsIntegrations
-      instagram={{ id: ig.account?.id ?? null, username: ig.account?.username ?? null, provider: ig.account?.provider ?? null, problem: first, sample: ig.sample }}
-      zernio={ig.zernio}
-      dataos={dataos}
+    <ConnectionsBoard
+      connections={connections}
+      instagram={{ id: ig.account?.id ?? null, username: ig.account?.username ?? null, problem: first, sample: ig.sample }}
+      metaOAuth={getMissingInstagramOAuthEnv().length === 0}
       views={views}
       calendars={calendars}
-      mapped={{ ghl: fields.filter((f) => f.ghlField && !isNativeFieldKey(f.key)).length, kit: fields.filter((f) => f.kitField && !isNativeFieldKey(f.key)).length }}
       fields={fields}
       kitTags={tags}
       canManage={canManage}
-      now={Date.now()}
+      now={now.getTime()}
     />
   );
 }

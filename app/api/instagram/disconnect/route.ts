@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db/client";
+import { disconnectInstagram } from "@/lib/os/conn/instagram";
 import {
   canManageWorkspace,
   getCurrentWorkspaceContext,
@@ -25,12 +25,16 @@ export async function POST(request: NextRequest) {
   const instagramAccountId =
     typeof body.instagramAccountId === "string" ? body.instagramAccountId : null;
 
-  await prisma.instagramAccount.deleteMany({
-    where: {
-      workspaceId: context.workspaceId,
-      ...(instagramAccountId ? { id: instagramAccountId } : {}),
-    },
+  // Unsubscribes our webhook at Meta (own Meta app), deletes the token, logs it.
+  const result = await disconnectInstagram(context.workspaceId, {
+    accountId: instagramAccountId,
+    actorId: context.userId,
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({
+    success: true,
+    ...(result.revokeError
+      ? { warning: "Meta didn't confirm the webhook unsubscribe. The token is deleted; remove the app in Instagram → Settings → Apps and websites to finish." }
+      : {}),
+  });
 }

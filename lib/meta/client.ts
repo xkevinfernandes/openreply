@@ -870,6 +870,25 @@ export async function subscribeInstagramAccountToWebhooks(
   return handleResponse(response);
 }
 
+/** Disconnect: stop Meta sending this account's comments and DMs to us.
+ *  Instagram Login has no token revoke, so this plus deleting the token is
+ *  the most an app can do. */
+export async function unsubscribeInstagramAccountFromWebhooks(
+  instagramAccountId: string,
+  accessToken: string
+): Promise<{ success: boolean }> {
+  const response = await fetch(
+    `${instagramGraphBase()}/${instagramAccountId}/subscribed_apps`,
+    {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(10_000),
+    }
+  );
+
+  return handleResponse(response);
+}
+
 export async function debugToken(inputToken: string, accessToken: string) {
   const url = new URL(`${facebookGraphBase()}/debug_token`);
   url.searchParams.set("input_token", inputToken);

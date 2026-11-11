@@ -9,6 +9,7 @@ import { friendlyError, type ProviderFields } from "@/lib/os/integrations/provid
 import { enqueueBackfill } from "@/lib/os/integrations/queue";
 import { disconnectDataOs, saveDataOs } from "@/lib/os/integrations/dataos";
 import { encryptGhl, loadProvider } from "@/lib/os/integrations/store";
+import { recordConnect, recordDisconnect } from "@/lib/os/conn/audit";
 import { canManageWorkspace, getCurrentWorkspaceContext } from "@/lib/workspace-access";
 
 export interface IntegrationActionResult {
@@ -16,11 +17,15 @@ export interface IntegrationActionResult {
   notice?: string;
 }
 
-async function requireManager() {
+async function requireManagerContext() {
   const context = await getCurrentWorkspaceContext();
   if (!context) throw new Error("Sign in again.");
   if (!canManageWorkspace(context.role)) throw new Error("Only workspace owners and admins can manage integrations.");
-  return context.workspaceId;
+  return context;
+}
+
+async function requireManager() {
+  return (await requireManagerContext()).workspaceId;
 }
 
 const providerSchema = z.enum(["kit", "ghl"]);
@@ -38,6 +43,14 @@ async function run(fn: () => Promise<IntegrationActionResult>): Promise<Integrat
   }
 }
 
+function hostOf(raw: unknown): string | null {
+  try {
+    return new URL(String(raw)).host;
+  } catch {
+    return null;
+  }
+}
+
 const ghlSchema = z.object({
   token: z.string().trim().min(10, "Paste the private integration token.").max(2048),
   locationId: z.string().trim().min(5, "Paste the location id.").max(100).regex(/^[A-Za-z0-9_-]+$/, "The location id is letters and numbers only."),
@@ -46,7 +59,7 @@ const ghlSchema = z.object({
 /** Test the token against the location, then save it encrypted. */
 export async function connectGhl(input: { token: string; locationId: string }): Promise<IntegrationActionResult> {
   return run(async () => {
-    const workspaceId = await requireManager();
+    const { workspaceId, userId } = await requireManagerContext();
     const parsed = ghlSchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the token and location id." };
     await createGhlSync(parsed.data).verify();
@@ -56,15 +69,18 @@ export async function connectGhl(input: { token: string; locationId: string }): 
       create: { workspaceId, provider: "ghl", ...data },
       update: data,
     });
+    await recordConnect(workspaceId, "ghl", { actorId: userId, account: `Location …${parsed.data.locationId.slice(-4)}` });
     return done("GoHighLevel connected.");
   });
 }
 
 export async function disconnectGhl(): Promise<IntegrationActionResult> {
   return run(async () => {
-    const workspaceId = await requireManager();
+    const { workspaceId, userId } = await requireManagerContext();
     // Keep the mapping, drop the secret: reconnecting picks up where it left off.
+    // A private integration token can only be deleted inside GHL (the confirm says so).
     await prisma.osIntegration.updateMany({ where: { workspaceId, provider: "ghl" }, data: { credentials: null, lastError: null } });
+    await recordDisconnect(workspaceId, "ghl", { actorId: userId });
     return done("GoHighLevel disconnected.");
   });
 }
@@ -161,15 +177,19 @@ export async function syncExisting(provider: SyncProviderId): Promise<Integratio
 /** Data OS (Settings › Integrations › Content): save the address and token. */
 export async function connectDataOs(input: { baseUrl: string; token?: string }): Promise<IntegrationActionResult> {
   return run(async () => {
-    const workspaceId = await requireManager();
+    const { workspaceId, userId } = await requireManagerContext();
     const r = await saveDataOs(workspaceId, input);
-    return "error" in r ? { error: r.error } : done("Data OS connected.");
+    if ("error" in r) return { error: r.error };
+    await recordConnect(workspaceId, "dataos", { actorId: userId, account: hostOf(input.baseUrl) });
+    return done("Data OS connected.");
   });
 }
 
 export async function removeDataOs(): Promise<IntegrationActionResult> {
   return run(async () => {
-    await disconnectDataOs(await requireManager());
+    const { workspaceId, userId } = await requireManagerContext();
+    await disconnectDataOs(workspaceId);
+    await recordDisconnect(workspaceId, "dataos", { actorId: userId });
     return done("Data OS disconnected.");
   });
 }

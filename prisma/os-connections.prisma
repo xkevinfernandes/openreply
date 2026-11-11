@@ -1,0 +1,38 @@
+// Settings › Connections: who connected each service, when it was last checked,
+// and a small activity log. Our fork only. No secret is ever stored here; the
+// credentials stay where they were (encrypted with ENCRYPTION_KEY on their own
+// rows). New tables only, no relation, so no existing model changes.
+
+/// One row per workspace and service ("instagram", "zernio", "kit", "ghl",
+/// "calcom", "calendly", "dataos", and the managed ones like "anthropic").
+model OsConnection {
+  workspaceId   String
+  service       String
+  /// The User who last connected it (null when connected before this existed).
+  connectedById String?
+  connectedAt   DateTime?
+  /// The account on the provider's side as the last check saw it ("Claudepreneur").
+  account       String?
+  /// The last live check ("Check now", or the check on opening the page).
+  lastCheckedAt DateTime?
+  lastOkAt      DateTime?
+  /// The last check's or disconnect's error, in words. Never a secret.
+  lastError     String?
+  updatedAt     DateTime @updatedAt
+
+  @@id([workspaceId, service])
+}
+
+/// connect / check / fail / disconnect / revoke_failed / deauthorized. The note
+/// is plain words (an account name or an error), never a key or token.
+model OsConnectionEvent {
+  id          String   @id @default(cuid())
+  workspaceId String
+  service     String
+  kind        String
+  actorId     String?
+  note        String?
+  at          DateTime @default(now())
+
+  @@index([workspaceId, service, at])
+}

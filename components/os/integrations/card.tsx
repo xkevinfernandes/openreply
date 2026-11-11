@@ -57,6 +57,7 @@ export default function IntegrationCard({
   canManage,
   now,
   embedded = false,
+  hideConnection = false,
 }: {
   view: IntegrationView;
   /** Global custom fields (Settings › Custom fields) for the mapping. */
@@ -64,6 +65,8 @@ export default function IntegrationCard({
   canManage: boolean;
   now: number;
   embedded?: boolean;
+  /** Settings › Connections: the pop-up has Check now, Replace and Disconnect. */
+  hideConnection?: boolean;
 }) {
   const info = PROVIDER_INFO[view.provider];
   const router = useRouter();
@@ -165,6 +168,7 @@ export default function IntegrationCard({
             </p>
           )}
 
+          {hideConnection ? null : (
           <section className="os-int-section" aria-label="Connection">
             <GroupLabel>Connection</GroupLabel>
             {view.provider === "kit" ? (
@@ -179,6 +183,7 @@ export default function IntegrationCard({
               <GhlConnect view={view} now={now} pending={pending} onAct={act} />
             )}
           </section>
+          )}
 
           {view.connected && (
             <>

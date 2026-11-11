@@ -195,6 +195,40 @@ async function registerWithApi(provider: CalendarProviderId, token: string, url:
   await calFetch("calcom", `${base}/webhooks`, { method: "POST", headers: auth, body: { active: true, subscriberUrl: url, triggers: CALCOM_TRIGGERS, secret } });
 }
 
+/** Disconnect: delete every webhook we registered at the provider (the ones
+ *  pointing at our URL), so nothing keeps calling us with a dead secret. Throws
+ *  when the provider refuses, so the caller can say so. No token: nothing to do. */
+export async function unregisterCalendarWebhook(workspaceId: string, provider: CalendarProviderId, credentials: string | null): Promise<{ removed: number }> {
+  const token = tokenFor(credentials);
+  if (!token) return { removed: 0 };
+  const url = webhookUrl(workspaceId, provider);
+  const auth = { Authorization: `Bearer ${token}` };
+  let removed = 0;
+  if (provider === "calendly") {
+    const base = "https://api.calendly.com";
+    const me = await calFetch<{ resource?: { uri?: string; current_organization?: string } }>("calendly", `${base}/users/me`, { headers: auth });
+    const user = me.resource?.uri;
+    const organization = me.resource?.current_organization;
+    if (!user || !organization) return { removed: 0 };
+    const q = new URLSearchParams({ organization, user, scope: "user" });
+    const list = await calFetch<{ collection?: { uri?: string; callback_url?: string }[] }>("calendly", `${base}/webhook_subscriptions?${q}`, { headers: auth });
+    for (const sub of list.collection ?? [])
+      if (sub.callback_url === url && sub.uri) {
+        await calFetch("calendly", sub.uri, { method: "DELETE", headers: auth });
+        removed++;
+      }
+    return { removed };
+  }
+  const base = "https://api.cal.com/v2";
+  const list = await calFetch<{ data?: { id?: number | string; subscriberUrl?: string }[] }>("calcom", `${base}/webhooks`, { headers: auth });
+  for (const w of Array.isArray(list.data) ? list.data : [])
+    if (w.subscriberUrl === url && w.id != null) {
+      await calFetch("calcom", `${base}/webhooks/${w.id}`, { method: "DELETE", headers: auth });
+      removed++;
+    }
+  return { removed };
+}
+
 /** "Set up webhooks" on the calendar card: the secret, the URL, and an
  *  attempt to register it for you. Manual steps when the API says no. */
 export async function setupCalendarWebhook(workspaceId: string, provider: CalendarProviderId): Promise<WebhookSetup> {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { recordConnect } from '@/lib/os/conn/audit';
 import { decryptToken } from '@/lib/meta/oauth';
 import { withConnectionLock } from '@/lib/zernio/lock-connection';
 import { loadConnection } from '@/lib/zernio/load-connection';
@@ -8,7 +9,7 @@ import { ConnectionError, readBody, withZernioManagement } from '@/lib/zernio/ro
 
 const accountBodySchema = z.object({ accountId: z.string().min(1) });
 
-export const POST = withZernioManagement(async ({ workspaceId }, request) => {
+export const POST = withZernioManagement(async ({ workspaceId, userId }, request) => {
   const { accountId } = await readBody(request, accountBodySchema);
   const connection = await loadConnection(workspaceId);
   if (!connection.profileId || !connection.webhookId) throw new ConnectionError('Select a profile and finish webhook setup first.');
@@ -29,5 +30,6 @@ export const POST = withZernioManagement(async ({ workspaceId }, request) => {
       await tx.instagramAccount.create({ data: { ...data, workspaceId, instagramId: remote.instagramId, provider: 'ZERNIO', accessToken: '' } });
     }
   });
+  await recordConnect(workspaceId, 'instagram', { actorId: userId, account: `@${remote.username} (through Zernio)` });
   return NextResponse.json({ success: true });
 });

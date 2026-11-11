@@ -7,7 +7,8 @@ import { normalizeCalendarSettings, type CalendarSettings } from "@/lib/os/integ
 import { filterSlots, formatSlotShort, pickOptions } from "@/lib/os/integrations/calendar/slots";
 import { calendarClient, encryptCalendarToken, loadCalendarProvider } from "@/lib/os/integrations/calendar/store";
 import { CalendarApiError, type CalendarEventType, type CalendarProviderId } from "@/lib/os/integrations/calendar/types";
-import { setupCalendarWebhook } from "@/lib/os/sequences/calendar-sync";
+import { setupCalendarWebhook, unregisterCalendarWebhook } from "@/lib/os/sequences/calendar-sync";
+import { recordConnect, recordDisconnect } from "@/lib/os/conn/audit";
 import { canManageWorkspace, getCurrentWorkspaceContext } from "@/lib/workspace-access";
 
 export interface CalendarActionResult {
@@ -18,11 +19,15 @@ export interface CalendarActionResult {
 const providerSchema = z.enum(["calcom", "calendly"]);
 const NAMES: Record<CalendarProviderId, string> = { calcom: "Cal.com", calendly: "Calendly" };
 
-async function requireManager() {
+async function requireManagerContext() {
   const context = await getCurrentWorkspaceContext();
   if (!context) throw new Error("Sign in again.");
   if (!canManageWorkspace(context.role)) throw new Error("Only workspace owners and admins can manage integrations.");
-  return context.workspaceId;
+  return context;
+}
+
+async function requireManager() {
+  return (await requireManagerContext()).workspaceId;
 }
 
 function friendly(error: unknown): string {
@@ -46,7 +51,7 @@ const json = (s: CalendarSettings) => JSON.parse(JSON.stringify(s));
  *  (one at a time: the other one is switched off). */
 export async function connectCalendar(provider: CalendarProviderId, token: string): Promise<CalendarActionResult> {
   return run(async () => {
-    const workspaceId = await requireManager();
+    const { workspaceId, userId } = await requireManagerContext();
     const p = providerSchema.parse(provider);
     const clean = z.string().trim().min(10, "Paste the whole key.").max(4096).safeParse(token);
     if (!clean.success) return { error: clean.error.issues[0]?.message ?? "Paste the key." };
@@ -68,16 +73,36 @@ export async function connectCalendar(provider: CalendarProviderId, token: strin
       prisma.osIntegration.upsert({ where: { workspaceId_provider: { workspaceId, provider: p } }, create: { workspaceId, provider: p, ...data }, update: data }),
       prisma.osIntegration.updateMany({ where: { workspaceId, provider: { in: ["calcom", "calendly"], not: p } }, data: { enabled: false } }),
     ]);
+    await recordConnect(workspaceId, p, { actorId: userId, account: account.name ?? account.email ?? null });
     return { notice: `${NAMES[p]} connected${account.name ? ` as ${account.name}` : ""}. J books on it now.` };
   });
 }
 
 export async function disconnectCalendar(provider: CalendarProviderId): Promise<CalendarActionResult> {
   return run(async () => {
-    const workspaceId = await requireManager();
+    const { workspaceId, userId } = await requireManagerContext();
     const p = providerSchema.parse(provider);
+    // Delete the webhook we registered at the provider first, while we still
+    // hold the token (it used to be left behind). A refusal doesn't block the
+    // disconnect: it is said, and logged as revoke_failed.
+    const row = await prisma.osIntegration.findUnique({ where: { workspaceId_provider: { workspaceId, provider: p } }, select: { credentials: true } });
+    let revokeError: string | null = null;
+    try {
+      await unregisterCalendarWebhook(workspaceId, p, row?.credentials ?? null);
+    } catch (error) {
+      revokeError = friendly(error);
+    }
     // Keep the settings, drop the secret: J goes back to sending the booking link.
-    await prisma.osIntegration.updateMany({ where: { workspaceId, provider: p }, data: { credentials: null, enabled: false, lastError: null } });
+    await prisma.osIntegration.updateMany({
+      where: { workspaceId, provider: p },
+      data: { credentials: null, enabled: false, lastError: null, ...(revokeError ? {} : { webhookSecret: null }) },
+    });
+    await recordDisconnect(workspaceId, p, { actorId: userId, revokeError, note: revokeError ? null : "Webhook deleted" });
+    if (revokeError) {
+      return {
+        notice: `${NAMES[p]} disconnected. J sends your booking link again. ${NAMES[p]} didn't let us delete our webhook (${revokeError}); remove it in ${NAMES[p]}'s webhook settings.`,
+      };
+    }
     return { notice: `${NAMES[p]} disconnected. J sends your booking link again.` };
   });
 }
@@ -195,7 +220,8 @@ export async function setupCalendarWebhooks(provider: CalendarProviderId): Promi
     const p = providerSchema.parse(provider);
     const r = await setupCalendarWebhook(workspaceId, p);
     revalidatePath("/os/settings");
-    return { ...(r.registered ? { notice: r.message } : { error: r.message }), webhook: { url: r.url, secret: r.secret, registered: r.registered } };
+    // The signing secret leaves the server only when it has to be pasted by hand.
+    return { ...(r.registered ? { notice: r.message } : { error: r.message }), webhook: { url: r.url, secret: r.registered ? "" : r.secret, registered: r.registered } };
   } catch (error) {
     return { error: friendly(error) };
   }

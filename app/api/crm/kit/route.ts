@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { decryptToken, encryptToken } from "@/lib/meta/oauth";
 import { createKitClient, KitApiError } from "@/lib/crm/kit";
+import { recordConnect, recordDisconnect } from "@/lib/os/conn/audit";
 import { canManageWorkspace, getCurrentWorkspaceContext, type WorkspaceContext } from "@/lib/workspace-access";
 
 // The email list a workspace's email gates sync into. One Kit key per workspace.
@@ -48,7 +49,7 @@ export const GET = withKitManagement(async ({ workspaceId }) => {
   return NextResponse.json({ success: true, data: { configured: true, tags } });
 });
 
-export const POST = withKitManagement(async ({ workspaceId }, request) => {
+export const POST = withKitManagement(async ({ workspaceId, userId }, request) => {
   if (!request.headers.get("content-type")?.includes("application/json")) throw new KitRouteError("Send a JSON request body.");
   const parsed = keySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) throw new KitRouteError("Paste your Kit API key.");
@@ -58,10 +59,12 @@ export const POST = withKitManagement(async ({ workspaceId }, request) => {
     create: { workspaceId, provider: "KIT", apiKey: encryptToken(parsed.data.apiKey) },
     update: { apiKey: encryptToken(parsed.data.apiKey) },
   });
+  await recordConnect(workspaceId, "kit", { actorId: userId });
   return NextResponse.json({ success: true });
 });
 
-export const DELETE = withKitManagement(async ({ workspaceId }) => {
-  await prisma.crmConnection.deleteMany({ where: { workspaceId, provider: "KIT" } });
+export const DELETE = withKitManagement(async ({ workspaceId, userId }) => {
+  const { count } = await prisma.crmConnection.deleteMany({ where: { workspaceId, provider: "KIT" } });
+  if (count) await recordDisconnect(workspaceId, "kit", { actorId: userId });
   return NextResponse.json({ success: true });
 });

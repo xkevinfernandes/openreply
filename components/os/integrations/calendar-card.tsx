@@ -53,6 +53,7 @@ export default function CalendarCard({
   canManage,
   now,
   embedded = false,
+  hideConnection = false,
 }: {
   view: CalendarView;
   setters: { id: string; name: string }[];
@@ -60,6 +61,8 @@ export default function CalendarCard({
   now: number;
   /** Inside a Settings row: only the managed part shows, open. */
   embedded?: boolean;
+  /** Settings › Connections: the pop-up has Check now, Replace and Disconnect. */
+  hideConnection?: boolean;
 }) {
   const info = CALENDAR_INFO[view.provider];
   const router = useRouter();
@@ -135,10 +138,12 @@ export default function CalendarCard({
               {message.text}
             </p>
           )}
-          <section className="os-int-section" aria-label="Connection">
-            <GroupLabel>Connection</GroupLabel>
-            <Connection view={view} now={now} pending={pending} onAct={act} />
-          </section>
+          {hideConnection ? null : (
+            <section className="os-int-section" aria-label="Connection">
+              <GroupLabel>Connection</GroupLabel>
+              <Connection view={view} now={now} pending={pending} onAct={act} />
+            </section>
+          )}
           {view.connected && (
             <>
               <section className="os-int-section" aria-label="Booking">
