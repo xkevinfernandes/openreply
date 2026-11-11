@@ -85,10 +85,12 @@
 .os-nav {
   gap: 2px;
 }
+/* Rows at the brand sidebar's (cp-side-row): 32 tall, 10 in, 14px words. */
 .os-nav a {
-  height: 34px;
-  padding: 0 12px;
+  height: 32px;
+  padding: 0 10px;
   border-radius: 999px;
+  font-size: var(--fs-sm);
   font-weight: 400;
   transition:
     background-color 120ms ease,
