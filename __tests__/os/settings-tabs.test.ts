@@ -4,7 +4,7 @@ import { parseSettingsTab, SETTINGS_TABS, settingsHref } from "../../lib/os/sett
 
 describe("settings tabs", () => {
   it("has the seven sections in canvas order", () => {
-    expect(SETTINGS_TABS.map((t) => t.label)).toEqual(["Instagram account", "Integrations", "Fields", "Tags", "DM logs", "Diagnostics", "Workspace"]);
+    expect(SETTINGS_TABS.map((t) => t.label)).toEqual(["Instagram account", "Connections", "Fields", "Tags", "DM logs", "Diagnostics", "Workspace"]);
     expect(SETTINGS_TABS.map((t) => t.tab)).toEqual(["instagram", "integrations", "fields", "tags", "logs", "diagnostics", "workspace"]);
   });
 

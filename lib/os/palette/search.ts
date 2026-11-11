@@ -76,7 +76,7 @@ export const PALETTE_SCREENS: PaletteScreen[] = [
   { key: "knowledge", label: "Setters", href: "/os/knowledge", chord: "K", words: ["knowledge bases", "agents", "kb", "docs"] },
   { key: "resources", label: "Resources", href: "/os/resources", chord: "R", words: ["lead magnets", "episodes", "videos"] },
   { key: "settings", label: "Settings", href: "/os/settings", chord: "S" },
-  { key: "integrations", label: "Integrations", href: "/os/settings?tab=integrations", trail: "Settings › ", words: ["kit", "cal.com", "calendly", "gohighlevel", "data os"] },
+  { key: "integrations", label: "Connections", href: "/os/settings?tab=integrations", trail: "Settings › ", words: ["integrations", "kit", "cal.com", "calendly", "gohighlevel", "data os", "zernio", "instagram"] },
   { key: "fields", label: "Custom fields", href: "/os/settings?tab=fields", trail: "Settings › ", words: ["fields"] },
 ];
 

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/client';
 import { getBaseUrl } from '@/lib/env';
 import { decryptToken, encryptToken } from '@/lib/meta/oauth';
 import { zernioRequest } from '@/lib/zernio/client';
+import { recordConnect, recordDisconnect } from '@/lib/os/conn/audit';
 import { withConnectionLock } from '@/lib/zernio/lock-connection';
 import { ensureWebhook, listInstagramAccounts, listProfiles, listWebhooks } from '@/lib/zernio/manage-remote';
 import { ConnectionError, readBody, withZernioManagement } from '@/lib/zernio/route-handler';
@@ -24,13 +25,14 @@ export const GET = withZernioManagement(async ({ workspaceId }) => {
   return NextResponse.json({ success: true, data: { configured: true, profileId: saved.profileId, webhookReady: Boolean(saved.webhookId), profiles, accounts: accounts.map(a => ({ ...a, connected: connectedIds.has(a.id) })) } });
 });
 
-export const POST = withZernioManagement(async ({ workspaceId }, request) => {
+export const POST = withZernioManagement(async ({ workspaceId, userId }, request) => {
   const { apiKey } = await readBody(request, keyBodySchema);
   await Promise.all([listProfiles(apiKey), listWebhooks(apiKey)]);
   await withConnectionLock(workspaceId, async tx => {
     if (await tx.zernioConnection.findUnique({ where: { workspaceId } })) throw new ConnectionError('Remove the current Zernio connection before replacing its API key.');
     await tx.zernioConnection.create({ data: { workspaceId, apiKey: encryptToken(apiKey), webhookSecret: encryptToken(randomBytes(32).toString('hex')) } });
   });
+  await recordConnect(workspaceId, 'zernio', { actorId: userId });
   return NextResponse.json({ success: true });
 });
 
@@ -50,7 +52,7 @@ export const PUT = withZernioManagement(async ({ workspaceId }, request) => {
   return NextResponse.json({ success: true });
 });
 
-export const DELETE = withZernioManagement(async ({ workspaceId }) => {
+export const DELETE = withZernioManagement(async ({ workspaceId, userId }) => {
   await withConnectionLock(workspaceId, async tx => {
     const saved = await tx.zernioConnection.findUnique({ where: { workspaceId } });
     if (!saved) throw new ConnectionError('Save your Zernio API key first.');
@@ -60,5 +62,6 @@ export const DELETE = withZernioManagement(async ({ workspaceId }) => {
     if (ours) await zernioRequest({ apiKey: connection.apiKey, path: `/webhooks/settings?id=${encodeURIComponent(ours._id)}`, method: 'DELETE' });
     await tx.zernioConnection.delete({ where: { workspaceId } });
   });
+  await recordDisconnect(workspaceId, 'zernio', { actorId: userId, note: 'Webhook deleted at Zernio' });
   return NextResponse.json({ success: true });
 });

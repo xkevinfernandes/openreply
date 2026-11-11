@@ -10,6 +10,7 @@ import {
   verifyOAuthState,
 } from "@/lib/meta/oauth";
 import { canManageWorkspace } from "@/lib/workspace-access";
+import { recordConnect } from "@/lib/os/conn/audit";
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
@@ -99,6 +100,7 @@ export async function GET(request: NextRequest) {
     } else {
       await prisma.instagramAccount.create({ data: { ...data, workspaceId: state.workspaceId, instagramId, provider: 'META' } });
     }
+    await recordConnect(state.workspaceId, "instagram", { actorId: session.user.id, account: `@${userInfo.username}` });
 
     return NextResponse.redirect(`${baseUrl}/dashboard?connected=true`);
   } catch (err) {

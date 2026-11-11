@@ -4,7 +4,7 @@
 
 export const SETTINGS_TABS = [
   { tab: "instagram", label: "Instagram account" },
-  { tab: "integrations", label: "Integrations" },
+  { tab: "integrations", label: "Connections" },
   { tab: "fields", label: "Fields" },
   { tab: "tags", label: "Tags" },
   { tab: "logs", label: "DM logs" },
