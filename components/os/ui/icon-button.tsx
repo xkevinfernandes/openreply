@@ -19,8 +19,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
     <CpIconButton
       ref={ref}
       label={label}
-      size="sm"
-      data-size={size}
+      size={size === 32 ? "sm" : "xs"}
       icon={
         children ?? (
           <svg viewBox="0 0 16 16" aria-hidden="true">
