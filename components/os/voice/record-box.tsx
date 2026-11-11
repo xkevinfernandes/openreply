@@ -3,7 +3,7 @@
 // Record (or pick a file), listen back, then keep it. Used by the Voice notes
 // section (per clip) and the composer's mic panel (one-off notes).
 
-import { Button } from "@claudepreneur/brand/react";
+import { Button, FileButton } from "@claudepreneur/brand/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { uploadAudio, type UploadedAudio } from "@/components/os/voice/prepare-audio";
 import { MAX_RECORD_MS, useRecorder } from "@/components/os/voice/use-recorder";
@@ -28,7 +28,6 @@ export default function RecordBox({ clipId, onSaved, onCancel, keepLabel = "Use 
   const [file, setFile] = useState<Blob | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
   const take = file ?? r.blob;
   const preview = useMemo(() => (take ? URL.createObjectURL(take) : null), [take]);
   useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]);
@@ -74,20 +73,15 @@ export default function RecordBox({ clipId, onSaved, onCancel, keepLabel = "Use 
           </Button>
           {allowUpload && (
             <>
-              <Button variant="text" onClick={() => fileInput.current?.click()}>
-                Upload a file
-              </Button>
-              <input
-                ref={fileInput}
-                type="file"
+              <FileButton
+                variant="text"
                 accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm"
-                hidden
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  e.target.value = "";
-                  if (f) setFile(f);
+                onFiles={(files) => {
+                  if (files[0]) setFile(files[0]);
                 }}
-              />
+              >
+                Upload a file
+              </FileButton>
             </>
           )}
           {onCancel && (
