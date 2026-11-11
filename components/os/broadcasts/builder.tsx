@@ -973,12 +973,16 @@ export default function BroadcastBuilder({
 
   return (
     <div className="os-bb">
-      <header className="os-bb-head">
-        <div className="os-bb-titles">
-          <nav aria-label="Breadcrumb" className="os-bb-crumbs">
-            <Link href="/os/automations/broadcasts">Automations › Broadcasts</Link>
-          </nav>
-          <div className="os-bb-titlerow">
+      {/* The brand PageHeader's markup (back, title row + meta, actions on the
+          h1's row); the title is the editable name. */}
+      <header className="cp-page-header has-slots os-bb-head">
+        <div className="cp-page-back">
+          <Link className="cp-back" href="/os/automations/broadcasts">
+            Automations › Broadcasts
+          </Link>
+        </div>
+        <div className="cp-page-header-text">
+          <div className="cp-page-title-row">
             <input
               className="os-bb-name os-title"
               value={name}
@@ -989,10 +993,12 @@ export default function BroadcastBuilder({
               }}
               onBlur={saveName}
             />
-            <Pill tone={data.status.tone}>{data.status.label}</Pill>
+            <div className="cp-page-meta">
+              <Pill tone={data.status.tone}>{data.status.label}</Pill>
+            </div>
           </div>
         </div>
-        <div className="os-bb-head-acts">
+        <div className="cp-page-actions">
           <Button disabled={pending} onClick={() => act(() => duplicateAction(b.key))}>
             Duplicate
           </Button>
@@ -1004,7 +1010,6 @@ export default function BroadcastBuilder({
             ) : null
           ) : b.status !== "sent" ? (
             <Button
-              
               disabled={pending}
               onClick={() =>
                 setAsking({

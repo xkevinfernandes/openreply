@@ -181,43 +181,7 @@
   padding-bottom: var(--sp-6);
 }
 
-.os-bb-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--sp-4);
-  flex-wrap: wrap;
-}
-
-.os-bb-titles {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-  flex: 1 1 320px;
-}
-
-.os-bb-crumbs a {
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  text-decoration: none;
-}
-
-.os-bb-crumbs a:hover {
-  color: var(--ink);
-}
-
-.os-bb-titlerow {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
 .os-bb-name {
-  min-width: 0;
-  width: min(100%, 520px);
   margin: 0;
   padding: 0 4px;
   margin-left: -4px;
@@ -227,20 +191,20 @@
   color: var(--ink);
   font: inherit;
   font-size: var(--fs-h1);
-  font-weight: 600;
-  letter-spacing: -0.022em;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: var(--track-h1);
+  font-variation-settings: "opsz" 32;
+  /* As wide as the name, so the status pill sits beside it (meta). */
+  field-sizing: content;
+  min-width: 4ch;
+  max-width: min(100%, 520px);
 }
 
 .os-bb-name:hover,
 .os-bb-name:focus {
   background: var(--card);
   outline: none;
-}
-
-.os-bb-head-acts {
-  display: flex;
-  gap: var(--sp-2);
-  flex-wrap: wrap;
 }
 
 /* Steps 1–4 on the left, Review (5) beside them. */
