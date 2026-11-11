@@ -606,12 +606,12 @@ a.os-th-name:hover {
 }
 
 .os-th-story-meta {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   opacity: 0.85;
 }
 
 .os-th-story-cap {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   line-height: 1.25;
 }
