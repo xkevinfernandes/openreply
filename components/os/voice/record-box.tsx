@@ -3,6 +3,7 @@
 // Record (or pick a file), listen back, then keep it. Used by the Voice notes
 // section (per clip) and the composer's mic panel (one-off notes).
 
+import { Button } from "@claudepreneur/brand/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { uploadAudio, type UploadedAudio } from "@/components/os/voice/prepare-audio";
 import { MAX_RECORD_MS, useRecorder } from "@/components/os/voice/use-recorder";
@@ -67,15 +68,15 @@ export default function RecordBox({ clipId, onSaved, onCancel, keepLabel = "Use 
     <div className="os-rec" data-state={take ? "take" : recording ? "recording" : "idle"}>
       {!take && !recording && (
         <div className="os-rec-row">
-          <button type="button" className="os-button os-rec-start" onClick={() => void r.start()}>
+          <Button className="os-rec-start" onClick={() => void r.start()}>
             <span className="os-rec-dot" aria-hidden="true" />
             Record
-          </button>
+          </Button>
           {allowUpload && (
             <>
-              <button type="button" className="os-button ghost" onClick={() => fileInput.current?.click()}>
+              <Button variant="text" onClick={() => fileInput.current?.click()}>
                 Upload a file
-              </button>
+              </Button>
               <input
                 ref={fileInput}
                 type="file"
@@ -108,21 +109,21 @@ export default function RecordBox({ clipId, onSaved, onCancel, keepLabel = "Use 
           <span className="os-rec-time">
             {r.state === "asking" ? "Allow the mic…" : `${formatDuration(r.elapsed) || "0:00"} / ${formatDuration(MAX_RECORD_MS)}`}
           </span>
-          <button type="button" className="os-button primary" onClick={r.stop} disabled={r.state !== "recording"}>
+          <Button variant="primary" onClick={r.stop} disabled={r.state !== "recording"}>
             Stop
-          </button>
+          </Button>
         </div>
       )}
 
       {take && preview && (
         <div className="os-rec-row">
           <VoicePlayer url={preview} durationMs={null} tone="plain" label="your take" />
-          <button type="button" className="os-button ghost" onClick={redo} disabled={busy}>
+          <Button variant="text" onClick={redo} disabled={busy}>
             {file ? "Pick another" : "Redo"}
-          </button>
-          <button type="button" className="os-button primary" onClick={() => void keep()} disabled={busy}>
+          </Button>
+          <Button variant="primary" onClick={() => void keep()} disabled={busy}>
             {busy ? "Saving…" : keepLabel}
-          </button>
+          </Button>
         </div>
       )}
 

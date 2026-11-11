@@ -5,6 +5,7 @@
 // Each saves on its own, so an edit in one never overwrites another. The knowledge itself (voice,
 // business, offers, objections, examples) is in the Markdown files.
 
+import { Button } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -207,12 +208,12 @@ export function DangerZone({ view }: { view: SetterEditorView }) {
           <span>
             Delete <strong>{view.name}</strong>? Its contacts go back to the account default.
           </span>
-          <button type="button" className="os-button" onClick={() => setConfirming(false)}>
+          <Button onClick={() => setConfirming(false)}>
             Keep it
-          </button>
-          <button type="button" className="os-button danger" disabled={saver.pending} onClick={() => saver.run(() => deleteSetter(view.id))}>
+          </Button>
+          <Button variant="danger" disabled={saver.pending} onClick={() => saver.run(() => deleteSetter(view.id))}>
             {saver.pending ? "Deleting…" : "Delete"}
-          </button>
+          </Button>
           {saver.note?.kind === "error" && <span className="os-kb-note" data-kind="error">{saver.note.text}</span>}
         </div>
       )}

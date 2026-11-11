@@ -7,7 +7,7 @@
 // connect flow, Fix webhook repairs the webhook, Set up Zernio opens the key
 // form. On the OS_MOCK sample nothing calls Zernio.
 
-import { Select } from "@claudepreneur/brand/react";
+import { Button, Select } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -56,7 +56,7 @@ async function runFix(fix: Exclude<InstagramFix, "zernio">, sample: boolean): Pr
 export function InstagramFixButton({
   fix,
   sample,
-  className = "os-button primary",
+  className = "cp-btn cp-btn-primary",
   onDone,
   onError,
 }: {
@@ -119,9 +119,8 @@ export function DisconnectButton({ id, username }: { id: string; username: strin
   const [error, setError] = useState<string | null>(null);
   return (
     <span className="os-set-disconnect">
-      <button
-        type="button"
-        className="os-button danger"
+      <Button
+        variant="danger"
         disabled={busy}
         onClick={async () => {
           if (!(await confirmAsk(`Disconnect @${username}? Its automations stop sending DMs and J stops reading its inbox.`, { danger: true, confirmLabel: "Disconnect" }))) return;
@@ -144,7 +143,7 @@ export function DisconnectButton({ id, username }: { id: string; username: strin
         }}
       >
         {busy ? "Disconnecting…" : "Disconnect"}
-      </button>
+      </Button>
       {error && (
         <span className="os-kb-note" data-kind="error" role="alert">
           {error}

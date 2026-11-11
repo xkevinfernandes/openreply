@@ -4,7 +4,7 @@
 // bases" section of app/(os)/os/os.css.
 
 import { useId, useState, useTransition } from "react";
-import { Select as CpSelect, Toggle } from "@claudepreneur/brand/react";
+import { Button, Select as CpSelect, Toggle } from "@claudepreneur/brand/react";
 import type { ActionResult } from "@/app/(os)/os/knowledge/actions";
 import { InfoTip } from "@/components/os/ui";
 
@@ -50,9 +50,9 @@ export function Section({ id, title, description, children, onSave, dirty, pendi
           <span role="status" className="os-kb-note" data-kind={note?.kind}>
             {note?.text ?? (dirty ? "Unsaved changes" : "")}
           </span>
-          <button type="button" className="os-button primary" onClick={onSave} disabled={!dirty || pending}>
+          <Button variant="primary" onClick={onSave} disabled={!dirty || pending}>
             {pending ? "Saving…" : "Save"}
-          </button>
+          </Button>
         </footer>
       )}
     </section>

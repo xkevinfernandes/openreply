@@ -7,6 +7,7 @@
 // moved to Pipeline. Every change shows at once and saves in the background;
 // a failed save puts the old value back and says so.
 
+import { Button } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { undoContactsWon, updateContacts } from "@/app/(os)/os/contacts/actions";
@@ -178,7 +179,7 @@ export default function ContactsScreen(p: Props) {
               }}
             />
           </label>
-          <Link href="/os/pipeline" className="os-button ghost os-cv-pipe">
+          <Link href="/os/pipeline" className="cp-btn cp-btn-text os-cv-pipe">
             Open pipeline
           </Link>
         </header>
@@ -296,15 +297,15 @@ export default function ContactsScreen(p: Props) {
             />
             {result.pages > 1 ? (
               <nav className="os-cv-pages" aria-label="Pages">
-                <button type="button" className="os-button ghost" disabled={result.page <= 1} onClick={() => setPage(result.page - 1)}>
+                <Button variant="text" disabled={result.page <= 1} onClick={() => setPage(result.page - 1)}>
                   Previous
-                </button>
+                </Button>
                 <span>
                   {(result.page - 1) * PAGE_SIZE + 1}–{Math.min(result.page * PAGE_SIZE, result.total)} of {result.total.toLocaleString("en-GB")}
                 </span>
-                <button type="button" className="os-button ghost" disabled={result.page >= result.pages} onClick={() => setPage(result.page + 1)}>
+                <Button variant="text" disabled={result.page >= result.pages} onClick={() => setPage(result.page + 1)}>
                   Next
-                </button>
+                </Button>
               </nav>
             ) : null}
           </div>

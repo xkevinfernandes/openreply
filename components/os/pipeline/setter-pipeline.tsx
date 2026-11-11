@@ -7,6 +7,7 @@
 // through the stage writer (updateContacts → writeStage). Today's contact
 // panel pushes in from the right.
 
+import { Button } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
@@ -233,7 +234,7 @@ export default function PipelineScreen(p: Props) {
               onChange={(e) => setQuery(e.target.value)}
             />
           </label>
-          <Link href="/os/contacts" className="os-button ghost os-cv-pipe">
+          <Link href="/os/contacts" className="cp-btn cp-btn-text os-cv-pipe">
             List view
           </Link>
         </header>
@@ -299,9 +300,9 @@ export default function PipelineScreen(p: Props) {
             onClear={() => setSelected(new Set())}
             extra={
               n === 1 ? (
-                <button type="button" className="os-button" onClick={() => setMoving(true)}>
+                <Button onClick={() => setMoving(true)}>
                   Move…
-                </button>
+                </Button>
               ) : null
             }
           />

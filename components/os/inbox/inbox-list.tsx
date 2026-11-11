@@ -11,7 +11,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Select, Tabs, type TabLinkProps } from "@claudepreneur/brand/react";
+import { Button, Select, type TabLinkProps, Tabs } from "@claudepreneur/brand/react";
 import { INBOX_LIST_COOKIE, neighbourHref, streamRows } from "@/components/os/inbox/categories";
 import InboxBulkBar from "@/components/os/inbox/bulk-bar";
 import { ResortPitches, TriageBar, TriageSuggestion } from "@/components/os/inbox/triage";
@@ -270,9 +270,9 @@ export default function InboxList({ threads, counts, params, selected, now, draf
         })}
         {rows.length > shown ? (
           <li className="os-ix-more">
-            <button type="button" className="os-button ghost" onClick={() => setShown((n) => n + PAGE)}>
+            <Button variant="text" onClick={() => setShown((n) => n + PAGE)}>
               Show more ({rows.length - shown})
-            </button>
+            </Button>
           </li>
         ) : null}
       </ul>

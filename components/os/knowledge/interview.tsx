@@ -6,7 +6,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Tabs } from "@claudepreneur/brand/react";
+import { Button, Tabs } from "@claudepreneur/brand/react";
 import { draftNewSetter, saveNewSetter } from "@/app/(os)/os/knowledge/interview-actions";
 import { KbIcon } from "@/components/os/knowledge/icons";
 import { CopySetter } from "@/components/os/knowledge/setter-list-actions";
@@ -75,9 +75,9 @@ export default function SetterInterview({ setters }: { setters: { id: string; na
           </label>
         ))}
         <div className="kb-iv-foot">
-          <button type="submit" className="kb-btn kb-btn-p" disabled={n < 3 || busy !== null}>
+          <Button type="submit" variant="primary" disabled={n < 3 || busy !== null}>
             {busy === "draft" ? "Writing…" : "Write the docs"}
-          </button>
+          </Button>
           <span className="kb-quiet">{n}/7</span>
           <div className="kb-grow" />
           {setters.length > 0 && <CopySetter setters={setters} compact />}
@@ -142,12 +142,12 @@ export default function SetterInterview({ setters }: { setters: { id: string; na
         </ul>
       )}
       <div className="kb-iv-foot">
-        <button type="button" className="kb-btn kb-btn-p" disabled={busy !== null || !draft.name.trim()} onClick={() => void save()}>
+        <Button variant="primary" disabled={busy !== null || !draft.name.trim()} onClick={() => void save()}>
           {busy === "save" ? "Saving…" : "Save setter"}
-        </button>
-        <button type="button" className="kb-btn" disabled={busy !== null} onClick={() => setDraft(null)}>
+        </Button>
+        <Button disabled={busy !== null} onClick={() => setDraft(null)}>
           Back
-        </button>
+        </Button>
       </div>
       {error && (
         <p className="kb-err" role="alert">

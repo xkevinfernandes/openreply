@@ -50,13 +50,13 @@ export function SetterBar({ id, name, setters, query = "", active = "knowledge" 
       {/* The actions under the setter bar, so it stays one row even with the chat open (R2-5). */}
       <div className="kb-subbar">
         <div className="kb-bar-acts">
-          <a href={`/os/knowledge/${id}/export`} className="kb-btn kb-btn-dl" download>
+          <a href={`/os/knowledge/${id}/export`} className="cp-btn kb-btn-dl" download>
             <KbIcon name="download" />
             Download .md
           </a>
           <SetterChatToggle />
           {active === "knowledge" && (
-            <Link href={`/os/knowledge/${id}/sandbox`} className="kb-btn kb-btn-p">
+            <Link href={`/os/knowledge/${id}/sandbox`} className="cp-btn cp-btn-primary">
               <KbIcon name="play" />
               Test in sandbox
             </Link>

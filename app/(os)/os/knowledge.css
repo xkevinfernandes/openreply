@@ -68,7 +68,7 @@
   padding: 16px 24px 22px;
 }
 
-.os-kb-section-body > .os-button {
+.os-kb-section-body > .cp-btn {
   align-self: flex-start;
 }
 
@@ -228,7 +228,7 @@
   display: flex;
 }
 
-.os-kb-move .os-button {
+.os-kb-move .cp-btn {
   width: var(--control-h);
   padding: 0;
 }
@@ -580,7 +580,7 @@ a.kb-quiet:hover {
   .kb-ws-split:has(> .kb-chat) .kb-btn-dl {
     font-size: 0;
     gap: 0;
-    width: 36px;
+    width: var(--control-h);
     padding: 0;
     justify-content: center;
   }
@@ -590,7 +590,7 @@ a.kb-quiet:hover {
   .kb-bar-acts .kb-btn-dl {
     font-size: 0;
     gap: 0;
-    width: 36px;
+    width: var(--control-h);
     padding: 0;
     justify-content: center;
   }
@@ -652,49 +652,6 @@ a.kb-quiet:hover {
    read as "J J" (F-07). */
 .kb-switch-tab[aria-selected="true"] .kb-mark {
   display: none;
-}
-
-.kb-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: var(--radius);
-  background: var(--ctl);
-  color: var(--ink);
-  font: inherit;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.kb-btn:hover {
-  background: var(--ctl-hover);
-}
-
-.kb-btn-p {
-  background: var(--ink);
-  color: var(--on-ink);
-}
-
-.kb-btn-p:hover {
-  background: var(--ink);
-  opacity: 0.86;
-}
-
-.kb-btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-/* A disabled primary is a well with muted text, like .os-button (A-14). */
-.kb-btn-p:disabled {
-  opacity: 1;
-  background: var(--well);
-  color: var(--muted);
 }
 
 /* Setters · Resources: a pill track on the stone, the picked tab in ink. */
@@ -2399,10 +2356,6 @@ a.kb-kw:hover {
   gap: 6px;
 }
 
-.kb-chat-actions .kb-btn {
-  height: 28px;
-}
-
 .kb-chat-test {
   display: flex;
   flex-direction: column;
@@ -2770,12 +2723,6 @@ a.kb-kw:hover {
 
 .kb-lt-name {
   font-size: var(--fs-sm);
-}
-
-.kb-lt .kb-btn {
-  height: 26px;
-  padding: 0 8px;
-  font-size: var(--fs-xs);
 }
 
 .kb-lt-test {

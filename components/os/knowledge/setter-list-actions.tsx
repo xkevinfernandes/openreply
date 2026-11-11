@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useState } from "react";
 import { createSetter, importKnowledge } from "@/app/(os)/os/knowledge/actions";
@@ -14,7 +15,7 @@ export function NewSetter({ compact = false }: { setters?: { id: string; name: s
       New setter
     </Link>
   ) : (
-    <Link href="/os/knowledge/new" className="os-button primary">
+    <Link href="/os/knowledge/new" className="cp-btn cp-btn-primary">
       New setter
     </Link>
   );
@@ -32,9 +33,9 @@ export function CopySetter({ setters, compact = false }: { setters: { id: string
         Or copy a setter
       </button>
     ) : (
-      <button type="button" className="os-button ghost" onClick={() => setOpen(true)}>
+      <Button variant="text" onClick={() => setOpen(true)}>
         Copy a setter
-      </button>
+      </Button>
     );
   }
   return (
@@ -52,12 +53,12 @@ export function CopySetter({ setters, compact = false }: { setters: { id: string
       {setters.length > 0 && (
         <Select aria-label="Start from" value={copy} onChange={setCopy} options={[["", "Start empty"], ...setters.map((s): [string, string] => [s.id, `Copy of ${s.name}`])]} />
       )}
-      <button type="button" className="os-button ghost" onClick={() => setOpen(false)}>
+      <Button variant="text" onClick={() => setOpen(false)}>
         Cancel
-      </button>
-      <button type="submit" className="os-button primary" disabled={!name.trim() || saver.pending}>
+      </Button>
+      <Button type="submit" variant="primary" disabled={!name.trim() || saver.pending}>
         {saver.pending ? "Creating…" : "Create"}
-      </button>
+      </Button>
       {saver.note?.kind === "error" && <span className="os-kb-note" data-kind="error">{saver.note.text}</span>}
     </form>
   );
@@ -68,9 +69,9 @@ export function ImportButton() {
   return (
     <>
       {/* Secondary: New setter is the page's one primary action. */}
-      <button type="button" className="os-button" disabled={saver.pending} aria-busy={saver.pending || undefined} onClick={() => saver.run(() => importKnowledge())}>
+      <Button disabled={saver.pending} aria-busy={saver.pending || undefined} onClick={() => saver.run(() => importKnowledge())}>
         {saver.pending ? "Importing…" : "Import the claudepreneur files"}
-      </button>
+      </Button>
       {saver.pending ? (
         <span className="os-kb-note" role="status">
           Reading J&apos;s files and lead magnets. This takes a few seconds.

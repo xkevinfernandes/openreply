@@ -7,7 +7,7 @@
 // Won picker (the host opens it). The host shows the toast.
 
 import { useEffect, useRef, useState } from "react";
-import { MenuButton } from "@claudepreneur/brand/react";
+import { Button, MenuButton } from "@claudepreneur/brand/react";
 import { bulkTagMenu } from "@/lib/os/bulk-tags";
 import { normalizeTag } from "@/lib/os/contacts-filter";
 
@@ -81,12 +81,12 @@ export default function BulkBar(p: BulkBarProps) {
         {naming ? (
           <form className="os-bulk-new" onSubmit={addNew}>
             <input className="os-input" autoFocus aria-label="New tag" placeholder="New tag" value={draft} maxLength={40} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setNaming(false)} />
-            <button type="submit" className="os-button" disabled={!normalizeTag(draft) || p.pending}>
+            <Button size="sm" type="submit" disabled={!normalizeTag(draft) || p.pending}>
               Add
-            </button>
-            <button type="button" className="os-button ghost" onClick={() => setNaming(false)}>
+            </Button>
+            <Button size="sm" variant="text" onClick={() => setNaming(false)}>
               Cancel
-            </button>
+            </Button>
           </form>
         ) : (
           <MenuButton
@@ -104,15 +104,15 @@ export default function BulkBar(p: BulkBarProps) {
             ]}
           />
         )}
-        <button type="button" className="os-button" disabled={p.pending} onClick={p.onWon}>
+        <Button size="sm" disabled={p.pending} onClick={p.onWon}>
           Won…
-        </button>
-        <button type="button" className="os-button" disabled={p.pending} onClick={p.onLost}>
+        </Button>
+        <Button size="sm" disabled={p.pending} onClick={p.onLost}>
           Lost
-        </button>
-        <button type="button" className="os-button" disabled={p.pending} onClick={() => p.onArchive(!p.archived)}>
+        </Button>
+        <Button size="sm" disabled={p.pending} onClick={() => p.onArchive(!p.archived)}>
           {p.archived ? "Restore" : "Archive"}
-        </button>
+        </Button>
         {p.extra}
       </div>
     </div>

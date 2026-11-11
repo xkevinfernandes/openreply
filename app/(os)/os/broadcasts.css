@@ -133,10 +133,6 @@
   text-align: right;
 }
 
-.os-bcl-dup.os-button {
-  height: 30px;
-  font-size: var(--fs-xs);
-}
 
 /* Phone and narrow windows: each row a small card; the headers become labels. */
 @media (max-width: 1150px) {
@@ -497,12 +493,7 @@
   min-width: 0;
 }
 
-.os-bb-adds .os-button {
-  height: 30px;
-  font-size: var(--fs-xs);
-}
-
-.os-bb-adds .os-button[aria-pressed="true"] {
+.os-bb-adds .cp-btn[aria-pressed="true"] {
   background: var(--ink);
   color: var(--on-ink, var(--card));
 }
@@ -689,10 +680,6 @@
   flex-wrap: wrap;
 }
 
-.os-bb-draft-acts .os-button {
-  height: 30px;
-  font-size: var(--fs-xs);
-}
 
 .os-bb-myself {
   margin-left: auto;
@@ -773,7 +760,7 @@
     background: var(--card);
     border-radius: 0 0 var(--radius-card) var(--radius-card);
   }
-  .os-bb-sendbar .os-button {
+  .os-bb-sendbar .cp-btn {
     width: 100%;
   }
   .os-bb-edit-main {

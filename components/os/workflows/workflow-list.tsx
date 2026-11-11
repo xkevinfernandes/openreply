@@ -4,7 +4,7 @@
 // whole row clickable; "New workflow" opens the template picker (template,
 // then its keyword); the row's ⋯ menu deletes it (inline confirm).
 
-import { MenuButton } from "@claudepreneur/brand/react";
+import { Button, MenuButton } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createWorkflowAction } from "@/app/(os)/os/automations/workflows/actions";
@@ -200,12 +200,12 @@ function NewWorkflowForm({ template, resourceSlug, onBack }: { template: Templat
         </p>
       ) : null}
       <div className="wf-picker-actions">
-        <button type="button" className="os-button" onClick={onBack}>
+        <Button onClick={onBack}>
           Back
-        </button>
-        <button type="submit" className="os-button primary" disabled={!ready || pending}>
+        </Button>
+        <Button type="submit" variant="primary" disabled={!ready || pending}>
           {pending ? "Creating…" : "Create"}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -215,10 +215,10 @@ export function NewWorkflowButton({ resourceSlug }: { resourceSlug?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="wf-new">
-      <button type="button" className="os-button primary wf-new-btn" data-wf-new aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen((o) => !o)}>
+      <Button variant="primary" className="wf-new-btn" data-wf-new aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen((o) => !o)}>
         <WfIcon name="plus" />
         New workflow
-      </button>
+      </Button>
       {open ? <TemplatePicker onClose={() => setOpen(false)} resourceSlug={resourceSlug} /> : null}
     </div>
   );

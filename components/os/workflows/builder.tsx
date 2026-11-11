@@ -5,7 +5,7 @@
 // with the step palette drawer, and the inspector for the selected step.
 // The graph only changes through graph-edit.ts; edits autosave as the draft.
 
-import { SegmentedSwitch } from "@claudepreneur/brand/react";
+import { Button, SegmentedSwitch } from "@claudepreneur/brand/react";
 import "@xyflow/react/dist/style.css";
 import "@/components/os/workflows/workflows.css";
 import Link from "next/link";
@@ -441,9 +441,9 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
           <button type="button" className="os-switch" role="switch" aria-checked={on} aria-label={on ? "On" : "Off"} title={on ? "On: new people enter" : "Off: no new runs"} onClick={() => void toggleOn()}>
             <span className="os-switch-knob" />
           </button>
-          <button type="button" className="os-button primary wf-publish" disabled={publishing} aria-busy={publishing} onClick={publish}>
+          <Button variant="primary" className="wf-publish" disabled={publishing} aria-busy={publishing} onClick={publish}>
             {publishing ? "Publishing…" : "Publish"}
-          </button>
+          </Button>
           <button type="button" className="wf-iconbtn wf-delete-btn" aria-label="Delete workflow" title="Delete workflow" aria-expanded={deleting} onClick={() => setDeleting((d) => !d)}>
             <WfIcon name="trash" />
           </button>

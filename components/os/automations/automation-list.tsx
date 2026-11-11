@@ -141,7 +141,7 @@ export default function AutomationList({ rows: initialRows, sample, initialChip 
         <EmptyState
           title="No campaigns yet"
           action={
-            <Link href="/os/automations/new" className="os-button primary">
+            <Link href="/os/automations/new" className="cp-btn cp-btn-primary">
               New campaign
             </Link>
           }

@@ -4,6 +4,7 @@
 // the move table's allowed columns; several go to Won or Lost only. Won
 // opens the Won picker.
 
+import { Button } from "@claudepreneur/brand/react";
 import { useEffect, useRef } from "react";
 import type { MoveTarget } from "@/lib/os/move-table";
 
@@ -37,9 +38,9 @@ export default function MoveSheet({ count, targets, onPick, onClose }: Props) {
       <div className="os-won-card">
         <div className="os-pl-sheet-head">
           <h2>Move {count === 1 ? "1 card" : `${count} selected`} to</h2>
-          <button type="button" className="os-button ghost" onClick={onClose}>
+          <Button variant="text" onClick={onClose}>
             Cancel
-          </button>
+          </Button>
         </div>
         <ul className="os-pl-sheet-list">
           {shown.map((t) => (

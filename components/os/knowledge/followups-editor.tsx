@@ -3,6 +3,7 @@
 // Knowledge base → Follow-ups: one card per sequence, a switch each, the
 // steps one tap deeper. Each card saves on its own.
 
+import { Button } from "@claudepreneur/brand/react";
 import { useState, useTransition } from "react";
 import { saveFollowupSequence } from "@/app/(os)/os/knowledge/actions";
 import { Field, Section, Select, Switch, TextArea, TextInput } from "@/components/os/knowledge/fields";
@@ -174,15 +175,15 @@ function SequenceCard({ setterId, initial }: { setterId: string; initial: Sequen
             ))}
           </ol>
           <div className="os-seq-foot">
-            <button type="button" className="os-button" disabled={seq.steps.length >= 8} onClick={() => setSeq((x) => ({ ...x, steps: [...x.steps, newStep(x.key, x.steps.length + 1)] }))}>
+            <Button disabled={seq.steps.length >= 8} onClick={() => setSeq((x) => ({ ...x, steps: [...x.steps, newStep(x.key, x.steps.length + 1)] }))}>
               Add step
-            </button>
+            </Button>
             <span role="status" className="os-kb-note" data-kind={note?.kind}>
               {note?.text ?? (dirty ? "Unsaved changes" : "")}
             </span>
-            <button type="button" className="os-button primary" disabled={!dirty || pending} onClick={() => save(seq)}>
+            <Button variant="primary" disabled={!dirty || pending} onClick={() => save(seq)}>
               {pending ? "Saving…" : "Save"}
-            </button>
+            </Button>
           </div>
         </div>
       )}

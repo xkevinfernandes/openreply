@@ -4,6 +4,7 @@
 // thread, the "Move to Sales?" flag on a Personal one, and the Unsorted bar
 // (Sort with J, Confirm all). J only suggests; every move is one tap.
 
+import { Button } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
@@ -79,26 +80,25 @@ export function TriageSuggestion({ contactId, kind, suggestedKind, confidence = 
       </p>
       {unsure ? (
         <div className="os-triage-actions" role="group" aria-label="Sales or personal?">
-          <button type="button" className="os-button" disabled={pending} onClick={() => run(() => setContactKind(contactId, "SALES"))}>
+          <Button size="sm" disabled={pending} onClick={() => run(() => setContactKind(contactId, "SALES"))}>
             Sales
-          </button>
-          <button type="button" className="os-button" disabled={pending} onClick={() => run(() => setContactKind(contactId, "PERSONAL"))}>
+          </Button>
+          <Button size="sm" disabled={pending} onClick={() => run(() => setContactKind(contactId, "PERSONAL"))}>
             Personal
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="os-triage-actions" role="group" aria-label={flag ? "Move to Sales?" : "J's suggestion"}>
-          <button type="button" className="os-button primary" disabled={pending} onClick={() => run(() => confirmSuggestion(contactId))}>
+          <Button size="sm" variant="primary" disabled={pending} onClick={() => run(() => confirmSuggestion(contactId))}>
             {flag ? "Move to Sales" : `Confirm ${suggestedKind === "SALES" ? "Sales" : suggestedKind === "PITCHES" ? "Pitches" : "Personal"}`}
-          </button>
-          <button
-            type="button"
-            className="os-button"
+          </Button>
+          <Button size="sm"
+            
             disabled={pending}
             onClick={() => run(() => (flag ? dismissSuggestion(contactId) : setContactKind(contactId, other)))}
           >
             {flag ? "Keep personal" : other === "SALES" ? "Sales" : "Personal"}
-          </button>
+          </Button>
         </div>
       )}
       {error && (
@@ -150,19 +150,18 @@ export function TriageBar({ unsortedCount, suggestedCount, onConfirmAll, disable
     <div className="os-triage-bar" aria-busy={pending}>
       <div className="os-triage-bar-actions">
         {!disabled && (
-          <button type="button" className="os-button" disabled={pending || !unsortedCount} onClick={() => run("sort")}>
+          <Button size="sm" disabled={pending || !unsortedCount} onClick={() => run("sort")}>
             {busy === "sort" ? "J is sorting…" : "Sort with J"}
-          </button>
+          </Button>
         )}
-        <button
-          type="button"
-          className="os-button primary"
+        <Button size="sm"
+          variant="primary"
           disabled={pending || !suggestedCount}
           onClick={() => run("confirm")}
           aria-label={`Confirm all suggestions (${suggestedCount})`}
         >
           Confirm all{suggestedCount ? <span className="count"> {suggestedCount}</span> : null}
-        </button>
+        </Button>
       </div>
       <p className="os-triage-bar-note" aria-live="polite" data-error={message?.error ? "true" : undefined}>
         {message?.text ?? (disabled ? TRIAGE_DISABLED_NOTICE : suggestedCount ? "Check J's guesses, then confirm in one go." : "J reads each thread and guesses sales or personal.")}
@@ -179,9 +178,8 @@ export function ResortPitches() {
   return (
     <div className="os-triage-bar" aria-busy={pending}>
       <div className="os-triage-bar-actions">
-        <button
-          type="button"
-          className="os-button"
+        <Button size="sm"
+          
           disabled={pending}
           onClick={() =>
             startTransition(async () => {
@@ -197,7 +195,7 @@ export function ResortPitches() {
           }
         >
           {pending ? "Re-sorting…" : "Re-sort pitches"}
-        </button>
+        </Button>
       </div>
       {message ? (
         <p className="os-triage-bar-note" aria-live="polite" data-error={message.error ? "true" : undefined}>

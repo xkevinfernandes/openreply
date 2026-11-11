@@ -1,6 +1,6 @@
 "use client";
 
-import { SegmentedSwitch, Select } from "@claudepreneur/brand/react";
+import { Button, buttonClassName, SegmentedSwitch, Select } from "@claudepreneur/brand/react";
 import { pillClass } from "@/components/os/ui/pill";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState, useTransition } from "react";
@@ -94,7 +94,7 @@ export default function CalendarCard({
         {canManage && (
           <button
             type="button"
-            className={`os-button ${view.connected ? "" : "primary"}`}
+            className={buttonClassName(view.connected ? "secondary" : "primary")}
             aria-expanded={open}
             aria-controls={panelId}
             onClick={() => setOpen((o) => !o)}
@@ -102,16 +102,15 @@ export default function CalendarCard({
             {open ? "Done" : view.connected ? "Manage" : "Connect"}
           </button>
         )}
-        <button
-          type="button"
-          className="os-button ghost os-int-why"
+        <Button
+          variant="text" className="os-int-why"
           aria-expanded={explainOpen}
           aria-controls={explainId}
           onClick={() => setExplainOpen((o) => !o)}
         >
           <span className="q" aria-hidden="true">?</span>
           What does this do?
-        </button>
+        </Button>
         {view.connected && view.booked > 0 && !open && (
           <span className="os-int-meta">
             {view.booked} booked{view.upcoming ? ` · ${view.upcoming} coming up` : ""}
@@ -222,9 +221,9 @@ function Connection({ view, now, pending, onAct }: ConnectionProps) {
           />
         </label>
         <p className="os-int-hint">{info.tokenHint}</p>
-        <button className="os-button primary" disabled={pending || token.trim().length < 10}>
+        <Button variant="primary" type="submit" disabled={pending || token.trim().length < 10}>
           {pending ? "Testing…" : "Test and connect"}
-        </button>
+        </Button>
       </form>
     );
   }
@@ -239,12 +238,11 @@ function Connection({ view, now, pending, onAct }: ConnectionProps) {
         ) : null}
       </div>
       <div className="os-int-inline">
-        <button type="button" className="os-button" disabled={pending} onClick={() => onAct(() => testCalendar(view.provider))}>
+        <Button disabled={pending} onClick={() => onAct(() => testCalendar(view.provider))}>
           Test connection
-        </button>
-        <button
-          type="button"
-          className="os-button ghost"
+        </Button>
+        <Button
+          variant="text"
           disabled={pending}
           onClick={async () => {
             if (await confirmAsk(`Disconnect ${info.name}? J goes back to sending your booking link. Calls already booked stay booked.`, { danger: true, confirmLabel: "Disconnect" }))
@@ -252,7 +250,7 @@ function Connection({ view, now, pending, onAct }: ConnectionProps) {
           }}
         >
           Disconnect
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -402,9 +400,8 @@ function SettingsEditor({
         </div>
         <p className="os-int-hint">Your calendar already hides busy times. These narrow it to when you want setter calls. Times are offered in their timezone.</p>
         <div className="os-int-inline os-cal-save">
-          <button
-            type="button"
-            className="os-button"
+          <Button
+            
             disabled={previewing}
             onClick={() => {
               setPreviewError(null);
@@ -416,10 +413,9 @@ function SettingsEditor({
             }}
           >
             {previewing ? "Reading your calendar…" : "Show the next free times"}
-          </button>
-          <button
-            type="button"
-            className="os-button primary"
+          </Button>
+          <Button
+            variant="primary"
             disabled={pending}
             onClick={() =>
               onAct(async () => {
@@ -430,7 +426,7 @@ function SettingsEditor({
             }
           >
             Save
-          </button>
+          </Button>
         </div>
         {previewError && <p className="os-int-hint os-int-bad">{previewError}</p>}
         {preview && (
@@ -485,9 +481,9 @@ function Webhooks({ view }: { view: CalendarView }) {
               : `Set it up so a call moved or cancelled in ${info.name} moves J's reminders too.`}
           </span>
         </div>
-        <button type="button" className="os-button" disabled={pending} onClick={setup}>
+        <Button disabled={pending} onClick={setup}>
           {pending ? "Setting up…" : view.webhook.ready ? "Set up again" : "Set up"}
-        </button>
+        </Button>
       </div>
       {result && (
         <div className="os-cal-webhook" role={result.ok ? "status" : "alert"}>

@@ -6,6 +6,7 @@
 // or Restore, and Mark spam / Not spam (sticky). The list shows the toast, so
 // it stays up after the selection clears.
 
+import { Button } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { archiveThreads, inboxSelectionTags, inboxTagOptions, markThreadsSpam, moveThreadsStage, tagThreads, type StreamActionResult } from "@/app/(os)/os/inbox/stream-actions";
@@ -99,13 +100,13 @@ export default function InboxBulkBar({ ids, oneName, filter, allPicked, onAll, o
         onClear={() => onAll(false)}
         extra={
           filter === "spam" ? (
-            <button type="button" className="os-button" disabled={pending} onClick={() => act(() => markThreadsSpam(list, false), () => markThreadsSpam(list, true))}>
+            <Button size="sm" disabled={pending} onClick={() => act(() => markThreadsSpam(list, false), () => markThreadsSpam(list, true))}>
               Not spam
-            </button>
+            </Button>
           ) : (
-            <button type="button" className="os-button ghost" disabled={pending} onClick={() => act(() => markThreadsSpam(list, true), () => markThreadsSpam(list, false))}>
+            <Button size="sm" variant="text" disabled={pending} onClick={() => act(() => markThreadsSpam(list, true), () => markThreadsSpam(list, false))}>
               Mark spam
-            </button>
+            </Button>
           )
         }
       />

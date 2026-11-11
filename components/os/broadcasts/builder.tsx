@@ -27,7 +27,7 @@ import {
   skipMessageAction,
   type ActionResult,
 } from "@/app/(os)/os/automations/broadcasts/actions";
-import { Combobox, Select } from "@claudepreneur/brand/react";
+import { Button, Combobox, Select } from "@claudepreneur/brand/react";
 import { Pill } from "@/components/os/ui";
 import type { BroadcastPage, ReviewItem, StepsInput } from "@/lib/os/broadcasts/engine";
 import type { PickerResource } from "@/lib/os/broadcasts/resources";
@@ -96,12 +96,11 @@ function ConfirmBar({ q, onClose, pending }: { q: Question; onClose: () => void;
     <div className="os-bb-confirm os-well" role="alertdialog" aria-label={q.text} onKeyDown={(e) => e.key === "Escape" && onClose()}>
       <span>{q.text}</span>
       <span className="os-bb-actions">
-        <button ref={no} type="button" className="os-button" onClick={onClose}>
+        <Button ref={no} type="button" onClick={onClose}>
           {q.no ?? "Keep it"}
-        </button>
-        <button
-          type="button"
-          className="os-button primary"
+        </Button>
+        <Button
+          variant="primary"
           disabled={pending}
           onClick={() => {
             onClose();
@@ -109,7 +108,7 @@ function ConfirmBar({ q, onClose, pending }: { q: Question; onClose: () => void;
           }}
         >
           {q.yes}
-        </button>
+        </Button>
       </span>
     </div>
   );
@@ -128,12 +127,12 @@ function shortUrl(u: string): string {
 function Actions({ onCancel, onSave, pending, disabled }: { onCancel: () => void; onSave: () => void; pending: boolean; disabled?: boolean }) {
   return (
     <div className="os-bb-actions">
-      <button type="button" className="os-button" onClick={onCancel}>
+      <Button onClick={onCancel}>
         Cancel
-      </button>
-      <button type="button" className="os-button primary" disabled={pending || disabled} onClick={onSave}>
+      </Button>
+      <Button variant="primary" disabled={pending || disabled} onClick={onSave}>
         Save
-      </button>
+      </Button>
     </div>
   );
 }
@@ -320,12 +319,11 @@ function ResourcePicker({ resources, onPick, onClose }: { resources: PickerResou
           <input className="os-input" placeholder="https://" type="url" required value={link} onChange={(e) => setLink(e.target.value)} aria-label="Resource link" />
           {error ? <span className="os-bb-warn">{error}</span> : null}
           <div className="os-bb-actions">
-            <button type="button" className="os-button" onClick={() => setMaking(false)}>
+            <Button onClick={() => setMaking(false)}>
               Back
-            </button>
-            <button
-              type="button"
-              className="os-button primary"
+            </Button>
+            <Button
+              variant="primary"
               disabled={pending || !name.trim() || !link.trim()}
               onClick={() =>
                 start(async () => {
@@ -340,7 +338,7 @@ function ResourcePicker({ resources, onPick, onClose }: { resources: PickerResou
               }
             >
               Save and pick
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
@@ -449,9 +447,9 @@ function MessagesStep({ data, resources, act, pending, canEdit }: { data: Broadc
                   </div>
                 ) : (
                   <div className="os-bb-linkfill">
-                    <button type="button" className="os-button" onClick={() => setPicking(picking === i ? null : i)}>
+                    <Button onClick={() => setPicking(picking === i ? null : i)}>
                       Pick a resource
-                    </button>
+                    </Button>
                     <input
                       className="os-input"
                       type="url"
@@ -496,18 +494,18 @@ function MessagesStep({ data, resources, act, pending, canEdit }: { data: Broadc
           ))}
         </ol>
         <div className="os-bb-row os-bb-adds">
-          <button type="button" className="os-button" onClick={() => setBubbles((all) => [...all, { type: "text", text: "" }])}>
+          <Button size="sm" onClick={() => setBubbles((all) => [...all, { type: "text", text: "" }])}>
             + Message
-          </button>
-          <button type="button" className="os-button" onClick={() => addLink(true)}>
+          </Button>
+          <Button size="sm" onClick={() => addLink(true)}>
             Pick a resource
-          </button>
-          <button type="button" className="os-button" onClick={() => addLink(false)}>
+          </Button>
+          <Button size="sm" onClick={() => addLink(false)}>
             Paste a link
-          </button>
-          <button type="button" className="os-button" aria-pressed={fuOn} onClick={() => setFuOn((v) => !v)}>
+          </Button>
+          <Button size="sm" aria-pressed={fuOn} onClick={() => setFuOn((v) => !v)}>
             Then, after N minutes…
-          </button>
+          </Button>
         </div>
         {fuOn ? (
           <div className="os-bb-fu">
@@ -676,20 +674,20 @@ function DraftCard({ m, b, act, pending, locked }: { m: ReviewItem; b: Broadcast
       {!locked && !editing && (m.status === "drafted" || m.status === "approved") ? (
         <div className="os-bb-draft-acts">
           {m.status === "drafted" ? (
-            <button type="button" className="os-button primary" disabled={pending} onClick={() => act(() => approveMessageAction(b.key, m.id, true))}>
+            <Button size="sm" variant="primary" disabled={pending} onClick={() => act(() => approveMessageAction(b.key, m.id, true))}>
               Approve
-            </button>
+            </Button>
           ) : (
-            <button type="button" className="os-button" disabled={pending} onClick={() => act(() => approveMessageAction(b.key, m.id, false))}>
+            <Button size="sm" disabled={pending} onClick={() => act(() => approveMessageAction(b.key, m.id, false))}>
               Undo
-            </button>
+            </Button>
           )}
-          <button type="button" className="os-button" disabled={pending} onClick={() => setEditing(true)}>
+          <Button size="sm" disabled={pending} onClick={() => setEditing(true)}>
             Edit
-          </button>
-          <button type="button" className="os-button" disabled={pending} onClick={() => act(() => skipMessageAction(b.key, m.id, true))}>
+          </Button>
+          <Button size="sm" disabled={pending} onClick={() => act(() => skipMessageAction(b.key, m.id, true))}>
             Skip
-          </button>
+          </Button>
           {b.personaliseMode === "per_person" && m.status === "drafted" ? (
             <button type="button" className="os-bc-quiet" disabled={pending} onClick={() => act(() => redraftOneAction(b.key, m.id))}>
               Regenerate
@@ -802,9 +800,9 @@ function Review({ data, act, pending }: { data: BroadcastPage; act: Act; pending
 
         {canMake ? (
           <div className="os-bb-make">
-            <button type="button" className="os-button primary" disabled={pending || Boolean(makeBlock) || b.status === "cancelled"} onClick={() => act(() => makeDraftsAction(b.key))}>
+            <Button variant="primary" disabled={pending || Boolean(makeBlock) || b.status === "cancelled"} onClick={() => act(() => makeDraftsAction(b.key))}>
               Make drafts
-            </button>
+            </Button>
             {makeBlock ? <span className="os-bb-warn">{makeBlock}</span> : null}
           </div>
         ) : null}
@@ -885,9 +883,9 @@ function Review({ data, act, pending }: { data: BroadcastPage; act: Act; pending
               </div>
             ))}
             <div className="os-bb-actions">
-              <button type="button" className="os-button" disabled={pending} onClick={() => act(() => newToUnsentAction(b.key))}>
+              <Button disabled={pending} onClick={() => act(() => newToUnsentAction(b.key))}>
                 New broadcast to these {notSentTotal}
-              </button>
+              </Button>
             </div>
           </div>
         ) : null}
@@ -922,9 +920,9 @@ function Review({ data, act, pending }: { data: BroadcastPage; act: Act; pending
               {plan.warning ? <span className="os-bb-warn">{plan.warning}</span> : null}
               {plan.blocked ? <span className="os-bb-warn">{plan.blocked}</span> : null}
             </div>
-            <button type="button" className="os-button primary" disabled={pending || Boolean(plan.blocked)} onClick={() => act(() => sendAction(b.key))}>
+            <Button variant="primary" disabled={pending || Boolean(plan.blocked)} onClick={() => act(() => sendAction(b.key))}>
               {plan.label}
-            </button>
+            </Button>
           </div>
         ) : null}
       </section>
@@ -995,19 +993,18 @@ export default function BroadcastBuilder({
           </div>
         </div>
         <div className="os-bb-head-acts">
-          <button type="button" className="os-button" disabled={pending} onClick={() => act(() => duplicateAction(b.key))}>
+          <Button disabled={pending} onClick={() => act(() => duplicateAction(b.key))}>
             Duplicate
-          </button>
+          </Button>
           {b.status === "cancelled" ? (
             data.progress.sent === 0 && data.progress.cancelled === 0 ? (
-              <button type="button" className="os-button" disabled={pending} onClick={() => act(() => reopenAction(b.key))}>
+              <Button disabled={pending} onClick={() => act(() => reopenAction(b.key))}>
                 Reopen
-              </button>
+              </Button>
             ) : null
           ) : b.status !== "sent" ? (
-            <button
-              type="button"
-              className="os-button"
+            <Button
+              
               disabled={pending}
               onClick={() =>
                 setAsking({
@@ -1019,7 +1016,7 @@ export default function BroadcastBuilder({
               }
             >
               Cancel broadcast
-            </button>
+            </Button>
           ) : null}
         </div>
       </header>

@@ -4,7 +4,7 @@
 // offer it. A component on its own (onSaved hands back the saved resource)
 // so the broadcast picker can open it too (Part C 024).
 
-import { Select } from "@claudepreneur/brand/react";
+import { Button, Select } from "@claudepreneur/brand/react";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import type { ResourceForm } from "@/app/(os)/os/knowledge/actions";
 import { saveResourceSheet, type SavedResource } from "@/app/(os)/os/resources/actions";
@@ -146,16 +146,16 @@ export default function ResourceSheet({ initial = EMPTY_RESOURCE, agents, agentI
         ) : null}
         <div className="os-tg-form-actions">
           {onDelete ? (
-            <button type="button" className="os-button danger os-rs-del" onClick={onDelete} disabled={pending}>
+            <Button variant="danger" className="os-rs-del" onClick={onDelete} disabled={pending}>
               Delete
-            </button>
+            </Button>
           ) : null}
-          <button type="button" className="os-button" onClick={onClose} disabled={pending}>
+          <Button onClick={onClose} disabled={pending}>
             Cancel
-          </button>
-          <button type="submit" className="os-button primary" disabled={pending || !f.name.trim()}>
+          </Button>
+          <Button type="submit" variant="primary" disabled={pending || !f.name.trim()}>
             {pending ? "Saving…" : f.id ? "Save" : "Add"}
-          </button>
+          </Button>
         </div>
       </form>
     </dialog>

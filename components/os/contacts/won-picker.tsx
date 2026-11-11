@@ -7,6 +7,7 @@
 // writer, then the won event's data). Used by Contacts, Pipeline, the
 // contact panel, the All · funnel board and Home's "won with no amount".
 
+import { Button } from "@claudepreneur/brand/react";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { loadWonPicker, markContactsWon } from "@/app/(os)/os/contacts/actions";
 import { formatMoney } from "@/lib/os/money";
@@ -163,17 +164,17 @@ export default function WonPicker({ contactIds, who, onClose, onDone, save, subm
         ) : null}
 
         <div className="os-won-actions">
-          <button type="button" className="os-button ghost" onClick={onClose}>
+          <Button variant="text" onClick={onClose}>
             Cancel
-          </button>
+          </Button>
           {save ? null : (
-            <button type="button" className="os-button" disabled={pending} onClick={noAmount} title="Mark as Won now and add the amount later">
+            <Button disabled={pending} onClick={noAmount} title="Mark as Won now and add the amount later">
               No amount
-            </button>
+            </Button>
           )}
-          <button type="submit" className="os-button primary" disabled={pending || !data}>
+          <Button type="submit" variant="primary" disabled={pending || !data}>
             {pending ? "Saving…" : submitLabel}
-          </button>
+          </Button>
         </div>
       </form>
     </dialog>

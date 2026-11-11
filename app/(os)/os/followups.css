@@ -327,11 +327,6 @@
   color: var(--warn-fg);
 }
 
-.os-tl-banner-btn.os-button {
-  height: 28px;
-  padding: 0 12px;
-  font-size: var(--fs-xs);
-}
 
 @media (max-width: 900px) {
   .os-tl-row,
@@ -358,7 +353,7 @@
   .os-tl-banner-text {
     white-space: normal;
   }
-  .os-tl-banner-btn.os-button {
+  .os-tl-banner-btn.cp-btn {
     grid-column: 2 / -1;
     justify-self: start;
   }

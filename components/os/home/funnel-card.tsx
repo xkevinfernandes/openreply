@@ -5,6 +5,7 @@
 // (hidden under reduced motion), then "From this cohort" and "Closed in
 // period" in the workspace currency, and the wins still missing an amount.
 
+import { Button } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import "./home-funnel.css";
@@ -118,9 +119,9 @@ export function FunnelCard({ data, now, window: win }: { data: HomeFunnelData; n
               <span>
                 <strong>{m.name}</strong> · won {shortDate(m.wonAt)}
               </span>
-              <button type="button" className="os-button" onClick={() => setFilling(m.id)}>
+              <Button onClick={() => setFilling(m.id)}>
                 Add amount
-              </button>
+              </Button>
             </li>
           ))}
         </ul>

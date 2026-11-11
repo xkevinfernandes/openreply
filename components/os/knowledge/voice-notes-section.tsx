@@ -5,6 +5,7 @@
 // recording goes instead of the words (once per person). Manual notes are
 // only sent by hand from the Inbox composer's mic.
 
+import { Button } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { addVoiceClip, clearVoiceAudio, deleteVoiceClip, updateVoiceClip, applySampleTone, type VoiceClipPatch } from "@/app/(os)/os/knowledge/voice-actions";
@@ -64,9 +65,9 @@ export default function VoiceNotesSection({ setterId, clips, sampleData }: Props
         ))}
       </ol>
       <div className="os-vn-add">
-        <button type="button" className="os-button" disabled={adding} onClick={() => add("bank")}>
+        <Button disabled={adding} onClick={() => add("bank")}>
           Add a line
-        </button>
+        </Button>
       </div>
 
       <h3 className="os-kb-sub">Manual notes (you send these)</h3>
@@ -79,9 +80,9 @@ export default function VoiceNotesSection({ setterId, clips, sampleData }: Props
         </ol>
       )}
       <div className="os-vn-add">
-        <button type="button" className="os-button" disabled={adding} onClick={() => add("manual")}>
+        <Button disabled={adding} onClick={() => add("manual")}>
           Add a manual note
-        </button>
+        </Button>
         {error && (
           <span className="os-kb-note" data-kind="error" role="alert">
             {error}
@@ -182,9 +183,9 @@ function ClipRow({ clip, sampleData }: { clip: VoiceClipView; sampleData: boolea
         {clip.url && !recording && (
           <>
             <VoicePlayer url={clip.url} durationMs={clip.durationMs} tone="plain" label={clip.label} />
-            <button type="button" className="os-button ghost" onClick={() => setRecording(true)} disabled={pending}>
+            <Button variant="text" onClick={() => setRecording(true)} disabled={pending}>
               Re-record
-            </button>
+            </Button>
             <button type="button" className="os-link quiet" onClick={() => run(() => clearVoiceAudio(clip.id))} disabled={pending}>
               Remove recording
             </button>

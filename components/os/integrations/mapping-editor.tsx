@@ -1,6 +1,6 @@
 "use client";
 
-import { SegmentedSwitch, Select } from "@claudepreneur/brand/react";
+import { Button, SegmentedSwitch, Select } from "@claudepreneur/brand/react";
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { loadProviderFields, saveMapping, type IntegrationActionResult } from "@/app/(os)/os/integrations/actions";
 import { editField } from "@/app/(os)/os/settings/actions";
@@ -313,9 +313,9 @@ export default function MappingEditor({ provider, initial, fields: customFields,
 
       <div className="os-int-save">
         <span>{dirty ? "Unsaved changes" : ""}</span>
-        <button className="os-button primary" disabled={saving || !dirty}>
+        <Button variant="primary" type="submit" disabled={saving || !dirty}>
           {saving ? "Saving…" : "Save mapping"}
-        </button>
+        </Button>
       </div>
     </form>
   );

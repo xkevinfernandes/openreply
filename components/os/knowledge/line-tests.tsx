@@ -5,6 +5,7 @@
 // Each person gets one version the first time J's line goes out to them, and
 // keeps it. Only messages that went out count.
 
+import { Button } from "@claudepreneur/brand/react";
 import { Pill } from "@/components/os/ui";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -66,10 +67,10 @@ function LineRow({ setterId, setterName, row, workflowId }: { setterId: string; 
         {!row.tests.length && !adding && <span className="kb-quiet">No test</span>}
         <span className="kb-grow" />
         {!adding && !running && (
-          <button type="button" className="kb-btn" onClick={() => setAdding(true)} aria-label={`Add test: ${row.label}`}>
+          <Button size="sm" onClick={() => setAdding(true)} aria-label={`Add test: ${row.label}`}>
             <KbIcon name="plus" size={11} />
             Test
-          </button>
+          </Button>
         )}
       </div>
       {adding && <Editor label={row.label} initial={["", ""]} onClose={() => setAdding(false)} create={{ setterId, line: row.key, workflowId }} />}
@@ -118,13 +119,13 @@ function TestCard({ setterId, setterName, label, test: t }: { setterId: string; 
         <span className="kb-grow" />
         {v.kind === "too_early" && <span className="kb-quiet">Too early</span>}
         {t.status === "PAUSED" && (
-          <button type="button" className="kb-btn" disabled={act.pending || t.sample} onClick={() => act.run(() => resumeLineTest(setterId, t.id))}>
+          <Button size="sm" disabled={act.pending || t.sample} onClick={() => act.run(() => resumeLineTest(setterId, t.id))}>
             Resume
-          </button>
+          </Button>
         )}
-        <button type="button" className="kb-btn" disabled={act.pending || t.sample} onClick={() => act.run(() => stopLineTest(setterId, t.id))}>
+        <Button size="sm" disabled={act.pending || t.sample} onClick={() => act.run(() => stopLineTest(setterId, t.id))}>
           Stop
-        </button>
+        </Button>
       </div>
       <div className="kb-lt-grid kb-lt-cols" aria-hidden="true">
         <span />
@@ -257,21 +258,21 @@ function Editor({
         </span>
         <span className="kb-grow" />
         {onClose && (
-          <button type="button" className="kb-btn" onClick={onClose} disabled={act.pending}>
+          <Button onClick={onClose} disabled={act.pending}>
             Cancel
-          </button>
+          </Button>
         )}
         {draft && (
-          <button type="button" className="kb-btn" disabled={act.pending} onClick={() => act.run(() => deleteLineDraft(draft.setterId, draft.id))}>
+          <Button disabled={act.pending} onClick={() => act.run(() => deleteLineDraft(draft.setterId, draft.id))}>
             Delete
-          </button>
+          </Button>
         )}
-        <button type="button" className="kb-btn" disabled={act.pending} onClick={() => save(false)}>
+        <Button disabled={act.pending} onClick={() => save(false)}>
           {create ? "Save draft" : "Save"}
-        </button>
-        <button type="button" className="kb-btn kb-btn-p" disabled={act.pending} onClick={() => save(true)} title={`Each version needs ${LINE_MIN_REACHED} people before it's judged`}>
+        </Button>
+        <Button variant="primary" disabled={act.pending} onClick={() => save(true)} title={`Each version needs ${LINE_MIN_REACHED} people before it's judged`}>
           Start
-        </button>
+        </Button>
       </div>
     </div>
   );

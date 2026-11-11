@@ -2,6 +2,7 @@
 
 // Setup › Booking (how J books calls) and Setup › Fields J fills, two pages.
 
+import { Button } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { saveBooking, setSetterField } from "@/app/(os)/os/knowledge/actions";
@@ -32,15 +33,14 @@ function TestTimesButton({ setterId, n, disabled }: { setterId: string; n: numbe
   const [pending, start] = useTransition();
   return (
     <>
-      <button
-        type="button"
-        className="kb-btn"
+      <Button
+        
         disabled={disabled || pending}
         title={disabled ? "Save first" : undefined}
         onClick={() => start(async () => setRes(await testBookingTimes(setterId)))}
       >
         {pending ? "Checking…" : `Test: show me ${n} ${n === 1 ? "time" : "times"}`}
-      </button>
+      </Button>
       {res && (
         <div className="kb-test" role="status">
           {res.error ? (
@@ -96,7 +96,7 @@ function BookingSection({ setterId, name, initial }: { setterId: string; name: s
         {cal ? (
           b.mode === "calendar" && <TestTimesButton setterId={setterId} n={b.propose} disabled={dirty} />
         ) : (
-          <Link href="/os/settings?tab=integrations" className="kb-btn">
+          <Link href="/os/settings?tab=integrations" className="cp-btn">
             Connect
           </Link>
         )}
@@ -104,9 +104,9 @@ function BookingSection({ setterId, name, initial }: { setterId: string; name: s
         <span className="kb-note" role="status" data-kind={saver.note?.kind}>
           {saver.pending ? "Saving…" : dirty ? "Unsaved" : saver.note?.text}
         </span>
-        <button type="button" className="kb-btn kb-btn-p" onClick={save} disabled={!dirty || saver.pending}>
+        <Button variant="primary" onClick={save} disabled={!dirty || saver.pending}>
           Save
-        </button>
+        </Button>
       </div>
       <fieldset className="kb-modes">
         <legend className="sr-only">How {name} books calls</legend>

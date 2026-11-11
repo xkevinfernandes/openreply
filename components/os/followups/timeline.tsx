@@ -116,7 +116,7 @@ function Banner({ b }: { b: DayGroup["banners"][number] }) {
         Broadcast · {b.name}
       </Link>
       <span className="os-tl-time">{b.time}</span>
-      <Link className="os-button primary os-tl-banner-btn" href={b.href}>
+      <Link className="cp-btn cp-btn-primary cp-btn-sm os-tl-banner-btn" href={b.href}>
         {b.kind === "link" ? "Add link" : "Review"}
       </Link>
     </div>
@@ -180,10 +180,10 @@ function Start({ header }: { header: FollowupsHeader }) {
       title="No follow-ups yet"
       action={
         <span className="os-tl-start">
-          <Link className="os-button primary" href={header.setupHref}>
+          <Link className="cp-btn cp-btn-primary" href={header.setupHref}>
             Set up sequences
           </Link>
-          <Link className="os-button" href="/os/automations/broadcasts">
+          <Link className="cp-btn" href="/os/automations/broadcasts">
             New broadcast
           </Link>
         </span>
@@ -222,10 +222,10 @@ export default function FollowupsTimeline({ data, tab, source, header }: { data:
               options={data.sources.map((s) => ({ value: s.key, label: s.label }))}
             />
           </div>
-          <Link className="os-button" href={header.setupHref}>
+          <Link className="cp-btn" href={header.setupHref}>
             Set up sequences
           </Link>
-          <Link className="os-button" href="/os/automations/broadcasts">
+          <Link className="cp-btn" href="/os/automations/broadcasts">
             New broadcast
           </Link>
         </div>

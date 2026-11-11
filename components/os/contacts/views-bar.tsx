@@ -6,7 +6,7 @@
 // menu with Set default / Rename / Delete (never the default).
 
 import { useState, useTransition } from "react";
-import { MenuButton } from "@claudepreneur/brand/react";
+import { Button, MenuButton } from "@claudepreneur/brand/react";
 import { deleteContactView, renameContactView, saveContactView, saveContactViewAs, setDefaultContactView } from "@/app/(os)/os/contacts/actions";
 import type { ViewState } from "@/lib/os/contacts-view";
 import type { SavedViewRecord } from "@/lib/os/saved-views";
@@ -92,35 +92,34 @@ export default function ViewsBar(p: Props) {
       {naming ? (
         <form className="os-cv-name" onSubmit={submitName}>
           <input className="os-input" autoFocus aria-label="View name" placeholder="View name" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} />
-          <button type="submit" className="os-button primary" disabled={pending || !name.trim()}>
+          <Button type="submit" variant="primary" disabled={pending || !name.trim()}>
             {naming === "rename" ? "Rename" : "Save"}
-          </button>
-          <button type="button" className="os-button ghost" onClick={() => setNaming(null)}>
+          </Button>
+          <Button variant="text" onClick={() => setNaming(null)}>
             Cancel
-          </button>
+          </Button>
         </form>
       ) : (
         <>
           {p.edited && current ? (
             <>
-              <button type="button" className="os-button ghost" onClick={p.onReset}>
+              <Button variant="text" onClick={p.onReset}>
                 Reset
-              </button>
-              <button type="button" className="os-button primary" disabled={pending} onClick={() => run(() => saveContactView(current.id, p.state), `Saved “${current.name}” for everyone.`)}>
+              </Button>
+              <Button variant="primary" disabled={pending} onClick={() => run(() => saveContactView(current.id, p.state), `Saved “${current.name}” for everyone.`)}>
                 Save for everyone
-              </button>
+              </Button>
             </>
           ) : null}
-          <button
-            type="button"
-            className="os-button ghost"
+          <Button
+            variant="text"
             onClick={() => {
               setNaming("new");
               setName("");
             }}
           >
             + Save view
-          </button>
+          </Button>
         </>
       )}
     </div>

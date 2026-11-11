@@ -3,7 +3,7 @@
 // DM logs: every comment or DM an automation acted on, from OpenReply's
 // GET /api/logs (status filter + pages), in the Review Room table look.
 
-import { SegmentedSwitch } from "@claudepreneur/brand/react";
+import { Button, SegmentedSwitch } from "@claudepreneur/brand/react";
 import { useEffect, useState } from "react";
 import { pillClass } from "@/components/os/ui/pill";
 import { dmStatusLabel, dmStatusTone, LOG_FILTERS, logsQuery } from "@/lib/os/settings";
@@ -136,15 +136,15 @@ export default function LogsPanel() {
 
       {pages > 1 && (
         <nav className="os-set-pager" aria-label="Pages">
-          <button type="button" className="os-button" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>
+          <Button disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>
             Newer
-          </button>
+          </Button>
           <span>
             Page {page} of {pages}
           </span>
-          <button type="button" className="os-button" disabled={page >= pages || loading} onClick={() => setPage((p) => p + 1)}>
+          <Button disabled={page >= pages || loading} onClick={() => setPage((p) => p + 1)}>
             Older
-          </button>
+          </Button>
         </nav>
       )}
     </section>

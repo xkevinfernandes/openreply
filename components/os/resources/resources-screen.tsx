@@ -5,7 +5,7 @@
 // Sent; videos keep their priority order (drag, or arrow keys on the grip).
 // Entry paths sit folded at the bottom and aren't counted.
 
-import { Tabs } from "@claudepreneur/brand/react";
+import { Button, Tabs } from "@claudepreneur/brand/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
@@ -78,9 +78,9 @@ export default function ResourcesScreen({ board }: { board: ResourcesBoard }) {
           <h1>Resources</h1>
           <p>One library. Agents, campaigns and broadcasts all pick from here.</p>
         </div>
-        <button type="button" className="os-button primary" onClick={() => setSheet({ kind: "new" })}>
+        <Button variant="primary" onClick={() => setSheet({ kind: "new" })}>
           + Add resource
-        </button>
+        </Button>
       </header>
 
       <Tabs label="Show" className="os-rs-pills" value={filter} onChange={setFilter} tabs={PILLS.map((p) => ({ value: p.key, label: p.label, count: board.counts[p.count] }))} />
@@ -186,9 +186,9 @@ export default function ResourcesScreen({ board }: { board: ResourcesBoard }) {
                         {r.sent}
                       </td>
                       <td className="os-rs-act">
-                        <button type="button" className="os-button ghost" onClick={() => setSheet({ kind: "edit", row: r })}>
+                        <Button variant="text" onClick={() => setSheet({ kind: "edit", row: r })}>
                           Edit
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -207,9 +207,9 @@ export default function ResourcesScreen({ board }: { board: ResourcesBoard }) {
           <EmptyState
             title="No resources yet."
             action={
-              <button type="button" className="os-button primary" onClick={() => setSheet({ kind: "new" })}>
+              <Button variant="primary" onClick={() => setSheet({ kind: "new" })}>
                 + Add resource
-              </button>
+              </Button>
             }
           >
             Add a lead magnet or a video J can send.

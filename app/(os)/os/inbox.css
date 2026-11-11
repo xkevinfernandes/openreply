@@ -305,12 +305,6 @@
   gap: 6px;
 }
 
-.os-triage[data-variant="row"] .os-triage-actions .os-button,
-.os-triage-bar-actions .os-button {
-  height: 28px;
-  padding: 0 11px;
-  font-size: var(--fs-xs);
-}
 
 .os-triage-error {
   margin: 0;
@@ -372,12 +366,9 @@
     padding: 10px 12px;
   }
 
-  .os-triage-actions .os-button,
-  .os-triage[data-variant="row"] .os-triage-actions .os-button,
-  .os-triage-bar-actions .os-button {
+  .os-triage-actions .cp-btn,
+  .os-triage-bar-actions .cp-btn {
     flex: 1 1 0;
-    height: 40px;
-    font-size: var(--fs-sm);
   }
 }
 

@@ -296,55 +296,12 @@
 }
 
 /* --- Controls ------------------------------------------------------------- */
-/* Secondary buttons follow their surface (--ctl): --card on the stone,
-   --well inside a card. Primary is ink; disabled primary is a well with
-   muted text (a 40% ink slab read as mud). */
-.os-button {
-  padding: 0 16px;
-  border: 0;
-  border-radius: var(--radius);
-  background: var(--ctl);
-  font-weight: 600;
-}
-.os-button:hover:not(:disabled) {
-  background: var(--ctl-hover);
-}
-.os-button:disabled {
-  opacity: 0.45;
-}
-.os-button.primary,
-.os-button.primary:hover:not(:disabled) {
-  background: var(--ink);
-  color: var(--on-ink);
-  opacity: 1;
-}
-.os-button.primary:disabled {
-  background: var(--well);
-  color: var(--muted);
-  opacity: 1;
-}
 /* Upstream primary buttons rendered inside /os, disabled the same way. */
 .os .os-upstream .zernio-action:disabled {
   background: var(--well);
   color: var(--muted);
   opacity: 1;
 }
-.os-button.ghost {
-  background: transparent;
-  font-weight: 500;
-}
-.os-button.ghost:hover:not(:disabled) {
-  background: var(--ctl-hover);
-}
-.os-button.danger {
-  background: var(--bad-bg);
-  color: var(--bad-fg);
-}
-.os-button.danger:hover:not(:disabled) {
-  background: var(--bad-bg);
-  opacity: 0.86;
-}
-
 /* Inputs: the context surface (--ctl) with a 1px line. Selects set the
    COLOUR only so the --chevron image survives (A-01). */
 .os-input,

@@ -202,79 +202,6 @@
 
 /* --- Controls ------------------------------------------------------------ */
 
-.os-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: var(--control-h);
-  padding: 0 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--card);
-  color: var(--ink);
-  font: 500 var(--fs-sm) / 1 var(--font);
-  white-space: nowrap;
-  text-decoration: none;
-  cursor: pointer;
-  user-select: none;
-  transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease,
-    opacity 120ms ease,
-    transform 100ms ease;
-}
-
-.os-button:hover:not(:disabled) {
-  background: var(--tint);
-}
-
-.os-button:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.os-button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.os-button.primary {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--on-ink);
-}
-
-.os-button.primary:hover:not(:disabled) {
-  background: var(--ink);
-  opacity: 0.86;
-}
-
-.os-button.ghost {
-  border-color: transparent;
-  background: transparent;
-  color: var(--muted);
-}
-
-.os-button.ghost:hover:not(:disabled) {
-  background: var(--tint-2);
-  color: var(--ink);
-}
-
-.os-button.danger {
-  border-color: color-mix(in srgb, var(--bad) 35%, transparent);
-  color: var(--bad);
-}
-
-.os-button.danger:hover:not(:disabled) {
-  background: var(--bad-bg);
-}
-
-.os-button .count {
-  font-variant-numeric: tabular-nums;
-  opacity: 0.7;
-}
-
 .os-link {
   border: 0;
   background: none;
@@ -1791,7 +1718,6 @@
 
 /* Reduced motion: no travel or scaling; state changes cross-fade. */
 @media (prefers-reduced-motion: reduce) {
-  .os-button:active:not(:disabled),
   .os-nav a:active,
   .os-menu-button:active,
   .os-bar-pill:active,
@@ -1983,13 +1909,8 @@
   align-items: center;
   gap: 6px;
 }
-.os .os-bulk-actions .os-button,
 .os .os-bulk-new .os-input {
-  height: 32px;
-  font-size: var(--fs-xs);
-}
-.os .os-bulk-actions .os-button {
-  padding: 0 11px;
+  height: var(--control-h-sm);
 }
 /* Sized to "Tag…", not to the longest tag name in the menu. */
 

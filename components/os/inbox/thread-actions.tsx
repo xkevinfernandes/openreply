@@ -4,7 +4,7 @@
 // unread, Archive / Restore, Mark spam / Not spam, and on narrow screens the
 // "Contact" button that opens today's contact panel as a sheet.
 
-import { MenuButton } from "@claudepreneur/brand/react";
+import { Button, MenuButton } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { archiveThreads, markThreadsSpam, markThreadsUnread, starThreads, type StreamActionResult } from "@/app/(os)/os/inbox/stream-actions";
@@ -99,9 +99,9 @@ function ContactSheetButton() {
   }, [open]);
   return (
     <>
-      <button type="button" className="os-button os-ix-contact-btn" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <Button className="os-ix-contact-btn" aria-expanded={open} onClick={() => setOpen(!open)}>
         Contact
-      </button>
+      </Button>
       {open ? <button type="button" className="os-ix-sheet-backdrop" aria-label="Close contact" onClick={() => setOpen(false)} /> : null}
     </>
   );

@@ -5,6 +5,7 @@
 // workflow or unsent broadcast uses them) only offers Keep it; otherwise
 // (tags) Delete anyway.
 
+import { Button } from "@claudepreneur/brand/react";
 import { useEffect, useRef } from "react";
 import { deleteCheckWords } from "@/lib/os/in-use";
 
@@ -51,13 +52,13 @@ export default function DeleteCheck({ name, used, refuse = false, note, error, p
           </p>
         ) : null}
         <div className="os-tg-form-actions">
-          <button type="button" className="os-button" onClick={onClose} disabled={pending}>
+          <Button onClick={onClose} disabled={pending}>
             Keep it
-          </button>
+          </Button>
           {w.confirm ? (
-            <button type="button" className="os-button danger" onClick={onConfirm} disabled={pending}>
+            <Button variant="danger" onClick={onConfirm} disabled={pending}>
               {pending ? "Deleting…" : w.confirm}
-            </button>
+            </Button>
           ) : null}
         </div>
       </div>

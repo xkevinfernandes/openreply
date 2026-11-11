@@ -4,6 +4,7 @@
 // or send one of the setter's clips. These are Kevin's own sends, so they go
 // straight out; J's drafts still wait for Approve.
 
+import { Button } from "@claudepreneur/brand/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { sendVoiceNote } from "@/app/(os)/os/inbox/voice-actions";
@@ -78,9 +79,9 @@ export default function VoicePanel({ contactId, who, clips, onClose }: VoicePane
                   {c.phrase && <span className="os-voicepanel-clip-line">{c.phrase}</span>}
                 </span>
                 {c.url && <VoicePlayer url={c.url} durationMs={c.durationMs} tone="plain" label={c.label} />}
-                <button type="button" className="os-button" disabled={pending} onClick={() => void send({ clipId: c.id }, c.id)}>
+                <Button disabled={pending} onClick={() => void send({ clipId: c.id }, c.id)}>
                   {sendingId === c.id ? "Sending…" : "Send"}
-                </button>
+                </Button>
               </li>
             ))}
           </ul>

@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { runSandbox, type SandboxRunOptions } from "@/app/(os)/os/knowledge/actions";
 import InspectDrawer from "@/components/os/inspect/inspect-drawer";
-import { Toggle } from "@claudepreneur/brand/react";
+import { Button, Toggle } from "@claudepreneur/brand/react";
 import { Select } from "@/components/os/knowledge/fields";
 import { Pill, SetterMark } from "@/components/os/ui";
 import { viewFromLegacy, viewFromTrace, type InspectView } from "@/lib/os/setter/inspect/view";
@@ -264,9 +264,9 @@ export default function Sandbox({ setterId, setterName, entries, magnets, tests,
         <button type="button" className="os-icon-btn" aria-label="Reset" title="Reset" onClick={reset} disabled={!started || thinking}>
           {icon(I_RESET)}
         </button>
-        <button type="button" className="os-button" onClick={runFive} disabled={!canRun || thinking} title="Run J's last turn 5 times">
+        <Button onClick={runFive} disabled={!canRun || thinking} title="Run J's last turn 5 times">
           Run 5×
-        </button>
+        </Button>
       </div>
 
       <div className="os-sbx-main">
@@ -381,9 +381,9 @@ export default function Sandbox({ setterId, setterName, entries, magnets, tests,
                 }}
               />
               {side ? <Pill>A + B</Pill> : null}
-              <button type="button" className="os-button primary" onClick={send} disabled={!text.trim() || thinking}>
+              <Button variant="primary" onClick={send} disabled={!text.trim() || thinking}>
                 Send
-              </button>
+              </Button>
             </div>
           </div>
         </div>

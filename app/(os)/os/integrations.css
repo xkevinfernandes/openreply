@@ -410,7 +410,7 @@
     align-items: stretch;
   }
 
-  .os-int-inline .os-button {
+  .os-int-inline .cp-btn {
     flex: 1;
   }
 
