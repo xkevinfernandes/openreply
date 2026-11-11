@@ -89,7 +89,7 @@ describe("New workflow picker", () => {
     expect(html).toMatch(/aria-checked="true"[^>]*>Comment</);
     expect(html).toContain(">Story reply<");
     expect(html).toContain(">DM<");
-    expect(html).toMatch(/<button type="submit"[^>]*disabled=""[^>]*>Create</);
+    expect(html).toMatch(/<button (?=[^>]*type="submit")(?=[^>]*disabled="")[^>]*>Create</);
     expect(html).toContain('aria-label="Back to templates"');
     expect(html).toContain(">Back<");
   });
