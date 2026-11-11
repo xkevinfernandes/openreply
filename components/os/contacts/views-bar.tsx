@@ -64,7 +64,6 @@ export default function ViewsBar(p: Props) {
         <MenuButton
           label="View options"
           aria-label={`More for ${current.name}`}
-          size="sm"
           align="start"
           className="os-cv-more"
           disabled={pending}

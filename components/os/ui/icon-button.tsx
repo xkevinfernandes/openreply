@@ -12,14 +12,15 @@ type IconButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "chil
   size?: 24 | 28 | 32;
 };
 
-/** An icon-only button: the shared IconButton (@claudepreneur/brand), 32px. */
-export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton({ label, icon, children, size: _size, ...rest }, ref) {
-  void _size;
+/** An icon-only button: the shared IconButton (@claudepreneur/brand) at
+ * the OS's sizes (28 by default; data-size sets 24 / 32 in os.css). */
+export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton({ label, icon, children, size = 28, ...rest }, ref) {
   return (
     <CpIconButton
       ref={ref}
       label={label}
       size="sm"
+      data-size={size}
       icon={
         children ?? (
           <svg viewBox="0 0 16 16" aria-hidden="true">

@@ -103,7 +103,6 @@ export default function FilterBar(p: Props) {
         <MenuButton
           label="+ Filter"
           aria-label="Add a filter"
-          size="sm"
           align="start"
           className="os-cv-add"
           items={(Object.keys(KIND_LABEL) as FilterKind[]).map((k) => ({ label: KIND_LABEL[k], onSelect: () => setAdding(k) }))}

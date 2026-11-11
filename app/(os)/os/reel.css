@@ -298,6 +298,7 @@
 /* --- Controls ------------------------------------------------------------- */
 .os {
   --control-h: 36px;
+  --control-h-sm: 32px; /* the OS's small controls (the shared compact select, small buttons) */
 }
 /* Secondary buttons follow their surface (--ctl): --card on the stone,
    --well inside a card. Primary is ink; disabled primary is a well with

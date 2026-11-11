@@ -110,6 +110,9 @@
   font-size: var(--fs-body);
   line-height: 1.45;
   font-feature-settings: "cv11", "ss01";
+  /* The OS's text was never tracked; apps.css's body tracking would widen or
+     narrow every line by a pixel or two and move things. */
+  letter-spacing: normal;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -2028,4 +2031,154 @@ html:has(.os) .cp-toasts {
 .os .cp-select-trigger:not(.is-compact),
 .os .cp-multi {
   background-color: var(--ctl);
+}
+
+/* --- Shared switches at the OS's own sizes (brand v0.6) ---------------------
+   cp-seg / cp-tabs keep the shared look (track, ink pill, type) but their
+   items keep the heights the OS's switches had, so rows don't grow or shift:
+   30px on a 4px track by default; the OS's tab rows 32 (sm 28); the small
+   in-card switches 26-28 on a 3px track. No 44px rows on a phone: the OS's
+   switches were never taller there. */
+.os :is(.cp-seg, .cp-tabs) > :is(.cp-seg-item, .cp-tab) {
+  height: 30px;
+  min-height: 0;
+  padding: 0 14px;
+}
+.os .os-tabs.cp-tabs > .cp-tab {
+  height: 32px;
+}
+.os .os-tabs.cp-tabs.is-sm > .cp-tab {
+  height: 28px;
+  padding: 0 12px;
+}
+.os .os-fn-switch.cp-seg > .cp-seg-item {
+  padding: 0 13px;
+}
+.os :is(.kb-seg, .wf-seg-full, .wf-mode-seg, .wf-tabbar):is(.cp-seg, .cp-tabs) {
+  gap: 2px;
+  padding: 3px;
+}
+.os .kb-seg.cp-seg > .cp-seg-item {
+  height: 26px;
+  padding: 0 12px;
+}
+.os :is(.wf-seg-full, .wf-mode-seg).cp-seg > .cp-seg-item {
+  height: 28px;
+  padding: 0 12px;
+}
+@media (max-width: 420px) {
+  .os .os-tabs.cp-tabs > .cp-tab {
+    padding: 0 11px;
+  }
+  .os .os-tabs.cp-tabs.is-sm > .cp-tab {
+    padding: 0 10px;
+  }
+}
+
+/* --- Shared fields and buttons at the OS's control heights (brand v0.6) -----
+   reel.css sets --control-h 36 / --control-h-sm 32 on .os (the OS's own
+   os-input and os-button heights); the shared Input, Select, DatePicker and
+   Button take the same heights here, so a swapped control sits exactly where
+   the old one did. Only the vertical padding changes; min-height (from the
+   tokens) does the rest, and a multi-pick still grows with its chips. */
+.os .cp-input:not(textarea) {
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+.os :is(.cp-input.is-sm, .cp-select-trigger.is-compact) {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+.os .cp-btn:not(.cp-btn-text) {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.os .cp-btn-sm:not(.cp-btn-text) {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* apps.css's base h1/h2 (24/500, line-height 1.2, tracked) are for pages
+   built straight on the tokens; the OS's headings keep what they had. No
+   specificity, so every OS heading rule still wins. */
+:where(.os) :where(h1, h2) {
+  font-size: revert;
+  font-weight: revert;
+  letter-spacing: revert;
+  line-height: revert;
+  font-variation-settings: revert;
+}
+.os .os-ix-seg.cp-tabs > .cp-tab {
+  padding: 0 10px;
+}
+/* Shared pills at the OS pill's 22px (reel.css os-pill), so a row of them
+   keeps its height. */
+.os .cp-pill {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+/* Small shared icon buttons at the OS's 28px (os-icon-btn's default);
+   ui/icon-button.tsx keeps its 24 / 32 sizes through data-size. */
+.os .cp-icon-btn.cp-icon-btn-sm {
+  width: 28px;
+  height: 28px;
+}
+.os .cp-icon-btn.cp-icon-btn-sm[data-size="24"] {
+  width: 24px;
+  height: 24px;
+}
+.os .cp-icon-btn.cp-icon-btn-sm[data-size="32"] {
+  width: 32px;
+  height: 32px;
+}
+
+/* Labels lifted to the 12px floor keep the line box they had at 11px. */
+.os .kb-grp,
+.os .os-tg-system {
+  line-height: 16px;
+}
+
+/* In-card switches that were 12px keep their width (and so their neighbours' places). */
+.os :is(.kb-seg, .wf-mode-seg, .wf-seg-full, .wf-tabbar, .os-ix-seg, .os-tabs.is-sm) > :is(.cp-seg-item, .cp-tab) {
+  font-size: var(--fs-xs);
+}
+
+/* Contacts: the menus that were selects keep the selects' boxes. */
+.os .os-cv-add.cp-btn {
+  min-width: 126px;
+  justify-content: space-between;
+}
+.os .os-cv-more.cp-btn {
+  min-width: 194px;
+  justify-content: space-between;
+}
+.os .os-cv-columns.cp-btn {
+  min-height: var(--control-h);
+  padding-inline: 16px;
+}
+
+/* Resources: the kind filter's pills were 34px without a track; on the
+   shared track (2px) the row stays 34. */
+.os .os-rs-pills.cp-tabs {
+  padding: 2px;
+}
+
+/* Sandbox: the situation's selects were 34px (os-sbx-in). */
+.os .os-sbx-sit .cp-select-trigger {
+  min-height: 34px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* Sandbox: a test's A / B / Random switch was 22px (jbrain.css). */
+.os .os-sbx-test .cp-seg > .cp-seg-item {
+  height: 22px;
+  padding: 0 8px;
+  font-size: var(--fs-xs);
+}
+
+/* Follow-ups: the Source select keeps the native one's width. */
+.os .os-tl-filter .cp-select-trigger {
+  min-width: 163px;
 }

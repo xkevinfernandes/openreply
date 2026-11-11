@@ -216,7 +216,6 @@ export default function FollowupsTimeline({ data, tab, source, header }: { data:
           <div className="os-tl-filter">
             <span aria-hidden="true">Source</span>
             <Select
-              compact
               aria-label="Source"
               value={source}
               onChange={(v) => router.push(href(tab, v))}
