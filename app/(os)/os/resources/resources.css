@@ -29,7 +29,7 @@
 .os-rs-card {
   --ctl: var(--well);
   --ctl-hover: var(--tint-2);
-  padding: 8px 20px;
+  padding: var(--list-pad);
   border-radius: var(--radius-card);
   background: var(--card);
   min-width: 0;

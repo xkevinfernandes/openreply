@@ -1064,7 +1064,7 @@ a.kb-quiet:hover {
   width: 272px;
   flex: none;
   box-sizing: border-box;
-  padding: 20px;
+  padding: var(--card-pad);
   border-left: 0;
   display: flex;
   flex-direction: column;
@@ -1176,7 +1176,7 @@ a.kb-quiet:hover {
 }
 
 .kb-sec {
-  padding: 22px 24px;
+  padding: var(--card-pad);
   border: 0;
   border-radius: var(--radius-card);
   background: var(--card);
@@ -1435,7 +1435,7 @@ a.kb-quiet:hover {
 
 .kb-res-sec {
   padding-top: 24px;
-  padding: 22px 24px;
+  padding: var(--card-pad);
   border-radius: var(--radius-card);
   background: var(--card);
 }
@@ -2460,7 +2460,7 @@ a.kb-kw:hover {
   max-width: 720px;
   width: 100%;
   box-sizing: border-box;
-  padding: 22px 24px;
+  padding: var(--card-pad);
   border-radius: var(--radius-card);
   background: var(--card);
   --ctl: var(--well);

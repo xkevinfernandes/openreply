@@ -82,7 +82,7 @@
   border: 0;
   border-radius: var(--radius-card);
   background: var(--card);
-  padding: 8px 16px;
+  padding: var(--list-pad);
 }
 
 .os-ct-table {

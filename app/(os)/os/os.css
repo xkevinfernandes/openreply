@@ -1247,7 +1247,7 @@
 .os-card {
   --ctl: var(--well);
   --ctl-hover: var(--tint-2);
-  padding: 22px 24px;
+  padding: var(--card-pad);
   border: 0;
   border-radius: var(--radius-card);
   background: var(--card);
@@ -1255,7 +1255,7 @@
 }
 
 .os-card-tile {
-  padding: 20px 22px;
+  padding: var(--tile-pad);
 }
 
 /* Inner well inside a card: controls inside it go back to --card. */

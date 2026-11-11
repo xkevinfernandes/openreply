@@ -398,7 +398,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 20px;
+  padding: var(--card-pad);
   overflow: auto;
   border: 0;
   border-radius: var(--radius-card);

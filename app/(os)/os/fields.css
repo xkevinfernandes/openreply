@@ -90,7 +90,7 @@
   position: relative;
   max-width: 100%;
   min-width: 0;
-  padding: 8px 12px;
+  padding: var(--list-pad);
   border: 0;
   border-radius: var(--radius-card);
   background: var(--card);

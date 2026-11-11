@@ -353,7 +353,7 @@
   border-radius: var(--radius-card);
   font-size: var(--fs-sm);
   background: var(--card);
-  padding: 8px 10px;
+  padding: var(--list-pad);
   /* The row lays itself out by the card's width, not the window's. */
   container: wf-list / inline-size;
 }

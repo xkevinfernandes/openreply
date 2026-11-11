@@ -163,7 +163,7 @@
 
 .os-tl-list {
   margin: 0;
-  padding: 6px 10px;
+  padding: var(--list-pad);
   list-style: none;
   border: 0;
   border-radius: var(--radius-card);

@@ -462,7 +462,7 @@
   margin-bottom: var(--gap);
 }
 .os-stat {
-  padding: 20px 22px;
+  padding: var(--tile-pad);
 }
 .os-stat .label {
   color: var(--muted);

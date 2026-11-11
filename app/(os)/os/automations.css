@@ -83,7 +83,7 @@
   border: 0;
   border-radius: var(--radius-card);
   background: var(--card);
-  padding: 6px 14px;
+  padding: var(--list-pad);
 }
 
 .os .os-auto-r {
@@ -582,7 +582,7 @@
   gap: var(--sp-4) var(--sp-6);
   flex-wrap: wrap;
   margin-bottom: var(--gap);
-  padding: 20px 22px;
+  padding: var(--tile-pad);
   border: 0;
   border-radius: var(--radius-card);
   background: var(--card);
@@ -668,7 +668,7 @@
 .os-builder .space-y-8.min-w-0 {
   --ctl: var(--well);
   --ctl-hover: var(--tint-2);
-  padding: 22px 24px;
+  padding: var(--card-pad);
   border: 0;
   border-radius: var(--radius-card);
   background: var(--card);
