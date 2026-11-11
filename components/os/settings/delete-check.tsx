@@ -5,8 +5,7 @@
 // workflow or unsent broadcast uses them) only offers Keep it; otherwise
 // (tags) Delete anyway.
 
-import { Button } from "@claudepreneur/brand/react";
-import { useEffect, useRef } from "react";
+import { Button, Dialog } from "@claudepreneur/brand/react";
 import { deleteCheckWords } from "@/lib/os/in-use";
 
 export interface DeleteCheckProps {
@@ -23,45 +22,33 @@ export interface DeleteCheckProps {
 }
 
 export default function DeleteCheck({ name, used, refuse = false, note, error, pending, onClose, onConfirm }: DeleteCheckProps) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const d = ref.current;
-    if (d && !d.open && typeof d.showModal === "function") d.showModal();
-  }, []);
   const w = deleteCheckWords({ name, used, refuse });
   return (
-    <dialog
-      ref={ref}
-      className="os-tg-dialog"
-      aria-label={w.title}
-      onCancel={(e) => {
-        e.preventDefault();
-        onClose();
-      }}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="os-tg-form">
-        <h2>{w.title}</h2>
-        {w.hint ? <p className="os-tg-hint">{w.hint}</p> : null}
-        {note ? <p className="os-tg-hint">{note}</p> : null}
-        {error ? (
-          <p className="os-tg-error" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <div className="os-tg-form-actions">
+    <Dialog
+      open
+      alert
+      onClose={onClose}
+      title={w.title}
+      footer={
+        <>
           <Button onClick={onClose} disabled={pending}>
             Keep it
           </Button>
           {w.confirm ? (
-            <Button variant="danger" onClick={onConfirm} disabled={pending}>
-              {pending ? "Deleting…" : w.confirm}
+            <Button variant="danger" onClick={onConfirm} loading={pending}>
+              {w.confirm}
             </Button>
           ) : null}
-        </div>
-      </div>
-    </dialog>
+        </>
+      }
+    >
+      {w.hint ? <p className="os-tg-hint">{w.hint}</p> : null}
+      {note ? <p className="os-tg-hint">{note}</p> : null}
+      {error ? (
+        <p className="os-tg-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </Dialog>
   );
 }
