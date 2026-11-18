@@ -44,6 +44,7 @@ const STREAM_SELECT = {
   spam: true,
   spamOverride: true,
   archivedAt: true,
+  tags: true,
 } as const;
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
@@ -106,6 +107,7 @@ export async function loadStream(workspaceId: string): Promise<StreamLoad> {
         seenAt: c.seenAt,
       },
       crm,
+      tags: c.tags,
     };
   });
   return { connected: Boolean(account), threads: sortStream(threads) };
