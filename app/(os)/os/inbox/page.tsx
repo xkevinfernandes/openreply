@@ -29,7 +29,7 @@ import { loadContactPanel } from "@/lib/os/contact-panel/load";
 import type { ContactPanelData } from "@/lib/os/contact-panel/types";
 import { loadThreadData, requestPendingDrafts, threadFromContact, type InboxThread, type ThreadData } from "@/lib/os/inbox";
 import { markOpened } from "@/lib/os/inbox-crm";
-import { filterCounts, filterStream, inboxStreamHref, laterIso, matchesStatus, parseInboxParams, STATUS_FILTERS, type InboxParams, type StatusFilter, type StreamThread } from "@/lib/os/inbox-stream";
+import { filterCounts, filterStream, inboxStreamHref, laterIso, matchesStatus, parseInboxParams, STATUS_FILTERS, tagOptions, type InboxParams, type StatusFilter, type StreamThread } from "@/lib/os/inbox-stream";
 import { loadThreadCrm, requestStream } from "@/lib/os/inbox-stream-load";
 import { isSpam } from "@/lib/os/spam";
 import { osMockEnabled } from "@/lib/os/mock";
@@ -41,7 +41,7 @@ import { sendableClips, type VoiceClipView } from "@/lib/os/voice/clips";
 import { previewDraftVoice, type DraftVoicePreview } from "@/lib/os/voice/preview";
 import "./inbox-stream.css";
 
-type PageProps = { searchParams: Promise<{ tab?: string; f?: string; cat?: string; c?: string; voice?: string; sim?: string; drafts?: string; filter?: string }> };
+type PageProps = { searchParams: Promise<{ tab?: string; f?: string; cat?: string; tag?: string; c?: string; voice?: string; sim?: string; drafts?: string; filter?: string }> };
 
 const quiet = <T,>(p: Promise<T>, fallback: T, what: string): Promise<T> =>
   p.catch((err) => {
@@ -61,8 +61,9 @@ async function loadList(workspaceId: string, view: InboxParams) {
     return {
       connected: connected || osMockEnabled(),
       all: threads,
-      rows: filterStream(threads, view.filter, view.cat, ctx),
-      counts: filterCounts(threads, view.cat, ctx),
+      rows: filterStream(threads, view.filter, view.cat, ctx, view.tag ?? null),
+      counts: filterCounts(threads, view.cat, ctx, view.tag ?? null),
+      tags: tagOptions(threads),
       unsorted: { total: unsorted.length, suggested: unsorted.filter((t) => t.contact?.suggestedKind).length },
       drafts,
       error: null as string | null,
@@ -75,6 +76,7 @@ async function loadList(workspaceId: string, view: InboxParams) {
       all: [] as StreamThread[],
       rows: [] as StreamThread[],
       counts: EMPTY_COUNTS,
+      tags: [] as ReturnType<typeof tagOptions>,
       unsorted: { total: 0, suggested: 0 },
       drafts: [] as DraftView[],
       error: "Instagram didn't answer. Refresh in a minute.",
@@ -109,7 +111,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const parsed = parseInboxParams(params);
   if (parsed.redirect) redirect(parsed.redirect);
-  const view: InboxParams = { filter: parsed.filter, cat: parsed.cat };
+  const view: InboxParams = { filter: parsed.filter, cat: parsed.cat, tag: parsed.tag };
   const collapsed = (await cookies()).get(INBOX_LIST_COOKIE)?.value === "rail";
   // One-off: drop fake "(sample)" guesses an ungated deploy wrote (no-op after the first load).
   await clearSampleSuggestionsOnce(workspaceId);
@@ -145,7 +147,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
 }
 
 async function ListPane({ list, view, selected, collapsed }: { list: Promise<ListData>; view: InboxParams; selected: string | null; collapsed: boolean }) {
-  const { connected, rows, counts, drafts, now, unsorted } = await list;
+  const { connected, rows, counts, tags, drafts, now, unsorted } = await list;
   if (!connected) {
     return (
       <EmptyState title="Connect Instagram first">
@@ -157,6 +159,7 @@ async function ListPane({ list, view, selected, collapsed }: { list: Promise<Lis
     <InboxList
       threads={rows}
       counts={counts}
+      tags={tags}
       params={view}
       selected={selected}
       now={now}

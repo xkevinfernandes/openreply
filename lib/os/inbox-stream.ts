@@ -1,5 +1,6 @@
 // The inbox as one newest-first stream (dm-crm issues 009, 011, 012): unread,
-// starred, archive, spam, drafts waiting, window closing and the composer's
+// starred, archive, spam, drafts waiting, window closing, the Tag filter
+// (?tag=lead: only threads whose contact has that tag) and the composer's
 // window display. Pure, so it is tested (__tests__/os/inbox-stream.test.ts);
 // the loader is lib/os/inbox-stream-load.ts.
 //
@@ -8,6 +9,7 @@
 
 import type { ContactKind } from "@/app/generated/prisma/enums";
 import type { InboxThread } from "@/lib/os/inbox";
+import { normalizeTag } from "@/lib/os/contacts-filter";
 import { isSpam } from "@/lib/os/spam";
 
 /** The CRM fields of a thread's contact (ISO strings: they cross to the client). */
@@ -33,7 +35,8 @@ export const EMPTY_CRM: ThreadCrm = {
   archivedAt: null,
 };
 
-export type StreamThread = InboxThread & { crm: ThreadCrm };
+/** `tags` = the contact's tags (Contact.tags), for the Tag filter. */
+export type StreamThread = InboxThread & { crm: ThreadCrm; tags?: string[] };
 
 // --- Filters --------------------------------------------------------------------
 
@@ -121,6 +124,22 @@ export function matchesStatus(t: StreamThread, f: StatusFilter, ctx: FilterConte
   }
 }
 
+/** The Tag filter: the thread's contact has the tag (null = any). */
+export function matchesTag(t: Pick<StreamThread, "tags">, tag: string | null | undefined): boolean {
+  return !tag || (t.tags ?? []).includes(tag);
+}
+
+/** The Tag filter's choices: every tag on a thread outside Spam and Archived,
+ *  A to Z, with how many threads carry it. */
+export function tagOptions(threads: StreamThread[]): { tag: string; count: number }[] {
+  const n = new Map<string, number>();
+  for (const t of threads) {
+    if (hidden(t)) continue;
+    for (const tag of new Set(t.tags ?? [])) n.set(tag, (n.get(tag) ?? 0) + 1);
+  }
+  return [...n].map(([tag, count]) => ({ tag, count })).sort((a, b) => a.tag.localeCompare(b.tag));
+}
+
 export function matchesCategory(t: StreamThread, cat: CategoryFilter): boolean {
   const kind = CATEGORY_FILTERS.find((c) => c.key === cat)?.kind ?? null;
   return !kind || (t.contact?.kind ?? "UNSORTED") === kind;
@@ -131,13 +150,14 @@ export function sortStream<T extends Pick<InboxThread, "updatedTime">>(threads: 
   return [...threads].sort((a, b) => (ms(b.updatedTime) || 0) - (ms(a.updatedTime) || 0));
 }
 
-export function filterStream(threads: StreamThread[], f: StatusFilter, cat: CategoryFilter, ctx: FilterContext): StreamThread[] {
-  return sortStream(threads.filter((t) => matchesCategory(t, cat) && matchesStatus(t, f, ctx)));
+/** Status, category and tag together; the order stays newest first. */
+export function filterStream(threads: StreamThread[], f: StatusFilter, cat: CategoryFilter, ctx: FilterContext, tag: string | null = null): StreamThread[] {
+  return sortStream(threads.filter((t) => matchesCategory(t, cat) && matchesTag(t, tag) && matchesStatus(t, f, ctx)));
 }
 
-/** Counts per status filter, inside the picked category. */
-export function filterCounts(threads: StreamThread[], cat: CategoryFilter, ctx: FilterContext): Record<StatusFilter, number> {
-  const inCat = threads.filter((t) => matchesCategory(t, cat));
+/** Counts per status filter, inside the picked category and tag. */
+export function filterCounts(threads: StreamThread[], cat: CategoryFilter, ctx: FilterContext, tag: string | null = null): Record<StatusFilter, number> {
+  const inCat = threads.filter((t) => matchesCategory(t, cat) && matchesTag(t, tag));
   return Object.fromEntries(STATUS_FILTERS.map((f) => [f.key, inCat.filter((t) => matchesStatus(t, f.key, ctx)).length])) as Record<StatusFilter, number>;
 }
 
@@ -164,7 +184,12 @@ export function unreadMark(t: Pick<StreamThread, "crm" | "unreadCount">): { coun
 export interface InboxParams {
   filter: StatusFilter;
   cat: CategoryFilter;
+  /** A contact tag (?tag=lead); null or missing = any tag. */
+  tag?: string | null;
 }
+
+/** A tag from the URL, written the way tags are stored (normalizeTag); blank = none. */
+const parseTag = (v: string | undefined): string | null => (v ? normalizeTag(v) : "") || null;
 
 const isStatus = (v: unknown): v is StatusFilter => STATUS_FILTERS.some((f) => f.key === v);
 const isCategory = (v: unknown): v is CategoryFilter => CATEGORY_FILTERS.some((c) => c.key === v);
@@ -174,22 +199,24 @@ const isCategory = (v: unknown): v is CategoryFilter => CATEGORY_FILTERS.some((c
 /** Home's inbox card links (?filter=unread|drafts|window): `window` = Window closing. */
 const FILTER_ALIASES: Record<string, StatusFilter> = { window: "closing", closing: "closing" };
 
-export function parseInboxParams(p: { tab?: string; f?: string; filter?: string; cat?: string; c?: string; drafts?: string }): InboxParams & { redirect: string | null } {
+export function parseInboxParams(p: { tab?: string; f?: string; filter?: string; cat?: string; c?: string; drafts?: string; tag?: string }): InboxParams & { tag: string | null; redirect: string | null } {
   // ?drafts=1 (Home's review button) = the Drafts waiting filter.
   const alias = p.filter ? (FILTER_ALIASES[p.filter] ?? (isStatus(p.filter) ? p.filter : null)) : null;
   const filter: StatusFilter = isStatus(p.f) ? p.f : alias ? alias : p.drafts === "1" ? "drafts" : "all";
+  const tag = parseTag(p.tag);
   if (p.tab !== undefined) {
     const cat = isCategory(p.tab) ? p.tab : "any";
-    return { filter, cat, redirect: inboxStreamHref({ filter, cat }, p.c ?? null) };
+    return { filter, cat, tag, redirect: inboxStreamHref({ filter, cat, tag }, p.c ?? null) };
   }
-  return { filter, cat: isCategory(p.cat) ? p.cat : "any", redirect: null };
+  return { filter, cat: isCategory(p.cat) ? p.cat : "any", tag, redirect: null };
 }
 
-/** "/os/inbox?f=unread&cat=sales&c=m1" (defaults left out). */
+/** "/os/inbox?f=unread&cat=sales&tag=lead&c=m1" (defaults left out). */
 export function inboxStreamHref(p: Partial<InboxParams>, conversationId?: string | null): string {
   const q = new URLSearchParams();
   if (p.filter && p.filter !== "all") q.set("f", p.filter);
   if (p.cat && p.cat !== "any") q.set("cat", p.cat);
+  if (p.tag) q.set("tag", p.tag);
   if (conversationId) q.set("c", conversationId);
   const s = q.toString();
   return s ? `/os/inbox?${s}` : "/os/inbox";

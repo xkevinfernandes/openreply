@@ -3,7 +3,8 @@
 // The thread list: one newest-first stream (dm-crm 009-014). Head: title with
 // the drafts count, search, the status filter (Unread · All · Recent ·
 // Starred, then Drafts waiting / Window closing / Spam / Archived under
-// "More") and the Category filter. Rows: unread mark, star, stage pill, green
+// "More"), the Category filter and the Tag filter (only threads whose contact
+// has the tag; it combines with the other two). Rows: unread mark, star, stage pill, green
 // "Draft", a checkbox for the bulk bar (tag, Won / Lost, archive, spam).
 // Collapses to the avatar rail, remembered in the os_inbox_list cookie. J/K
 // move through the rows.
@@ -31,6 +32,8 @@ interface InboxListProps {
   /** The stream under the current filters, newest first. */
   threads: StreamThread[];
   counts: Record<StatusFilter, number>;
+  /** The Tag filter's choices (tags on threads outside Spam / Archived). */
+  tags: { tag: string; count: number }[];
   params: InboxParams;
   selected: string | null;
   now: number;
@@ -59,7 +62,7 @@ export const starIcon = (filled: boolean) => (
   </svg>
 );
 
-export default function InboxList({ threads, counts, params, selected, now, draftContactIds, collapsed: initial, triageDisabled = false, unsorted }: InboxListProps) {
+export default function InboxList({ threads, counts, tags, params, selected, now, draftContactIds, collapsed: initial, triageDisabled = false, unsorted }: InboxListProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState(initial);
@@ -71,7 +74,7 @@ export default function InboxList({ threads, counts, params, selected, now, draf
   const byId = useMemo(() => new Map(threads.map((t) => [t.conversationId, t])), [threads]);
   const failed = useFailedRuns(threads.flatMap((t) => (t.contact?.id ? [t.contact.id] : [])));
   const drafts = counts.drafts;
-  const filterKey = `${params.filter}:${params.cat}`;
+  const filterKey = `${params.filter}:${params.cat}:${params.tag ?? ""}`;
 
   // A new filter starts a new selection and page.
   const [seenKey, setSeenKey] = useState(filterKey);
@@ -128,6 +131,8 @@ export default function InboxList({ threads, counts, params, selected, now, draf
   const moreActive = !PRIMARY.includes(params.filter);
   const pickedIds = [...picked];
   const allPicked = visible.length > 0 && visible.every((r) => !r.contactId || picked.has(r.contactId));
+  // The picked tag stays a choice after its last thread loses it.
+  const tagChoices = params.tag && !tags.some((t) => t.tag === params.tag) ? [...tags, { tag: params.tag, count: 0 }] : tags;
   const tip = STATUS_FILTERS.find((f) => f.key === params.filter && (f.key === "unread" || f.key === "closing"))?.tip;
 
   return (
@@ -184,6 +189,17 @@ export default function InboxList({ threads, counts, params, selected, now, draf
             onChange={(v) => go({ cat: v as InboxParams["cat"] })}
             options={CATEGORY_FILTERS.map((c) => ({ value: c.key, label: c.key === "any" ? "Category" : c.label }))}
           />
+          {tagChoices.length ? (
+            <Select
+              compact
+              aria-label="Tag"
+              fieldClassName="os-ix-filter"
+              className={params.tag ? "is-on" : undefined}
+              value={params.tag ?? ""}
+              onChange={(v) => go({ tag: v || null })}
+              options={[{ value: "", label: "Tag" }, ...tagChoices.map((t) => ({ value: t.tag, label: `${t.tag} · ${t.count}` }))]}
+            />
+          ) : null}
           <Select
             compact
             aria-label="More filters"
@@ -204,6 +220,8 @@ export default function InboxList({ threads, counts, params, selected, now, draf
           <li className="os-ix-empty">
             {query ? (
               <EmptyState title="No threads match">Try a name or a word from the chat.</EmptyState>
+            ) : params.tag && params.filter === "all" && params.cat === "any" ? (
+              <EmptyState title={`No threads tagged ${params.tag}`}>Tag a contact from its panel, or pick another tag.</EmptyState>
             ) : params.filter === "unread" ? (
               <EmptyState title="All read" />
             ) : params.filter === "spam" ? (

@@ -12,8 +12,10 @@ import {
   isUnread,
   laterIso,
   matchesStatus,
+  matchesTag,
   parseInboxParams,
   sortStream,
+  tagOptions,
   unreadCount,
   unreadMark,
   windowClosing,
@@ -328,5 +330,59 @@ describe("nav badge and row badges (walkthrough fixes)", () => {
   it("a spam thread says spam, not Pitches", () => {
     expect(draftBlockedReason({ kind: "PITCHES", paused: false }, true)).toMatch(/spam/);
     expect(draftBlockedReason({ kind: "PITCHES", paused: false })).toMatch(/Pitches/);
+  });
+});
+
+describe("tag filter", () => {
+  const lead = thread({ lastInboundAt: ago(1), lastOpenedAt: ago(5) }, { tags: ["lead"], updatedTime: ago(1) });
+  const oldLead = thread({ lastInboundAt: ago(30), lastOpenedAt: ago(1) }, { tags: ["lead", "vip"], updatedTime: ago(30), kind: "PERSONAL" });
+  const other = thread({ lastInboundAt: ago(2) }, { tags: ["vip"], updatedTime: ago(2) });
+  const none = thread({}, { updatedTime: ago(3) });
+  const spamLead = thread({ spam: true }, { tags: ["lead"] });
+  const archivedLead = thread({ archivedAt: ago(1) }, { tags: ["lead"] });
+  const all = [none, oldLead, other, lead, spamLead, archivedLead];
+
+  it("keeps only threads whose contact has the tag, newest first", () => {
+    expect(filterStream(all, "all", "any", ctx(), "lead")).toEqual([lead, oldLead]);
+    expect(filterStream(all, "all", "any", ctx(), null)).toEqual([lead, other, none, oldLead]);
+  });
+
+  it("combines with the status and category filters", () => {
+    expect(filterStream(all, "unread", "any", ctx(), "lead")).toEqual([lead]);
+    expect(filterStream(all, "all", "personal", ctx(), "lead")).toEqual([oldLead]);
+    expect(filterStream(all, "spam", "any", ctx(), "lead")).toEqual([spamLead]);
+    expect(filterStream(all, "archived", "any", ctx(), "lead")).toEqual([archivedLead]);
+  });
+
+  it("counts inside the tag", () => {
+    const c = filterCounts(all, "any", ctx(), "lead");
+    expect(c.all).toBe(2);
+    expect(c.unread).toBe(1);
+    expect(c.spam).toBe(1);
+  });
+
+  it("removing the tag takes the thread out", () => {
+    const t = thread({}, { tags: ["lead"] });
+    expect(matchesTag(t, "lead")).toBe(true);
+    expect(matchesTag({ ...t, tags: [] }, "lead")).toBe(false);
+    expect(matchesTag({ ...t, tags: undefined }, null)).toBe(true);
+  });
+
+  it("offers the tags in use outside spam and archived, A to Z, with counts", () => {
+    expect(tagOptions(all)).toEqual([
+      { tag: "lead", count: 2 },
+      { tag: "vip", count: 2 },
+    ]);
+  });
+
+  it("lives in the URL and survives the other filters", () => {
+    const p = parseInboxParams({ f: "unread", cat: "sales", tag: " Lead " });
+    expect(p.tag).toBe("lead");
+    expect(inboxStreamHref(p, "m1")).toBe("/os/inbox?f=unread&cat=sales&tag=lead&c=m1");
+    expect(parseInboxParams({}).tag).toBe(null);
+    expect(parseInboxParams({ tag: "  " }).tag).toBe(null);
+    expect(parseInboxParams({ tab: "sales", tag: "lead" }).redirect).toBe("/os/inbox?cat=sales&tag=lead");
+    const rows = streamRows([lead], { params: p, draftContactIds: [], selected: null, now: NOW });
+    expect(rows[0].href).toBe(`/os/inbox?f=unread&cat=sales&tag=lead&c=${lead.conversationId}`);
   });
 });
