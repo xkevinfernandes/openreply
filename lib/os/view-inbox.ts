@@ -67,7 +67,8 @@ export function isAllowedReadPath(path: string): boolean {
 // --- Zernio limits (a client's key, free tier: 60 reads/min) -----------------
 // - One request at a time per key (a page never fires reads in parallel).
 // - X-Ratelimit-Remaining/Reset (epoch seconds) are read on every response; at
-//   <= 2 left we wait for the reset if it is close, else refuse with a
+//   <= 5 left (the key's 60/min is shared with the DataOS pull) we wait for
+//   the reset if it is close, else refuse with a
 //   "try again in Ns" message instead of spending the last calls.
 // - 429: the key is blocked until Reset / Retry-After; reads are refused (no
 //   retry loop) until then.
@@ -77,7 +78,7 @@ export function isAllowedReadPath(path: string): boolean {
 // - Responses are cached per key + path for 60s, so paging back and forth or
 //   reloading does not spend reads.
 
-export const VIEW_LIMITS = { attempts: 3, backoffMs: 500, lowWater: 2, maxWaitMs: 5_000, cacheTtlMs: 60_000, cacheMax: 200 };
+export const VIEW_LIMITS = { attempts: 3, backoffMs: 500, lowWater: 5, maxWaitMs: 5_000, cacheTtlMs: 60_000, cacheMax: 200 };
 
 type KeyState = { queue: Promise<unknown>; stopped: boolean; blockedUntil: number; remaining: number | null; resetAt: number };
 const keyState = new Map<string, KeyState>();

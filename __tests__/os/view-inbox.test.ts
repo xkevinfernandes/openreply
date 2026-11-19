@@ -204,6 +204,20 @@ describe("Zernio limits", () => {
     expect(f.mock.calls.length).toBe(calls);
   });
 
+  it("keeps 5 calls of headroom (key shared with the DataOS pull): pauses at 5, not at 6", async () => {
+    const t = 2_000_000;
+    const sleeps: number[] = [];
+    __resetViewLimits({ sleep: async (ms) => void sleeps.push(ms), now: () => t });
+    const f = vi.fn(async () => res(200, { "x-ratelimit-remaining": "6", "x-ratelimit-reset": String((t + 2_000) / 1000) }));
+    await viewGet("h", "/inbox/conversations?accountId=a&p=1", f);
+    await viewGet("h", "/inbox/conversations?accountId=a&p=2", f);
+    expect(sleeps).toEqual([]);
+    f.mockImplementation(async () => res(200, { "x-ratelimit-remaining": "5", "x-ratelimit-reset": String((t + 2_000) / 1000) }));
+    await viewGet("h", "/inbox/conversations?accountId=a&p=3", f);
+    await viewGet("h", "/inbox/conversations?accountId=a&p=4", f);
+    expect(sleeps).toEqual([2_000]);
+  });
+
   it("retries a connection reset with backoff, at most 3 attempts", async () => {
     const f = vi.fn(async () => {
       throw new Error("read ECONNRESET");
