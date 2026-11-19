@@ -36,7 +36,7 @@ import RandomizerPanel from "@/components/os/workflows/randomizer-panel";
 import SetterPanel from "@/components/os/workflows/setter-panel";
 import { nodeStatText } from "@/components/os/workflows/view";
 import { InfoTip } from "@/components/os/ui";
-import type { Bubble, GraphNode, StepData, WorkflowGraph } from "@/lib/os/workflows/graph";
+import { triggerList, withTriggerList, type Bubble, type GraphNode, type StepData, type TriggerSpec, type WorkflowGraph } from "@/lib/os/workflows/graph";
 
 export interface InspectorProps {
   workflowId: string;
@@ -173,65 +173,109 @@ function Form(props: InspectorProps) {
 type FormProps<T> = InspectorProps & { data: T };
 
 // ---------------------------------------------------------------- trigger
+const splitIds = (v: string) => v.split(",").map((s) => s.trim()).filter(Boolean);
+
+/** A comma-separated list typed freely, tidied on blur. Follows its value when it changes from outside (a trigger removed above it). */
+function ListInput({ value, parse, onChange, placeholder, label }: { value: string[]; parse: (v: string) => string[]; onChange: (v: string[]) => void; placeholder: string; label: string }) {
+  const joined = value.join(", ");
+  const [text, setText] = useState(joined);
+  const [seen, setSeen] = useState(joined);
+  if (joined !== seen) {
+    setSeen(joined);
+    if (parse(text).join(", ") !== joined) setText(joined);
+  }
+  return (
+    <input
+      className="os-input"
+      value={text}
+      placeholder={placeholder}
+      aria-label={label}
+      onChange={(e) => {
+        setText(e.target.value);
+        onChange(parse(e.target.value));
+      }}
+      onBlur={() => setText(parse(text).join(", "))}
+    />
+  );
+}
+
 function TriggerForm({ data, onChange }: FormProps<StepData<"trigger">>) {
-  const [kw, setKw] = useState(data.keywords.join(", "));
   const set = (patch: Partial<StepData<"trigger">>) => onChange({ ...data, ...patch });
   const replies = data.publicReplies ?? [];
+  // Several triggers run the same steps (PLAN on any post AND PLAN by DM).
+  const list = triggerList(data);
+  const setList = (next: TriggerSpec[]) => onChange(withTriggerList(data, next));
+  const setAt = (i: number, patch: Partial<TriggerSpec>) => setList(list.map((t, j) => (j === i ? { ...t, ...patch } : t)));
+  const freeId = () => {
+    const taken = new Set(list.map((t) => t.id));
+    for (let n = list.length + 1; ; n++) if (!taken.has(`t${n}`)) return `t${n}`;
+  };
+  const addTrigger = () =>
+    setList([...list, { id: freeId(), kind: list.some((t) => t.kind === "dm") ? "comment" : "dm", keywords: [...list[0].keywords], postIds: "any" }]);
+  const many = list.length > 1;
   return (
     <>
-      <Seg
-        label="Trigger"
-        value={data.kind}
-        options={[
-          { value: "comment", label: "Comment" },
-          { value: "story_reply", label: "Story reply" },
-          { value: "dm", label: "DM" },
-        ]}
-        onChange={(kind) => set({ kind })}
-      />
-      <Group label="Keywords">
-        <input className="os-input" value={kw} placeholder="Pick a keyword" aria-label="Keywords" onChange={(e) => {
-            setKw(e.target.value);
-            set({ keywords: parseKeywords(e.target.value) });
-          }} onBlur={() => setKw(parseKeywords(kw).join(", "))} />
-      </Group>
-      {data.kind === "comment" ? (
-        <>
-          <Group label="Posts">
-            <Seg
-              label="Posts"
-              value={data.postIds === "any" ? "any" : "some"}
-              options={[
-                { value: "any", label: "Any post" },
-                { value: "some", label: "These posts" },
-              ]}
-              onChange={(v) => set({ postIds: v === "any" ? "any" : [] })}
-            />
-            {data.postIds !== "any" ? (
-              <input
-                className="os-input"
-                placeholder="Post IDs, comma separated"
-                aria-label="Post IDs"
-                defaultValue={data.postIds.join(", ")}
-                onChange={(e) => set({ postIds: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+      {list.map((t, i) => (
+        <div key={i === 0 ? "first" : (t.id ?? `i${i}`)} className="wf-trigger-block">
+          {many ? (
+            <span className="wf-lab">
+              Trigger {i + 1}
+              <span className="wf-grow" />
+              <button type="button" className="wf-iconbtn" aria-label={`Remove trigger ${i + 1}`} title="Remove trigger" onClick={() => setList(list.filter((_, j) => j !== i))}>
+                <WfIcon name="close" size={12} />
+              </button>
+            </span>
+          ) : null}
+          <Seg
+            label={many ? `Trigger ${i + 1}` : "Trigger"}
+            value={t.kind}
+            options={[
+              { value: "comment", label: "Comment" },
+              { value: "story_reply", label: "Story reply" },
+              { value: "dm", label: "DM" },
+            ]}
+            onChange={(kind) => setAt(i, { kind })}
+          />
+          <Group label="Keywords">
+            <ListInput value={t.keywords} parse={parseKeywords} placeholder="Pick a keyword" label={many ? `Keywords, trigger ${i + 1}` : "Keywords"} onChange={(keywords) => setAt(i, { keywords })} />
+          </Group>
+          {t.kind === "comment" ? (
+            <Group label="Posts">
+              <Seg
+                label="Posts"
+                value={(t.postIds ?? "any") === "any" ? "any" : "some"}
+                options={[
+                  { value: "any", label: "Any post" },
+                  { value: "some", label: "These posts" },
+                ]}
+                onChange={(v) => setAt(i, { postIds: v === "any" ? "any" : [] })}
               />
-            ) : null}
-          </Group>
-          <Group label="Public replies" tip="One is picked at random for each comment.">
-            {replies.map((r, i) => (
-              <span key={i} className="wf-field-row">
-                <input className="os-input" value={r} aria-label={`Public reply ${i + 1}`} onChange={(e) => set({ publicReplies: replies.map((x, j) => (j === i ? e.target.value : x)) })} />
-                <button type="button" className="wf-iconbtn" aria-label="Remove reply" onClick={() => set({ publicReplies: replies.filter((_, j) => j !== i) })}>
-                  <WfIcon name="close" size={12} />
-                </button>
-              </span>
-            ))}
-            <button type="button" className="wf-add" onClick={() => set({ publicReplies: [...replies, ""] })}>
-              <WfIcon name="plus" size={11} />
-              Reply
-            </button>
-          </Group>
-        </>
+              {t.postIds && t.postIds !== "any" ? (
+                <ListInput value={t.postIds} parse={splitIds} placeholder="Post IDs, comma separated" label="Post IDs" onChange={(postIds) => setAt(i, { postIds })} />
+              ) : null}
+            </Group>
+          ) : null}
+        </div>
+      ))}
+      <button type="button" className="wf-add" onClick={addTrigger}>
+        <WfIcon name="plus" size={11} />
+        Add trigger
+      </button>
+      {list.some((t) => t.kind === "comment") ? (
+        <Group label="Public replies" tip="One is picked at random for each comment. Never sent when a DM or story reply starts it.">
+          {replies.map((r, i) => (
+            <span key={i} className="wf-field-row">
+              <input className="os-input" value={r} aria-label={`Public reply ${i + 1}`} onChange={(e) => set({ publicReplies: replies.map((x, j) => (j === i ? e.target.value : x)) })} />
+              <button type="button" className="wf-iconbtn" aria-label="Remove reply" onClick={() => set({ publicReplies: replies.filter((_, j) => j !== i) })}>
+                <WfIcon name="close" size={12} />
+              </button>
+            </span>
+          ))}
+          <button type="button" className="wf-add" onClick={() => set({ publicReplies: [...replies, ""] })}>
+            <WfIcon name="plus" size={11} />
+            Reply
+          </button>
+        </Group>
       ) : null}
       <Group label="Again later" tip="When someone who finished comes back with the keyword. Before that, the link is re-sent once.">
         <span className="wf-field-row">

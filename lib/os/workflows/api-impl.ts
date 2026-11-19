@@ -6,7 +6,7 @@ import type { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db/client";
 import type * as A from "@/lib/os/workflows/api";
 import { fromDbStatus, runFromRow, versionFromRow, wfFromRow } from "@/lib/os/workflows/db-store";
-import { validateGraph, WorkflowGraph, type GraphProblem } from "@/lib/os/workflows/graph";
+import { triggerList, validateGraph, WorkflowGraph, type GraphProblem } from "@/lib/os/workflows/graph";
 import { computeStats } from "@/lib/os/workflows/stats";
 import { templateGraph, TEMPLATES } from "@/lib/os/workflows/templates";
 import { clashMessage, graphKeywords, keywordClashes, triggerNode, zernioKeywordsOf, type CampaignKeywords, type OtherWorkflow } from "@/lib/os/workflows/triggers";
@@ -23,7 +23,7 @@ function parseGraph(v: unknown): WorkflowGraph {
 
 function triggerSummary(g: WorkflowGraph): A.WorkflowTriggerSummary | null {
   const t = triggerNode(g);
-  return t ? { kind: t.data.kind, keywords: t.data.keywords, postIds: t.data.postIds } : null;
+  return t ? { kind: t.data.kind, keywords: t.data.keywords, postIds: t.data.postIds, triggers: triggerList(t.data).map(({ kind, keywords, postIds }) => ({ kind, keywords, postIds: postIds ?? "any" })) } : null;
 }
 
 // ---------------------------------------------------------------- pure helpers
@@ -125,11 +125,11 @@ export async function getWorkflow(workspaceId: string, id: string): Promise<A.Wo
 // ---------------------------------------------------------------- writes
 export async function createWorkflow(
   workspaceId: string,
-  input: { templateId: A.TemplateId; name?: string; instagramAccountId?: string | null; keywords?: string[]; triggerKind?: A.WorkflowTriggerSummary["kind"] }
+  input: { templateId: A.TemplateId; name?: string; instagramAccountId?: string | null; keywords?: string[]; triggerKind?: A.WorkflowTriggerSummary["kind"]; triggers?: A.TriggerInput[] }
 ): Promise<A.ApiResult<{ id: string }> | { ok: false; error: string; clashes: A.KeywordClash[] }> {
   const t = TEMPLATES.find((x) => x.id === input.templateId);
   if (!t) return err("Unknown template.");
-  const graph = templateGraph(t.id, { keywords: input.keywords, kind: input.triggerKind });
+  const graph = templateGraph(t.id, { keywords: input.keywords, kind: input.triggerKind, triggers: input.triggers });
   // Same check as Publish: one keyword, one place.
   const clashes = graphKeywords(graph).length ? await clashesFor(workspaceId, "", graph) : [];
   if (clashes.length) return { ok: false, error: clashMessage(clashes[0]), clashes };

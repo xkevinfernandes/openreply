@@ -8,11 +8,18 @@ import type { GraphProblem, WorkflowGraph } from "@/lib/os/workflows/graph";
 
 const EMPTY: FunnelStrip = { triggered: 0, replied: 0, leadMagnet: 0, booked: 0, showed: 0 };
 
+/** The list row's trigger: every trigger's keywords and channels (a workflow can have several). */
+export function rowTrigger(t: Api.WorkflowTriggerSummary | null): WorkflowRow["trigger"] {
+  const list = t?.triggers?.length ? t.triggers : t ? [t] : [];
+  const uniq = <T,>(xs: T[]) => [...new Set(xs)];
+  return { kind: t?.kind ?? "comment", keywords: uniq(list.flatMap((x) => x.keywords)), kinds: uniq(list.map((x) => x.kind)) };
+}
+
 export function rowFromSummary(s: Api.WorkflowSummary, stats: Api.WorkflowStats | null, ab: boolean): WorkflowRow {
   return {
     id: s.id,
     name: s.name,
-    trigger: { kind: s.trigger?.kind ?? "comment", keywords: s.trigger?.keywords ?? [] },
+    trigger: rowTrigger(s.trigger),
     mode: s.mode,
     on: s.active,
     ab,

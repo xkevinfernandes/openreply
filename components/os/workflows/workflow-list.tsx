@@ -6,7 +6,7 @@
 
 import { Button, MenuButton } from "@claudepreneur/brand/react";
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import { createWorkflowAction } from "@/app/(os)/os/automations/workflows/actions";
 import { DeleteWorkflowConfirm } from "@/components/os/workflows/delete-workflow";
 import { WfIcon } from "@/components/os/workflows/icons";
@@ -286,8 +286,13 @@ function WorkflowListRow({ r }: { r: WorkflowRow }) {
         </span>
         <WorkflowStatusCell row={r} />
         <span className="wf-trigger-chip">
-          <WfIcon name={r.trigger.kind} size={13} />
-          {TRIGGER_KIND_LABEL[r.trigger.kind]}
+          {(r.trigger.kinds?.length ? r.trigger.kinds : [r.trigger.kind]).map((k, i) => (
+            <Fragment key={k}>
+              {i ? " + " : null}
+              <WfIcon name={k} size={13} />
+              {TRIGGER_KIND_LABEL[k]}
+            </Fragment>
+          ))}
         </span>
         <span className="wf-mode-pill" data-mode={r.mode} title={MODE_TIP[r.mode]}>
           <span className="wf-mode-dot" />

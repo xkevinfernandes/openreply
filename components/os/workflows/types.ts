@@ -19,7 +19,8 @@ export interface FunnelStrip {
 export interface WorkflowRow {
   id: string;
   name: string;
-  trigger: { kind: TriggerKind; keywords: string[] };
+  /** kind = the first trigger's; kinds = every trigger's channel, once each (absent = just kind). Keywords: all triggers'. */
+  trigger: { kind: TriggerKind; keywords: string[]; kinds?: TriggerKind[] };
   mode: WorkflowMode;
   on: boolean;
   /** A Randomizer is running. */
