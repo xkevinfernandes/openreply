@@ -1,0 +1,22 @@
+/* View-only inboxes (/os/view). Brand tokens only. */
+.os-view { display: flex; flex-direction: column; gap: var(--card-gap, 16px); padding: 0 16px 24px; }
+.os-view-badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border, currentColor); opacity: .8; }
+.os-view-empty { opacity: .7; }
+.os-view-inboxes { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.os-view-inboxes a { display: flex; gap: 8px; padding: 12px 14px; border: 1px solid var(--border, #ddd); border-radius: 12px; text-decoration: none; color: inherit; }
+.os-view-inboxes span { opacity: .7; }
+.os-view-panes { display: grid; grid-template-columns: minmax(220px, 320px) 1fr; gap: 16px; min-height: 0; }
+@media (max-width: 760px) { .os-view-panes { grid-template-columns: 1fr; } }
+.os-view-threads { list-style: none; padding: 0; margin: 0; max-height: 75vh; overflow-y: auto; border: 1px solid var(--border, #ddd); border-radius: 12px; }
+.os-view-threads li a { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 10px 12px; text-decoration: none; color: inherit; border-bottom: 1px solid var(--border, #eee); }
+.os-view-threads li[data-open] a { background: var(--surface-2, rgba(127,127,127,.12)); }
+.os-view-threads time { font-size: 12px; opacity: .6; }
+.os-view-threads span { grid-column: 1 / -1; font-size: 13px; opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.os-view-more { display: block; padding: 10px 12px; font-size: 13px; }
+.os-view-thread { border: 1px solid var(--border, #ddd); border-radius: 12px; padding: 12px 16px; max-height: 75vh; overflow-y: auto; }
+.os-view-thread h2 { font-size: 16px; margin: 0 0 8px; }
+.os-view-thread ol { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.os-view-thread li { max-width: 75%; display: flex; flex-direction: column; gap: 2px; }
+.os-view-thread li[data-dir="outgoing"] { align-self: flex-end; text-align: right; }
+.os-view-thread li p { margin: 0; padding: 8px 12px; border-radius: 16px; background: var(--surface-2, rgba(127,127,127,.12)); white-space: pre-wrap; overflow-wrap: anywhere; }
+.os-view-thread li time { font-size: 11px; opacity: .55; }
