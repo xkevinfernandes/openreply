@@ -10,7 +10,8 @@
 //   account ever reaches the worker.
 // - This module is the only code that decrypts the key, and its one HTTP
 //   function sends GET and nothing else (no method parameter), to three
-//   read paths only. Tests pin all of this (__tests__/os/view-inbox.test.ts).
+//   read paths only, one at a time per key, within Zernio's rate limits.
+//   Tests pin all of this (__tests__/os/view-inbox.test.ts).
 // - Opening a thread here marks nothing read and writes nothing to our
 //   database: no Contact, no OsEvent, no draft.
 
@@ -44,11 +45,12 @@ export interface ViewPage<T> {
   cursor: string | null;
 }
 
-type FetchLike = (url: string, init: { method: "GET"; headers: Record<string, string>; cache: "no-store"; signal: AbortSignal }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
+type FetchRes = { ok: boolean; status: number; headers?: { get(name: string): string | null }; json(): Promise<unknown> };
+type FetchLike = (url: string, init: { method: "GET"; headers: Record<string, string>; cache: "no-store"; signal: AbortSignal }) => Promise<FetchRes>;
 
 export class ViewInboxError extends Error {
-  constructor(public status: number) {
-    super(`Zernio read failed (HTTP ${status})`);
+  constructor(public status: number, message?: string) {
+    super(message ?? `Zernio read failed (HTTP ${status})`);
     this.name = "ViewInboxError";
   }
 }
@@ -62,20 +64,116 @@ export function isAllowedReadPath(path: string): boolean {
   return READ_PATHS.some((r) => r.test(path));
 }
 
-/** GET only. There is deliberately no method argument. */
+// --- Zernio limits (a client's key, free tier: 60 reads/min) -----------------
+// - One request at a time per key (a page never fires reads in parallel).
+// - X-Ratelimit-Remaining/Reset (epoch seconds) are read on every response; at
+//   <= 2 left we wait for the reset if it is close, else refuse with a
+//   "try again in Ns" message instead of spending the last calls.
+// - 429: the key is blocked until Reset / Retry-After; reads are refused (no
+//   retry loop) until then.
+// - 402 (payment / free tier): hard stop for that key until the process
+//   restarts, never retried.
+// - Connection reset / timeout / 502-504: at most 3 attempts, with backoff.
+// - Responses are cached per key + path for 60s, so paging back and forth or
+//   reloading does not spend reads.
+
+export const VIEW_LIMITS = { attempts: 3, backoffMs: 500, lowWater: 2, maxWaitMs: 5_000, cacheTtlMs: 60_000, cacheMax: 200 };
+
+type KeyState = { queue: Promise<unknown>; stopped: boolean; blockedUntil: number; remaining: number | null; resetAt: number };
+const keyState = new Map<string, KeyState>();
+const cache = new Map<string, { at: number; value: unknown }>();
+let sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+let now = () => Date.now();
+
+/** Tests only: reset state and swap the clock / sleep. */
+export function __resetViewLimits(deps: { sleep?: (ms: number) => Promise<void>; now?: () => number } = {}) {
+  keyState.clear();
+  cache.clear();
+  sleep = deps.sleep ?? ((ms) => new Promise<void>((r) => setTimeout(r, ms)));
+  now = deps.now ?? (() => Date.now());
+}
+
+function stateOf(apiKey: string): KeyState {
+  let st = keyState.get(apiKey);
+  if (!st) keyState.set(apiKey, (st = { queue: Promise.resolve(), stopped: false, blockedUntil: 0, remaining: null, resetAt: 0 }));
+  return st;
+}
+
+const rateLimited = (ms: number) => new ViewInboxError(429, `Zernio rate limit reached; try again in ${Math.max(1, Math.ceil(ms / 1000))}s`);
+
+const stopped402 = () => new ViewInboxError(402, "Zernio refused this key (HTTP 402, payment required); stopped, not retried until restart");
+
+function noteHeaders(st: KeyState, res: FetchRes) {
+  const h = res.headers;
+  if (!h) return;
+  const rem = Number(h.get("x-ratelimit-remaining"));
+  const reset = Number(h.get("x-ratelimit-reset"));
+  if (h.get("x-ratelimit-remaining") !== null && Number.isFinite(rem)) st.remaining = rem;
+  if (h.get("x-ratelimit-reset") !== null && Number.isFinite(reset)) st.resetAt = reset * 1000;
+}
+
+function blockFor(st: KeyState, res: FetchRes): number {
+  const retryAfter = Number(res.headers?.get("retry-after"));
+  const until = Number.isFinite(retryAfter) && retryAfter > 0 ? now() + retryAfter * 1000 : st.resetAt > now() ? st.resetAt : now() + 60_000;
+  st.blockedUntil = until;
+  return until - now();
+}
+
+async function oneRead<T>(apiKey: string, path: string, fetchFn: FetchLike): Promise<T> {
+  const st = stateOf(apiKey);
+  if (st.stopped) throw stopped402();
+  if (st.blockedUntil > now()) throw rateLimited(st.blockedUntil - now());
+  if (st.remaining !== null && st.remaining <= VIEW_LIMITS.lowWater && st.resetAt > now()) {
+    const wait = st.resetAt - now();
+    if (wait > VIEW_LIMITS.maxWaitMs) throw rateLimited(wait);
+    await sleep(wait);
+    st.remaining = null;
+  }
+  for (let attempt = 1; ; attempt++) {
+    let res: FetchRes;
+    try {
+      res = await fetchFn(`${ZERNIO}${path}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        cache: "no-store",
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch {
+      // Connection reset, DNS, timeout: retry with backoff, at most 3 attempts.
+      if (attempt >= VIEW_LIMITS.attempts) throw new ViewInboxError(502, "Couldn't reach Zernio (tried 3 times)");
+      await sleep(VIEW_LIMITS.backoffMs * 2 ** (attempt - 1));
+      continue;
+    }
+    noteHeaders(st, res);
+    // Never surface the body: Zernio error bodies can carry credentials.
+    if (res.status === 402) {
+      st.stopped = true;
+      throw stopped402();
+    }
+    if (res.status === 429) throw rateLimited(blockFor(st, res));
+    if ([502, 503, 504].includes(res.status) && attempt < VIEW_LIMITS.attempts) {
+      await sleep(VIEW_LIMITS.backoffMs * 2 ** (attempt - 1));
+      continue;
+    }
+    if (!res.ok) throw new ViewInboxError(res.status);
+    return (await res.json()) as T;
+  }
+}
+
+/** GET only. There is deliberately no method argument. Serial per key, cached
+ *  60s, rate-limit aware (see above). */
 export async function viewGet<T>(apiKey: string, path: string, fetchFn: FetchLike = fetch as unknown as FetchLike): Promise<T> {
   if (!isAllowedReadPath(path)) throw new Error("View-only inbox: path not allowed");
-  const res = await fetchFn(`${ZERNIO}${path}`, {
-    method: "GET",
-    headers: { Authorization: `Bearer ${apiKey}` },
-    cache: "no-store",
-    signal: AbortSignal.timeout(30_000),
-  }).catch(() => {
-    throw new ViewInboxError(502);
-  });
-  // Never surface the body: Zernio error bodies can carry credentials.
-  if (!res.ok) throw new ViewInboxError(res.status);
-  return (await res.json()) as T;
+  const ck = `${apiKey}\u0000${path}`;
+  const hit = cache.get(ck);
+  if (hit && now() - hit.at < VIEW_LIMITS.cacheTtlMs) return hit.value as T;
+  const st = stateOf(apiKey);
+  const run = st.queue.then(() => oneRead<T>(apiKey, path, fetchFn));
+  st.queue = run.catch(() => undefined);
+  const value = await run;
+  if (cache.size >= VIEW_LIMITS.cacheMax) cache.delete(cache.keys().next().value as string);
+  cache.set(ck, { at: now(), value });
+  return value;
 }
 
 type ViewDb = {
@@ -108,6 +206,11 @@ function keyOf(row: ViewInboxRow, decrypt: (s: string) => string): string {
   return decrypt(row.apiKey);
 }
 
+/** One page per request, one request per click: the list is never walked to
+ *  the end and only the opened thread's messages are read. */
+export const VIEW_PAGE_SIZE = 50;
+const cleanCursor = (c: string | null) => (c && c.length <= 512 ? c : null);
+
 const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
 
 /** One page of threads, newest first. */
@@ -116,7 +219,7 @@ export async function viewThreads(
   cursor: string | null = null,
   deps: { fetchFn?: FetchLike; decrypt?: (s: string) => string } = {},
 ): Promise<ViewPage<ViewThread>> {
-  const params = new URLSearchParams({ accountId: row.zernioAccountId, limit: "50", ...(cursor ? { cursor } : {}) });
+  const params = new URLSearchParams({ accountId: row.zernioAccountId, limit: String(VIEW_PAGE_SIZE), ...(cleanCursor(cursor) ? { cursor: cleanCursor(cursor)! } : {}) });
   const page = await viewGet<{ data?: Record<string, unknown>[]; pagination?: { hasMore?: boolean; nextCursor?: string } }>(
     keyOf(row, deps.decrypt ?? decryptToken),
     `/inbox/conversations?${params}`,
@@ -144,7 +247,7 @@ export async function viewMessages(
   cursor: string | null = null,
   deps: { fetchFn?: FetchLike; decrypt?: (s: string) => string } = {},
 ): Promise<ViewPage<RichMessage>> {
-  const params = new URLSearchParams({ accountId: row.zernioAccountId, limit: "50", sortOrder: "desc", ...(cursor ? { cursor } : {}) });
+  const params = new URLSearchParams({ accountId: row.zernioAccountId, limit: String(VIEW_PAGE_SIZE), sortOrder: "desc", ...(cleanCursor(cursor) ? { cursor: cleanCursor(cursor)! } : {}) });
   const page = await viewGet<{ messages?: unknown[]; data?: unknown[]; pagination?: { hasMore?: boolean; nextCursor?: string } }>(
     keyOf(row, deps.decrypt ?? decryptToken),
     `/inbox/conversations/${encodeURIComponent(conversationId)}/messages?${params}`,

@@ -25,7 +25,8 @@ function href(id: string, q: { c?: string; tc?: string; mc?: string }) {
 }
 
 export default async function ViewInboxPage({ params, searchParams }: PageProps) {
-  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const { id } = await params;
+  const sp = await searchParams;
   const workspaceId = await getCurrentWorkspaceId();
   if (!workspaceId) redirect(`/login?callbackUrl=/os/view/${id}`);
   const row = await loadViewInbox(workspaceId, id);
@@ -35,10 +36,10 @@ export default async function ViewInboxPage({ params, searchParams }: PageProps)
   let messages: ViewPage<RichMessage> | null = null;
   let error: string | null = null;
   try {
-    [threads, messages] = await Promise.all([
-      viewThreads(row, sp.tc ?? null),
-      sp.c ? viewMessages(row, sp.c, sp.mc ?? null) : Promise.resolve(null),
-    ]);
+    // One read at a time (Zernio rate limits): the thread list page, then the
+    // open thread's page. Nothing else is fetched.
+    threads = await viewThreads(row, sp.tc ?? null);
+    messages = sp.c ? await viewMessages(row, sp.c, sp.mc ?? null) : null;
   } catch (e) {
     error = e instanceof Error ? e.message : "Couldn't read from Zernio";
   }
