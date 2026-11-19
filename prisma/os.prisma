@@ -1013,3 +1013,28 @@ model BroadcastMessage {
   @@unique([runId, contactId])
   @@index([workspaceId, status])
 }
+
+/// A view-only inbox: another person's Instagram DMs (a client's), read from
+/// Zernio with their own key, shown at /os/view. Nothing can write with it:
+/// the key lives only here, never in ZernioConnection, so no send, draft,
+/// workflow, setter, triage, webhook or sweep can load it, and the only code
+/// that opens it (lib/os/view-inbox.ts) issues GETs only. Owned by one
+/// workspace (its members see it); the key is encrypted with ENCRYPTION_KEY.
+model OsViewInbox {
+  id              String   @id @default(cuid())
+  /// The workspace whose members may view it (Kevin's).
+  workspaceId     String
+  /// What the sidebar and header show ("Luke (view only)").
+  label           String
+  /// Encrypted Zernio API key (lib/meta/oauth.ts encryptToken).
+  apiKey          String
+  /// The Zernio social account id of the Instagram account read.
+  zernioAccountId String
+  /// Its Instagram username, for display.
+  username        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([workspaceId, zernioAccountId])
+  @@index([workspaceId])
+}
