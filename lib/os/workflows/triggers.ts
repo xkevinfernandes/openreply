@@ -6,7 +6,7 @@
 // "any post" at match time; and a keyword never also lives in a live
 // OpenReply campaign or a Zernio automation. Pure.
 
-import { matchKeywords } from "@/lib/utils/keyword-matcher";
+import { matchKeywords, matchWholeMessage } from "@/lib/utils/keyword-matcher";
 import type { KeywordClash } from "@/lib/os/workflows/api";
 import { TriggerData, triggerList, withTriggerList, type GraphNode, type StepData, type TriggerSpec, type WorkflowGraph } from "@/lib/os/workflows/graph";
 import type { VersionDef, WorkflowDef } from "@/lib/os/workflows/types";
@@ -87,7 +87,9 @@ export function matchTrigger(live: { wf: WorkflowDef; version: VersionDef }[], e
           specific = true;
         }
       }
-      const m = matchKeywords(ev.text, t.keywords, true);
+      // A DM trigger needs the whole message to be the keyword ("plan 🙏", not
+      // "my plan is…"); comments and story replies match a whole word anywhere.
+      const m = t.kind === "dm" ? matchWholeMessage(ev.text, t.keywords) : matchKeywords(ev.text, t.keywords, true);
       if (!m.matched) continue;
       hits.push({ wf, version, keyword: normKeyword(m.matchedKeyword ?? t.keywords[0]), specific });
     }

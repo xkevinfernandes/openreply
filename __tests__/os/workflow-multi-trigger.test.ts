@@ -75,12 +75,31 @@ describe("matching", () => {
     { wf: { id: "vault" } as never, version: { graph: legacy("VAULT") } as never },
   ];
 
-  it("a DM and a comment both find the multi-trigger workflow; whole words, any case", () => {
+  it("a DM and a comment both find the multi-trigger workflow; any case", () => {
     expect(matchTrigger(live(), { surface: "dm", text: "plan" })?.wf.id).toBe("plan");
-    expect(matchTrigger(live(), { surface: "dm", text: "Can I get the PLAN?" })?.wf.id).toBe("plan");
     expect(matchTrigger(live(), { surface: "comment", text: "PLAN", postIds: ["p1"] })?.wf.id).toBe("plan");
     expect(matchTrigger(live(), { surface: "dm", text: "planning ahead" })).toBeNull();
     expect(matchTrigger(live(), { surface: "story_reply", text: "plan" })).toBeNull();
+  });
+
+  it("a DM trigger needs the whole message to be the keyword (trimmed of spaces, punctuation and emoji)", () => {
+    for (const t of ["PLAN", "plan", "Plan!", "plan 🙏", "  plan.  ", "🔥PLAN🔥", "plan!!!", "\"plan\""])
+      expect(matchTrigger(live(), { surface: "dm", text: t })?.wf.id, t).toBe("plan");
+    for (const t of ["my plan is to grow", "Can I get the PLAN?", "plan please", "the plan", "planning", "plan b"])
+      expect(matchTrigger(live(), { surface: "dm", text: t }), t).toBeNull();
+  });
+
+  it("comment triggers keep whole-word matching anywhere in the comment", () => {
+    expect(matchTrigger(live(), { surface: "comment", text: "Can I get the PLAN?", postIds: ["p1"] })?.wf.id).toBe("plan");
+    expect(matchTrigger(live(), { surface: "comment", text: "my plan is", postIds: ["p1"] })?.wf.id).toBe("plan");
+    expect(matchTrigger(live(), { surface: "comment", text: "planning", postIds: ["p1"] })).toBeNull();
+  });
+
+  it("whole-message DM matching keeps the numeric O/0 fold (7DAYS-style words)", () => {
+    const sevenDays = [{ wf: { id: "7d" } as never, version: { graph: legacy("7DAYS", "dm") } as never }];
+    expect(matchTrigger(sevenDays, { surface: "dm", text: "7days." })?.wf.id).toBe("7d");
+    expect(matchTrigger(sevenDays, { surface: "dm", text: "7Days please!" })).toBeNull();
+    expect(matchTrigger(sevenDays, { surface: "dm", text: "7 days" })).toBeNull();
   });
 
   it("an old comment-only workflow still ignores DMs", () => {
@@ -138,6 +157,16 @@ describe("the engine, one workflow with a comment AND a DM trigger", () => {
     expect(h.sentTo("amy").map((x) => text(x.msg))).toContain("https://kevin.link/quiz");
   });
 
+  it("a DM that only mentions plan mid-sentence starts nothing and sends nothing", async () => {
+    const h = harness();
+    h.publish(plan());
+    const out = await h.dm("fay", "my plan is to grow this year");
+    expect(out.outcome).toBeUndefined();
+    expect(h.sentTo("fay")).toHaveLength(0);
+    expect(await h.run("fay")).toBeNull();
+    expect((await h.dm("fay", "Plan! 🙏")).outcome?.status).toBe("started");
+  });
+
   it("a comment PLAN still runs the comment way: public reply + private reply", async () => {
     const h = harness();
     h.publish(plan());
@@ -152,7 +181,7 @@ describe("the engine, one workflow with a comment AND a DM trigger", () => {
     h.publish(plan());
     await h.dm("cat", "plan");
     const runId = (await h.run("cat"))!.id;
-    await h.dm("cat", "PLAN please");
+    await h.dm("cat", "PLAN!");
     expect((await h.run("cat"))!.id).toBe(runId);
     expect(h.sentTo("cat").filter((x) => x.via === "public")).toHaveLength(0);
     expect(h.sentTo("cat").filter((x) => /here's what you asked for/.test(text(x.msg)))).toHaveLength(1);

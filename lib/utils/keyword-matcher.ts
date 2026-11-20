@@ -226,3 +226,26 @@ export function matchKeywords(
 
   return { matched: false, matchedKeyword: null };
 }
+
+/**
+ * Whole-message match: the text, once emoji, punctuation and extra spaces are
+ * gone and case is ignored, IS the keyword. "PLAN", "plan 🙏" and "Plan!"
+ * match "plan"; "my plan is…" doesn't. Same cleaning (scripts, diacritics,
+ * O/0 for numeric keywords) as matchKeywords. Used for DM keyword triggers,
+ * where people use everyday words mid-sentence.
+ */
+export function matchWholeMessage(text: string, keywords: string[]): KeywordMatchResult {
+  if (!text || keywords.length === 0) return { matched: false, matchedKeyword: null };
+  const clean = (v: string) => foldDiacritics(stripSpecialCharacters(normalizeArabicScript(v))).toLowerCase().trim();
+  const cleanedText = clean(text);
+  if (!cleanedText) return { matched: false, matchedKeyword: null };
+  for (const keyword of keywords) {
+    const cleanedKeyword = clean(keyword);
+    if (!cleanedKeyword) continue;
+    const numericLike = isNumericLikeKeyword(cleanedKeyword);
+    const a = numericLike ? foldNumericHomoglyphs(cleanedText) : cleanedText;
+    const b = numericLike ? foldNumericHomoglyphs(cleanedKeyword) : cleanedKeyword;
+    if (a === b) return { matched: true, matchedKeyword: keyword };
+  }
+  return { matched: false, matchedKeyword: null };
+}
