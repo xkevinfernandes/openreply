@@ -1,12 +1,14 @@
 // Which workflow an event starts, and the keyword uniqueness check at
-// Publish (E12): one keyword lives in one place. Two workflows can't share a
+// Publish (E12): one keyword lives in one place. A workflow can have several
+// triggers (graph.ts triggerList: e.g. PLAN on any post AND PLAN by DM); every
+// one of them is matched and checked. Two workflows can't share a
 // keyword on the same post (or both on "any post"); a specific post beats
 // "any post" at match time; and a keyword never also lives in a live
 // OpenReply campaign or a Zernio automation. Pure.
 
-import { matchKeywords } from "@/lib/utils/keyword-matcher";
+import { matchKeywords, matchWholeMessage } from "@/lib/utils/keyword-matcher";
 import type { KeywordClash } from "@/lib/os/workflows/api";
-import { TriggerData, type GraphNode, type StepData, type WorkflowGraph } from "@/lib/os/workflows/graph";
+import { TriggerData, triggerList, withTriggerList, type GraphNode, type StepData, type TriggerSpec, type WorkflowGraph } from "@/lib/os/workflows/graph";
 import type { VersionDef, WorkflowDef } from "@/lib/os/workflows/types";
 
 export type Surface = "comment" | "story_reply" | "dm";
@@ -21,8 +23,39 @@ export function triggerNode(graph: WorkflowGraph): (GraphNode & { data: TriggerS
 
 export const normKeyword = (k: string) => k.trim().toLowerCase();
 
+/** Every trigger of a graph (empty without a trigger step). */
+export function graphTriggers(graph: WorkflowGraph): TriggerSpec[] {
+  const t = triggerNode(graph);
+  return t ? triggerList(t.data) : [];
+}
+
+/**
+ * The graph with this trigger added to its trigger step (a script adding
+ * "DM keyword PLAN" to a comment workflow's draft, then saveDraft). Same
+ * graph back when there's no trigger step or the trigger is already there.
+ */
+export function addTrigger(graph: WorkflowGraph, spec: Omit<TriggerSpec, "postIds"> & { postIds?: TriggerSpec["postIds"] }): WorkflowGraph {
+  const t = triggerNode(graph);
+  if (!t) return graph;
+  const list = triggerList(t.data);
+  const same = (a: TriggerSpec) =>
+    a.kind === spec.kind &&
+    JSON.stringify([...a.keywords].map(normKeyword).sort()) === JSON.stringify([...spec.keywords].map(normKeyword).sort()) &&
+    JSON.stringify(a.postIds ?? "any") === JSON.stringify(spec.postIds ?? "any");
+  if (list.some(same)) return graph;
+  const raw = graph.nodes.find((n) => n.id === t.id)!.data as StepData<"trigger">;
+  const data = withTriggerList(raw, [...list, { id: spec.id ?? `t${list.length + 1}`, kind: spec.kind, keywords: spec.keywords, postIds: spec.postIds ?? "any" }]);
+  return { ...graph, nodes: graph.nodes.map((n) => (n.id === t.id ? { ...n, data } : n)) };
+}
+
+/** Every keyword of every trigger, lower case, once each. */
 export function graphKeywords(graph: WorkflowGraph): string[] {
-  return [...new Set((triggerNode(graph)?.data.keywords ?? []).map(normKeyword).filter(Boolean))];
+  return [...new Set(graphTriggers(graph).flatMap((t) => t.keywords).map(normKeyword).filter(Boolean))];
+}
+
+/** A comment trigger of this graph aimed at one of these posts (not "any post"). */
+export function aimsAtPosts(graph: WorkflowGraph, postIds: string[]): boolean {
+  return graphTriggers(graph).some((t) => t.kind === "comment" && t.postIds !== "any" && t.postIds.some((p) => postIds.includes(p)));
 }
 
 export interface TriggerEvent {
@@ -44,19 +77,22 @@ export interface TriggerMatch {
 export function matchTrigger(live: { wf: WorkflowDef; version: VersionDef }[], ev: TriggerEvent): TriggerMatch | null {
   const hits: TriggerMatch[] = [];
   for (const { wf, version } of live) {
-    const t = triggerNode(version.graph);
-    if (!t || t.data.kind !== ev.surface) continue;
-    let specific = false;
-    if (ev.surface === "comment") {
-      const posts = t.data.postIds;
-      if (posts !== "any") {
-        if (!posts.some((p) => (ev.postIds ?? []).includes(p))) continue;
-        specific = true;
+    for (const t of graphTriggers(version.graph)) {
+      if (t.kind !== ev.surface) continue;
+      let specific = false;
+      if (ev.surface === "comment") {
+        const posts = t.postIds ?? "any";
+        if (posts !== "any") {
+          if (!posts.some((p) => (ev.postIds ?? []).includes(p))) continue;
+          specific = true;
+        }
       }
+      // A DM trigger needs the whole message to be the keyword ("plan 🙏", not
+      // "my plan is…"); comments and story replies match a whole word anywhere.
+      const m = t.kind === "dm" ? matchWholeMessage(ev.text, t.keywords) : matchKeywords(ev.text, t.keywords, true);
+      if (!m.matched) continue;
+      hits.push({ wf, version, keyword: normKeyword(m.matchedKeyword ?? t.keywords[0]), specific });
     }
-    const m = matchKeywords(ev.text, t.data.keywords, true);
-    if (!m.matched) continue;
-    hits.push({ wf, version, keyword: normKeyword(m.matchedKeyword ?? t.data.keywords[0]), specific });
   }
   // A post-specific trigger first, then the longest keyword: "founder 3"
   // belongs to FOUNDER 3, not to FOUNDER.
@@ -98,30 +134,42 @@ function postsCollide(a: string[] | "any", b: string[] | "any"): boolean {
   return a.some((p) => b.includes(p));
 }
 
-/** Every clash of this graph's keywords with other live places. Empty = fine. */
+/** Every clash of this graph's keywords with other live places. Empty = fine.
+ *  Each trigger is checked against each trigger of the others: same keyword +
+ *  same channel + overlapping posts = a clash. A comment and a DM never clash. */
 export function keywordClashes(graph: WorkflowGraph, others: OtherWorkflow[], campaigns: CampaignKeywords[], zernio: ZernioKeywords[]): KeywordClash[] {
-  const t = triggerNode(graph);
-  if (!t) return [];
-  const mine = t.data.keywords;
+  const mineAll = graphTriggers(graph);
+  if (!mineAll.length) return [];
   const out: KeywordClash[] = [];
-  for (const o of others) {
-    const ot = triggerNode(o.graph);
-    if (!ot || ot.data.kind !== t.data.kind) continue;
-    if (t.data.kind === "comment" && !postsCollide(t.data.postIds, ot.data.postIds)) continue;
-    for (const k of overlap(mine, ot.data.keywords)) out.push({ keyword: k, with: "workflow", id: o.id, name: o.name });
-  }
-  for (const c of campaigns) {
-    if (t.data.kind === "dm" && !c.dmTriggerEnabled) continue;
-    if (t.data.kind === "comment") {
-      // OpenReply doesn't know "the specific post wins": any overlap is a clash ("any" overlaps every post).
-      const theirs: string[] | "any" = c.matchAnyPost ? "any" : c.postId ? [c.postId] : [];
-      const mine = t.data.postIds;
-      const overlapPosts = mine === "any" || theirs === "any" ? mine === "any" || theirs.length > 0 || theirs === "any" : mine.some((p) => theirs.includes(p));
-      if (!overlapPosts) continue;
+  const seen = new Set<string>();
+  const push = (c: KeywordClash) => {
+    const key = `${c.with}:${c.id}:${c.keyword}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(c);
+  };
+  for (const t of mineAll) {
+    const myPosts = t.postIds ?? "any";
+    for (const o of others) {
+      for (const ot of graphTriggers(o.graph)) {
+        if (ot.kind !== t.kind) continue;
+        if (t.kind === "comment" && !postsCollide(myPosts, ot.postIds ?? "any")) continue;
+        for (const k of overlap(t.keywords, ot.keywords)) push({ keyword: k, with: "workflow", id: o.id, name: o.name });
+      }
     }
-    for (const k of overlap(mine, c.keywords)) out.push({ keyword: k, with: "campaign", id: c.id, name: c.name });
+    for (const c of campaigns) {
+      if (t.kind === "dm" && !c.dmTriggerEnabled) continue;
+      if (t.kind === "comment") {
+        // OpenReply doesn't know "the specific post wins": any overlap is a clash ("any" overlaps every post).
+        const theirs: string[] | "any" = c.matchAnyPost ? "any" : c.postId ? [c.postId] : [];
+        const overlapPosts = myPosts === "any" || theirs === "any" ? myPosts === "any" || theirs.length > 0 || theirs === "any" : myPosts.some((p) => theirs.includes(p));
+        if (!overlapPosts) continue;
+      }
+      for (const k of overlap(t.keywords, c.keywords)) push({ keyword: k, with: "campaign", id: c.id, name: c.name });
+    }
   }
-  for (const z of zernio) for (const k of overlap(mine, z.keywords)) out.push({ keyword: k, with: "zernio", id: z.slug, name: z.name });
+  const all = mineAll.flatMap((t) => t.keywords);
+  for (const z of zernio) for (const k of overlap(all, z.keywords)) push({ keyword: k, with: "zernio", id: z.slug, name: z.name });
   return out;
 }
 

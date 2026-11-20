@@ -26,7 +26,7 @@ import {
   windowOf,
   type SetterData,
 } from "@/lib/os/workflows/setter-step";
-import { matchTrigger, triggerNode, type Surface } from "@/lib/os/workflows/triggers";
+import { aimsAtPosts, matchTrigger, triggerNode, type Surface } from "@/lib/os/workflows/triggers";
 import { isLive, type ContactInfo, type EngineDeps, type OutMessage, type RunRecord, type RunStatus, type SendContext, type TriggerInfo, type VersionDef, type WorkflowDef } from "@/lib/os/workflows/types";
 
 /** One run per person per keyword per 24h (E13). */
@@ -225,10 +225,7 @@ export class WorkflowEngine {
       });
     if (!m) {
       // Only a workflow aimed at this very post counts the miss ("any post" would log every comment).
-      const aimed = live.find(({ version }) => {
-        const t = triggerNode(version.graph);
-        return t?.data.kind === "comment" && t.data.postIds !== "any" && t.data.postIds.some((p) => postIds.includes(p));
-      });
+      const aimed = live.find(({ version }) => aimsAtPosts(version.graph, postIds));
       if (aimed) await skip(aimed.wf.id, "no_keyword");
       return { status: "skipped", reason: "no workflow" };
     }
@@ -382,7 +379,13 @@ export class WorkflowEngine {
     return node?.type !== "setter";
   }
 
-  /** A trigger fired for this person (comment, keyword DM, story reply). */
+  /**
+   * A trigger fired for this person (comment, keyword DM, story reply). A
+   * workflow can have several triggers; what is comment-only (the public
+   * reply, the private-reply opener and its gate, source_post) keys off the
+   * trigger that fired (trig.kind), never the step's first trigger, so a run
+   * started by DM never answers a comment.
+   */
   private async onTrigger(wf: WorkflowDef, version: VersionDef, keyword: string, contact: ContactInfo, trig: TriggerInfo): Promise<Outcome> {
     const now = this.now();
     const ws = contact.workspaceId;

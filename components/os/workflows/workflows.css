@@ -1559,6 +1559,30 @@
   color: var(--muted);
 }
 
+/* Trigger node on the canvas: one line per trigger. */
+.wf-trigger-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.wf-trigger-line + .wf-trigger-line {
+  margin-top: 6px;
+}
+
+/* Trigger step: one block per trigger (comment, DM, ...), same steps after. */
+.wf-trigger-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wf-trigger-block + .wf-trigger-block {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
 .wf-field-row {
   display: flex;
   align-items: center;

@@ -24,7 +24,7 @@ import {
   type Node,
   type NodeChange,
 } from "@xyflow/react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { publishWorkflowAction, saveWorkflowDraft, setWorkflowMode, setWorkflowOn } from "@/app/(os)/os/automations/workflows/actions";
 import { friendlyProblems, PALETTE, problemsByNode, STEP_LABEL, TRIGGER_KIND_LABEL } from "@/components/os/workflows/forms";
 import {
@@ -53,7 +53,7 @@ import { sinceLabel, stripItems } from "@/components/os/workflows/view";
 import { InfoTip } from "@/components/os/ui";
 import { callAction, MODE_LABEL, MODE_TIP, onBlockedNote, saveLabel, UNREACHABLE_NOTE } from "@/components/os/workflows/status";
 import { WorkflowStatusCell } from "@/components/os/workflows/workflow-list";
-import type { GraphProblem, StepData, StepType, WorkflowGraph } from "@/lib/os/workflows/graph";
+import { triggerList, type GraphProblem, type StepData, type StepType, type WorkflowGraph } from "@/lib/os/workflows/graph";
 
 const NODE_TYPES = { step: StepNode };
 const DND_TYPE = "application/x-wf-step";
@@ -412,9 +412,20 @@ function BuilderInner({ workflow, stats, ctx: baseCtx }: BuilderProps) {
           </Link>
           <input className="wf-name" value={name} aria-label="Workflow name" onChange={(e) => setName(e.target.value.slice(0, 80))} />
           {trigData ? (
-            <button type="button" className="wf-trig-chip" title={`${TRIGGER_KIND_LABEL[trigData.kind]}${trigData.postIds === "any" ? " · any post" : ""}`} onClick={() => setSelected(trig!.id)}>
-              <WfIcon name={trigData.kind} size={13} />
-              {trigData.keywords.length ? trigData.keywords.map((k) => <b key={k}>{k}</b>) : <span className="wf-ghost">Keyword</span>}
+            <button
+              type="button"
+              className="wf-trig-chip"
+              title={triggerList(trigData)
+                .map((t) => `${TRIGGER_KIND_LABEL[t.kind]}${t.kind === "comment" && (t.postIds ?? "any") === "any" ? " · any post" : ""}`)
+                .join(" + ")}
+              onClick={() => setSelected(trig!.id)}
+            >
+              {triggerList(trigData).map((t, i) => (
+                <Fragment key={t.id ?? i}>
+                  <WfIcon name={t.kind} size={13} />
+                  {t.keywords.length ? t.keywords.map((k) => <b key={k}>{k}</b>) : <span className="wf-ghost">Keyword</span>}
+                </Fragment>
+              ))}
             </button>
           ) : null}
           <span className="wf-grow" />

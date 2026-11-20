@@ -49,8 +49,25 @@ const Bubble = z.discriminatedUnion("kind", [
 ]);
 export type Bubble = z.infer<typeof Bubble>;
 
+export const TRIGGER_KINDS = ["comment", "story_reply", "dm"] as const;
+
+/**
+ * One way into a workflow: a channel, its keywords and (comments) which posts.
+ * A workflow can have several ("PLAN" on any post AND "PLAN" by DM), all
+ * running the same steps.
+ */
+export const TriggerSpec = z.object({
+  /** Stable key for the builder's list. */
+  id: z.string().optional(),
+  kind: z.enum(TRIGGER_KINDS),
+  keywords: z.array(z.string().min(1)),
+  postIds: z.union([z.array(z.string()), z.literal("any")]).default("any"),
+});
+export type TriggerSpec = z.infer<typeof TriggerSpec>;
+
 export const TriggerData = z.object({
-  kind: z.enum(["comment", "story_reply", "dm"]),
+  /** The first trigger (kind, keywords, postIds). Older graphs only have this one. */
+  kind: z.enum(TRIGGER_KINDS),
   /** Empty in a fresh draft; Publish needs at least one (validateGraph). */
   keywords: z.array(z.string().min(1)),
   /** Comment triggers: these posts, or every post. Ignored for DMs and story replies. */
@@ -59,7 +76,26 @@ export const TriggerData = z.object({
   publicReplies: z.array(text).default([]),
   /** Re-entry after a finished run: never, after N days, or always. */
   reentry: z.object({ mode: z.enum(["never", "after_days", "always"]), days: z.number().int().positive().default(30) }).default({ mode: "after_days", days: 30 }),
+  /** Triggers 2..n. Absent on older graphs (they have one trigger). Read the whole list with triggerList(). */
+  extraTriggers: z.array(TriggerSpec).optional(),
 });
+
+type TriggerFields = { kind: TriggerSpec["kind"]; keywords: string[]; postIds?: TriggerSpec["postIds"]; extraTriggers?: TriggerSpec[] };
+
+/** Every trigger of a trigger step, first one first. An older single-trigger step is a one-item list. */
+export function triggerList(d: TriggerFields): TriggerSpec[] {
+  return [{ kind: d.kind, keywords: d.keywords ?? [], postIds: d.postIds ?? "any" }, ...(d.extraTriggers ?? [])];
+}
+
+/** The trigger step with this list of triggers (at least one). The first goes in the step's own fields, so older readers still see it. */
+export function withTriggerList<T extends TriggerFields>(d: T, list: TriggerSpec[]): T {
+  if (!list.length) return d;
+  const [first, ...rest] = list;
+  const out: T = { ...d, kind: first.kind, keywords: first.keywords, postIds: first.postIds ?? "any" };
+  if (rest.length) out.extraTriggers = rest;
+  else delete out.extraTriggers;
+  return out;
+}
 
 export const MessageData = z.object({ bubbles: z.array(Bubble).min(1) });
 
@@ -191,7 +227,12 @@ export function validateGraph(input: unknown): GraphProblem[] {
     ids.add(n.id);
     const r = STEP_DATA[n.type].safeParse(n.data);
     if (!r.success) problems.push({ nodeId: n.id, message: r.error.issues[0]?.message ?? "Step is incomplete" });
-    else if (n.type === "trigger" && !(r.data as StepData<"trigger">).keywords.length) problems.push({ nodeId: n.id, message: "Add a keyword" });
+    else if (n.type === "trigger") {
+      const list = triggerList(r.data as StepData<"trigger">);
+      list.forEach((t, i) => {
+        if (!t.keywords.length) problems.push({ nodeId: n.id, message: list.length > 1 ? `Add a keyword to trigger ${i + 1}` : "Add a keyword" });
+      });
+    }
     else if (n.type === "message") {
       const bubbles = (r.data as StepData<"message">).bubbles;
       const qr = bubbles.findIndex((b) => b.kind === "quick_replies");

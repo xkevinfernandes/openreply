@@ -9,7 +9,7 @@ import { fieldLabel, resourceName, setterOf, syncTitle, type BuilderContext } fr
 import { CONDITION_RULES, formatMinutes, portLabel, safePorts, savesTo, setterSummary, STEP_LABEL, TRIGGER_KIND_LABEL, waitWindowWarning } from "@/components/os/workflows/forms";
 import { WfIcon } from "@/components/os/workflows/icons";
 import { nodeStatText } from "@/components/os/workflows/view";
-import type { Bubble, GraphNode, StepData } from "@/lib/os/workflows/graph";
+import { triggerList, type Bubble, type GraphNode, type StepData } from "@/lib/os/workflows/graph";
 
 export interface StepNodeData extends Record<string, unknown> {
   node: GraphNode;
@@ -79,14 +79,21 @@ function SaveChips({ node, ctx }: { node: GraphNode; ctx: BuilderContext }) {
 function Body({ node, ctx }: { node: GraphNode; ctx: BuilderContext }) {
   switch (node.type) {
     case "trigger": {
-      const d = node.data as StepData<"trigger">;
+      // One line per trigger (a workflow can start from a comment AND a DM).
       return (
         <>
-          <span className="wf-line1">
-            <b>{TRIGGER_KIND_LABEL[d.kind]}</b>
-            {d.keywords.length ? d.keywords.map((k) => <span key={k} className="wf-kw">{k}</span>) : <span className="wf-kw" data-empty="true">Keyword</span>}
-          </span>
-          {d.kind === "comment" ? <span className="wf-sub">{d.postIds === "any" ? "Any post" : `${d.postIds.length} post${d.postIds.length === 1 ? "" : "s"}`}</span> : null}
+          {triggerList(node.data as StepData<"trigger">).map((d, i) => {
+            const posts = d.postIds ?? "any";
+            return (
+              <span key={d.id ?? i} className="wf-trigger-line">
+                <span className="wf-line1">
+                  <b>{TRIGGER_KIND_LABEL[d.kind]}</b>
+                  {d.keywords.length ? d.keywords.map((k) => <span key={k} className="wf-kw">{k}</span>) : <span className="wf-kw" data-empty="true">Keyword</span>}
+                </span>
+                {d.kind === "comment" ? <span className="wf-sub">{posts === "any" ? "Any post" : `${posts.length} post${posts.length === 1 ? "" : "s"}`}</span> : null}
+              </span>
+            );
+          })}
         </>
       );
     }

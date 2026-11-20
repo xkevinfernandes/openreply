@@ -3,7 +3,7 @@
 // them in; with none the trigger starts empty and Publish asks for one.
 
 import type { TemplateId, TemplateInfo } from "@/lib/os/workflows/api";
-import type { GraphEdge, GraphNode, StepData, WorkflowGraph } from "@/lib/os/workflows/graph";
+import { withTriggerList, type GraphEdge, type GraphNode, type StepData, type TriggerSpec, type WorkflowGraph } from "@/lib/os/workflows/graph";
 
 export type TriggerKind = StepData<"trigger">["kind"];
 
@@ -30,6 +30,15 @@ const edge = (from: string, fromPort: string, to: string): GraphEdge => ({ id: `
 
 const PUBLIC_REPLIES = ["sent you a DM 🙌", "check your DMs!", "just sent it over 👀"];
 
+/** One trigger as callers pass it (createWorkflow, scripts). */
+export interface TriggerInput {
+  kind: TriggerKind;
+  keywords: string[];
+  postIds?: string[] | "any";
+}
+
+const cleanKeywords = (ks: string[]) => [...new Set(ks.map((k) => k.trim()).filter(Boolean))];
+
 /** The public replies are kept on every kind (ignored off comments), so switching back to Comment has them. */
 function triggerData(kind: TriggerKind, keywords: string[]): StepData<"trigger"> {
   return { kind, keywords, postIds: "any", publicReplies: [...PUBLIC_REPLIES], reentry: { mode: "after_days", days: 30 } };
@@ -38,11 +47,18 @@ function triggerData(kind: TriggerKind, keywords: string[]): StepData<"trigger">
 /** Templates whose own positions are kept (the canvas doesn't re-lay them out). */
 export const HAND_LAID: TemplateId[] = ["waitlist_questions"];
 
-export function templateGraph(id: TemplateId, opts: { keyword?: string; keywords?: string[]; kind?: TriggerKind; resource?: string } = {}): WorkflowGraph {
-  const keywords = [...new Set([...(opts.keyword ? [opts.keyword] : []), ...(opts.keywords ?? [])].map((k) => k.trim()).filter(Boolean))];
+export function templateGraph(
+  id: TemplateId,
+  opts: { keyword?: string; keywords?: string[]; kind?: TriggerKind; resource?: string; triggers?: TriggerInput[] } = {}
+): WorkflowGraph {
+  const keywords = cleanKeywords([...(opts.keyword ? [opts.keyword] : []), ...(opts.keywords ?? [])]);
   const kind: TriggerKind = opts.kind ?? "comment";
   const resources = opts.resource ? [opts.resource] : [];
-  const trigger = node("trigger", "trigger", 0, triggerData(kind, keywords));
+  // Several triggers (PLAN on comments AND by DM) win over the single keyword/kind.
+  const list: TriggerSpec[] = opts.triggers?.length
+    ? opts.triggers.map((t, i) => ({ ...(i ? { id: `t${i + 1}` } : {}), kind: t.kind, keywords: cleanKeywords(t.keywords), postIds: t.postIds ?? "any" }))
+    : [{ kind, keywords, postIds: "any" }];
+  const trigger = node("trigger", "trigger", 0, withTriggerList(triggerData(list[0].kind, list[0].keywords), list));
   switch (id) {
     case "hold_lead_magnet":
       return {

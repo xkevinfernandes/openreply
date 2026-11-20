@@ -5,6 +5,9 @@
 // docs/sp/dms/2026-10-19-workflows-spec.md.
 
 import type { GraphProblem, StepType, WorkflowGraph } from "@/lib/os/workflows/graph";
+import type { TriggerInput } from "@/lib/os/workflows/templates";
+
+export type { TriggerInput };
 
 export type WorkflowMode = "draft" | "auto";
 export type TemplateId = "hold_lead_magnet" | "send_link" | "start_conversation" | "waitlist_questions" | "blank";
@@ -24,9 +27,12 @@ export interface GraphWarning {
 }
 
 export interface WorkflowTriggerSummary {
+  /** The first trigger (older callers read only this). */
   kind: "comment" | "story_reply" | "dm";
   keywords: string[];
   postIds: string[] | "any";
+  /** Every trigger, the first one included (one item for a single-trigger workflow). */
+  triggers?: { kind: "comment" | "story_reply" | "dm"; keywords: string[]; postIds: string[] | "any" }[];
 }
 
 export interface WorkflowSummary {
@@ -191,7 +197,15 @@ export async function getWorkflow(workspaceId: string, id: string): Promise<Work
  */
 export async function createWorkflow(
   workspaceId: string,
-  input: { templateId: TemplateId; name?: string; instagramAccountId?: string | null; keywords?: string[]; triggerKind?: WorkflowTriggerSummary["kind"] }
+  input: {
+    templateId: TemplateId;
+    name?: string;
+    instagramAccountId?: string | null;
+    keywords?: string[];
+    triggerKind?: WorkflowTriggerSummary["kind"];
+    /** Several triggers (e.g. PLAN on any post AND PLAN by DM). Wins over keywords/triggerKind. */
+    triggers?: TriggerInput[];
+  }
 ): Promise<ApiResult<{ id: string }> | { ok: false; error: string; clashes: KeywordClash[] }> {
   return (await impl()).createWorkflow(workspaceId, input);
 }

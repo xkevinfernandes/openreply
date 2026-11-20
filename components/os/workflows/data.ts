@@ -6,13 +6,13 @@
 // board's four workflows, per-step stats and runs (maya.builds paused,
 // tom.k and jordan.ops active), so the screens work without the engine.
 
-import { detailFromApi, publishProblems, rowFromSummary, runFromApi, statsFromApi } from "@/components/os/workflows/api-map";
+import { detailFromApi, publishProblems, rowFromSummary, rowTrigger, runFromApi, statsFromApi } from "@/components/os/workflows/api-map";
 import { friendlyProblems, parseKeywords, STEP_LABEL } from "@/components/os/workflows/forms";
 import { fillResource, layoutFor, templateGraph, TEMPLATES, type TemplateKey, type TriggerKind } from "@/components/os/workflows/templates";
 import type { ContactRun, FunnelStrip, NodeStat, Period, WorkflowDetail, WorkflowMode, WorkflowRow, WorkflowStats } from "@/components/os/workflows/types";
 import { osMockEnabled } from "@/lib/os/mock";
-import { portsOf, WorkflowGraph, type GraphProblem, type StepData } from "@/lib/os/workflows/graph";
-import { clashMessage, normKeyword } from "@/lib/os/workflows/triggers";
+import { portsOf, triggerList, WorkflowGraph, type GraphProblem, type StepData } from "@/lib/os/workflows/graph";
+import { clashMessage, keywordClashes } from "@/lib/os/workflows/triggers";
 
 const api = () => import("@/lib/os/workflows/api");
 
@@ -207,11 +207,12 @@ async function mockListWorkflows(_workspaceId: string): Promise<WorkflowRow[]> {
   return [...store().workflows.values()].map((w) => {
     const graph = w.versions.at(-1)?.graph ?? w.draft;
     const trig = graph.nodes.find((n) => n.type === "trigger")?.data as StepData<"trigger"> | undefined;
+    const list = trig ? triggerList(trig) : [];
     const stats = computeStats(w);
     return {
       id: w.id,
       name: w.name,
-      trigger: { kind: trig?.kind ?? "comment", keywords: trig?.keywords ?? [] },
+      trigger: rowTrigger(trig ? { kind: trig.kind, keywords: trig.keywords, postIds: trig.postIds, triggers: list.map((t) => ({ kind: t.kind, keywords: t.keywords, postIds: t.postIds ?? "any" })) } : null),
       mode: w.mode,
       on: w.on,
       ab: graph.nodes.some((n) => n.type === "randomizer"),
@@ -292,19 +293,13 @@ async function mockPublishWorkflow(_workspaceId: string, id: string): Promise<{ 
   return { version };
 }
 
-/** E12: one keyword lives in one live workflow (same words as the engine's check). */
+/** E12: one keyword lives in one live workflow (the engine's own check, every trigger). */
 function keywordClash(id: string, draft: WorkflowGraph): string | null {
-  const trig = (g: WorkflowGraph | undefined) => g?.nodes.find((n) => n.type === "trigger")?.data as StepData<"trigger"> | undefined;
-  const mine = trig(draft);
-  if (!mine) return null;
-  for (const other of store().workflows.values()) {
-    if (other.id === id || !other.on) continue;
-    const theirs = trig(other.versions.at(-1)?.graph);
-    if (!theirs || theirs.kind !== mine.kind) continue;
-    const hit = mine.keywords.find((k) => theirs.keywords.some((t) => normKeyword(t) === normKeyword(k)));
-    if (hit) return clashMessage({ keyword: hit, with: "workflow", id: other.id, name: other.name });
-  }
-  return null;
+  const others = [...store().workflows.values()]
+    .filter((o) => o.id !== id && o.on && o.versions.length)
+    .map((o) => ({ id: o.id, name: o.name, graph: o.versions.at(-1)!.graph }));
+  const hit = keywordClashes(draft, others, [], [])[0];
+  return hit ? clashMessage(hit) : null;
 }
 
 async function mockSetMode(_workspaceId: string, id: string, mode: WorkflowMode): Promise<void> {
